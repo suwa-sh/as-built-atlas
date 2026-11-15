@@ -1,0 +1,299 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: hourly.consume_stock_events
+  path: /hourly/consume_stock_events
+  name: consume_stock_events
+  layer: scheduler
+  source:
+    file: flows/hourly/consume_stock_events.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: キュー stock.changed を 5 分ごとに読み、在庫数と Redis の在庫キャッシュへ反映する
+  evidence:
+  - file: flows/hourly/consume_stock_events.yaml
+    line: 3
+  - file: jobs/consume_stock_events.py
+    line: 1
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: hourly.consume_stock_events
+  source:
+    file: flows/hourly/consume_stock_events.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: キュー stock.changed を 5 分ごとに読み、在庫数と Redis の在庫キャッシュへ反映する
+    evidence:
+    - file: flows/hourly/consume_stock_events.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: '*/5 * * * * (Asia/Tokyo)'
+    status: fact
+    evidence:
+    - file: flows/hourly/consume_stock_events.yaml
+      line: 24
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/hourly/consume_stock_events.yaml
+      line: 8
+- id: run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/hourly/consume_stock_events.yaml
+      line: 20
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: consume_stock_events (第 1 引数。実行するモジュール jobs.consume_stock_events とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/hourly/consume_stock_events.yaml
+      line: 20
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/hourly/consume_stock_events.yaml
+      line: 18
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: consume_stock_events.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: job
+  layer: program
+  kind: module
+  name: jobs.consume_stock_events
+  source:
+    file: jobs/consume_stock_events.py
+    line: 1
+  caller: run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=consume_stock_events なので jobs.consume_stock_events が動く
+  summary:
+    status: interpretation
+    value: キュー stock.changed を 5 分ごとに読み、在庫数と Redis の在庫キャッシュへ反映する
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 1
+    - file: jobs/consume_stock_events.py
+      line: 17
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 13
+  io:
+  - op: consume
+    status: fact
+    resource:
+      kind: queue
+      levels:
+        broker: mq.internal
+        topic: stock.changed
+    detail: 出荷・返品・棚卸で発生した在庫の変化 (sku, delta, reason, moved_at, id)
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 21
+  - op: update
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: stock
+    detail: SKU ごとに加算
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 25
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: stock_movements
+    detail: イベント 1 件 = 1 行
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 30
+  - op: set
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        host: cache.internal
+        instance: '0'
+        key_pattern: stock:{sku}
+    detail: 更新後の現在庫
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 36
+- id: lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 8
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: lib_cache
+  layer: program
+  kind: module
+  name: jobs.lib.cache
+  source:
+    file: jobs/lib/cache.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 8
+  summary:
+    status: interpretation
+    value: Redis のキャッシュ (redis-py の薄いラッパー)。キーの設計は docs/keys.md。
+    evidence:
+    - file: jobs/lib/cache.py
+      line: 1
+- id: redis
+  layer: external
+  kind: library
+  name: redis
+  source:
+    file: jobs/lib/cache.py
+    line: 7
+  caller: lib_cache
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/cache.py
+      line: 17
+- id: lib_mq
+  layer: program
+  kind: module
+  name: jobs.lib.mq
+  source:
+    file: jobs/lib/mq.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/consume_stock_events.py
+      line: 8
+  summary:
+    status: interpretation
+    value: メッセージキュー (pika / AMQP の薄いラッパー)。トピック名はキュー名と同じ。
+    evidence:
+    - file: jobs/lib/mq.py
+      line: 1
+- id: pika
+  layer: external
+  kind: library
+  name: pika
+  source:
+    file: jobs/lib/mq.py
+    line: 7
+  caller: lib_mq
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/mq.py
+      line: 13
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

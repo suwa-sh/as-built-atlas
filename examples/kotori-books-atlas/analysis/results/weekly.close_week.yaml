@@ -1,0 +1,799 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: weekly.close_week
+  path: /weekly/close_week
+  name: close_week
+  layer: scheduler
+  source:
+    file: flows/weekly/close_week.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: 週次の締め。コホート分析と仕入先向け明細を Subflow で呼ぶ。失敗時は lib.notify_failure に通知する
+  evidence:
+  - file: flows/weekly/close_week.yaml
+    line: 3
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: weekly.close_week
+  source:
+    file: flows/weekly/close_week.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: 週次の締め。コホート分析と仕入先向け明細を Subflow で呼ぶ。失敗時は lib.notify_failure に通知する
+    evidence:
+    - file: flows/weekly/close_week.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 0 3 * * 1 (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/weekly/close_week.yaml
+      line: 43
+  - name: inputs.week_start
+    value: DATE。週の初日 (月曜)
+    status: fact
+    evidence:
+    - file: flows/weekly/close_week.yaml
+      line: 8
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/weekly/close_week.yaml
+      line: 12
+- id: cohort_retention__flow
+  layer: scheduler
+  kind: subflow
+  name: weekly.cohort_retention
+  source:
+    file: flows/weekly/cohort_retention.yaml
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/weekly/close_week.yaml
+      line: 19
+    note: 'Subflow として呼ばれる (wait: true)'
+  summary:
+    status: interpretation
+    value: 初回購入月ごとのコホートで週次の継続率を計算し、mart.cohort_retention と CSV (S3) に出す
+    evidence:
+    - file: flows/weekly/cohort_retention.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/weekly/cohort_retention.yaml
+      line: 1
+  - name: inputs.week_start
+    value: DATE。週の初日 (月曜)
+    status: fact
+    evidence:
+    - file: flows/weekly/cohort_retention.yaml
+      line: 8
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/weekly/cohort_retention.yaml
+      line: 12
+- id: cohort_retention__run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: cohort_retention__flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/weekly/cohort_retention.yaml
+      line: 24
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: cohort_retention (第 1 引数。実行するモジュール jobs.cohort_retention とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/weekly/cohort_retention.yaml
+      line: 24
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/weekly/cohort_retention.yaml
+      line: 22
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: cohort_retention.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: cohort_retention__job
+  layer: program
+  kind: module
+  name: jobs.cohort_retention
+  source:
+    file: jobs/cohort_retention.py
+    line: 1
+  caller: cohort_retention__run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=cohort_retention なので jobs.cohort_retention が動く
+  summary:
+    status: interpretation
+    value: 初回購入月ごとのコホートで週次の継続率を計算し、mart.cohort_retention と CSV (S3) に出す
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 1
+    - file: jobs/cohort_retention.py
+      line: 21
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 17
+  - name: --week-start
+    value: 週の初日 (月曜) (Flow の inputs.week_start から)
+    status: fact
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 16
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: customers
+    detail: 初回購入月と週ごとの購入有無
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 28
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: orders
+    detail: 初回購入月と週ごとの購入有無
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 29
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: mart
+        table: cohort_retention
+    detail: コホート × 週で 1 行
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 36
+  - op: write
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/weekly
+        file: cohort_{week_start}.csv
+    detail: 継続率の表
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 43
+  - op: put
+    status: fact
+    resource:
+      kind: object_storage
+      levels:
+        bucket: kotori-reports
+        prefix: weekly/cohort/
+    detail: CSV を置く
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 47
+- id: cohort_retention__lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: cohort_retention__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 11
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: cohort_retention__psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: cohort_retention__lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: cohort_retention__lib_storage
+  layer: program
+  kind: module
+  name: jobs.lib.storage
+  source:
+    file: jobs/lib/storage.py
+    line: 1
+  caller: cohort_retention__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/cohort_retention.py
+      line: 11
+  summary:
+    status: interpretation
+    value: S3 互換のオブジェクトストレージ (boto3 の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/storage.py
+      line: 1
+- id: cohort_retention__boto3
+  layer: external
+  kind: library
+  name: boto3
+  source:
+    file: jobs/lib/storage.py
+    line: 4
+  caller: cohort_retention__lib_storage
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/storage.py
+      line: 12
+- id: supplier_statements__flow
+  layer: scheduler
+  kind: subflow
+  name: weekly.supplier_statements
+  source:
+    file: flows/weekly/supplier_statements.yaml
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/weekly/close_week.yaml
+      line: 27
+    note: 'Subflow として呼ばれる (wait: true)'
+  summary:
+    status: interpretation
+    value: 仕入先ごとの週次明細 (入荷と発注) を CSV にまとめ、メールで送る
+    evidence:
+    - file: flows/weekly/supplier_statements.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/weekly/supplier_statements.yaml
+      line: 1
+  - name: inputs.week_start
+    value: DATE。週の初日 (月曜)
+    status: fact
+    evidence:
+    - file: flows/weekly/supplier_statements.yaml
+      line: 8
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/weekly/supplier_statements.yaml
+      line: 12
+- id: supplier_statements__run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: supplier_statements__flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/weekly/supplier_statements.yaml
+      line: 24
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: supplier_statements (第 1 引数。実行するモジュール jobs.supplier_statements とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/weekly/supplier_statements.yaml
+      line: 24
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/weekly/supplier_statements.yaml
+      line: 22
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: supplier_statements.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: supplier_statements__job
+  layer: program
+  kind: module
+  name: jobs.supplier_statements
+  source:
+    file: jobs/supplier_statements.py
+    line: 1
+  caller: supplier_statements__run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=supplier_statements なので jobs.supplier_statements が動く
+  summary:
+    status: interpretation
+    value: 仕入先ごとの週次明細 (入荷と発注) を CSV にまとめ、メールで送る
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 1
+    - file: jobs/supplier_statements.py
+      line: 22
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 18
+  - name: --week-start
+    value: 週の初日 (月曜) (Flow の inputs.week_start から)
+    status: fact
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 17
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: suppliers
+    detail: 仕入先ごとの入荷と発注
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 29
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: inbound_receipts
+    detail: 仕入先ごとの入荷と発注
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 30
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: purchase_orders
+    detail: 仕入先ごとの入荷と発注
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 31
+  - op: write
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/suppliers
+        file: '{supplier_code}_{week_start}.csv'
+    detail: 仕入先 1 件 = 1 ファイル
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 38
+  - op: call
+    status: fact
+    resource:
+      kind: external_api
+      levels:
+        host: api.mail.example
+        path: /v3/mail/send
+    detail: CSV を添付して仕入先担当に送る
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 43
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: audit
+        table: mail_log
+    detail: 送ったメールの記録
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 46
+- id: supplier_statements__lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: supplier_statements__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 12
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: supplier_statements__psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: supplier_statements__lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: supplier_statements__lib_http
+  layer: program
+  kind: module
+  name: jobs.lib.http
+  source:
+    file: jobs/lib/http.py
+    line: 1
+  caller: supplier_statements__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/supplier_statements.py
+      line: 12
+  summary:
+    status: interpretation
+    value: 外部 API 呼び出し (requests の薄いラッパー)。認証ヘッダはホストごとの環境変数 KOTORI_API_TOKEN_<HOST> から付ける。
+    evidence:
+    - file: jobs/lib/http.py
+      line: 1
+- id: supplier_statements__requests
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/http.py
+    line: 6
+  caller: supplier_statements__lib_http
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/http.py
+      line: 23
+- id: notify_failure__flow
+  layer: scheduler
+  kind: subflow
+  name: lib.notify_failure
+  source:
+    file: flows/lib/notify_failure.yaml
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/weekly/close_week.yaml
+      line: 36
+    note: 'Subflow として呼ばれる (wait: true)'
+  summary:
+    status: interpretation
+    value: 他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 1
+  - name: inputs.flow_id
+    value: STRING。失敗した Flow
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 8
+  - name: inputs.execution_id
+    value: STRING。失敗した実行の ID
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 12
+- id: notify_failure__run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: notify_failure__flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 25
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: notify_failure (第 1 引数。実行するモジュール jobs.notify_failure とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 25
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 23
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: notify_failure.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: notify_failure__job
+  layer: program
+  kind: module
+  name: jobs.notify_failure
+  source:
+    file: jobs/notify_failure.py
+    line: 1
+  caller: notify_failure__run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=notify_failure なので jobs.notify_failure が動く
+  summary:
+    status: interpretation
+    value: 他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 1
+    - file: jobs/notify_failure.py
+      line: 19
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 15
+  - name: --flow-id
+    value: 失敗した Flow (Flow の inputs.flow_id から)
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 13
+  - name: --execution-id
+    value: 失敗した実行の ID (Flow の inputs.execution_id から)
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 14
+  io: []
+- id: notify_failure__lib_notify
+  layer: program
+  kind: module
+  name: jobs.lib.notify
+  source:
+    file: jobs/lib/notify.py
+    line: 1
+  caller: notify_failure__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 22
+  summary:
+    status: interpretation
+    value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+    - file: jobs/lib/notify.py
+      line: 13
+  io:
+  - op: call
+    status: unknown
+    reason: not_traceable_in_repo
+    resource:
+      kind: external_api
+      levels: {}
+    detail: チャットの Webhook (POST, JSON の text)
+    note: URL は環境変数 KOTORI_CHAT_WEBHOOK で、リポジトリに無い
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+- id: notify_failure__requests_notify
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/notify.py
+    line: 6
+  caller: notify_failure__lib_notify
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 13
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

@@ -1,0 +1,1403 @@
+format_version: 1
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+profile:
+  id: ui-nextjs
+  version: 0.3.0
+extractors:
+- name: next-pages
+  run: abatlas-extract glob
+  layer: page
+  params:
+    files:
+    - src/app/**/page.tsx
+    - src/app/**/page.jsx
+    - src/app/**/page.ts
+    - src/app/**/page.js
+    exclude:
+    - src/app/_*/**
+    - src/app/**/_*/**
+    segments:
+      strip_prefix: src/app
+      drop:
+      - \([^)]+\)
+      replace:
+      - pattern: ^(\(\.+\))+
+        with: ''
+      empty: (root)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\[\[\.\.\.(.+)\]\]$
+        with: \1_o
+      - pattern: ^\[\.\.\.(.+)\]$
+        with: \1_c
+      - pattern: ^\[(.+)\]$
+        with: \1_d
+      - pattern: ^@(.+)$
+        with: \1_s
+      - pattern: ^\(root\)$
+        with: root_r
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: export\s+default
+    contains:
+      client: ^['"]use client['"]
+      metadata: export\s+(const\s+metadata|(async\s+)?function\s+generateMetadata)
+  rationale: app ディレクトリは src/app にあり、画面は page.tsx だけ (page.ts / .jsx / .js は 0 件、private
+    folder も 0 件)。next.config.ts は pageExtensions を変えていない。プロファイルの既定パラメータのまま使える
+- name: next-layouts
+  run: abatlas-extract glob
+  layer: layout
+  params:
+    files:
+    - src/app/**/layout.tsx
+    - src/app/**/layout.jsx
+    - src/app/**/layout.ts
+    - src/app/**/layout.js
+    exclude:
+    - src/app/_*/**
+    - src/app/**/_*/**
+    segments:
+      strip_prefix: src/app
+      prefix:
+      - (layout)
+      replace:
+      - pattern: ^(\(\.+\))+
+        with: ''
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(layout\)$
+        with: layout_l
+      - pattern: ^\[\[\.\.\.(.+)\]\]$
+        with: \1_o
+      - pattern: ^\[\.\.\.(.+)\]$
+        with: \1_c
+      - pattern: ^\[(.+)\]$
+        with: \1_d
+      - pattern: ^@(.+)$
+        with: \1_s
+      - pattern: ^\((.+)\)$
+        with: \1_g
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: export\s+default
+    contains:
+      client: ^['"]use client['"]
+      metadata: export\s+(const\s+metadata|(async\s+)?function\s+generateMetadata)
+  rationale: 画面を包む共通の枠 (layout.tsx) を、画面とは別の入口として拾う。app の場所は next-pages と同じ src/app。枠以外の特別なファイルは
+    not-found.tsx (文言だけ) と (main)/websites/[websiteId]/@modal/default.tsx (null を返すだけ)
+    の 2 つで、どちらもデータに届かないので入口にしない
+entries:
+- id: admin.security
+  path: /admin/security
+  layer: page
+  source:
+    file: src/app/(main)/admin/security/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: security
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    - security
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.admin
+- id: admin.teams
+  path: /admin/teams
+  layer: page
+  source:
+    file: src/app/(main)/admin/teams/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: teams
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    - teams
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.admin
+- id: admin.teams.teamId_d
+  path: /admin/teams/[teamId]
+  layer: page
+  source:
+    file: src/app/(main)/admin/teams/[teamId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[teamId]'
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    - teams
+    - '[teamId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.admin
+- id: admin.users
+  path: /admin/users
+  layer: page
+  source:
+    file: src/app/(main)/admin/users/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: users
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    - users
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.admin
+- id: admin.users.userId_d
+  path: /admin/users/[userId]
+  layer: page
+  source:
+    file: src/app/(main)/admin/users/[userId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[userId]'
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    - users
+    - '[userId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.admin
+- id: admin.websites
+  path: /admin/websites
+  layer: page
+  source:
+    file: src/app/(main)/admin/websites/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: websites
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    - websites
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.admin
+- id: admin.websites.websiteId_d
+  path: /admin/websites/[websiteId]
+  layer: page
+  source:
+    file: src/app/(main)/admin/websites/[websiteId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[websiteId]'
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    - websites
+    - '[websiteId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.admin
+- id: boards
+  path: /boards
+  layer: page
+  source:
+    file: src/app/(main)/boards/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: boards
+  attributes:
+    file_segments:
+    - (main)
+    - boards
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: boards.boardId_d
+  path: /boards/[boardId]
+  layer: page
+  source:
+    file: src/app/(main)/boards/[boardId]/page.tsx
+    line: 5
+  extractor: next-pages
+  status: approved
+  name: '[boardId]'
+  attributes:
+    file_segments:
+    - (main)
+    - boards
+    - '[boardId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: boards.boardId_d.design
+  path: /boards/[boardId]/design
+  layer: page
+  source:
+    file: src/app/(main)/boards/[boardId]/design/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: design
+  attributes:
+    file_segments:
+    - (main)
+    - boards
+    - '[boardId]'
+    - design
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: boards.boardId_d.edit
+  path: /boards/[boardId]/edit
+  layer: page
+  source:
+    file: src/app/(main)/boards/[boardId]/edit/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: edit
+  attributes:
+    file_segments:
+    - (main)
+    - boards
+    - '[boardId]'
+    - edit
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: boards.create
+  path: /boards/create
+  layer: page
+  source:
+    file: src/app/(main)/boards/create/page.tsx
+    line: 5
+  extractor: next-pages
+  status: approved
+  name: create
+  attributes:
+    file_segments:
+    - (main)
+    - boards
+    - create
+    client: true
+    metadata: false
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: console.websiteId_d
+  path: /console/[websiteId]
+  layer: page
+  source:
+    file: src/app/(main)/console/[websiteId]/page.tsx
+    line: 8
+  extractor: next-pages
+  status: approved
+  name: '[websiteId]'
+  attributes:
+    file_segments:
+    - (main)
+    - console
+    - '[websiteId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: dashboard
+  path: /dashboard
+  layer: page
+  source:
+    file: src/app/(main)/dashboard/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: dashboard
+  attributes:
+    file_segments:
+    - (main)
+    - dashboard
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: dashboard.edit
+  path: /dashboard/edit
+  layer: page
+  source:
+    file: src/app/(main)/dashboard/edit/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: edit
+  attributes:
+    file_segments:
+    - (main)
+    - dashboard
+    - edit
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: layout_l
+  path: /(layout)
+  layer: layout
+  source:
+    file: src/app/layout.tsx
+    line: 16
+  extractor: next-layouts
+  status: approved
+  name: (layout)
+  attributes:
+    file_segments: []
+    client: false
+    metadata: true
+- id: layout_l.main_g
+  path: /(layout)/(main)
+  layer: layout
+  source:
+    file: src/app/(main)/layout.tsx
+    line: 5
+  extractor: next-layouts
+  status: approved
+  name: (main)
+  attributes:
+    file_segments:
+    - (main)
+    client: false
+    metadata: true
+  within:
+  - layout_l
+- id: layout_l.main_g.admin
+  path: /(layout)/(main)/admin
+  layer: layout
+  source:
+    file: src/app/(main)/admin/layout.tsx
+    line: 4
+  extractor: next-layouts
+  status: approved
+  name: admin
+  attributes:
+    file_segments:
+    - (main)
+    - admin
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: layout_l.main_g.settings
+  path: /(layout)/(main)/settings
+  layer: layout
+  source:
+    file: src/app/(main)/settings/layout.tsx
+    line: 4
+  extractor: next-layouts
+  status: approved
+  name: settings
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: layout_l.main_g.websites.websiteId_d
+  path: /(layout)/(main)/websites/[websiteId]
+  layer: layout
+  source:
+    file: src/app/(main)/websites/[websiteId]/layout.tsx
+    line: 5
+  extractor: next-layouts
+  status: approved
+  name: '[websiteId]'
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: layout_l.share.slug_d
+  path: /(layout)/share/[slug]
+  layer: layout
+  source:
+    file: src/app/share/[slug]/layout.tsx
+    line: 3
+  extractor: next-layouts
+  status: approved
+  name: '[slug]'
+  attributes:
+    file_segments:
+    - share
+    - '[slug]'
+    client: false
+    metadata: false
+  within:
+  - layout_l
+- id: links
+  path: /links
+  layer: page
+  source:
+    file: src/app/(main)/links/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: links
+  attributes:
+    file_segments:
+    - (main)
+    - links
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: links.linkId_d
+  path: /links/[linkId]
+  layer: page
+  source:
+    file: src/app/(main)/links/[linkId]/page.tsx
+    line: 5
+  extractor: next-pages
+  status: approved
+  name: '[linkId]'
+  attributes:
+    file_segments:
+    - (main)
+    - links
+    - '[linkId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: links.linkId_d.edit
+  path: /links/[linkId]/edit
+  layer: page
+  source:
+    file: src/app/(main)/links/[linkId]/edit/page.tsx
+    line: 5
+  extractor: next-pages
+  status: approved
+  name: edit
+  attributes:
+    file_segments:
+    - (main)
+    - links
+    - '[linkId]'
+    - edit
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: login
+  path: /login
+  layer: page
+  source:
+    file: src/app/login/page.tsx
+    line: 6
+  extractor: next-pages
+  status: approved
+  name: login
+  attributes:
+    file_segments:
+    - login
+    client: false
+    metadata: true
+  within:
+  - layout_l
+- id: login.two-factor
+  path: /login/two-factor
+  layer: page
+  source:
+    file: src/app/login/two-factor/page.tsx
+    line: 5
+  extractor: next-pages
+  status: approved
+  name: two-factor
+  attributes:
+    file_segments:
+    - login
+    - two-factor
+    client: false
+    metadata: true
+  within:
+  - layout_l
+- id: logout
+  path: /logout
+  layer: page
+  source:
+    file: src/app/logout/page.tsx
+    line: 6
+  extractor: next-pages
+  status: approved
+  name: logout
+  attributes:
+    file_segments:
+    - logout
+    client: false
+    metadata: true
+  within:
+  - layout_l
+- id: pixels
+  path: /pixels
+  layer: page
+  source:
+    file: src/app/(main)/pixels/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: pixels
+  attributes:
+    file_segments:
+    - (main)
+    - pixels
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: pixels.pixelId_d
+  path: /pixels/[pixelId]
+  layer: page
+  source:
+    file: src/app/(main)/pixels/[pixelId]/page.tsx
+    line: 5
+  extractor: next-pages
+  status: approved
+  name: '[pixelId]'
+  attributes:
+    file_segments:
+    - (main)
+    - pixels
+    - '[pixelId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: pixels.pixelId_d.edit
+  path: /pixels/[pixelId]/edit
+  layer: page
+  source:
+    file: src/app/(main)/pixels/[pixelId]/edit/page.tsx
+    line: 5
+  extractor: next-pages
+  status: approved
+  name: edit
+  attributes:
+    file_segments:
+    - (main)
+    - pixels
+    - '[pixelId]'
+    - edit
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: root_r
+  path: /(root)
+  layer: page
+  source:
+    file: src/app/page.tsx
+    line: 7
+  extractor: next-pages
+  status: approved
+  name: (root)
+  attributes:
+    file_segments: []
+    client: true
+    metadata: false
+  within:
+  - layout_l
+- id: settings.api-keys
+  path: /settings/api-keys
+  layer: page
+  source:
+    file: src/app/(main)/settings/api-keys/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: api-keys
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - api-keys
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: settings.preferences
+  path: /settings/preferences
+  layer: page
+  source:
+    file: src/app/(main)/settings/preferences/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: preferences
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - preferences
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: settings.profile
+  path: /settings/profile
+  layer: page
+  source:
+    file: src/app/(main)/settings/profile/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: profile
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - profile
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: settings.security
+  path: /settings/security
+  layer: page
+  source:
+    file: src/app/(main)/settings/security/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: security
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - security
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: settings.teams
+  path: /settings/teams
+  layer: page
+  source:
+    file: src/app/(main)/settings/teams/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: teams
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - teams
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: settings.teams.teamId_d
+  path: /settings/teams/[teamId]
+  layer: page
+  source:
+    file: src/app/(main)/settings/teams/[teamId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[teamId]'
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - teams
+    - '[teamId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: settings.websites
+  path: /settings/websites
+  layer: page
+  source:
+    file: src/app/(main)/settings/websites/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: websites
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - websites
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: settings.websites.websiteId_d
+  path: /settings/websites/[websiteId]
+  layer: page
+  source:
+    file: src/app/(main)/settings/websites/[websiteId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[websiteId]'
+  attributes:
+    file_segments:
+    - (main)
+    - settings
+    - websites
+    - '[websiteId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.settings
+- id: share.slug_d.path_o
+  path: /share/[slug]/[[...path]]
+  layer: page
+  source:
+    file: src/app/share/[slug]/[[...path]]/page.tsx
+    line: 3
+  extractor: next-pages
+  status: approved
+  name: '[[...path]]'
+  attributes:
+    file_segments:
+    - share
+    - '[slug]'
+    - '[[...path]]'
+    client: false
+    metadata: false
+  within:
+  - layout_l
+  - layout_l.share.slug_d
+- id: sso
+  path: /sso
+  layer: page
+  source:
+    file: src/app/sso/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: sso
+  attributes:
+    file_segments:
+    - sso
+    client: false
+    metadata: false
+  within:
+  - layout_l
+- id: teams
+  path: /teams
+  layer: page
+  source:
+    file: src/app/(main)/teams/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: teams
+  attributes:
+    file_segments:
+    - (main)
+    - teams
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: websites
+  path: /websites
+  layer: page
+  source:
+    file: src/app/(main)/websites/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: websites
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+- id: websites.websiteId_d
+  path: /websites/[websiteId]
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[websiteId]'
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.attribution
+  path: /websites/[websiteId]/attribution
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/attribution/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: attribution
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - attribution
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.breakdown
+  path: /websites/[websiteId]/breakdown
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: breakdown
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - breakdown
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.cohorts
+  path: /websites/[websiteId]/cohorts
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/cohorts/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: cohorts
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - cohorts
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.compare
+  path: /websites/[websiteId]/compare
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/compare/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: compare
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - compare
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.events
+  path: /websites/[websiteId]/events
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/events/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: events
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - events
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.funnels
+  path: /websites/[websiteId]/funnels
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/funnels/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: funnels
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - funnels
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.goals
+  path: /websites/[websiteId]/goals
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/goals/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: goals
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - goals
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.heatmaps
+  path: /websites/[websiteId]/heatmaps
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/heatmaps/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: heatmaps
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - heatmaps
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.journeys
+  path: /websites/[websiteId]/journeys
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/journeys/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: journeys
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - journeys
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.modal_s.replays.sessionId_d
+  path: /websites/[websiteId]/@modal/replays/[sessionId]
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/@modal/(.)replays/[sessionId]/page.tsx
+    line: 3
+  extractor: next-pages
+  status: approved
+  name: '[sessionId]'
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - '@modal'
+    - (.)replays
+    - '[sessionId]'
+    client: false
+    metadata: false
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.modal_s.sessions.sessionId_d
+  path: /websites/[websiteId]/@modal/sessions/[sessionId]
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/@modal/(.)sessions/[sessionId]/page.tsx
+    line: 3
+  extractor: next-pages
+  status: approved
+  name: '[sessionId]'
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - '@modal'
+    - (.)sessions
+    - '[sessionId]'
+    client: false
+    metadata: false
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.performance
+  path: /websites/[websiteId]/performance
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/performance/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: performance
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - performance
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.realtime
+  path: /websites/[websiteId]/realtime
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/realtime/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: realtime
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - realtime
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.replays
+  path: /websites/[websiteId]/replays
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/replays/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: replays
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - replays
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.replays.replayId_d
+  path: /websites/[websiteId]/replays/[replayId]
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[replayId]'
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - replays
+    - '[replayId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.retention
+  path: /websites/[websiteId]/retention
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/retention/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: retention
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - retention
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.revenue
+  path: /websites/[websiteId]/revenue
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/revenue/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: revenue
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - revenue
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.segments
+  path: /websites/[websiteId]/segments
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/segments/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: segments
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - segments
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.sessions
+  path: /websites/[websiteId]/sessions
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/sessions/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: sessions
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - sessions
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.sessions.sessionId_d
+  path: /websites/[websiteId]/sessions/[sessionId]
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/sessions/[sessionId]/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: '[sessionId]'
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - sessions
+    - '[sessionId]'
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.settings
+  path: /websites/[websiteId]/settings
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/settings/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: settings
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - settings
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+- id: websites.websiteId_d.utm
+  path: /websites/[websiteId]/utm
+  layer: page
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/utm/page.tsx
+    line: 4
+  extractor: next-pages
+  status: approved
+  name: utm
+  attributes:
+    file_segments:
+    - (main)
+    - websites
+    - '[websiteId]'
+    - (reports)
+    - utm
+    client: false
+    metadata: true
+  within:
+  - layout_l
+  - layout_l.main_g
+  - layout_l.main_g.websites.websiteId_d
+enumerated_at: '2026-11-12T17:12:29+00:00'

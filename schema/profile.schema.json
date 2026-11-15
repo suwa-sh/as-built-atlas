@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suwa-sh/as-built-atlas/schema/profile.schema.json",
+  "title": "プロファイル (profile.yaml)",
+  "description": "対象の種類ごとにツールが読む構造化データ。エージェント向けの説明は同じディレクトリの context.md に書く。",
+  "type": "object",
+  "required": [
+    "format_version",
+    "id",
+    "version",
+    "layers",
+    "extractors"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 2,
+      "description": "層の連鎖。先頭から順に辿る。role: entry の層に入口があり、role: boundary の層でコールスタックが終わる",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "io"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "entry",
+              "intermediate",
+              "boundary"
+            ],
+            "default": "intermediate"
+          },
+          "stack": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "技術スタック (人が読む)"
+          },
+          "invokes_next": {
+            "type": "string",
+            "description": "次の層を呼ぶときの見え方 (分析 skill への手掛かり)"
+          },
+          "tier": {
+            "type": "string",
+            "minLength": 1,
+            "description": "この層が属する区分の名前 (例: フロント / バック)。画面の構成の図が、同じ区分で隣り合う層を 1 つの枠に入れる。分析には使わない"
+          },
+          "io": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "この層で I/O が現れるデータの種類 (schema/vocab/resource-kinds.yaml の kind)。無ければ空配列を明示する"
+          }
+        }
+      }
+    },
+    "hierarchy": {
+      "type": "object",
+      "description": "入口の階層の段の名前 (概念名。webapp のナビと見出しに出る)。深さが可変の段は末尾に + を付ける (例: [namespace+, flow] は、最後の段が flow、それより前はすべて namespace)。+ は 1 つまで、その後ろに置ける段も 1 つまで",
+      "additionalProperties": false,
+      "properties": {
+        "level_labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^+]+\\+?$"
+          }
+        },
+        "derivation": {
+          "type": "string",
+          "description": "入口からパスを導く方針 (人が読む。実際の導出は抽出器が行う)"
+        },
+        "entry_labels": {
+          "type": "array",
+          "description": "入口の呼び名の出し分け (webapp の入口の詳細のページの見出しに出る)。既定は level_labels から入口の深さで決まる段の名前 (繰り返す段 `名前+` の後ろに段があれば、その末尾の名前。無ければ深さの位置の名前)。階層を分けて別の種類の入口を並べるとき (例: 画面と、画面を包む枠) に、その種類の呼び名を書く。上から順に見て、最初に当たったものを使う",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["contains", "label"],
+            "properties": {
+              "contains": {
+                "type": "string",
+                "minLength": 1,
+                "description": "入口のパスがこの文字列を含むときに使う (正規表現ではない)"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "description": "呼び名 (level_labels と同じく概念名)"
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "array",
+          "description": "段の名前の読み方の説明 (webapp の入口のページに出る)。対象のシステムの書き方がそのまま名前に残るとき (例: 動的な段の角かっこ) に、読む人へ意味を伝える",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text"],
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "description": "画面に出す説明 (1 文)"
+              },
+              "contains": {
+                "type": "string",
+                "minLength": 1,
+                "description": "入口の詳細のページで、パスがこの文字列を含むときだけ出す (正規表現ではない)。無ければいつも出す。階層のページではいつも出す"
+              }
+            }
+          }
+        }
+      }
+    },
+    "within": {
+      "type": "array",
+      "description": "入口が別の入口の中で動く関係 (例: 画面は、それを包む共通の枠の中で動く)。列挙ツールがこの宣言から、入口の一覧の entries[].within を決定的に埋める。包む側も包まれる側も、それぞれ 1 件の入口として分析する",
+      "items": {
+        "type": "object",
+        "required": ["layer", "rule"],
+        "additionalProperties": false,
+        "properties": {
+          "layer": {
+            "type": "string",
+            "description": "包む側の入口の層 id (role: entry)"
+          },
+          "rule": {
+            "type": "string",
+            "enum": ["source_dir"],
+            "description": "包む相手の決め方。source_dir = ソースのファイルが、自分のファイルと同じフォルダか、その配下にある入口を包む"
+          }
+        }
+      }
+    },
+    "extractors": {
+      "type": "array",
+      "description": "このプロファイルで使う抽出器の候補と既定パラメータ。エージェントはリポジトリに合わせてパラメータを埋める",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "run"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "run": {
+            "type": "string",
+            "description": "実行コマンド。コア同梱なら 'abatlas-extract <kind>'、プロファイル同梱なら profile ディレクトリからの相対パス"
+          },
+          "layer": {
+            "type": "string",
+            "description": "出力する入口の層 id"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "既定パラメータ。抽出器に JSON で渡す"
+          },
+          "hint": {
+            "type": "string",
+            "description": "パラメータの決め方 (エージェント向け)"
+          }
+        }
+      }
+    },
+    "marts": {
+      "type": "array",
+      "description": "このプロファイルが作る mart の宣言名 (marts/ 配下の dbt model)。形式は段階 2 で決める",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

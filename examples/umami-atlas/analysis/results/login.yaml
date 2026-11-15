@@ -1,0 +1,433 @@
+format_version: 1
+entry:
+  id: login
+  path: /login
+  name: login
+  layer: page
+  source: { file: src/app/login/page.tsx, line: 6 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.3.0" }
+  skill_version: "0.3.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-13T03:45:51+09:00"
+  reviewed:
+    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
+    at: "2026-11-13T03:50:00+09:00"
+    findings_open: 0
+notes: "プロファイル 0.3.0 で再分析した。0.3.0 の context.md (画面を分析するときは祖先の layout と、そこから描かれる部品を辿らず、入口の summary にも書かない) に合わせて、入口の summary からルートの layout・Providers・翻訳 JSON・DISABLE_UI の記述と、その根拠 (layout.tsx / Providers.tsx / useLocale.ts) を外した。コールスタックと I/O は、同じコミットのソースを読み直して行番号と中身が変わっていないことを確かめ、そのまま残した。レビューの指摘 2 件 (どちらも low。値を支える根拠の行の不足) は直した: 仮トークンの 5 分に route.ts:46、Redis の既定の 3600 秒に redis.ts:7 を足した"
+summary:
+  status: interpretation
+  value: "ユーザー名とパスワードでログインする画面。表示時に POST /api/auth/verify で既存のトークンを確かめ (ストアにユーザーが無いときだけ)、ログイン済みなら / へ転送する。フォーム送信で POST /api/auth/login を呼び、user をユーザー名で読んでパスワードを照合し、two_factor_auth を読んで 2 段階認証が有効なら仮トークンを返して /login/two-factor へ進む。無効なら Redis があれば auth:* キーにセッションを保存してトークンを返し (無ければ署名付きトークンだけ)、所属チームを team / team_user から読んで返す。環境変数 DISABLE_LOGIN か CLOUD_MODE があれば page は何も描かない。ログインのトークンは localStorage、2 段階認証の仮トークンは sessionStorage に保存する (ブラウザ内なので I/O には書かない)"
+  evidence:
+    - { file: src/app/login/page.tsx, line: 7 }
+    - { file: src/app/login/LoginPage.tsx, line: 13 }
+    - { file: src/app/login/LoginForm.tsx, line: 24 }
+    - { file: src/app/api/auth/login/route.ts, line: 14 }
+    - { file: src/app/login/LoginForm.tsx, line: 28 }
+    - { file: src/lib/client.ts, line: 9 }
+    - { file: src/lib/storage.ts, line: 3 }
+callstack:
+  - id: page
+    layer: page
+    kind: page
+    name: "login (src/app/login/page.tsx)"
+    source: { file: src/app/login/page.tsx, line: 6 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page。DISABLE_LOGIN か CLOUD_MODE が設定されていれば null を返し、そうでなければ LoginPage を描く。URL のパラメータは無い"
+      evidence:
+        - { file: src/app/login/page.tsx, line: 7 }
+        - { file: src/app/login/page.tsx, line: 11 }
+
+  - id: login_page
+    layer: component
+    kind: component
+    name: "LoginPage / LoginPageWrapper"
+    source: { file: src/app/login/LoginPage.tsx, line: 36 }
+    caller: page
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/login/page.tsx, line: 2 }
+        - { file: src/app/login/page.tsx, line: 11 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。LoginPageWrapper が useLoginQuery でログイン状態を確かめ、ユーザーがいれば / へ router.replace し、読み込み中かログイン済みなら Loading を出す。そうでなければ子の LoginForm を描く"
+      evidence:
+        - { file: src/app/login/LoginPage.tsx, line: 1 }
+        - { file: src/app/login/LoginPage.tsx, line: 10 }
+        - { file: src/app/login/LoginPage.tsx, line: 15 }
+        - { file: src/app/login/LoginPage.tsx, line: 39 }
+
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: login_page
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/login/LoginPage.tsx, line: 10 }
+    summary:
+      status: interpretation
+      value: "ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザーをストアに入れる。URL には useApi → getApiUrl が /api を前に付ける (/auth で始まる URL は apiUrl の設定に関わらず basePath + /api)"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest (skipAuth なし) で Bearer トークンを検査し、認証できなければ 401。できればユーザーと所属チームを返す。parseRequest は POST /api/auth/login からも呼ばれるが、そちらは skipAuth で checkAuth に進まずデータに届かないため、届く先が違う処理としてこちらの下に書く (フレーム q_parse_request)。getAllUserTeams も呼ぶ。経路はフレーム q_team と同じ (呼び出し行の辞書順で POST /api/auth/login の下に書いた)"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi がブラウザに保存したトークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_verify
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "URL と JSON 本文を読み、skipAuth が無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+    summary:
+      status: interpretation
+      value: "トークンが umami_ で始まる API キーなら checkApiKeyAuth へ進むが、この画面のブラウザが付けるのはログインで得たトークンで、しかも /api/auth は API キーを拒否するパスなので、API キーの経路 (api_key の読み書き) はここでは働かない。それ以外は署名付きトークンを解き、2FA の仮トークンなら拒否する。userId があれば user を読み、authKey があれば (Redis が有効なとき) Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする"
+      evidence:
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 35 }
+        - { file: src/lib/api-key.ts, line: 15 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 108 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ"
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "findUser を通して、id で削除されていない user を 1 件読む (パスワードの列は includePassword のときだけ。checkAuth は付けて呼ぶ)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: prisma/schema.prisma, line: 37 }
+          - { file: prisma/schema.prisma, line: 8 }
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: login_form
+    layer: component
+    kind: component
+    name: "LoginForm"
+    source: { file: src/app/login/LoginForm.tsx, line: 19 }
+    caller: login_page
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/login/LoginPage.tsx, line: 6 }
+        - { file: src/app/login/LoginPage.tsx, line: 39 }
+    summary:
+      status: interpretation
+      value: "ユーザー名とパスワード (どちらも必須) のフォーム。送信で POST /auth/login を呼ぶ。応答が requiresTwoFactor なら仮トークンを sessionStorage に入れて /login/two-factor へ、そうでなければトークンをブラウザ (localStorage) に保存しユーザーをストアに入れて、戻り先 URL (無ければ /) へ移る"
+      evidence:
+        - { file: src/app/login/LoginForm.tsx, line: 22 }
+        - { file: src/app/login/LoginForm.tsx, line: 27 }
+        - { file: src/app/login/LoginForm.tsx, line: 28 }
+        - { file: src/app/login/LoginForm.tsx, line: 32 }
+        - { file: src/app/login/LoginForm.tsx, line: 34 }
+    parameters:
+      - name: username
+        value: "フォームの入力 (必須)"
+        status: fact
+        evidence:
+          - { file: src/app/login/LoginForm.tsx, line: 54 }
+      - name: password
+        value: "フォームの入力 (必須)"
+        status: fact
+        evidence:
+          - { file: src/app/login/LoginForm.tsx, line: 63 }
+
+  - id: use_update_query
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/auth/login')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: login_form
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/login/LoginForm.tsx, line: 22 }
+    summary:
+      status: interpretation
+      value: "受け取った path に、フォームの値を本文にして POST する mutation を作る。URL には useApi → getApiUrl が /api を前に付ける。useModified はブラウザ内のストアだけを触る"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/components/hooks/useModified.ts, line: 3 }
+
+  - id: api_login
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/login"
+    source: { file: src/app/api/auth/login/route.ts, line: 14 }
+    caller: use_update_query
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/login/LoginForm.tsx, line: 22 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "本文を loginRequestSchema で検査する (parseRequest を skipAuth で呼ぶので checkAuth に進まず、データにも届かない。そのためフレームにしない)。ユーザー名で user を読み、パスワードを照合して合わなければ 401。CLOUD_MODE でなければ two_factor_auth を読み、2 段階認証が有効なら 5 分の仮トークンを返す (TWO_FACTOR_ENCRYPTION_KEY が無ければ 503)。無効なら Redis が有効のとき saveAuth でセッションを保存したトークン、無効のときは userId / role / パスワード指紋を入れた署名付きトークンを作り、所属チームと一緒に返す"
+      evidence:
+        - { file: src/app/api/auth/login/route.ts, line: 15 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/app/api/auth/login/route.ts, line: 25 }
+        - { file: src/app/api/auth/login/route.ts, line: 37 }
+        - { file: src/app/api/auth/login/route.ts, line: 38 }
+        - { file: src/app/api/auth/login/route.ts, line: 46 }
+        - { file: src/lib/two-factor/crypto.ts, line: 12 }
+        - { file: src/app/api/auth/login/route.ts, line: 56 }
+        - { file: src/app/api/auth/login/route.ts, line: 64 }
+    parameters:
+      - name: username
+        value: "JSON 本文。文字列"
+        status: fact
+        evidence:
+          - { file: src/app/api/auth/login/schema.ts, line: 5 }
+      - name: password
+        value: "JSON 本文。文字列"
+        status: fact
+        evidence:
+          - { file: src/app/api/auth/login/schema.ts, line: 6 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.findUnique (where userId)"
+        evidence:
+          - { file: src/app/api/auth/login/route.ts, line: 34 }
+          - { file: prisma/schema.prisma, line: 492 }
+        note: "CLOUD_MODE が設定されていないときだけ"
+
+  - id: ext_prisma_two_factor
+    layer: external
+    kind: library
+    name: "Prisma Client twoFactorAuth.findUnique"
+    source: { file: src/app/api/auth/login/route.ts, line: 34 }
+    caller: api_login
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/login/route.ts, line: 34 }
+
+  - id: q_get_user_by_username
+    layer: query
+    kind: function
+    name: "getUserByUsername (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 60 }
+    caller: api_login
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/login/route.ts, line: 23 }
+    summary:
+      status: interpretation
+      value: "findUser を通して、小文字にしたユーザー名で削除されていない user をパスワードの列も含めて 1 件読む。ライブラリの呼び出しは getUser と同じ findUser の行なので、経路はフレーム ext_prisma_user と同じ"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 61 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where username, deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: prisma/schema.prisma, line: 37 }
+
+  - id: q_save_auth
+    layer: query
+    kind: function
+    name: "saveAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 149 }
+    caller: api_login
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/login/route.ts, line: 57 }
+      note: "Redis が有効 (REDIS_URL あり) のときだけ呼ばれる"
+    summary:
+      status: interpretation
+      value: "auth:<ランダム> のキーで userId / role / パスワード指紋を Redis に保存し、authKey を入れた署名付きトークンを返す。expire 引数は渡されないので expire は呼ばない"
+      evidence:
+        - { file: src/lib/auth.ts, line: 150 }
+        - { file: src/lib/auth.ts, line: 153 }
+        - { file: src/lib/auth.ts, line: 155 }
+        - { file: src/lib/auth.ts, line: 160 }
+    io:
+      - op: set
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.set(authKey, data)。ラッパーが EX に既定の 3600 秒を付ける"
+        evidence:
+          - { file: src/lib/auth.ts, line: 153 }
+          - { file: src/lib/redis.ts, line: 7 }
+          - { file: src/lib/redis.ts, line: 49 }
+          - { file: src/lib/redis.ts, line: 51 }
+
+  - id: ext_redis_set
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) set"
+    source: { file: src/lib/redis.ts, line: 51 }
+    caller: q_save_auth
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/auth.ts, line: 153 }
+        - { file: src/lib/redis.ts, line: 51 }
+
+  - id: q_team
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_login
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/login/route.ts, line: 62 }
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む。POST /api/auth/verify からも呼ばれる (同じ関数で同じ表なので、ここに 1 回だけ書く)"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }

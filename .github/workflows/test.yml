@@ -1,0 +1,35 @@
+# main への push と、pull request のたびに、手元と同じ検査を流す (docs/rules/common.md の「完了の前に確かめること」のうち、自動でできるもの)。
+# 画面の動きと、見本の分析リポジトリでの集計は、ここでは見ない (手元で確かめる)。
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.24" # Dockerfile の uv (0.11 系) に合わせる
+          python-version: "3.12" # Dockerfile の Python に合わせる
+          enable-cache: true
+      - name: 依存を入れる
+        run: uv sync --locked --dev
+      - name: テスト
+        run: uv run pytest -q
+      - name: 製品別の設定が、正本 (.agents/) から作り直したものと同じか
+        run: uv run python .agents/skills/mid-harness/scripts/check_drift.py . # PyYAML を使うので、uv の環境で動かす

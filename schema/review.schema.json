@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suwa-sh/as-built-atlas/schema/review.schema.json",
+  "title": "レビュー結果 (reviews/<entry-id>.yaml)",
+  "description": "フレッシュ文脈のレビュー skill が書く指摘の一覧。分析結果 YAML は直接書き換えず、ここに指摘を書く。",
+  "type": "object",
+  "required": ["format_version", "entry_id", "reviewed_at", "machine_check", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": 1 },
+    "entry_id": { "type": "string" },
+    "reviewed_at": { "type": "string", "format": "date-time" },
+    "reviewer": { "type": "string", "description": "誰が (何が) レビューしたか" },
+    "machine_check": { "type": "string", "enum": ["ok", "ng"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "severity", "where", "claim"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["machine_check", "evidence_mismatch", "status_mismatch", "reason_mismatch", "avoidable_unknown", "resource_mismatch", "missing_frame"]
+          },
+          "severity": { "type": "string", "enum": ["high", "medium", "low"] },
+          "where": { "type": "string", "description": "分析結果 YAML 内の場所 (例: callstack/run_sh/io/0)" },
+          "claim": { "type": "string" },
+          "evidence": { "$ref": "analysis-result.schema.json#/$defs/source" },
+          "suggestion": { "type": "string" },
+          "resolved": { "type": "boolean", "description": "分析側が対応したら true (分析 skill が書く)" }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

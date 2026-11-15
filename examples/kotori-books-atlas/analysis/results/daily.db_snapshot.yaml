@@ -1,0 +1,177 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: daily.db_snapshot
+  path: /daily/db_snapshot
+  name: db_snapshot
+  layer: scheduler
+  source:
+    file: flows/daily/db_snapshot.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: pg_dump で DB 全体のスナップショットを取り、S3 の kotori-backups/db/ に置く。7 日より古いローカルのダンプは消す
+  evidence:
+  - file: flows/daily/db_snapshot.yaml
+    line: 3
+  - file: scripts/db_snapshot.sh
+    line: 2
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: daily.db_snapshot
+  source:
+    file: flows/daily/db_snapshot.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: pg_dump で DB 全体のスナップショットを取り、S3 の kotori-backups/db/ に置く。7 日より古いローカルのダンプは消す
+    evidence:
+    - file: flows/daily/db_snapshot.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 30 23 * * * (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/daily/db_snapshot.yaml
+      line: 23
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/db_snapshot.yaml
+      line: 7
+- id: script
+  layer: shell
+  kind: script
+  name: scripts/db_snapshot.sh
+  source:
+    file: scripts/db_snapshot.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/db_snapshot.yaml
+      line: 19
+  summary:
+    status: interpretation
+    value: pg_dump で DB 全体のスナップショットを取り、S3 の kotori-backups/db/ に置く。7 日より古いローカルのダンプは消す
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 2
+  parameters:
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow からは prod
+    status: fact
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 6
+  - name: env.KOTORI_DATABASE_URL
+    value: pg_dump の接続先。config/prod.env で postgresql://kotori@db.internal:5432/kotori (パスワードは実行環境の PGPASSWORD)
+    status: fact
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 10
+    - file: config/prod.env
+      line: 2
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: 接続先とバケット名
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 6
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+    detail: pg_dump でデータベース全体 (全スキーマ・全テーブル) を読む
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 10
+  - op: write
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/backup
+        file: kotori_{yyyymmdd}.dump
+    detail: custom 形式のダンプ
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 10
+  - op: delete
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/backup
+        file: kotori_*.dump
+    detail: 7 日より古いもの
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 12
+- id: pg_dump
+  layer: external
+  kind: cli
+  name: pg_dump
+  source:
+    file: scripts/db_snapshot.sh
+    line: 10
+  caller: script
+  call:
+    status: fact
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 10
+- id: aws_cli
+  layer: external
+  kind: cli
+  name: aws s3 cp
+  source:
+    file: scripts/db_snapshot.sh
+    line: 11
+  caller: script
+  call:
+    status: fact
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 11
+  io:
+  - op: put
+    status: fact
+    resource:
+      kind: object_storage
+      levels:
+        bucket: kotori-backups
+        prefix: db/{yyyymmdd}/
+    detail: ダンプを日付のプレフィックスに置く。バケット名は config/prod.env の BACKUPS_BUCKET
+    evidence:
+    - file: scripts/db_snapshot.sh
+      line: 11
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

@@ -1,0 +1,31 @@
+format_version: 1
+entry_id: websites.websiteId_d
+reviewed_at: "2026-11-13T03:41:00+09:00"
+reviewer: "abatlas-review-entry (claude-opus-5-5, フレッシュ文脈で 2 回目のレビュー。プロファイル ui-nextjs 0.3.0 / skill 0.3.0 の改訂後の結果を対象)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_pageview_expanded_metrics/io/1
+    claim: "PostgreSQL の session の読み取りの根拠が、共通の部品の行 (prisma.ts:318) とスキーマだけで、この問い合わせ関数の SQL が joinSessionQuery を実際に埋め込む行を指していない。同じく q_event_expanded_metrics/io/1 (getEventExpandedMetrics.ts:69) と q_channel_expanded_metrics/io/1 (getChannelExpandedMetrics.ts:94) も、関数のファイルの行が無い (読む表そのものは正しい)"
+    evidence: { file: src/queries/sql/pageviews/getPageviewExpandedMetrics.ts, line: 114 }
+    suggestion: "3 つのフレームの session の I/O の根拠に、各ファイルで joinSessionQuery を SQL に入れている行 (getPageviewExpandedMetrics.ts:114、getEventExpandedMetrics.ts:69、getChannelExpandedMetrics.ts:94) を足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_channel_expanded_metrics/io/5
+    claim: "ClickHouse の website_event_stats_hourly の読み取り (直帰を除く副問い合わせ) の根拠が clickhouse.ts:212 とスキーマだけで、この関数の SQL が excludeBounceQuery を埋め込む行を指していない。q_session_expanded_metrics/io/5 (getSessionExpandedMetrics.ts:173)、q_pageview_expanded_metrics/io/5 (getPageviewExpandedMetrics.ts:203)、q_channel_metrics/io/5 (getChannelMetrics.ts:159) も同じ (読む表そのものは正しい)"
+    evidence: { file: src/queries/sql/getChannelExpandedMetrics.ts, line: 248 }
+    suggestion: "4 つのフレームの website_event_stats_hourly の I/O の根拠に、各ファイルの ClickHouse 側の SQL で excludeBounceQuery を入れている行を足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_parse_request/summary
+    claim: "「この画面の他の API の受け口も同じ関数を呼ぶ」の列挙が欠けている。segments の GET (segments/route.ts:18)、values (values/route.ts:18)、session-data/properties (:20)、session-data/values (:20)、metrics/expanded (:26) が無い。同様に q_can_view_shared_website_filters の summary は segments の GET (segments/route.ts:27) を、q_get_query_filters の summary は segments の GET (segments/route.ts:31。websiteId 無しで呼ぶ) を、ほかの呼び出し元として挙げていない"
+    evidence: { file: "src/app/api/websites/[websiteId]/segments/route.ts", line: 18 }
+    suggestion: "3 つのフレームの summary の「同じ関数を呼ぶ」の列挙に、抜けている受け口を足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の summary は Redis のキャッシュとして website:* の書き込みと auth:* の読み取りだけを挙げ、CLOUD_MODE で個人のサイトのときに getQueryFilters が読む account:* (フレーム q_fetch_account の I/O) に触れていない"
+    evidence: { file: src/lib/request.ts, line: 104 }
+    suggestion: "入口の summary に「CLOUD_MODE で個人のサイトなら、統計の API が account:* も読む」を足す"
+notes: "機械チェック (validate result) は OK。前回の版で指摘された点 (属性の副問い合わせの根拠、not_analyzed で閉じた小窓、external の call の根拠、URL が 1 つに決まる call の状態、summary の枠の記述) は、今の版では実ファイルと照らしてどれも直っていた。高・中の指摘は無い。今回確かめたこと: (a) 祖先の layout (src/app/(main)/layout.tsx、websites/[websiteId]/layout.tsx) のフレーム・I/O・summary の記述は無い。(b) 同じ処理の置き場を、呼び出し行のパスの文字コード順で確かめ直した。parseRequest は annotations/[annotationId]/route.ts:36 ([ が r より前)、canUpdateWebsite は同 :45、getWebsiteAnnotation は同 :49、canViewSharedWebsiteFilters は annotations/route.ts:29、canViewWebsiteSection と getQueryFilters は metrics/expanded/route.ts:34 / :39 (expanded が route.ts より前)、canViewWebsite は share.ts:59、getEntity は website.ts:24、getWebsite は entity.ts:6 (src/lib/entity.ts が load.ts と permissions より前)、getTeamUser は website.ts:35 (canUpdateWebsite の :152 より前)、getWebsiteSegment は segments/[segmentId]/route.ts:24 (src/app が src/lib より前)、FieldFilters と PropertyFilters は SegmentEditForm.tsx:89 / :101 (src/app が src/components より前)、useWebsiteAnnotationsQuery は WebsiteChart.tsx:35、useWebsiteMetricsQuery は MetricsTable.tsx:36、AnnotationsModal は WebsitePage.tsx:44 (W が a より前)。すべて合っていた。useWebsiteSegmentQuery は SegmentEditForm.tsx:35 のほうがパスでは早いが、FilterBar.tsx:195 は segmentId を渡さず enabled (useWebsiteSegmentQuery.ts:17) が false なので、動く FilterBar の下に置いた判断は妥当。SegmentFilters (SegmentFilters.tsx 全体) は一覧と選択だけで、セグメントの編集・削除の経路は無い。(c) _rw の書き直しは、呼び出し元が終端になるもの (canViewSharedWebsite、canViewSharedWebsiteFilters、canUpdateWebsite、WorldMap、AnnotationsButton) だけで、各段で最も早い呼び出しを I/O を持つフレームまで書いている。(d) 終端のフレームはすべて external か I/O を持つ。external の source は、Prisma のメソッド・$queryRawUnsafe (prisma.ts:746)・clickhouse.query (clickhouse.ts:721)・pagedQuery の findMany (prisma.ts:761)・Redis の client.get (redis.ts:37) と、どれもライブラリを実際に呼ぶ行。(e) 同じ行の external を問い合わせ関数ごとに書いている点 (prisma.ts:746 / clickhouse.ts:721 / redis.ts:37 / prisma.ts:761): Redis はキー (auth:* / website:* / account:*)、pagedQuery は表 (segment / annotation) が違うので決まりの例外に当たる。生の SQL の external は、stats・pageview_stats・session_stats・weekly・各 metrics のように届く表の組み合わせが同じものもあり、決まりの文言どおりなら 1 つにまとめる余地がある。ただし I/O は query フレームにあり件数は水増しされないので、notes (4) の理由 (関数ごとに渡す SQL が違う) で受け入れ、指摘にしない。(f) 表とモデルの対応 (schema.prisma の @@map、ClickHouse の CREATE TABLE)、Prisma のメソッドと op (findUnique / findFirst / findMany / count は read、create は create、update は update、delete は delete)、フックの URL と HTTP メソッド (useUpdateQuery は post、useDeleteQuery は del)、route のメソッドの関数と呼ぶ問い合わせ関数の行は、上の指摘以外は実ファイルと合っていた。metrics の route の getEventMetrics は、この画面の表が event を渡さないので届かないという判断も合っている。拡大表示のメニュー (WebsiteExpandedMenu.tsx:209) には event があり、excludedIds も渡されないので、getEventExpandedMetrics には届く。(g) checkAuth の API キーの経路 (auth.ts:75 の checkApiKeyAuth、api_key の読み書き) を書いていないのは、画面のフックがログインのトークンを付ける (useApi.ts:28) ことを理由として summary に書いてあり、受け入れた"

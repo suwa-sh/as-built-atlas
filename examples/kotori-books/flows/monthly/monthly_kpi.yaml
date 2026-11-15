@@ -1,0 +1,29 @@
+id: monthly_kpi
+namespace: monthly
+description: |
+  月次 KPI (売上・顧客数・継続率) を sql/reports/ のテンプレートから組み立てた SQL で集計し、mart.monthly_kpi と Excel (S3) に出す
+labels:
+  owner: data-platform
+inputs:
+  - id: month
+    type: STRING
+    required: false
+    description: 対象月 (YYYY-MM)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh monthly_kpi --month "{{ inputs.month }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 5 1 * *"
+    timezone: Asia/Tokyo

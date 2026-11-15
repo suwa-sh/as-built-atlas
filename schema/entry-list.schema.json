@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suwa-sh/as-built-atlas/schema/entry-list.schema.json",
+  "title": "入口の定義 (対象層: 抽出器の設定 + 候補 + 承認)",
+  "description": "分析リポジトリに置く 1 ファイル。エージェントが extractors を書き、列挙ツールが entries を書き、人が entries[].status を approved / rejected にして承認する。",
+  "type": "object",
+  "required": ["format_version", "target", "profile", "extractors", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": 1 },
+    "target": { "$ref": "work-definition.schema.json#/$defs/target" },
+    "profile": {
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "properties": { "id": { "type": "string" }, "version": { "type": "string" } }
+    },
+    "extractors": {
+      "type": "array",
+      "description": "エージェントが決めた抽出器とパラメータ (プロファイルの extractors を元に、このリポジトリ向けに埋めたもの)",
+      "items": {
+        "type": "object",
+        "required": ["name", "run", "layer", "params"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "run": { "type": "string" },
+          "layer": { "type": "string" },
+          "params": { "type": "object", "additionalProperties": true },
+          "rationale": { "type": "string", "description": "なぜこの設定にしたか (エージェントが書く。人の確認用)" }
+        }
+      }
+    },
+    "enumerated_at": { "type": "string", "format": "date-time" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "layer", "source", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "path": { "type": "string", "pattern": "^/[^/]+(/[^/]+)*$" },
+          "name": { "type": "string" },
+          "layer": { "type": "string" },
+          "source": { "$ref": "entry-candidate.schema.json#/$defs/source" },
+          "attributes": { "type": "object", "additionalProperties": true },
+          "extractor": { "type": "string", "description": "この候補を出した抽出器の name" },
+          "within": {
+            "type": "array",
+            "description": "この入口を包む入口の id (外側から内側の順)。列挙ツールがプロファイルの within の宣言から埋める。無ければ書かない",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string" }
+          },
+          "status": { "type": "string", "enum": ["candidate", "approved", "rejected"] },
+          "note": { "type": "string", "description": "人の判断の理由" }
+        }
+      }
+    },
+    "unmatched": {
+      "type": "array",
+      "description": "どの抽出器にも当たらなかったが入口らしいもの (列挙ツールが scope 内の実行可能ファイル等から補助的に出す。漏れの確認用。採否は未決)",
+      "items": {
+        "type": "object",
+        "required": ["file", "why"],
+        "properties": { "file": { "type": "string" }, "why": { "type": "string" } }
+      }
+    }
+  }
+}

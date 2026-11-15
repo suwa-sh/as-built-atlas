@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suwa-sh/as-built-atlas/schema/entry-candidate.schema.json",
+  "title": "抽出器の出力 (JSON Lines の 1 行 = 入口の候補 1 件)",
+  "description": "抽出器 (任意の言語の実行ファイル) は、この形の JSON を 1 行 1 件で標準出力に書く。列挙ツールが検証して入口一覧に取り込む。",
+  "type": "object",
+  "required": ["format_version", "id", "path", "layer", "source"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": 1 },
+    "id": {
+      "type": "string",
+      "description": "入口の安定した識別子。同じ入口は何度列挙しても同じ id になること (分析結果 YAML のファイル名に使う)",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
+    "path": {
+      "type": "string",
+      "description": "入口の階層パス。'/' 区切りで、深さは任意 (例: /daily/morning/news_curate)",
+      "pattern": "^/[^/]+(/[^/]+)*$"
+    },
+    "name": { "type": "string", "description": "人が読む名前。省略時は id" },
+    "layer": { "type": "string", "description": "プロファイルの層 id (role: entry のもの)" },
+    "source": { "$ref": "#/$defs/source" },
+    "attributes": {
+      "type": "object",
+      "description": "抽出器が拾った付随情報 (起動コマンド・引数・スケジュールなど)。分析 skill への手掛かり",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["file", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string", "description": "作業定義の scope からの相対パス" },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

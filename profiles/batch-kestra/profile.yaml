@@ -1,0 +1,71 @@
+# プロファイル: Kestra で組んだバッチ (スケジューラ → shell → プログラム → データストア)
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: batch-kestra
+version: "0.1.0"
+label: "Kestra batch (Flow → shell → program / agent skill → {datastore})"
+
+layers:
+  - id: scheduler
+    tier: scheduler
+    label: scheduler (Kestra Flow)
+    role: entry
+    stack: [Kestra]
+    invokes_next: "tasks[].commands[] の shell コマンド、または Subflow (flowId) で別の Flow を呼ぶ"
+    io: []   # Flow 自体は I/O を持たない。I/O は呼び先のフレームに書く
+  - id: shell
+    tier: job
+    label: shell
+    stack: [bash, zsh]
+    invokes_next: "python3 / node などのインタプリタ起動、他の shell の呼び出し、`claude -p --agent <persona> '/<skill> ...'` による agent skill の起動"
+    io: [filesystem, rdb, external_api]   # bash から psql / curl / gh を直接呼ぶことがある
+  - id: agent_skill
+    tier: job
+    label: agent skill (coding agent が SKILL.md の手順で実行)
+    stack: [claude -p, SKILL.md, custom agent]
+    invokes_next: "SKILL.md の手順にある bash ブロック (スクリプト・コマンド) と、MCP ツールの呼び出し"
+    io: [filesystem, rdb, external_api]
+  - id: program
+    tier: job
+    label: program (script / job)
+    stack: [Python, bash, dbt]
+    invokes_next: "ライブラリ・SDK・CLI の呼び出し (ここから先は boundary)"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+  - id: external
+    tier: job
+    label: external library / service (boundary)
+    role: boundary
+    stack: [psycopg, requests, google-api-python-client, gh, curl]
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+
+hierarchy:
+  level_labels: [namespace+, flow]   # namespace は入れ子になる (daily.morning)。最後の段だけが flow
+  derivation: "Flow の namespace を '.' で区切って段にし、最後に flow の id を付ける (例: namespace daily.morning, id news_curate → /daily/morning/news_curate)。Subflow で呼ばれる Flow も独立した入口として列挙し、呼び出し関係はコールスタック側に持つ"
+
+extractors:
+  - name: kestra-flows
+    run: abatlas-extract structured-query
+    layer: scheduler
+    hint: "Flow 定義 YAML の置き場 (files) を実際のディレクトリに合わせる。1 ファイル = 1 Flow なら records は不要。namespace と id は Kestra の必須項目なのでそのまま使える"
+    params:
+      files: ["flows/**/*.yaml", "flows/**/*.yml"]
+      format: yaml
+      fields:
+        id: "join('.', [namespace, id])"
+        name: "id"
+        namespace: "namespace"
+        flow: "id"
+        path: "/{namespace}/{flow}"
+        attributes:
+          description: "description"
+          commands: "tasks[].commands[]"
+          task_types: "tasks[].type"
+          subflows: "tasks[?contains(type, 'Subflow')].flowId"
+          subflow_namespaces: "tasks[?contains(type, 'Subflow')].namespace"
+          triggers: "triggers[].type"
+          cron: "triggers[].cron"
+          labels: "labels"
+      post:
+        namespace: { split: ".", join: "/" }
+
+marts: []

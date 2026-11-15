@@ -1,0 +1,270 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: daily.inventory.import_supplier_feeds
+  path: /daily/inventory/import_supplier_feeds
+  name: import_supplier_feeds
+  layer: scheduler
+  source:
+    file: flows/daily/inventory/import_supplier_feeds.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: 仕入先が置いた入荷 CSV (var/inbox/suppliers/) を取り込み、入荷と入庫を記録する。処理したファイルは done/ に移す
+  evidence:
+  - file: flows/daily/inventory/import_supplier_feeds.yaml
+    line: 3
+  - file: jobs/import_supplier_feeds.py
+    line: 1
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: daily.inventory.import_supplier_feeds
+  source:
+    file: flows/daily/inventory/import_supplier_feeds.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: 仕入先が置いた入荷 CSV (var/inbox/suppliers/) を取り込み、入荷と入庫を記録する。処理したファイルは done/ に移す
+    evidence:
+    - file: flows/daily/inventory/import_supplier_feeds.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 30 0 * * * (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/import_supplier_feeds.yaml
+      line: 23
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/import_supplier_feeds.yaml
+      line: 7
+- id: run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/import_supplier_feeds.yaml
+      line: 19
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: import_supplier_feeds (第 1 引数。実行するモジュール jobs.import_supplier_feeds とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/import_supplier_feeds.yaml
+      line: 19
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/import_supplier_feeds.yaml
+      line: 17
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: import_supplier_feeds.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: job
+  layer: program
+  kind: module
+  name: jobs.import_supplier_feeds
+  source:
+    file: jobs/import_supplier_feeds.py
+    line: 1
+  caller: run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=import_supplier_feeds なので jobs.import_supplier_feeds が動く
+  summary:
+    status: interpretation
+    value: 仕入先が置いた入荷 CSV (var/inbox/suppliers/) を取り込み、入荷と入庫を記録する。処理したファイルは done/ に移す
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 1
+    - file: jobs/import_supplier_feeds.py
+      line: 20
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 16
+  io:
+  - op: list
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/inbox/suppliers
+        file: '*.csv'
+    detail: 未処理の入荷 CSV を名前順に拾う
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 24
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/inbox/suppliers
+        file: '*.csv'
+    detail: 1 行 = 1 入荷明細 (sku, quantity, received_at)
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 26
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: suppliers
+    detail: ファイル名の先頭 (仕入先コード) を仕入先 ID に解決する
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 33
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: inbound_receipts
+    detail: 入荷の記録 (CSV 1 行 = 1 行)
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 41
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: stock_movements
+    detail: reason = 'inbound' の入庫 (入荷 1 行 = 1 行)
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 48
+  - op: write
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/inbox/suppliers/done
+        file: '*.csv'
+    detail: 処理済みファイルを移す (rename)
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 54
+  - op: delete
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/inbox/suppliers
+        file: '*.csv'
+    detail: 移動元 (rename で消える)
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 54
+- id: lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/import_supplier_feeds.py
+      line: 11
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

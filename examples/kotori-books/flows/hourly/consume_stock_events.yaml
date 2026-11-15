@@ -1,0 +1,25 @@
+id: consume_stock_events
+namespace: hourly
+description: |
+  キュー stock.changed を 5 分ごとに読み、在庫数と Redis の在庫キャッシュへ反映する
+labels:
+  owner: warehouse
+  criticality: high
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh consume_stock_events
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/5 * * * *"
+    timezone: Asia/Tokyo

@@ -1,0 +1,53 @@
+id: close_day
+namespace: daily
+description: |
+  日次の締め。注文の決済確定 → 売上集計 → 在庫の突き合わせ を Subflow で順に呼ぶ。失敗時は lib.notify_failure に通知する
+labels:
+  owner: commerce-platform
+  criticality: high
+inputs:
+  - id: date
+    type: DATE
+    required: false
+    description: 処理対象日 (省略時は実行日)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: settle_orders
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: daily.sales
+    flowId: settle_orders
+    wait: true
+    transmitFailed: true
+    inputs:
+      date: "{{ inputs.date }}"
+  - id: sales_report
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: daily.sales
+    flowId: sales_report
+    wait: true
+    transmitFailed: true
+    inputs:
+      date: "{{ inputs.date }}"
+  - id: reconcile_stock
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: daily.inventory
+    flowId: reconcile_stock
+    wait: true
+    transmitFailed: true
+    inputs:
+      date: "{{ inputs.date }}"
+errors:
+  - id: notify_failure
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: lib
+    flowId: notify_failure
+    inputs:
+      flow_id: "daily.close_day"
+      execution_id: "{{ execution.id }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 1 * * *"
+    timezone: Asia/Tokyo

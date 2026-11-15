@@ -1,0 +1,918 @@
+format_version: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+profile:
+  id: batch-kestra
+  version: 0.1.0
+extractors:
+- name: kestra-flows
+  run: abatlas-extract structured-query
+  layer: scheduler
+  params:
+    files:
+    - flows/**/*.yaml
+    - flows/**/*.yml
+    format: yaml
+    fields:
+      id: join('.', [namespace, id])
+      name: id
+      namespace: namespace
+      flow: id
+      path: /{namespace}/{flow}
+      attributes:
+        description: description
+        commands: tasks[].commands[]
+        task_types: tasks[].type
+        subflows: tasks[?contains(type, 'Subflow')].flowId
+        subflow_namespaces: tasks[?contains(type, 'Subflow')].namespace
+        triggers: triggers[].type
+        cron: triggers[].cron
+        labels: labels
+    post:
+      namespace:
+        split: .
+        join: /
+  rationale: Flow 定義は flows/<namespace の '.' を '/' に>/<id>.yaml に 1 ファイル 1 Flow。プロファイルの既定パラメータのまま使える
+entries:
+- id: daily.close_day
+  path: /daily/close_day
+  layer: scheduler
+  source:
+    file: flows/daily/close_day.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: close_day
+  attributes:
+    description: '日次の締め。注文の決済確定 → 売上集計 → 在庫の突き合わせ を Subflow で順に呼ぶ。失敗時は lib.notify_failure に通知する
+
+      '
+    commands: []
+    task_types:
+    - io.kestra.plugin.core.flow.Subflow
+    - io.kestra.plugin.core.flow.Subflow
+    - io.kestra.plugin.core.flow.Subflow
+    subflows:
+    - settle_orders
+    - sales_report
+    - reconcile_stock
+    subflow_namespaces:
+    - daily.sales
+    - daily.sales
+    - daily.inventory
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 1 * * *
+    labels:
+      owner: commerce-platform
+      criticality: high
+  note: 見本なので全件承認
+- id: daily.customer.review_moderation
+  path: /daily/customer/review_moderation
+  layer: scheduler
+  source:
+    file: flows/daily/customer/review_moderation.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: review_moderation
+  attributes:
+    description: '未審査のレビューを外部の判定 API にかけ、結果で公開 / 保留を決める
+
+      '
+    commands:
+    - bash scripts/run_job.sh review_moderation
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 7 * * *
+    labels:
+      owner: customer-support
+  note: 見本なので全件承認
+- id: daily.customer.segment_customers
+  path: /daily/customer/segment_customers
+  layer: scheduler
+  source:
+    file: flows/daily/customer/segment_customers.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: segment_customers
+  attributes:
+    description: '購入回数と最終購入日から顧客をセグメント (new / active / dormant / churned) に分け、mart.customer_segments を入れ替える
+
+      '
+    commands:
+    - bash scripts/run_job.sh segment_customers --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 30 3 * * *
+    labels:
+      owner: crm
+  note: 見本なので全件承認
+- id: daily.customer.send_cart_reminders
+  path: /daily/customer/send_cart_reminders
+  layer: scheduler
+  source:
+    file: flows/daily/customer/send_cart_reminders.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: send_cart_reminders
+  attributes:
+    description: '24 時間以上放置されたカートの持ち主にリマインドメールを送る。1 顧客 1 日 1 通に制限する
+
+      '
+    commands:
+    - bash scripts/run_job.sh send_cart_reminders
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 10 * * *
+    labels:
+      owner: crm
+  note: 見本なので全件承認
+- id: daily.customer.wishlist_price_drop
+  path: /daily/customer/wishlist_price_drop
+  layer: scheduler
+  source:
+    file: flows/daily/customer/wishlist_price_drop.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: wishlist_price_drop
+  attributes:
+    description: '欲しいものリストの商品が値下げされていたら、プッシュ通知で知らせる
+
+      '
+    commands:
+    - bash scripts/run_job.sh wishlist_price_drop --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 8 * * *
+    labels:
+      owner: crm
+  note: 見本なので全件承認
+- id: daily.data_quality_checks
+  path: /daily/data_quality_checks
+  layer: scheduler
+  source:
+    file: flows/daily/data_quality_checks.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: data_quality_checks
+  attributes:
+    description: '主要テーブルの前日分の行の有無を検査し (0 件なら ng)、検査ごとの結果を audit.data_quality に書いてチャットに通知する
+
+      '
+    commands:
+    - bash scripts/run_job.sh data_quality_checks --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 30 6 * * *
+    labels:
+      owner: data-platform
+  note: 見本なので全件承認
+- id: daily.db_snapshot
+  path: /daily/db_snapshot
+  layer: scheduler
+  source:
+    file: flows/daily/db_snapshot.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: db_snapshot
+  attributes:
+    description: 'pg_dump で DB 全体のスナップショットを取り、S3 の kotori-backups/db/ に置く。7 日より古いローカルのダンプは消す
+
+      '
+    commands:
+    - bash scripts/db_snapshot.sh
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 30 23 * * *
+    labels:
+      owner: sre
+  note: 見本なので全件承認
+- id: daily.digest
+  path: /daily/digest
+  layer: scheduler
+  source:
+    file: flows/daily/digest.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: digest
+  attributes:
+    description: 'config/digests.yaml に列挙された日次レポートの CSV を集めて 1 本のダイジェストにし、S3 に置いてチャットに要約を流す
+
+      '
+    commands:
+    - bash scripts/run_job.sh digest --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 9 * * *
+    labels:
+      owner: data-platform
+  note: 見本なので全件承認
+- id: daily.fx_rates
+  path: /daily/fx_rates
+  layer: scheduler
+  source:
+    file: flows/daily/fx_rates.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: fx_rates
+  attributes:
+    description: '為替レートを外部 API から取り込み、shop.exchange_rates に追加して Redis に当日分を置く
+
+      '
+    commands:
+    - bash scripts/run_job.sh fx_rates
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 15 0 * * *
+    labels:
+      owner: commerce-platform
+  note: 見本なので全件承認
+- id: daily.inventory.import_supplier_feeds
+  path: /daily/inventory/import_supplier_feeds
+  layer: scheduler
+  source:
+    file: flows/daily/inventory/import_supplier_feeds.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: import_supplier_feeds
+  attributes:
+    description: '仕入先が置いた入荷 CSV (var/inbox/suppliers/) を取り込み、入荷と入庫を記録する。処理したファイルは done/ に移す
+
+      '
+    commands:
+    - bash scripts/run_job.sh import_supplier_feeds
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 30 0 * * *
+    labels:
+      owner: warehouse
+  note: 見本なので全件承認
+- id: daily.inventory.reconcile_stock
+  path: /daily/inventory/reconcile_stock
+  layer: scheduler
+  source:
+    file: flows/daily/inventory/reconcile_stock.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: reconcile_stock
+  attributes:
+    description: '前日の入出庫 (stock_movements) を在庫数に反映し、日次の在庫スナップショットを mart に書く。Redis の在庫キャッシュも更新する
+
+      '
+    commands:
+    - bash scripts/run_job.sh reconcile_stock --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    labels:
+      owner: warehouse
+      criticality: high
+  note: 見本なので全件承認
+- id: daily.inventory.reorder_alerts
+  path: /daily/inventory/reorder_alerts
+  layer: scheduler
+  source:
+    file: flows/daily/inventory/reorder_alerts.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: reorder_alerts
+  attributes:
+    description: '在庫が発注点を下回った SKU の発注案を warehouse.purchase_orders に作り、仕入先担当にメールで知らせる
+
+      '
+    commands:
+    - bash scripts/run_job.sh reorder_alerts
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 6 * * *
+    labels:
+      owner: warehouse
+  note: 見本なので全件承認
+- id: daily.inventory.sync_search_index
+  path: /daily/inventory/sync_search_index
+  layer: scheduler
+  source:
+    file: flows/daily/inventory/sync_search_index.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: sync_search_index
+  attributes:
+    description: '商品と在庫の有無を検索サービスのインデックスに一括登録する
+
+      '
+    commands:
+    - bash scripts/run_job.sh sync_search_index
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 5 * * *
+    labels:
+      owner: commerce-platform
+  note: 見本なので全件承認
+- id: daily.rotate_logs
+  path: /daily/rotate_logs
+  layer: scheduler
+  source:
+    file: flows/daily/rotate_logs.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: rotate_logs
+  attributes:
+    description: 'ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+
+      '
+    commands:
+    - bash scripts/rotate_logs.sh
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 50 23 * * *
+    labels:
+      owner: sre
+  note: 見本なので全件承認
+- id: daily.sales.coupon_expiry
+  path: /daily/sales/coupon_expiry
+  layer: scheduler
+  source:
+    file: flows/daily/sales/coupon_expiry.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: coupon_expiry
+  attributes:
+    description: '有効期限を過ぎたクーポンを失効させ、90 日より古い利用履歴を削除する
+
+      '
+    commands:
+    - bash scripts/run_job.sh coupon_expiry
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 3 * * *
+    labels:
+      owner: sales-ops
+  note: 見本なので全件承認
+- id: daily.sales.product_ranking
+  path: /daily/sales/product_ranking
+  layer: scheduler
+  source:
+    file: flows/daily/sales/product_ranking.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: product_ranking
+  attributes:
+    description: '直近 7 日の販売数から商品ランキングを作り、mart.product_ranking を入れ替えて Redis に上位 100 件を置く
+
+      '
+    commands:
+    - bash scripts/run_job.sh product_ranking --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 30 2 * * *
+    labels:
+      owner: sales-ops
+  note: 見本なので全件承認
+- id: daily.sales.refund_returns
+  path: /daily/sales/refund_returns
+  layer: scheduler
+  source:
+    file: flows/daily/sales/refund_returns.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: refund_returns
+  attributes:
+    description: '承認済みの返品について決済 API に返金を要求し、shop.returns と shop.payments に結果を書く。返金完了はメール API で顧客に知らせる
+
+      '
+    commands:
+    - bash scripts/run_job.sh refund_returns --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 4 * * *
+    labels:
+      owner: customer-support
+      criticality: high
+  note: 見本なので全件承認
+- id: daily.sales.sales_report
+  path: /daily/sales/sales_report
+  layer: scheduler
+  source:
+    file: flows/daily/sales/sales_report.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: sales_report
+  attributes:
+    description: '確定済み注文の明細を商品別・日別に集計して mart.daily_sales に入れ替え、CSV を S3 に置く
+
+      '
+    commands:
+    - bash scripts/run_job.sh sales_report --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    labels:
+      owner: sales-ops
+  note: 見本なので全件承認
+- id: daily.sales.settle_orders
+  path: /daily/sales/settle_orders
+  layer: scheduler
+  source:
+    file: flows/daily/sales/settle_orders.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: settle_orders
+  attributes:
+    description: '前日の未確定注文を決済 API で売上確定 (capture) し、shop.orders と shop.payments を更新する。確定した注文はキュー orders.settled に流す
+
+      '
+    commands:
+    - bash scripts/run_job.sh settle_orders --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    labels:
+      owner: commerce-platform
+      criticality: high
+  note: 見本なので全件承認
+- id: hourly.abandoned_carts_snapshot
+  path: /hourly/abandoned_carts_snapshot
+  layer: scheduler
+  source:
+    file: flows/hourly/abandoned_carts_snapshot.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: abandoned_carts_snapshot
+  attributes:
+    description: 'Redis のカートを毎時なめて、放置カートの件数と金額を audit.cart_snapshots に書く
+
+      '
+    commands:
+    - bash scripts/run_job.sh abandoned_carts_snapshot
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 5 * * * *
+    labels:
+      owner: crm
+  note: 見本なので全件承認
+- id: hourly.consume_stock_events
+  path: /hourly/consume_stock_events
+  layer: scheduler
+  source:
+    file: flows/hourly/consume_stock_events.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: consume_stock_events
+  attributes:
+    description: 'キュー stock.changed を 5 分ごとに読み、在庫数と Redis の在庫キャッシュへ反映する
+
+      '
+    commands:
+    - bash scripts/run_job.sh consume_stock_events
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - '*/5 * * * *'
+    labels:
+      owner: warehouse
+      criticality: high
+  note: 見本なので全件承認
+- id: hourly.mail_queue_worker
+  path: /hourly/mail_queue_worker
+  layer: scheduler
+  source:
+    file: flows/hourly/mail_queue_worker.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: mail_queue_worker
+  attributes:
+    description: 'キュー mail.requests を 10 分ごとに読み、メール API で送って audit.mail_log に記録する
+
+      '
+    commands:
+    - bash scripts/run_job.sh mail_queue_worker
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - '*/10 * * * *'
+    labels:
+      owner: crm
+  note: 見本なので全件承認
+- id: hourly.sync_shipments
+  path: /hourly/sync_shipments
+  layer: scheduler
+  source:
+    file: flows/hourly/sync_shipments.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: sync_shipments
+  attributes:
+    description: '配送中の出荷の追跡情報を配送業者 API から取り、shop.shipments の状態を更新する
+
+      '
+    commands:
+    - bash scripts/run_job.sh sync_shipments
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 15 * * * *
+    labels:
+      owner: warehouse
+  note: 見本なので全件承認
+- id: lib.notify_failure
+  path: /lib/notify_failure
+  layer: scheduler
+  source:
+    file: flows/lib/notify_failure.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: notify_failure
+  attributes:
+    description: '他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+
+      '
+    commands:
+    - bash scripts/run_job.sh notify_failure --flow-id "{{ inputs.flow_id }}" --execution-id "{{ inputs.execution_id }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    labels:
+      owner: sre
+  note: 見本なので全件承認
+- id: monthly.custom_reports
+  path: /monthly/custom_reports
+  layer: scheduler
+  source:
+    file: flows/monthly/custom_reports.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: custom_reports
+  attributes:
+    description: 'audit.report_definitions に登録された SQL (利用部門が管理画面から登録する) を月初に実行し、結果を定義ごとの CSV にして S3 に置く
+
+      '
+    commands:
+    - bash scripts/run_job.sh custom_reports --month "{{ inputs.month }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 7 1 * *
+    labels:
+      owner: data-platform
+  note: 見本なので全件承認
+- id: monthly.invoice_batch
+  path: /monthly/invoice_batch
+  layer: scheduler
+  source:
+    file: flows/monthly/invoice_batch.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: invoice_batch
+  attributes:
+    description: '法人顧客の前月分の請求書 (PDF) を顧客ごとのディレクトリに作り、メールで送る
+
+      '
+    commands:
+    - bash scripts/run_job.sh invoice_batch --month "{{ inputs.month }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 6 1 * *
+    labels:
+      owner: sales-ops
+      criticality: high
+  note: 見本なので全件承認
+- id: monthly.monthly_kpi
+  path: /monthly/monthly_kpi
+  layer: scheduler
+  source:
+    file: flows/monthly/monthly_kpi.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: monthly_kpi
+  attributes:
+    description: '月次 KPI (売上・顧客数・継続率) を sql/reports/ のテンプレートから組み立てた SQL で集計し、mart.monthly_kpi と Excel (S3) に出す
+
+      '
+    commands:
+    - bash scripts/run_job.sh monthly_kpi --month "{{ inputs.month }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 5 1 * *
+    labels:
+      owner: data-platform
+  note: 見本なので全件承認
+- id: monthly.purge_sessions
+  path: /monthly/purge_sessions
+  layer: scheduler
+  source:
+    file: flows/monthly/purge_sessions.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: purge_sessions
+  attributes:
+    description: '90 日以上使われていないセッションを Redis から消し、同じ期間放置されたカートを shop.carts から削除する
+
+      '
+    commands:
+    - bash scripts/run_job.sh purge_sessions
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 4 1 * *
+    labels:
+      owner: sre
+  note: 見本なので全件承認
+- id: weekly.archive_old_orders
+  path: /weekly/archive_old_orders
+  layer: scheduler
+  source:
+    file: flows/weekly/archive_old_orders.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: archive_old_orders
+  attributes:
+    description: '2 年より古い注文を JSON Lines にして S3 のアーカイブに置き、DB から削除する
+
+      '
+    commands:
+    - bash scripts/run_job.sh archive_old_orders --date "{{ inputs.date }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 1 * * 0
+    labels:
+      owner: data-platform
+      criticality: high
+  note: 見本なので全件承認
+- id: weekly.close_week
+  path: /weekly/close_week
+  layer: scheduler
+  source:
+    file: flows/weekly/close_week.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: close_week
+  attributes:
+    description: '週次の締め。コホート分析と仕入先向け明細を Subflow で呼ぶ。失敗時は lib.notify_failure に通知する
+
+      '
+    commands: []
+    task_types:
+    - io.kestra.plugin.core.flow.Subflow
+    - io.kestra.plugin.core.flow.Subflow
+    subflows:
+    - cohort_retention
+    - supplier_statements
+    subflow_namespaces:
+    - weekly
+    - weekly
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 3 * * 1
+    labels:
+      owner: data-platform
+  note: 見本なので全件承認
+- id: weekly.cohort_retention
+  path: /weekly/cohort_retention
+  layer: scheduler
+  source:
+    file: flows/weekly/cohort_retention.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: cohort_retention
+  attributes:
+    description: '初回購入月ごとのコホートで週次の継続率を計算し、mart.cohort_retention と CSV (S3) に出す
+
+      '
+    commands:
+    - bash scripts/run_job.sh cohort_retention --week-start "{{ inputs.week_start }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    labels:
+      owner: data-platform
+  note: 見本なので全件承認
+- id: weekly.legacy_price_sync
+  path: /weekly/legacy_price_sync
+  layer: scheduler
+  source:
+    file: flows/weekly/legacy_price_sync.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: legacy_price_sync
+  attributes:
+    description: '旧価格計算エンジン (bin/legacy_pricing、バイナリ) を実行し、出力の価格表で shop.product_prices を更新する。変更は audit.price_changes に残す
+
+      '
+    commands:
+    - bash scripts/run_job.sh legacy_price_sync
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 2 * * 6
+    labels:
+      owner: commerce-platform
+  note: 見本なので全件承認
+- id: weekly.supplier_statements
+  path: /weekly/supplier_statements
+  layer: scheduler
+  source:
+    file: flows/weekly/supplier_statements.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: supplier_statements
+  attributes:
+    description: '仕入先ごとの週次明細 (入荷と発注) を CSV にまとめ、メールで送る
+
+      '
+    commands:
+    - bash scripts/run_job.sh supplier_statements --week-start "{{ inputs.week_start }}"
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    labels:
+      owner: warehouse
+  note: 見本なので全件承認
+- id: weekly.tax_rate_refresh
+  path: /weekly/tax_rate_refresh
+  layer: scheduler
+  source:
+    file: flows/weekly/tax_rate_refresh.yaml
+    line: 1
+  extractor: kestra-flows
+  status: approved
+  name: tax_rate_refresh
+  attributes:
+    description: '税率 API から最新の税率表を取り、shop.tax_rates を更新する
+
+      '
+    commands:
+    - bash scripts/run_job.sh tax_rate_refresh
+    task_types:
+    - io.kestra.plugin.scripts.shell.Commands
+    subflows: []
+    subflow_namespaces: []
+    triggers:
+    - io.kestra.plugin.core.trigger.Schedule
+    cron:
+    - 0 4 * * 0
+    labels:
+      owner: commerce-platform
+  note: 見本なので全件承認
+enumerated_at: '2026-11-08T12:00:00+09:00'

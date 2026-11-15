@@ -1,0 +1,19 @@
+format_version: 1
+entry_id: layout_l.main_g.websites.websiteId_d
+reviewed_at: "2026-11-13T04:00:00+09:00"
+reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: medium
+    where: callstack/q_can_view_website/summary
+    claim: "summary の『作成者が本人なら許す』は根拠と合わない。website.ts:30-31 が比べるのは entity.userId (持ち主の列 user_id) で、website には作成者の列 createdBy (created_by、schema.prisma:105) が別にある。チームのサイトは作成者でも userId が空なので、この比較ではなくチームのメンバー確認に進む"
+    evidence: { file: src/permissions/website.ts, line: 31 }
+    suggestion: "q_can_view_website の summary を『持ち主 (userId) が本人なら許す』に直し、根拠に schema.prisma:103 (userId) を加える"
+  - kind: missing_frame
+    severity: low
+    where: callstack/website_header/io/0
+    claim: "icons.duckduckgo.com への画像の読み込みは Favicon コンポーネント (Favicon.tsx:9) が img を描いて起こすが、Favicon のフレームが無く、I/O が呼び出し元の WebsiteHeader に付いている。Favicon は useConfig の privateMode と faviconUrl で送信の有無と送り先を決めており、外部への送信に至る経路上のコンポーネントにあたる"
+    evidence: { file: src/components/common/Favicon.tsx, line: 21 }
+    suggestion: "Favicon (src/components/common/Favicon.tsx:9、caller は website_header、call の根拠は WebsiteHeader.tsx:30) をフレームにして、external_api の I/O をそちらへ移す"
+notes: "機械チェック (validate result) は OK。全フレームの call / summary / parameters / io の根拠行を開いて確かめた。上の 2 件以外は、行番号が実在して主張を支えている。テーブル名は schema.prisma の @@map と一致している (user:37、website:130、website_event:183、team:249、team_user:265、link:358、pixel:378、board:398、share:412)。ClickHouse の website_event は db/clickhouse/schema.sql:2 にある。PostgreSQL と ClickHouse の両方を I/O に書いているのは context.md どおり。runQuery の分岐 (db.ts:27、:38)、REDIS_URL による Redis の有効化 (redis.ts:106)、FAVICON_URL と PRIVATE_MODE (api/config/route.ts:16、:19) も note の記述と一致する。同じ処理の置き場も決まりどおり。getWebsite は layout.tsx:15 の下に置いている (src/app/(main) の '(' が src/app/api より先)。parseRequest は active/route.ts:10、getUser は auth.ts:94、canViewWebsite は share.ts:59 の下。canViewSharedWebsite の下の書き直し (q_*_rw) も、website.ts:24、entity.ts:6 という最も早い呼び出しの 1 本になっている。ブラウザは useApi.ts:28 でログイントークンを付け、共有トークンのヘッダーは store に share があるときだけ付く (useApi.ts:23)。このため、共有トークンと API キーの経路を書かない判断は妥当。気になった点 (指摘にはしない): ext_prisma_get_website は website.findUnique (website.ts:77) と share.findFirst (website.ts:304) という 2 つの呼び出し行を 1 つの external フレームにまとめている。照合はティアと source.file で行うので影響は無い"

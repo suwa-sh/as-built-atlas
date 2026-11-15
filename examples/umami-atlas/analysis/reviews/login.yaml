@@ -1,0 +1,19 @@
+format_version: 1
+entry_id: login
+reviewed_at: "2026-11-13T12:00:00+09:00"
+reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: "callstack/api_login/summary"
+    claim: "summary の『5 分の仮トークンを返す』を支える行が evidence に無い。evidence の route.ts:37 と :38 (前後 5 行) は 2FA の有効判定と isTwoFactorConfigured の呼び出しまでで、expiresIn: '5m' は route.ts:46 にある"
+    evidence: { file: src/app/api/auth/login/route.ts, line: 46 }
+    suggestion: "api_login の summary の evidence に src/app/api/auth/login/route.ts:46 を加える"
+  - kind: evidence_mismatch
+    severity: low
+    where: "callstack/q_save_auth/io/0"
+    claim: "detail の『ラッパーが EX に既定の 3600 秒を付ける』のうち 3600 という値を支える行が evidence に無い。redis.ts:49 と :51 は DEFAULT_TTL を使うだけで、値 3600 は redis.ts:7 で定義されている"
+    evidence: { file: src/lib/redis.ts, line: 7 }
+    suggestion: "q_save_auth の io/0 の evidence に src/lib/redis.ts:7 を加える"
+notes: "前回のレビュー (旧版の結果に対する 2 件、どちらも今回の結果で反映済み) を、現在の結果に対するレビューで置き換えた。機械チェック (validate result) は OK。analysis-conventions.md には合意済みの決まりがまだ無いため、profile の context.md を基準にした。全フレームの call / summary / parameters / io の根拠行を開いて確かめ、上の 2 件 (細部の値の根拠が前後 5 行の外にある) を除いて主張を支えている。テーブル名は schema.prisma の @@map (user:37、team:249、team_user:265、two_factor_auth:492、provider postgresql:8) と一致。Redis のキー auth:* (auth.ts:150)、checkAuth の Redis 読み (auth.ts:102、ラッパー redis.ts:37) も正しい。/auth で始まる URL が basePath + /api になること (api-url.ts:6, 39, 44) も正しい。API キーの経路は /api/auth が API_KEY_BLOCKED_PATHS (api-key.ts:15) にあり checkApiKeyAuth が auth.ts:35 で null を返すので、api_key の I/O を載せないのは妥当。同じ処理の扱いも決まりどおり。getAllUserTeams は呼び出し行の辞書順 (login/route.ts:62 が verify/route.ts:12 より先) で api_login の下に 1 回だけ書いている。parseRequest は skipAuth の有無で届く先が違うため、データに届く api_verify 側にだけ書いている。辿り漏れは無い。checkPassword、createSecureToken、hash、parseShareToken、consumeReturnUrl (sessionStorage だけ)、useModified (zustand のストアだけ) はどれもサーバーのデータの I/O を持たない。ブラウザ内の保存 (localStorage のトークン、sessionStorage の仮トークンと戻り先 URL) を I/O に書いていないのも context.md どおり。team_user の read を interpretation にしているのは、コードに出るのがリレーション名 members だけなので許容範囲とした"

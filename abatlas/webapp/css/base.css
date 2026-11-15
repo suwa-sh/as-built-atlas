@@ -1,0 +1,76 @@
+/* as-built-atlas webapp の見た目 (1/5): 変数・リセット・文字・フォームの部品・基本クラス。
+ * 読み込み順は base → shell → ui → views → pages (index.html の <link> の並び。tests/test_webapp.py が検査する)。
+ * JS の層と対応する: ui.css = ui/、views.css = views/、pages.css = pages/。css/ 以外に CSS を置かない
+ */
+
+/* 路線図の言葉でそろえる: 白地に黒。線はすべて細く (罫は 1px、路線は 2px)、見出しは太さではなく大きさで分ける。箱の塗りと影を使わない。
+ * 色の役割は 2 つだけ: 路線の色 (入口の種類ごとに 1 色。--l1〜--l6) と、書く操作・注意の朱 (--write)。リンクは墨の文字に下線 (青を路線の色と取り違えないため)。
+ * 路線の色は .ln1〜.ln6 のクラスが --ln に入れる (どの種類が何番かは model/catalog.js の lineOf が決める)
+ */
+:root {
+  --bg: #FFFFFF;
+  --ink: #0A0A0A;
+  --mute: #6B6B6B;      /* 脇の文字。白地で 5.3:1 */
+  --hair: #E2E2E2;      /* 薄い罫 */
+  --tint: #F6F6F6;      /* 2 つ目の地色 (表の見出し、選んだ行の周り) */
+  --sel: #EDEDED;       /* 選んだ行 (中立の色。路線の色は行頭の帯が持つ) */
+  --write: #C7381C;     /* 書く操作。白い文字を載せて 4.9:1 */
+  --err: #B00020;
+  --faint: #A3A3A3;     /* 飾りの薄い線だけ (リンクの下線、小さな札の縁、スクロールバー)。意味を持つ線と、操作できる部品の縁には使わない */
+  --edge: #858585;      /* 入力と絞り込みの札の縁、不明を含む図の辺、ツリーの線。白地で 3.7:1 */
+  --l1: #0B8A5A;
+  --l2: #2C6FD1;
+  --l3: #8A4FBF;
+  --l4: #B26A00;
+  --l5: #0E8C9A;
+  --l6: #C2378A;
+  --ln: var(--ink);
+  --thin: 0.75px; /* 図の細い線 (non-scaling-stroke なので倍率に関係なく画面上この太さ) */
+  --font: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ln1 { --ln: var(--l1); }
+.ln2 { --ln: var(--l2); }
+.ln3 { --ln: var(--l3); }
+.ln4 { --ln: var(--l4); }
+.ln5 { --ln: var(--l5); }
+.ln6 { --ln: var(--l6); }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+html { scrollbar-color: var(--faint) var(--bg); }
+::selection { background: var(--ink); color: var(--bg); }
+a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--faint); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--ink); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
+button { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--ink); border-radius: 16px; padding: 3px 14px; cursor: pointer; min-height: 30px; transition: background 0.15s, color 0.15s; }
+button:hover { background: var(--ink); color: var(--bg); }
+button:active { background: var(--mute); }
+button.primary { background: var(--ink); color: #fff; }
+button.primary:hover { background: #333333; }
+button.link { border: 0; border-radius: 0; background: transparent; color: var(--ink); padding: 0; min-height: 24px; font-size: inherit; text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+button.link:hover { text-decoration-color: var(--ink); background: transparent; color: var(--ink); }
+button:disabled { opacity: 0.5; cursor: default; background: var(--bg); color: var(--ink); }
+select, input { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--edge); border-radius: 6px; padding: 3px 10px; min-height: 30px; caret-color: var(--ink); }
+select:hover, input:hover, select:focus, input:focus { border-color: var(--ink); }
+input::placeholder { color: var(--mute); }
+input[type="search"] { min-width: 220px; }
+h1 { font-size: 32px; font-weight: 400; letter-spacing: -0.01em; margin: 0; line-height: 1.15; overflow-wrap: anywhere; text-wrap: balance; }
+h2 { font-size: 18px; font-weight: 400; line-height: 1.3; margin: 0 0 12px; }
+h3 { font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+p { margin: 0 0 12px; }
+main > h2 { margin-top: 40px; }
+main > .head + h2, main > .caveat + h2, main > .note + h2 { margin-top: 0; }
+.muted { color: var(--mute); }
+.sub { color: var(--mute); margin: 2px 0 0; font-size: 13px; }
+.note { color: var(--mute); font-size: 13px; margin: 0 0 12px; max-width: 75ch; }
+main > .note:has(+ :not(.note)) { margin-bottom: 28px; }
+.empty { color: var(--mute); padding: 16px 0; margin: 0; }
+.err { color: var(--err); }
+.right { margin-left: auto; }
+.num { font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; }
+h1 .pre { color: var(--mute); font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

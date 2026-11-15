@@ -1,0 +1,641 @@
+format_version: 1
+entry:
+  id: layout_l.share.slug_d
+  path: /(layout)/share/[slug]
+  name: "[slug]"
+  layer: layout
+  source: { file: "src/app/share/[slug]/layout.tsx", line: 3 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.3.0" }
+  skill_version: "0.3.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-13T03:17:56+09:00"
+  reviewed:
+    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
+    at: "2026-11-13T03:25:00+09:00"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "共有リンク (/share/<slug>) の画面を包む枠。URL の slug を ShareProvider に渡す。ShareProvider はブラウザ側で GET /api/share/<slug> を呼び、共有の定義を読む。受け口はログインの確認をせず、share を slug で 1 件読み、共有の種類 (website / pixel / link / board) ごとに対象を読む。board のときは board に載った website・pixel・link のうち、board の持ち主 (team なら team の構成員、user ならその user の権限) が見てよいものだけに絞る。そのうえで共有のトークン (JWT) を作り、持ち主の id が決まって Redis が有効なら white-label:<id> の設定を読んで返す。ブラウザは返った共有データとトークンを store に入れ、以後の API 呼び出しに共有トークンのヘッダーを付ける。枠の動きの条件: 共有データが揃い store のトークンと一致するまでは Loading を出し children を描かない。共有が見つからなければ何も描かない。website の共有で、許された節 (parameters で true のもの) が overview 以外の 1 つだけ、かつ今の URL の段が空か overview なら、/share/<slug>/<その節> へ router.replace で移る。枠を外す (slug が変わる) ときは store の共有データを消す"
+  evidence:
+    - { file: "src/app/share/[slug]/layout.tsx", line: 10 }
+    - { file: "src/app/share/[slug]/layout.tsx", line: 12 }
+    - { file: src/app/share/ShareProvider.tsx, line: 58 }
+    - { file: src/app/share/ShareProvider.tsx, line: 64 }
+    - { file: src/app/share/ShareProvider.tsx, line: 71 }
+    - { file: src/app/share/ShareProvider.tsx, line: 79 }
+    - { file: src/app/share/ShareProvider.tsx, line: 85 }
+    - { file: src/app/share/ShareProvider.tsx, line: 89 }
+    - { file: src/app/share/ShareProvider.tsx, line: 93 }
+    - { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 11 }
+    - { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 19 }
+    - { file: src/components/hooks/useApi.ts, line: 24 }
+    - { file: "src/app/api/share/[slug]/route.ts", line: 133 }
+    - { file: "src/app/api/share/[slug]/route.ts", line: 147 }
+    - { file: "src/app/api/share/[slug]/route.ts", line: 156 }
+    - { file: "src/app/api/share/[slug]/route.ts", line: 178 }
+    - { file: "src/app/api/share/[slug]/route.ts", line: 183 }
+notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (共有の画面 share/[slug]/[[...path]] の page) と、外側のルートの layout は別の入口なので辿らない。(2) GET /api/share/[slug] は認証の検査をしない。route.ts は parseRequest も checkAuth も import せず (route.ts:1-10)、GET は slug で share を読むところから始める (route.ts:130-133)。useApi はログイントークンを Bearer で付けて送るが、この受け口は見ない。だから canViewWebsite / canViewPixel / canViewLink は、board の持ち主の user から組み立てた auth (共有トークン無し) で呼ばれる。その user が管理者なら、データを読まずに見てよいとする。(3) 同じ処理の置き場 (呼び出し行のファイルのパスの辞書順、同じなら行番号順): getWebsite / getPixel / getLink / getBoard は src/app/api/share/[slug]/route.ts の呼び出し (src/lib/entity.ts と src/permissions/… より早い) の下に 1 回だけ書いた。getWebsite は route.ts:91 と :161、getPixel は :95 と :165、getLink は :99 と :169 から呼ばれ、いちばん早い行を call の根拠の先頭にした。getTeamUser は permissions/link.ts:34 (pixel.ts:34 と website.ts:35 より早い) の下に書いた。canViewPixel は呼び先がすべて他の下にあり終端になるので、最も早い呼び出し getPixel (permissions/pixel.ts:23) を書き直した。getEntity も同じ理由で、最も早い呼び出し getWebsite (entity.ts:6) を書き直した。(4) route.ts の中の補助の関数 (getAccountId、getWhiteLabel、filterEntityIds、getTeamUserIds、filterBoardEntityIdsForShare) は GET からだけ呼ばれる同じファイルの関数なので、GET のフレームにまとめた。それらが直接書く Prisma と Redis の呼び出しは GET の I/O にした。(5) フレームにしなかったもの: getBoardEntityIds (board の parameters から website・pixel・link の id を集める計算だけ。I/O 無し)、createToken (jsonwebtoken の jwt.sign で共有トークンを作る。jwt.ts:5。鍵は APP_SECRET か DATABASE_URL のハッシュ。crypto.ts:57。データに触れない)、Loading (UI ライブラリの部品)、router.replace (next/navigation。節への転送だけ)。(6) setShareData は zustand の store (ブラウザのメモリ) に書くだけで、サーバーのデータではないので I/O に書かない。(7) pixel と link の共有では、返すデータの websiteId にも対象の id を入れている (route.ts:167 / :172)。(8) URL の接頭辞: 環境変数 apiUrl があるとその URL に向く (src/lib/api-url.ts:39)。既定 (apiUrl 無し) で basePath + /api の同じリポジトリの route に当たるので、フックから route への call は interpretation にした。(9) レビューの指摘 3 件 (どれも low) を直した: board・pixel・link の読み取りの note に、board の持ち主が user のときの経路 (canViewWebsite の getEntity が entity.ts:7-9 で link・pixel・board も読む、canViewLink が link.ts:23 で link を読む) を書き足した"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: layout
+    layer: layout
+    kind: layout
+    name: "共有リンクの layout (src/app/share/[slug]/layout.tsx)"
+    source: { file: "src/app/share/[slug]/layout.tsx", line: 3 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く layout ('use client' 無し)。URL の params から slug を取り出し、ShareProvider に slug を渡して children を包む。データは読まない"
+      evidence:
+        - { file: "src/app/share/[slug]/layout.tsx", line: 7 }
+        - { file: "src/app/share/[slug]/layout.tsx", line: 10 }
+        - { file: "src/app/share/[slug]/layout.tsx", line: 12 }
+    parameters:
+      - name: "slug"
+        value: "URL の段 [slug]"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/layout.tsx", line: 10 }
+
+  # ---------------------------------------------------------------- ブラウザ側
+  - id: share_provider
+    layer: component
+    kind: component
+    name: "ShareProvider (src/app/share/ShareProvider.tsx)"
+    source: { file: src/app/share/ShareProvider.tsx, line: 57 }
+    caller: layout
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/share/[slug]/layout.tsx", line: 1 }
+        - { file: "src/app/share/[slug]/layout.tsx", line: 12 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。useShareTokenQuery で共有の定義を読み、store の共有トークンが返ったトークンと一致するまで Loading を出す。共有が無ければ null。website の共有で許された節が overview 以外の 1 つだけで、今の段 (URL の 3 番目の段。ドメイン名らしければ 4 番目) が空か overview なら、router.replace で /share/<slug>/<節> へ移り、その間は null。揃えば ShareContext に共有データと slug を入れて children を描く。slug が変わる・外れるときは setShareData(null, null) で store を空にする"
+      evidence:
+        - { file: src/app/share/ShareProvider.tsx, line: 1 }
+        - { file: src/app/share/ShareProvider.tsx, line: 45 }
+        - { file: src/app/share/ShareProvider.tsx, line: 58 }
+        - { file: src/app/share/ShareProvider.tsx, line: 64 }
+        - { file: src/app/share/ShareProvider.tsx, line: 66 }
+        - { file: src/app/share/ShareProvider.tsx, line: 71 }
+        - { file: src/app/share/ShareProvider.tsx, line: 79 }
+        - { file: src/app/share/ShareProvider.tsx, line: 85 }
+        - { file: src/app/share/ShareProvider.tsx, line: 89 }
+        - { file: src/app/share/ShareProvider.tsx, line: 93 }
+        - { file: src/app/share/ShareProvider.tsx, line: 97 }
+
+  - id: use_share_token_query
+    layer: component
+    kind: hook
+    name: "useShareTokenQuery"
+    source: { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 5 }
+    caller: share_provider
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/share/ShareProvider.tsx, line: 5 }
+        - { file: src/app/share/ShareProvider.tsx, line: 58 }
+    summary:
+      status: interpretation
+      value: "queryKey ['share', slug] で GET /share/<slug> を呼ぶ。返ったデータに token があり、store の shareId かトークンと違えば setShareData で store に共有データとトークンを入れる。以後 useApi は、store に shareId とトークンがあれば x-umami-share-token と x-umami-share-context ヘッダーを付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 10 }
+        - { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 22 }
+        - { file: src/components/hooks/useApi.ts, line: 24 }
+
+  # ---------------------------------------------------------------- 受け口
+  - id: api_share_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/share/[slug]"
+    source: { file: "src/app/api/share/[slug]/route.ts", line: 130 }
+    caller: use_share_token_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useShareTokenQuery.ts, line: 11 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/share/<slug>。段が 1 つなので api/share/id/[shareId] ではなく api/share/[slug] に当たる"
+    summary:
+      status: interpretation
+      value: "認証の検査をせずに動く。getShareByCode で share を slug で読み、無ければ 404。shareType で分かれる: board なら getBoard で board を読み、getBoardEntityIds で board に載った website・pixel・link の id を集め、持ち主で絞る (team の board なら team の構成員を読み、各 id の website・pixel・link を読んで team か構成員の持ち物か比べる。user の board なら getUser でその user を読み、canViewWebsite / canViewPixel / canViewLink で見てよいか確かめる)。website / pixel / link ならその対象を読み、無ければ 404。それ以外の種類は 404。shareId・shareType・parameters と対象の id から共有トークン (JWT、type share) を作る。持ち主の id (対象の userId、無ければ team の owner を team_user から読む) が決まり Redis が有効なら white-label:<id> を読み、あれば whiteLabel として返す"
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 133 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 135 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 147 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 152 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 156 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 85 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 104 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 124 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 160 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 174 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 178 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 180 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 183 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 38 }
+    parameters:
+      - name: "slug"
+        value: "URL の段 [slug]"
+        status: fact
+        evidence:
+          - { file: "src/app/api/share/[slug]/route.ts", line: 131 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "getAccountId の prisma.client.teamUser.findFirst (where teamId, role team-owner, select userId)"
+        evidence:
+          - { file: "src/app/api/share/[slug]/route.ts", line: 21 }
+          - { file: "src/app/api/share/[slug]/route.ts", line: 180 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "対象 (website / pixel / link / board) に userId が無く teamId があるときだけ (持ち主の team の owner を探す)"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "getTeamUserIds の prisma.client.teamUser.findMany (where teamId, select userId)"
+        evidence:
+          - { file: "src/app/api/share/[slug]/route.ts", line: 69 }
+          - { file: "src/app/api/share/[slug]/route.ts", line: 86 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "共有の種類が board で、board に teamId があるときだけ"
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "white-label:*" } }
+        detail: "getWhiteLabel の redis.client.get(`white-label:${accountId}`)。値は JSON として読む"
+        evidence:
+          - { file: "src/app/api/share/[slug]/route.ts", line: 42 }
+          - { file: "src/app/api/share/[slug]/route.ts", line: 183 }
+          - { file: src/lib/redis.ts, line: 37 }
+        note: "Redis が有効 (REDIS_URL あり) で、持ち主の id が決まったときだけ"
+
+  - id: ext_prisma_route
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst / teamUser.findMany"
+    source: { file: "src/app/api/share/[slug]/route.ts", line: 21 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 21 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 69 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis) client.get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 6 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 42 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "route は自前の包み (UmamiRedisClient.get) を呼び、その中で redis ライブラリの client.get を呼ぶ"
+
+  # ---------------------------------------------------------------- サーバー側の関数
+  - id: q_get_share_by_code
+    layer: query
+    kind: function
+    name: "getShareByCode / findShare (src/queries/prisma/share.ts)"
+    source: { file: src/queries/prisma/share.ts, line: 17 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 10 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 133 }
+    summary:
+      status: interpretation
+      value: "share を slug で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/share.ts, line: 18 }
+        - { file: src/queries/prisma/share.ts, line: 20 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findUnique (where slug)"
+        evidence:
+          - { file: src/queries/prisma/share.ts, line: 6 }
+          - { file: prisma/schema.prisma, line: 412 }
+
+  - id: ext_prisma_share
+    layer: external
+    kind: library
+    name: "Prisma Client share.findUnique"
+    source: { file: src/queries/prisma/share.ts, line: 6 }
+    caller: q_get_share_by_code
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/share.ts, line: 6 }
+
+  - id: q_get_board
+    layer: query
+    kind: function
+    name: "getBoard / findBoard (src/queries/prisma/board.ts)"
+    source: { file: src/queries/prisma/board.ts, line: 13 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 10 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 148 }
+      note: "共有の種類が board のとき"
+    summary:
+      status: interpretation
+      value: "board を id で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 14 }
+        - { file: src/queries/prisma/board.ts, line: 16 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "prisma.client.board.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/board.ts, line: 10 }
+          - { file: prisma/schema.prisma, line: 398 }
+        note: "共有の種類が board のとき (route.ts:148)。ほかに、board の持ち主が管理者でない user のとき、canViewWebsite の getEntity が board に載った website の id ごとに board も読む (entity.ts:9)"
+
+  - id: ext_prisma_board
+    layer: external
+    kind: library
+    name: "Prisma Client board.findUnique"
+    source: { file: src/queries/prisma/board.ts, line: 10 }
+    caller: q_get_board
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 10 }
+
+  - id: q_get_website
+    layer: query
+    kind: function
+    name: "getWebsite / findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 80 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 10 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 91 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 161 }
+      note: "route.ts:91 は board の持ち主が team のとき、board に載った website の id ごと。route.ts:161 は共有の種類が website のとき"
+    summary:
+      status: interpretation
+      value: "id が uuid でなければ読まずに null。website を id で 1 件読み、見つかればその website の最新の share の slug を shareId として付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 81 }
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 95 }
+        - { file: src/queries/prisma/website.ts, line: 303 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 77 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "共有の種類が website のとき、または board の持ち主が team で board に website が載っているとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 304 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "website が見つかったときだけ"
+
+  - id: ext_prisma_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.findUnique / share.findFirst"
+    source: { file: src/queries/prisma/website.ts, line: 77 }
+    caller: q_get_website
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 77 }
+        - { file: src/queries/prisma/website.ts, line: 304 }
+
+  - id: q_get_pixel
+    layer: query
+    kind: function
+    name: "getPixel / findPixel (src/queries/prisma/pixel.ts)"
+    source: { file: src/queries/prisma/pixel.ts, line: 12 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 10 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 95 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 165 }
+      note: "route.ts:95 は board の持ち主が team のとき、board に載った pixel の id ごと。route.ts:165 は共有の種類が pixel のとき"
+    summary:
+      status: interpretation
+      value: "pixel を id で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 13 }
+        - { file: src/queries/prisma/pixel.ts, line: 15 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "prisma.client.pixel.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/pixel.ts, line: 9 }
+          - { file: prisma/schema.prisma, line: 378 }
+        note: "共有の種類が pixel のとき、または board の持ち主が team で board に pixel が載っているとき。ほかに、board の持ち主が管理者でない user のとき、canViewWebsite の getEntity が website の id ごとに pixel も読む (entity.ts:8)。canViewPixel からの読み取り (permissions/pixel.ts:23) はフレーム q_get_pixel_rw"
+
+  - id: ext_prisma_pixel
+    layer: external
+    kind: library
+    name: "Prisma Client pixel.findUnique"
+    source: { file: src/queries/prisma/pixel.ts, line: 9 }
+    caller: q_get_pixel
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 9 }
+
+  - id: q_get_link
+    layer: query
+    kind: function
+    name: "getLink / findLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 12 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 10 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 99 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 169 }
+      note: "route.ts:99 は board の持ち主が team のとき、board に載った link の id ごと。route.ts:169 は共有の種類が link のとき"
+    summary:
+      status: interpretation
+      value: "link を id で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 13 }
+        - { file: src/queries/prisma/link.ts, line: 15 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 9 }
+          - { file: prisma/schema.prisma, line: 358 }
+        note: "共有の種類が link のとき、または board の持ち主が team で board に link が載っているとき。ほかに、board の持ち主が管理者でない user のとき、canViewLink が link の id ごとに読み (permissions/link.ts:23)、canViewWebsite の getEntity が website の id ごとに link も読む (entity.ts:7)"
+
+  - id: ext_prisma_link
+    layer: external
+    kind: library
+    name: "Prisma Client link.findUnique"
+    source: { file: src/queries/prisma/link.ts, line: 9 }
+    caller: q_get_link
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 9 }
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser / findUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 10 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 108 }
+      note: "共有の種類が board で、board に teamId が無く userId があるとき"
+    summary:
+      status: interpretation
+      value: "論理削除されていない user を id で 1 件読む (id・username・role・createdAt・twoFactorRequired。password は読まない)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 30 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 38 }
+        - { file: src/queries/prisma/user.ts, line: 53 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "共有の種類が board で、board の持ち主が user のとき"
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  # ---- 権限の検査 (board の持ち主が user のとき。auth は共有トークン無し)
+  - id: q_can_view_website
+    layer: query
+    kind: function
+    name: "canViewWebsite (src/permissions/website.ts)"
+    source: { file: src/permissions/website.ts, line: 8 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 9 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 124 }
+      note: "共有の種類が board で、board の持ち主が user のとき。board に載った website の id ごと"
+    summary:
+      status: interpretation
+      value: "管理者ならデータを読まずに許す。共有トークンは無いので次へ進み、getEntity で id に当たる website / link / pixel / board を読む。持ち主の userId があれば本人か比べ、teamId があれば getTeamUser で構成員か確かめる (getTeamUser の経路はフレーム q_get_team_user と同じ)"
+      evidence:
+        - { file: src/permissions/website.ts, line: 9 }
+        - { file: src/permissions/website.ts, line: 24 }
+        - { file: src/permissions/website.ts, line: 30 }
+        - { file: src/permissions/website.ts, line: 35 }
+
+  - id: q_get_entity
+    layer: query
+    kind: function
+    name: "getEntity (src/lib/entity.ts)"
+    source: { file: src/lib/entity.ts, line: 4 }
+    caller: q_can_view_website
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/website.ts, line: 3 }
+        - { file: src/permissions/website.ts, line: 24 }
+    summary:
+      status: interpretation
+      value: "id で website・link・pixel・board を並行に読み、見つかった最初のものを返す。getWebsite / getLink / getPixel / getBoard の経路はフレーム q_get_website / q_get_link / q_get_pixel / q_get_board と同じ。終端にならないよう、最も早い呼び出し (getWebsite) を下に書き直した"
+      evidence:
+        - { file: src/lib/entity.ts, line: 5 }
+        - { file: src/lib/entity.ts, line: 6 }
+        - { file: src/lib/entity.ts, line: 9 }
+        - { file: src/lib/entity.ts, line: 12 }
+
+  - id: q_get_website_rw
+    layer: query
+    kind: function
+    name: "getWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 80 }
+    caller: q_get_entity
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/entity.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう書き直したもの。id が uuid なら website を 1 件読み、最新の share の slug を付ける。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_website"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 81 }
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 95 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 77 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "canViewWebsite で、持ち主の user が管理者でないとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 304 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "website が見つかったときだけ"
+
+  - id: q_can_view_pixel
+    layer: query
+    kind: function
+    name: "canViewPixel (src/permissions/pixel.ts)"
+    source: { file: src/permissions/pixel.ts, line: 6 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 9 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 125 }
+      note: "共有の種類が board で、board の持ち主が user のとき。board に載った pixel の id ごと"
+    summary:
+      status: interpretation
+      value: "管理者ならデータを読まずに許す。getPixel で pixel を読み、userId があれば本人か比べ、teamId があれば getTeamUser で構成員か確かめる (getTeamUser の経路はフレーム q_get_team_user と同じ)。終端にならないよう、最も早い呼び出し (getPixel) を下に書き直した"
+      evidence:
+        - { file: src/permissions/pixel.ts, line: 7 }
+        - { file: src/permissions/pixel.ts, line: 23 }
+        - { file: src/permissions/pixel.ts, line: 29 }
+        - { file: src/permissions/pixel.ts, line: 34 }
+
+  - id: q_get_pixel_rw
+    layer: query
+    kind: function
+    name: "getPixel (src/queries/prisma/pixel.ts)"
+    source: { file: src/queries/prisma/pixel.ts, line: 12 }
+    caller: q_can_view_pixel
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/pixel.ts, line: 4 }
+        - { file: src/permissions/pixel.ts, line: 23 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう書き直したもの。pixel を id で 1 件読む。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_pixel"
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "prisma.client.pixel.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/pixel.ts, line: 9 }
+          - { file: prisma/schema.prisma, line: 378 }
+        note: "canViewPixel で、持ち主の user が管理者でないとき"
+
+  - id: q_can_view_link
+    layer: query
+    kind: function
+    name: "canViewLink (src/permissions/link.ts)"
+    source: { file: src/permissions/link.ts, line: 6 }
+    caller: api_share_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/share/[slug]/route.ts", line: 9 }
+        - { file: "src/app/api/share/[slug]/route.ts", line: 126 }
+      note: "共有の種類が board で、board の持ち主が user のとき。board に載った link の id ごと"
+    summary:
+      status: interpretation
+      value: "管理者ならデータを読まずに許す。getLink で link を読み (経路はフレーム q_get_link と同じ)、userId があれば本人か比べ、teamId があれば getTeamUser で構成員か確かめる"
+      evidence:
+        - { file: src/permissions/link.ts, line: 7 }
+        - { file: src/permissions/link.ts, line: 23 }
+        - { file: src/permissions/link.ts, line: 29 }
+        - { file: src/permissions/link.ts, line: 34 }
+
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_link
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/link.ts, line: 4 }
+        - { file: src/permissions/link.ts, line: 34 }
+      note: "canViewPixel (permissions/pixel.ts:34) と canViewWebsite (permissions/website.ts:35) からも呼ばれる。置き場は呼び出し行のパスの辞書順でいちばん早いここ"
+    summary:
+      status: interpretation
+      value: "team (論理削除されていないもの) の構成員の行を teamId と userId で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "対象 (website / pixel / link) に userId が無く teamId があり、持ち主の user が管理者でないとき。where の team 条件で team 表も結合して見るが、読み取りの対象は team_user として書いた"
+
+  - id: ext_prisma_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }

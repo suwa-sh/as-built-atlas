@@ -1,0 +1,307 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: monthly.invoice_batch
+  path: /monthly/invoice_batch
+  name: invoice_batch
+  layer: scheduler
+  source:
+    file: flows/monthly/invoice_batch.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: 法人顧客の前月分の請求書 (PDF) を顧客ごとのディレクトリに作り、メールで送る
+  evidence:
+  - file: flows/monthly/invoice_batch.yaml
+    line: 3
+  - file: jobs/invoice_batch.py
+    line: 1
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: monthly.invoice_batch
+  source:
+    file: flows/monthly/invoice_batch.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: 法人顧客の前月分の請求書 (PDF) を顧客ごとのディレクトリに作り、メールで送る
+    evidence:
+    - file: flows/monthly/invoice_batch.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 0 6 1 * * (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/monthly/invoice_batch.yaml
+      line: 29
+  - name: inputs.month
+    value: STRING。対象月 (YYYY-MM)
+    status: fact
+    evidence:
+    - file: flows/monthly/invoice_batch.yaml
+      line: 9
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/monthly/invoice_batch.yaml
+      line: 13
+- id: run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/monthly/invoice_batch.yaml
+      line: 25
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: invoice_batch (第 1 引数。実行するモジュール jobs.invoice_batch とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/monthly/invoice_batch.yaml
+      line: 25
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/monthly/invoice_batch.yaml
+      line: 23
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: invoice_batch.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: job
+  layer: program
+  kind: module
+  name: jobs.invoice_batch
+  source:
+    file: jobs/invoice_batch.py
+    line: 1
+  caller: run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=invoice_batch なので jobs.invoice_batch が動く
+  summary:
+    status: interpretation
+    value: 法人顧客の前月分の請求書 (PDF) を顧客ごとのディレクトリに作り、メールで送る
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 1
+    - file: jobs/invoice_batch.py
+      line: 22
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 18
+  - name: --month
+    value: 対象月 (YYYY-MM) (Flow の inputs.month から)
+    status: fact
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 17
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: customers
+    detail: kind = 'corporate' の顧客と前月の確定注文、請求先住所
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 29
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: orders
+    detail: kind = 'corporate' の顧客と前月の確定注文、請求先住所
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 30
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: addresses
+    detail: kind = 'corporate' の顧客と前月の確定注文、請求先住所
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 31
+  - op: write
+    status: unknown
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/invoices
+    detail: 顧客ごとのディレクトリに PDF
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 38
+    reason: dynamic_dispatch
+    note: ディレクトリ名は顧客コードで実行時に決まる
+  - op: call
+    status: fact
+    resource:
+      kind: external_api
+      levels:
+        host: api.mail.example
+        path: /v3/mail/send
+    detail: PDF を添付して送る
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 42
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: audit
+        table: mail_log
+    detail: 送ったメールの記録
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 45
+- id: lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 12
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: lib_http
+  layer: program
+  kind: module
+  name: jobs.lib.http
+  source:
+    file: jobs/lib/http.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/invoice_batch.py
+      line: 12
+  summary:
+    status: interpretation
+    value: 外部 API 呼び出し (requests の薄いラッパー)。認証ヘッダはホストごとの環境変数 KOTORI_API_TOKEN_<HOST> から付ける。
+    evidence:
+    - file: jobs/lib/http.py
+      line: 1
+- id: requests
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/http.py
+    line: 6
+  caller: lib_http
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/http.py
+      line: 23
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

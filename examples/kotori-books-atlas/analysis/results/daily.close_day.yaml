@@ -1,0 +1,1175 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: daily.close_day
+  path: /daily/close_day
+  name: close_day
+  layer: scheduler
+  source:
+    file: flows/daily/close_day.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: 日次の締め。注文の決済確定 → 売上集計 → 在庫の突き合わせ を Subflow で順に呼ぶ。失敗時は lib.notify_failure に通知する
+  evidence:
+  - file: flows/daily/close_day.yaml
+    line: 3
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: daily.close_day
+  source:
+    file: flows/daily/close_day.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: 日次の締め。注文の決済確定 → 売上集計 → 在庫の突き合わせ を Subflow で順に呼ぶ。失敗時は lib.notify_failure に通知する
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 0 1 * * * (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 52
+  - name: inputs.date
+    value: DATE。処理対象日 (省略時は実行日)
+    status: fact
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 9
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 13
+- id: settle_orders__flow
+  layer: scheduler
+  kind: subflow
+  name: daily.sales.settle_orders
+  source:
+    file: flows/daily/sales/settle_orders.yaml
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 20
+    note: 'Subflow として呼ばれる (wait: true)'
+  summary:
+    status: interpretation
+    value: 前日の未確定注文を決済 API で売上確定 (capture) し、shop.orders と shop.payments を更新する。確定した注文はキュー orders.settled に流す
+    evidence:
+    - file: flows/daily/sales/settle_orders.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/settle_orders.yaml
+      line: 1
+  - name: inputs.date
+    value: DATE。処理対象日 (省略時は実行日)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/settle_orders.yaml
+      line: 9
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/sales/settle_orders.yaml
+      line: 13
+- id: settle_orders__run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: settle_orders__flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/sales/settle_orders.yaml
+      line: 25
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: settle_orders (第 1 引数。実行するモジュール jobs.settle_orders とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/settle_orders.yaml
+      line: 25
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/daily/sales/settle_orders.yaml
+      line: 23
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: settle_orders.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: settle_orders__job
+  layer: program
+  kind: module
+  name: jobs.settle_orders
+  source:
+    file: jobs/settle_orders.py
+    line: 1
+  caller: settle_orders__run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=settle_orders なので jobs.settle_orders が動く
+  summary:
+    status: interpretation
+    value: 前日の未確定注文を決済 API で売上確定 (capture) し、shop.orders と shop.payments を更新する。確定した注文はキュー orders.settled に流す
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 1
+    - file: jobs/settle_orders.py
+      line: 18
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 14
+  - name: --date
+    value: 処理対象日 (省略時は実行日) (Flow の inputs.date から)
+    status: fact
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: orders
+    detail: status = 'authorized' の注文と、その与信 (authorization) を取る
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 25
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: payments
+    detail: status = 'authorized' の注文と、その与信 (authorization) を取る
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 26
+  - op: call
+    status: fact
+    resource:
+      kind: external_api
+      levels:
+        host: api.payment.example
+        path: /v1/captures
+    detail: 与信 ID ごとに売上確定を要求
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 35
+  - op: update
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: orders
+    detail: 確定できた注文
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 39
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: payments
+    detail: kind = 'capture' の行を追加
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 44
+  - op: publish
+    status: fact
+    resource:
+      kind: queue
+      levels:
+        broker: mq.internal
+        topic: orders.settled
+    detail: 確定した注文 ID と金額
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 49
+- id: settle_orders__lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: settle_orders__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 8
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: settle_orders__psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: settle_orders__lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: settle_orders__lib_http
+  layer: program
+  kind: module
+  name: jobs.lib.http
+  source:
+    file: jobs/lib/http.py
+    line: 1
+  caller: settle_orders__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 8
+  summary:
+    status: interpretation
+    value: 外部 API 呼び出し (requests の薄いラッパー)。認証ヘッダはホストごとの環境変数 KOTORI_API_TOKEN_<HOST> から付ける。
+    evidence:
+    - file: jobs/lib/http.py
+      line: 1
+- id: settle_orders__requests
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/http.py
+    line: 6
+  caller: settle_orders__lib_http
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/http.py
+      line: 23
+- id: settle_orders__lib_mq
+  layer: program
+  kind: module
+  name: jobs.lib.mq
+  source:
+    file: jobs/lib/mq.py
+    line: 1
+  caller: settle_orders__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/settle_orders.py
+      line: 8
+  summary:
+    status: interpretation
+    value: メッセージキュー (pika / AMQP の薄いラッパー)。トピック名はキュー名と同じ。
+    evidence:
+    - file: jobs/lib/mq.py
+      line: 1
+- id: settle_orders__pika
+  layer: external
+  kind: library
+  name: pika
+  source:
+    file: jobs/lib/mq.py
+    line: 7
+  caller: settle_orders__lib_mq
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/mq.py
+      line: 13
+- id: sales_report__flow
+  layer: scheduler
+  kind: subflow
+  name: daily.sales.sales_report
+  source:
+    file: flows/daily/sales/sales_report.yaml
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 28
+    note: 'Subflow として呼ばれる (wait: true)'
+  summary:
+    status: interpretation
+    value: 確定済み注文の明細を商品別・日別に集計して mart.daily_sales に入れ替え、CSV を S3 に置く
+    evidence:
+    - file: flows/daily/sales/sales_report.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/sales_report.yaml
+      line: 1
+  - name: inputs.date
+    value: DATE。処理対象日 (省略時は実行日)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/sales_report.yaml
+      line: 8
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/sales/sales_report.yaml
+      line: 12
+- id: sales_report__run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: sales_report__flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/sales/sales_report.yaml
+      line: 24
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: sales_report (第 1 引数。実行するモジュール jobs.sales_report とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/sales_report.yaml
+      line: 24
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/daily/sales/sales_report.yaml
+      line: 22
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: sales_report.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: sales_report__job
+  layer: program
+  kind: module
+  name: jobs.sales_report
+  source:
+    file: jobs/sales_report.py
+    line: 1
+  caller: sales_report__run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=sales_report なので jobs.sales_report が動く
+  summary:
+    status: interpretation
+    value: 確定済み注文の明細を商品別・日別に集計して mart.daily_sales に入れ替え、CSV を S3 に置く
+    evidence:
+    - file: jobs/sales_report.py
+      line: 1
+    - file: jobs/sales_report.py
+      line: 21
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/sales_report.py
+      line: 17
+  - name: --date
+    value: 処理対象日 (省略時は実行日) (Flow の inputs.date から)
+    status: fact
+    evidence:
+    - file: jobs/sales_report.py
+      line: 16
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: orders
+    detail: 確定済み注文の明細を商品別・日別に集計する
+    evidence:
+    - file: jobs/sales_report.py
+      line: 29
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: order_items
+    detail: 確定済み注文の明細を商品別・日別に集計する
+    evidence:
+    - file: jobs/sales_report.py
+      line: 30
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: products
+    detail: 確定済み注文の明細を商品別・日別に集計する
+    evidence:
+    - file: jobs/sales_report.py
+      line: 31
+  - op: delete
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: mart
+        table: daily_sales
+    detail: 同じ日の集計を消してから入れ直す
+    evidence:
+    - file: jobs/sales_report.py
+      line: 39
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: mart
+        table: daily_sales
+    detail: 商品別の集計行
+    evidence:
+    - file: jobs/sales_report.py
+      line: 42
+  - op: write
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/sales
+        file: daily_sales_{date}.csv
+    detail: 集計結果の CSV
+    evidence:
+    - file: jobs/sales_report.py
+      line: 49
+  - op: put
+    status: fact
+    resource:
+      kind: object_storage
+      levels:
+        bucket: kotori-reports
+        prefix: daily/sales/
+    detail: CSV を日付名で置く
+    evidence:
+    - file: jobs/sales_report.py
+      line: 53
+- id: sales_report__lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: sales_report__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/sales_report.py
+      line: 11
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: sales_report__psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: sales_report__lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: sales_report__lib_storage
+  layer: program
+  kind: module
+  name: jobs.lib.storage
+  source:
+    file: jobs/lib/storage.py
+    line: 1
+  caller: sales_report__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/sales_report.py
+      line: 11
+  summary:
+    status: interpretation
+    value: S3 互換のオブジェクトストレージ (boto3 の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/storage.py
+      line: 1
+- id: sales_report__boto3
+  layer: external
+  kind: library
+  name: boto3
+  source:
+    file: jobs/lib/storage.py
+    line: 4
+  caller: sales_report__lib_storage
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/storage.py
+      line: 12
+- id: sales_report__lib_notify
+  layer: program
+  kind: module
+  name: jobs.lib.notify
+  source:
+    file: jobs/lib/notify.py
+    line: 1
+  caller: sales_report__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/sales_report.py
+      line: 55
+  summary:
+    status: interpretation
+    value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+    - file: jobs/lib/notify.py
+      line: 13
+  io:
+  - op: call
+    status: unknown
+    reason: not_traceable_in_repo
+    resource:
+      kind: external_api
+      levels: {}
+    detail: チャットの Webhook (POST, JSON の text)
+    note: URL は環境変数 KOTORI_CHAT_WEBHOOK で、リポジトリに無い
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+- id: sales_report__requests_notify
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/notify.py
+    line: 6
+  caller: sales_report__lib_notify
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 13
+- id: reconcile_stock__flow
+  layer: scheduler
+  kind: subflow
+  name: daily.inventory.reconcile_stock
+  source:
+    file: flows/daily/inventory/reconcile_stock.yaml
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 36
+    note: 'Subflow として呼ばれる (wait: true)'
+  summary:
+    status: interpretation
+    value: 前日の入出庫 (stock_movements) を在庫数に反映し、日次の在庫スナップショットを mart に書く。Redis の在庫キャッシュも更新する
+    evidence:
+    - file: flows/daily/inventory/reconcile_stock.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/reconcile_stock.yaml
+      line: 1
+  - name: inputs.date
+    value: DATE。処理対象日 (省略時は実行日)
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/reconcile_stock.yaml
+      line: 9
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/reconcile_stock.yaml
+      line: 13
+- id: reconcile_stock__run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: reconcile_stock__flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/reconcile_stock.yaml
+      line: 25
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: reconcile_stock (第 1 引数。実行するモジュール jobs.reconcile_stock とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/reconcile_stock.yaml
+      line: 25
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/daily/inventory/reconcile_stock.yaml
+      line: 23
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: reconcile_stock.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: reconcile_stock__job
+  layer: program
+  kind: module
+  name: jobs.reconcile_stock
+  source:
+    file: jobs/reconcile_stock.py
+    line: 1
+  caller: reconcile_stock__run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=reconcile_stock なので jobs.reconcile_stock が動く
+  summary:
+    status: interpretation
+    value: 前日の入出庫 (stock_movements) を在庫数に反映し、日次の在庫スナップショットを mart に書く。Redis の在庫キャッシュも更新する
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 1
+    - file: jobs/reconcile_stock.py
+      line: 18
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 14
+  - name: --date
+    value: 処理対象日 (省略時は実行日) (Flow の inputs.date から)
+    status: fact
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: stock
+    detail: 前日分の入出庫を SKU ごとに合計し、現在庫と並べる
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 25
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: stock_movements
+    detail: 前日分の入出庫を SKU ごとに合計し、現在庫と並べる
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 26
+  - op: update
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: warehouse
+        table: stock
+    detail: SKU ごとの差分を加算
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 37
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: mart
+        table: inventory_snapshot
+    detail: 当日の在庫スナップショット
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 42
+  - op: set
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        host: cache.internal
+        instance: '0'
+        key_pattern: stock:{sku}
+    detail: SKU ごとの現在庫
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 48
+- id: reconcile_stock__lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: reconcile_stock__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 8
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: reconcile_stock__psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: reconcile_stock__lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: reconcile_stock__lib_cache
+  layer: program
+  kind: module
+  name: jobs.lib.cache
+  source:
+    file: jobs/lib/cache.py
+    line: 1
+  caller: reconcile_stock__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/reconcile_stock.py
+      line: 8
+  summary:
+    status: interpretation
+    value: Redis のキャッシュ (redis-py の薄いラッパー)。キーの設計は docs/keys.md。
+    evidence:
+    - file: jobs/lib/cache.py
+      line: 1
+- id: reconcile_stock__redis
+  layer: external
+  kind: library
+  name: redis
+  source:
+    file: jobs/lib/cache.py
+    line: 7
+  caller: reconcile_stock__lib_cache
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/cache.py
+      line: 17
+- id: notify_failure__flow
+  layer: scheduler
+  kind: subflow
+  name: lib.notify_failure
+  source:
+    file: flows/lib/notify_failure.yaml
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/close_day.yaml
+      line: 45
+    note: 'Subflow として呼ばれる (wait: true)'
+  summary:
+    status: interpretation
+    value: 他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 1
+  - name: inputs.flow_id
+    value: STRING。失敗した Flow
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 8
+  - name: inputs.execution_id
+    value: STRING。失敗した実行の ID
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 12
+- id: notify_failure__run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: notify_failure__flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 25
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: notify_failure (第 1 引数。実行するモジュール jobs.notify_failure とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 25
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 23
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: notify_failure.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: notify_failure__job
+  layer: program
+  kind: module
+  name: jobs.notify_failure
+  source:
+    file: jobs/notify_failure.py
+    line: 1
+  caller: notify_failure__run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=notify_failure なので jobs.notify_failure が動く
+  summary:
+    status: interpretation
+    value: 他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 1
+    - file: jobs/notify_failure.py
+      line: 19
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 15
+  - name: --flow-id
+    value: 失敗した Flow (Flow の inputs.flow_id から)
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 13
+  - name: --execution-id
+    value: 失敗した実行の ID (Flow の inputs.execution_id から)
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 14
+  io: []
+- id: notify_failure__lib_notify
+  layer: program
+  kind: module
+  name: jobs.lib.notify
+  source:
+    file: jobs/lib/notify.py
+    line: 1
+  caller: notify_failure__job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 22
+  summary:
+    status: interpretation
+    value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+    - file: jobs/lib/notify.py
+      line: 13
+  io:
+  - op: call
+    status: unknown
+    reason: not_traceable_in_repo
+    resource:
+      kind: external_api
+      levels: {}
+    detail: チャットの Webhook (POST, JSON の text)
+    note: URL は環境変数 KOTORI_CHAT_WEBHOOK で、リポジトリに無い
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+- id: notify_failure__requests_notify
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/notify.py
+    line: 6
+  caller: notify_failure__lib_notify
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 13
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

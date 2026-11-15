@@ -1,0 +1,29 @@
+id: product_ranking
+namespace: daily.sales
+description: |
+  直近 7 日の販売数から商品ランキングを作り、mart.product_ranking を入れ替えて Redis に上位 100 件を置く
+labels:
+  owner: sales-ops
+inputs:
+  - id: date
+    type: DATE
+    required: false
+    description: 処理対象日 (省略時は実行日)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh product_ranking --date "{{ inputs.date }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "30 2 * * *"
+    timezone: Asia/Tokyo

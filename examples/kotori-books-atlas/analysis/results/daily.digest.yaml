@@ -1,0 +1,317 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: daily.digest
+  path: /daily/digest
+  name: digest
+  layer: scheduler
+  source:
+    file: flows/daily/digest.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: config/digests.yaml に列挙された日次レポートの CSV を集めて 1 本のダイジェストにし、S3 に置いてチャットに要約を流す
+  evidence:
+  - file: flows/daily/digest.yaml
+    line: 3
+  - file: jobs/digest.py
+    line: 1
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: daily.digest
+  source:
+    file: flows/daily/digest.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: config/digests.yaml に列挙された日次レポートの CSV を集めて 1 本のダイジェストにし、S3 に置いてチャットに要約を流す
+    evidence:
+    - file: flows/daily/digest.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 0 9 * * * (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/daily/digest.yaml
+      line: 28
+  - name: inputs.date
+    value: DATE。処理対象日 (省略時は実行日)
+    status: fact
+    evidence:
+    - file: flows/daily/digest.yaml
+      line: 8
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/digest.yaml
+      line: 12
+- id: run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/digest.yaml
+      line: 24
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: digest (第 1 引数。実行するモジュール jobs.digest とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/daily/digest.yaml
+      line: 24
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/daily/digest.yaml
+      line: 22
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: digest.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: job
+  layer: program
+  kind: module
+  name: jobs.digest
+  source:
+    file: jobs/digest.py
+    line: 1
+  caller: run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=digest なので jobs.digest が動く
+  summary:
+    status: interpretation
+    value: config/digests.yaml に列挙された日次レポートの CSV を集めて 1 本のダイジェストにし、S3 に置いてチャットに要約を流す
+    evidence:
+    - file: jobs/digest.py
+      line: 1
+    - file: jobs/digest.py
+      line: 23
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/digest.py
+      line: 19
+  - name: --date
+    value: 処理対象日 (省略時は実行日) (Flow の inputs.date から)
+    status: fact
+    evidence:
+    - file: jobs/digest.py
+      line: 18
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: digests.yaml
+    detail: ダイジェストに含めるレポートの一覧 (ディレクトリ名と見出し)
+    evidence:
+    - file: jobs/digest.py
+      line: 26
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/sales
+        file: '*_{date}.csv'
+    detail: 一覧 (config/digests.yaml) にあるディレクトリの当日 CSV を読む
+    evidence:
+    - file: config/digests.yaml
+      line: 3
+    - file: jobs/digest.py
+      line: 29
+    note: 読むディレクトリは config/digests.yaml に列挙されている (設定を変えれば変わる)
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/weekly
+        file: '*_{date}.csv'
+    detail: 一覧 (config/digests.yaml) にあるディレクトリの当日 CSV を読む
+    evidence:
+    - file: config/digests.yaml
+      line: 5
+    - file: jobs/digest.py
+      line: 29
+    note: 読むディレクトリは config/digests.yaml に列挙されている (設定を変えれば変わる)
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/monthly
+        file: '*_{date}.csv'
+    detail: 一覧 (config/digests.yaml) にあるディレクトリの当日 CSV を読む
+    evidence:
+    - file: config/digests.yaml
+      line: 7
+    - file: jobs/digest.py
+      line: 29
+    note: 読むディレクトリは config/digests.yaml に列挙されている (設定を変えれば変わる)
+  - op: write
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/export/digest
+        file: digest_{date}.md
+    detail: Markdown のダイジェスト
+    evidence:
+    - file: jobs/digest.py
+      line: 36
+  - op: put
+    status: fact
+    resource:
+      kind: object_storage
+      levels:
+        bucket: kotori-reports
+        prefix: daily/digest/
+    detail: ダイジェストを置く
+    evidence:
+    - file: jobs/digest.py
+      line: 39
+- id: lib_storage
+  layer: program
+  kind: module
+  name: jobs.lib.storage
+  source:
+    file: jobs/lib/storage.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/digest.py
+      line: 13
+  summary:
+    status: interpretation
+    value: S3 互換のオブジェクトストレージ (boto3 の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/storage.py
+      line: 1
+- id: boto3
+  layer: external
+  kind: library
+  name: boto3
+  source:
+    file: jobs/lib/storage.py
+    line: 4
+  caller: lib_storage
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/storage.py
+      line: 12
+- id: lib_notify
+  layer: program
+  kind: module
+  name: jobs.lib.notify
+  source:
+    file: jobs/lib/notify.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/digest.py
+      line: 41
+  summary:
+    status: interpretation
+    value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+    - file: jobs/lib/notify.py
+      line: 13
+  io:
+  - op: call
+    status: unknown
+    reason: not_traceable_in_repo
+    resource:
+      kind: external_api
+      levels: {}
+    detail: チャットの Webhook (POST, JSON の text)
+    note: URL は環境変数 KOTORI_CHAT_WEBHOOK で、リポジトリに無い
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+- id: requests_notify
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/notify.py
+    line: 6
+  caller: lib_notify
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 13
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

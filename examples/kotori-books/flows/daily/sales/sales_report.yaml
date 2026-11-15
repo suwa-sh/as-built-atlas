@@ -1,0 +1,24 @@
+id: sales_report
+namespace: daily.sales
+description: |
+  確定済み注文の明細を商品別・日別に集計して mart.daily_sales に入れ替え、CSV を S3 に置く
+labels:
+  owner: sales-ops
+inputs:
+  - id: date
+    type: DATE
+    required: false
+    description: 処理対象日 (省略時は実行日)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh sales_report --date "{{ inputs.date }}"

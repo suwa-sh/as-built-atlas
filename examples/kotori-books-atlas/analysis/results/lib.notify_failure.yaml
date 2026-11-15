@@ -1,0 +1,216 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: lib.notify_failure
+  path: /lib/notify_failure
+  name: notify_failure
+  layer: scheduler
+  source:
+    file: flows/lib/notify_failure.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: 他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+  evidence:
+  - file: flows/lib/notify_failure.yaml
+    line: 3
+  - file: jobs/notify_failure.py
+    line: 1
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: lib.notify_failure
+  source:
+    file: flows/lib/notify_failure.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: 他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 3
+  parameters:
+  - name: triggers
+    value: 無し (他の Flow から Subflow として呼ばれる)
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 1
+  - name: inputs.flow_id
+    value: STRING。失敗した Flow
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 8
+  - name: inputs.execution_id
+    value: STRING。失敗した実行の ID
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 12
+- id: run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 25
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: notify_failure (第 1 引数。実行するモジュール jobs.notify_failure とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 25
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/lib/notify_failure.yaml
+      line: 23
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: notify_failure.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: job
+  layer: program
+  kind: module
+  name: jobs.notify_failure
+  source:
+    file: jobs/notify_failure.py
+    line: 1
+  caller: run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=notify_failure なので jobs.notify_failure が動く
+  summary:
+    status: interpretation
+    value: 他の Flow の errors から呼ばれ、失敗した Flow の名前と実行 ID をチャットに通知する
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 1
+    - file: jobs/notify_failure.py
+      line: 19
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 15
+  - name: --flow-id
+    value: 失敗した Flow (Flow の inputs.flow_id から)
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 13
+  - name: --execution-id
+    value: 失敗した実行の ID (Flow の inputs.execution_id から)
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 14
+  io: []
+- id: lib_notify
+  layer: program
+  kind: module
+  name: jobs.lib.notify
+  source:
+    file: jobs/lib/notify.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/notify_failure.py
+      line: 22
+  summary:
+    status: interpretation
+    value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+    - file: jobs/lib/notify.py
+      line: 13
+  io:
+  - op: call
+    status: unknown
+    reason: not_traceable_in_repo
+    resource:
+      kind: external_api
+      levels: {}
+    detail: チャットの Webhook (POST, JSON の text)
+    note: URL は環境変数 KOTORI_CHAT_WEBHOOK で、リポジトリに無い
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
+- id: requests_notify
+  layer: external
+  kind: library
+  name: requests
+  source:
+    file: jobs/lib/notify.py
+    line: 6
+  caller: lib_notify
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 13
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

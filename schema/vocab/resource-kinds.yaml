@@ -1,0 +1,59 @@
+# データ (入口が読み書きする資源) の種類。コアで固定。分析結果 YAML の I/O はこのどれかに当てはめる。
+# 当てはめられなければ、その I/O は status: unknown + reason で書く。
+# 対象の種類 (プロファイル) によらず同じ。
+#
+#   label:  表示名
+#   levels: 階層の段 (上から順)。I/O の resource.levels の key はこの名前に限る
+#   repeat: 任意。値の中に '/' を含んで何段にもなる段 (例: ディレクトリ)。画面が段の名前を付けるときに使う
+#   ops:    この種類で使える操作。I/O の op はこの id に限る (abatlas validate と ETL が検査する)
+#           letter    読み書きの表のセルに出す 1 文字。並び順がそのまま表記の順 (例: RDB なら C R U D)
+#           direction in = データが入口へ流れる (読む側)、out = 入口がデータへ書く側。データの流れ (有向グラフ) の向きに使う
+format_version: 2
+kinds:
+  rdb:
+    label: RDB
+    levels: [host, dbms, database, schema, table]
+    ops:
+      - { id: create, letter: C, label: create, direction: out }
+      - { id: read, letter: R, label: "{read}", direction: in }
+      - { id: update, letter: U, label: update, direction: out }
+      - { id: delete, letter: D, label: delete, direction: out }
+  kvs:
+    label: KVS
+    levels: [host, instance, namespace, key_pattern]
+    ops:
+      - { id: get, letter: G, label: get, direction: in }
+      - { id: set, letter: S, label: set, direction: out }
+      - { id: delete, letter: D, label: delete, direction: out }
+      - { id: expire, letter: E, label: expire, direction: out }
+  queue:
+    label: queue / topic
+    levels: [broker, topic]
+    ops:
+      - { id: publish, letter: P, label: publish, direction: out }
+      - { id: consume, letter: C, label: consume, direction: in }
+  filesystem:
+    label: filesystem
+    levels: [host, directory, file]
+    repeat: directory
+    ops:
+      - { id: read, letter: R, label: "{read}", direction: in }
+      - { id: write, letter: W, label: "{write}", direction: out }
+      - { id: append, letter: A, label: append, direction: out }
+      - { id: delete, letter: D, label: delete, direction: out }
+      - { id: list, letter: L, label: list, direction: in }
+  object_storage:
+    label: object storage
+    levels: [account, bucket, prefix, object]
+    repeat: prefix
+    ops:
+      - { id: get, letter: G, label: get, direction: in }
+      - { id: put, letter: P, label: put, direction: out }
+      - { id: delete, letter: D, label: delete, direction: out }
+      - { id: list, letter: L, label: list, direction: in }
+  external_api:
+    # データではなく外部 IF。I/O の相手として同じ形で持てるように含める。読み書きの表には出さず、外部接続の区分で見せる
+    label: "{external}"
+    levels: [host, path]
+    ops:
+      - { id: call, letter: C, label: "{call}", direction: out }

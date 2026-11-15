@@ -1,0 +1,5894 @@
+"format_version": 1
+"entry":
+  "id": "websites.websiteId_d"
+  "path": "/websites/[websiteId]"
+  "name": "[websiteId]"
+  "layer": "page"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+    "line": 4
+"target":
+  "repo": "github.com/umami-software/umami"
+  "clone_path": "../umami"
+  "scope": "."
+  "commit": "559e3c607c23d2c72d9bd4f6481bda428255323c"
+"analyzer":
+  "profile":
+    "id": "ui-nextjs"
+    "version": "0.3.0"
+  "skill_version": "0.3.0"
+  "model": "claude-opus-5-5"
+  "analyzed_at": "2026-11-13T03:30:00+09:00"
+  "reviewed":
+    "by": "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
+    "at": "2026-11-13T03:41:00+09:00"
+    "findings_open": 0
+"summary":
+  "status": "interpretation"
+  "value": "サイト 1 件の概要画面 (ダッシュボード)。サーバー側の page は URL の websiteId を WebsitePage に渡すだけで、画面の本体はブラウザ側で動く。読むもの: データのある期間 (daterange)、指標の帯 (stats)、ページビューとセッションの時系列 (pageviews)、グラフの注釈 (annotations)、12 種類の表と世界地図 (metrics)、曜日・時間帯の表 (sessions/weekly)、URL に segment / cohort があればその定義 (segments/[segmentId])。小窓を開いたときだけ読むもの: 表の拡大表示 (metrics/expanded)、フィルター編集とセグメント保存の候補 (values、segments の一覧、session-data/properties と session-data/values)。統計の API は PostgreSQL と ClickHouse の SQL を両方持ち、CLICKHOUSE_URL の有無でどちらかが動く。主な読み先は website_event (ClickHouse では website_event_stats_hourly も) で、URL のフィルターに応じて session / event_data / session_data も読む。書き込みは利用者の操作で起きるものだけ: 注釈の作成・更新・削除 (annotation) と、フィルターをセグメントとして保存 (segment の作成)。Redis が有効なら、統計の API がサイトのキャッシュ (website:*) を読み書きし、CLOUD_MODE で個人のサイトなら account:* も読む。どの API も checkAuth で user (Redis が有効なら auth:* も) を読み、サイトの権限の検査で website / share / link / pixel / board / team_user を読む"
+  "evidence":
+  - "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+    "line": 7
+  - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+    "line": 21
+  - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+    "line": 22
+  - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+    "line": 27
+  - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+    "line": 34
+  - "file": "src/lib/db.ts"
+    "line": 27
+"notes": "(1) プロファイル 0.3.0 で書き直した。0.1.0 の結果は祖先の layout (src/app/(main)/layout.tsx の App と、websites/[websiteId]/layout.tsx の getWebsite・WebsiteLayout・WebsiteProvider・WebsiteHeader・ActiveUsers) も辿っていたが、それらは別の入口 (layout_l、layout_l.main_g、layout_l.main_g.websites.websiteId_d) なので外した。また、認証・権限・フィルターの組み立てを API ごとに I/O 付きで繰り返していたのを、同じ処理は 1 回だけ書く形にし、external の source をライブラリを実際に呼ぶ行 (Prisma の $queryRawUnsafe は src/lib/prisma.ts:746、ClickHouse の query は src/lib/clickhouse.ts:721、Redis は src/lib/redis.ts:37) に直した。SQL 系の問い合わせの I/O と根拠の行は 0.1.0 の結果のものを、同じ commit の実ファイルで確かめ直して使った。(2) 同じ処理の置き場 (呼び出し行のファイルのパスの文字コード順、同じなら行番号順。[ は小文字より前): parseRequest → checkAuth と、canUpdateWebsite、getWebsiteAnnotation は POST /api/websites/[websiteId]/annotations/[annotationId] (route.ts:36 / :45 / :49) の下。canViewSharedWebsiteFilters は GET annotations (annotations/route.ts:29。segments/[segmentId] と segments より先) の下。canViewWebsiteSection と getQueryFilters は GET metrics/expanded (metrics/expanded/route.ts:34 / :39。metrics / pageviews / session-data / sessions/weekly / stats / values より先) の下。FieldFilters と PropertyFilters は SegmentEditForm (segments/SegmentEditForm.tsx:89 / :101。src/components/input/FilterEditForm.tsx より先) の下。SegmentFilters は FilterEditForm が segment と cohort の 2 回描くが、同じ URL・同じ表なので 1 つにした。canViewWebsite は canViewWebsiteSection (share.ts:59) の下。getWebsite は getEntity (src/lib/entity.ts:6。load.ts と permissions/website.ts より先) の下。getTeamUser は canViewWebsite (website.ts:35) の下。getWebsiteSegment は GET segments/[segmentId] (src/app/... が src/lib/request.ts より先) の下。useWebsiteAnnotationsQuery は WebsiteChart (WebsiteChart.tsx:35。annotations/AnnotationsModal.tsx より先) の下。useWebsiteMetricsQuery は MetricsTable (MetricsTable.tsx:36。WorldMap.tsx より先) の下。AnnotationsModal は WebsitePage (WebsitePage.tsx:44。annotations/AnnotationsButton.tsx より先) の下。(3) 呼び出し元が終端になってしまうもの (canViewSharedWebsite、canViewSharedWebsiteFilters、canUpdateWebsite、WorldMap、AnnotationsButton) の下には、決まりどおり最も早い呼び出しの 1 本を I/O を持つフレームまで書き直した (id の末尾が _rw / _rw<数字>)。WorldMap と AnnotationsButton の書き直しは、受け口の中で最も早い呼び出しが parseRequest なので checkAuth の Redis の読み取りで閉じている。(4) useUpdateQuery は同じフックだが、SegmentEditForm (segments への POST) と AnnotationEditForm (annotations / annotations/[annotationId] への POST) で届く URL が違うので、まとめずにそれぞれ書いた。SQL の問い合わせ関数は、どれも同じ rawQuery の行 (prisma.ts:746 / clickhouse.ts:721) に届くが、渡す SQL (読む表の組み合わせと集計) が関数ごとに違うので、external を関数ごとに書いた。Redis の get も、キー (auth:* / website:* / account:*) ごとに書いた。(5) SegmentEditForm の中の useWebsiteSegmentQuery は、FilterBar が segmentId を渡さないので動かない (enabled が false) ため、呼び出し行の順では FilterBar より早いが、動く FilterBar の呼び出しの下に書いた。(6) フレームにしなかったもの: UnitFilter (URL の unit を変えるだけ)、DateFilter と PageviewsChart と MetricCard (見た目だけ)、ExportButton と MonthFilter (この画面では出ない)、useShare (共有画面の設定を読むだけで I/O 無し)。metrics の route の getEventMetrics は type: event のときだけで、この画面の表は event を渡さないので届かない (拡大表示の route の getEventExpandedMetrics は、メニューに event があるので届く)。WebsiteExpandedMenu (URL の view を変えるリンクを並べるだけ)。FilterEditForm と PropertyFilters の、イベントのプロパティの欄 (source: event、GET event-data/fields と event-data/values) は、パスが /events で終わるときだけなのでこの画面では出ない (FilterEditForm.tsx:38 / :166)。values の route の getWebsiteSegments の枝 (type が segment / cohort) は、FieldFilters の項目 (useFields) に segment / cohort が無いので届かない。(7) レビューの指摘への対応: 0.3.0 での最初の版では、フィルター編集の小窓・セグメント保存フォームの項目の候補・拡大表示の小窓を not_analyzed で閉じていたが、どれも辿れる経路なので終端まで辿った。SQL の副問い合わせで読む event_data / session_data の根拠を、parseFilters が実際に呼ぶ getEventPropertyFilterQuery / getSessionPropertyFilterQuery の行 (prisma.ts:309 / :313 / :576 / :702、clickhouse.ts:278 / :280 / :540 / :663) に直した。SQL の external の呼び出しの根拠を、各問い合わせの rawQuery( の行に直した。URL が文字列で 1 つの route に決まる呼び出しの call を fact にした (apiUrl で向き先が変わることは note に残した)。入口と page の summary から、祖先の layout の処理の記述を外した。2 回目のレビュー (high 0 件) の low 4 件も直した: SQL の関数が session の join と直帰除外の副問い合わせを差し込む行を根拠に足し、parseRequest / canViewSharedWebsiteFilters / getQueryFilters の「同じ関数を呼ぶ」受け口の列挙の抜けを埋め、入口の summary に account:* の読み取りを足した。(8) 直さなかった指摘: external の source は 1 行しか書けないので、2 つのライブラリ呼び出しを持つフレーム (website.findUnique と share.findFirst、pagedQuery の findMany と count、Redis の get と set) は、最初の呼び出しの行を source にし、もう一方の行を call の evidence に入れている"
+"callstack":
+- "id": "page"
+  "layer": "page"
+  "kind": "page"
+  "name": "[websiteId] (src/app/(main)/websites/[websiteId]/page.tsx)"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+    "line": 4
+  "caller": null
+  "summary":
+    "status": "interpretation"
+    "value": "サーバー側で動く page。URL の websiteId を受け取り、WebsitePage を描くだけで、自分ではデータを読まない。metadata で title を Websites にする"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+      "line": 5
+    - "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+      "line": 7
+    - "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+      "line": 10
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+      "line": 4
+- "id": "website_page"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsitePage"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+    "line": 16
+  "caller": "page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+      "line": 2
+    - "file": "src/app/(main)/websites/[websiteId]/page.tsx"
+      "line": 7
+  "summary":
+    "status": "interpretation"
+    "value": "ブラウザ側で動く ('use client') サイトの概要画面。フィルターと期間の操作欄 (WebsiteControls)、指標の帯 (WebsiteMetricsBar)、ページビューのグラフ (WebsiteChart。凡例に注釈ボタン AnnotationsButton)、表のパネル (WebsitePanels)、拡大表示の小窓 (ExpandedViewModal) を描く。グラフの注釈の「もっと見る」で範囲を受け取ると AnnotationsModal を開く"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 1
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 21
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 22
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 27
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 31
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 34
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 35
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 36
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 44
+  "parameters":
+  - "name": "websiteId"
+    "value": "page から props で受け取る"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 16
+- "id": "website_controls"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsiteControls"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+    "line": 10
+  "caller": "website_page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 21
+  "summary":
+    "status": "interpretation"
+    "value": "共有の設定でフィルターが許されていれば WebsiteFilterButton (直帰の除外も可) と FilterBar を、常に WebsiteDateFilter (比較なし) を描く。ExportButton と MonthFilter はこの画面では出ない"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      "line": 28
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      "line": 35
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      "line": 40
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      "line": 46
+- "id": "website_filter_button"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsiteFilterButton"
+  "source":
+    "file": "src/components/input/WebsiteFilterButton.tsx"
+    "line": 13
+  "caller": "website_controls"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      "line": 35
+  "summary":
+    "status": "interpretation"
+    "value": "フィルターのボタン。押すと小窓で FilterEditForm を開く (この画面は allowBounceFilter なので直帰の除外のチェックも出す)。選んだ条件は URL のパラメータに入れて移るだけで、書き込みは無い"
+    "evidence":
+    - "file": "src/components/input/WebsiteFilterButton.tsx"
+      "line": 72
+    - "file": "src/components/input/WebsiteFilterButton.tsx"
+      "line": 81
+    - "file": "src/components/input/WebsiteFilterButton.tsx"
+      "line": 92
+    - "file": "src/components/input/WebsiteFilterButton.tsx"
+      "line": 55
+    - "file": "src/components/input/WebsiteFilterButton.tsx"
+      "line": 68
+- "id": "filter_edit_form"
+  "layer": "component"
+  "kind": "component"
+  "name": "FilterEditForm"
+  "source":
+    "file": "src/components/input/FilterEditForm.tsx"
+    "line": 22
+  "caller": "website_filter_button"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/input/WebsiteFilterButton.tsx"
+      "line": 6
+    - "file": "src/components/input/WebsiteFilterButton.tsx"
+      "line": 92
+    "note": "フィルターのボタンを押して小窓を開いたときだけ"
+  "summary":
+    "status": "interpretation"
+    "value": "タブで分けたフィルターの編集フォーム。列の条件 (FieldFilters)、セグメントとコホート (SegmentFilters を type segment / cohort で 2 回)、セッションのプロパティ (PropertyFilters の source: session) を出す。FieldFilters と PropertyFilters の経路は、それぞれフレーム field_filters / property_filters と同じ (SegmentEditForm からも描くので、呼び出し行の順でそちらの下に書いた)。イベントのプロパティの欄は、パスが /events で終わるときだけなのでこの画面では出ない"
+    "evidence":
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 37
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 38
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 138
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 149
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 158
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 166
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 178
+- "id": "segment_filters"
+  "layer": "component"
+  "kind": "component"
+  "name": "SegmentFilters"
+  "source":
+    "file": "src/components/input/SegmentFilters.tsx"
+    "line": 15
+  "caller": "filter_edit_form"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 149
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 158
+    "note": "セグメントのタブと、コホートのタブ (type: cohort)"
+  "summary":
+    "status": "interpretation"
+    "value": "サイトの保存済みのセグメント (またはコホート) を一覧で出し、選んだものをフォームの条件にする"
+    "evidence":
+    - "file": "src/components/input/SegmentFilters.tsx"
+      "line": 21
+    - "file": "src/components/input/SegmentFilters.tsx"
+      "line": 24
+- "id": "use_segments"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteSegmentsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteSegmentsQuery.ts"
+    "line": 7
+  "caller": "segment_filters"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/input/SegmentFilters.tsx"
+      "line": 21
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/segments を、type (segment / cohort) と URL のフィルターとページの条件をつけて呼ぶ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteSegmentsQuery.ts"
+      "line": 19
+    - "file": "src/components/hooks/queries/useWebsiteSegmentsQuery.ts"
+      "line": 20
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_segments_get"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/segments"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+    "line": 9
+  "caller": "use_segments"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteSegmentsQuery.ts"
+      "line": 19
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリ (type / 検索とページ) を検査して認証し (経路はフレーム q_parse_request と同じ)、canViewSharedWebsiteFilters で確かめ (経路はフレーム q_can_view_shared_website_filters と同じ)、getQueryFilters を websiteId 無しで呼んでページと検索の条件だけを組み立て (websiteId が無いのでサイトもセグメントも読まない。関数の経路はフレーム q_get_query_filters)、サイトのセグメントをページ単位に読んで返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 18
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 27
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 31
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 33
+    - "file": "src/lib/request.ts"
+      "line": 129
+  "parameters":
+  - "name": "type"
+    "value": "クエリ。segment か cohort"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 14
+- "id": "q_get_website_segments"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsiteSegments → getSegments (src/queries/prisma/segment.ts)"
+  "source":
+    "file": "src/queries/prisma/segment.ts"
+    "line": 42
+  "caller": "api_segments_get"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 33
+  "summary":
+    "status": "interpretation"
+    "value": "websiteId と type で絞り、name の検索語があれば足して、segment をページ単位に読む (件数も数える)"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 43
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 26
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 33
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "segment"
+    "detail": "pagedQuery('segment') → findMany + count (where websiteId, type)"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 33
+    - "file": "src/lib/prisma.ts"
+      "line": 761
+    - "file": "src/lib/prisma.ts"
+      "line": 775
+    - "file": "prisma/schema.prisma"
+      "line": 317
+- "id": "ext_prisma_paged_segment"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client segment.findMany / count (prisma.pagedQuery)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 761
+  "caller": "q_get_website_segments"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 33
+    - "file": "src/lib/prisma.ts"
+      "line": 761
+    - "file": "src/lib/prisma.ts"
+      "line": 775
+- "id": "website_date_filter"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsiteDateFilter"
+  "source":
+    "file": "src/components/input/WebsiteDateFilter.tsx"
+    "line": 17
+  "caller": "website_controls"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      "line": 40
+  "summary":
+    "status": "interpretation"
+    "value": "期間を選ぶ欄。サイトのデータがある期間 (最初と最後の日時) を読んで、全期間の選択に使う"
+    "evidence":
+    - "file": "src/components/input/WebsiteDateFilter.tsx"
+      "line": 33
+- "id": "use_date_range"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useDateRangeQuery"
+  "source":
+    "file": "src/components/hooks/queries/useDateRangeQuery.ts"
+    "line": 9
+  "caller": "website_date_filter"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/input/WebsiteDateFilter.tsx"
+      "line": 33
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/daterange を呼び、startDate / endDate を Date にして返す"
+    "evidence":
+    - "file": "src/components/hooks/queries/useDateRangeQuery.ts"
+      "line": 14
+    - "file": "src/components/hooks/queries/useDateRangeQuery.ts"
+      "line": 20
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_daterange"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/daterange"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/daterange/route.ts"
+    "line": 6
+  "caller": "use_date_range"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useDateRangeQuery.ts"
+      "line": 14
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewSharedWebsite で見てよいかを確かめ、データがある期間を返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/daterange/route.ts"
+      "line": 10
+    - "file": "src/app/api/websites/[websiteId]/daterange/route.ts"
+      "line": 18
+    - "file": "src/app/api/websites/[websiteId]/daterange/route.ts"
+      "line": 22
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/daterange/route.ts"
+      "line": 16
+- "id": "q_can_view_shared_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewSharedWebsite (src/permissions/share.ts)"
+  "source":
+    "file": "src/permissions/share.ts"
+    "line": 80
+  "caller": "api_daterange"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/daterange/route.ts"
+      "line": 18
+  "summary":
+    "status": "interpretation"
+    "value": "ログインしたユーザーがいれば canViewWebsite に進む。共有トークンだけのときは、そのトークンがこのサイトを含むかだけを見る (データは読まない)。canViewWebsite の全体の経路はフレーム q_can_view_website と同じ。終端にならないよう、canViewWebsite を下に書き直した"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 81
+    - "file": "src/permissions/share.ts"
+      "line": 82
+    - "file": "src/permissions/share.ts"
+      "line": 85
+- "id": "q_can_view_website_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 8
+  "caller": "q_can_view_shared_website"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 82
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。管理者か共有トークンで許されればデータを読まない。そうでなければ getEntity で対象を読み、持ち主かチームのメンバーかを確かめる。全体の経路はフレーム q_can_view_website"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 9
+    - "file": "src/permissions/website.ts"
+      "line": 24
+    - "file": "src/permissions/website.ts"
+      "line": 35
+- "id": "q_get_entity_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "getEntity (src/lib/entity.ts)"
+  "source":
+    "file": "src/lib/entity.ts"
+    "line": 4
+  "caller": "q_can_view_website_rw1"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 24
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。同じ id で website / link / pixel / board を並べて読む。最も早い呼び出し (getWebsite) だけを下に書き直した。全体の経路はフレーム q_get_entity"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 6
+    - "file": "src/lib/entity.ts"
+      "line": 12
+- "id": "q_get_website_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_get_entity_rw1"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 6
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。id が uuid なら website を 1 件読み、最新の share の slug を付ける。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_website"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 81
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "detail": "prisma.client.website.findUnique (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "detail": "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "website が見つかったときだけ"
+- "id": "q_daterange"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsiteDateRange (src/queries/sql/getWebsiteDateRange.ts)"
+  "source":
+    "file": "src/queries/sql/getWebsiteDateRange.ts"
+    "line": 7
+  "caller": "api_daterange"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/daterange/route.ts"
+      "line": 22
+  "summary":
+    "status": "interpretation"
+    "value": "既定のリセット日以後のイベントの created_at の最小と最大を読む (ClickHouse は時間ごとの集計表から)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteDateRange.ts"
+      "line": 19
+    - "file": "src/queries/sql/getWebsiteDateRange.ts"
+      "line": 26
+    - "file": "src/queries/sql/getWebsiteDateRange.ts"
+      "line": 48
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteDateRange.ts"
+      "line": 28
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteDateRange.ts"
+      "line": 50
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+- "id": "ext_daterange_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_daterange"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteDateRange.ts"
+      "line": 23
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_daterange_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_daterange"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteDateRange.ts"
+      "line": 45
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "filter_bar"
+  "layer": "component"
+  "kind": "component"
+  "name": "FilterBar"
+  "source":
+    "file": "src/components/input/FilterBar.tsx"
+    "line": 28
+  "caller": "website_controls"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      "line": 46
+  "summary":
+    "status": "interpretation"
+    "value": "URL のフィルターを札で並べ、外すと URL から消す。URL に segment / cohort があればその定義を読んで名前を出す。列やセッションのプロパティのフィルターがあり、segment / cohort / イベントのプロパティが無く、共有画面でなければ「セグメントとして保存」の小窓 (SegmentEditForm) を出せる"
+    "evidence":
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 33
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 35
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 36
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 169
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 195
+- "id": "use_segment_query"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteSegmentQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteSegmentQuery.ts"
+    "line": 6
+  "caller": "filter_bar"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 35
+    "note": "URL に segment か cohort のパラメータがあるときだけ (enabled)"
+  "summary":
+    "status": "interpretation"
+    "value": "websiteId と segmentId がそろうときだけ GET /websites/<websiteId>/segments/<segmentId> を呼ぶ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteSegmentQuery.ts"
+      "line": 16
+    - "file": "src/components/hooks/queries/useWebsiteSegmentQuery.ts"
+      "line": 17
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_segment_get"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/segments/[segmentId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts"
+    "line": 8
+  "caller": "use_segment_query"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteSegmentQuery.ts"
+      "line": 16
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewSharedWebsiteFilters で見てよいかを確かめ (経路はフレーム q_can_view_shared_website_filters と同じ)、サイトの segment を 1 件読んで返す (無ければ 404)"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts"
+      "line": 12
+    - "file": "src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts"
+      "line": 20
+    - "file": "src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts"
+      "line": 24
+    - "file": "src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts"
+      "line": 26
+- "id": "q_get_segment"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsiteSegment (src/queries/prisma/segment.ts)"
+  "source":
+    "file": "src/queries/prisma/segment.ts"
+    "line": 36
+  "caller": "api_segment_get"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts"
+      "line": 24
+  "summary":
+    "status": "interpretation"
+    "value": "id と websiteId で segment を 1 件読む。getQueryFilters も URL の segment / cohort の定義を読むために同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 37
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 38
+    - "file": "src/lib/request.ts"
+      "line": 133
+    - "file": "src/lib/request.ts"
+      "line": 145
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "segment"
+    "detail": "prisma.client.segment.findFirst (where id, websiteId)"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 37
+    - "file": "prisma/schema.prisma"
+      "line": 317
+- "id": "ext_prisma_get_segment"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client segment.findFirst"
+  "source":
+    "file": "src/queries/prisma/segment.ts"
+    "line": 37
+  "caller": "q_get_segment"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 37
+- "id": "segment_edit_form"
+  "layer": "component"
+  "kind": "component"
+  "name": "SegmentEditForm (FilterBar からの保存)"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+    "line": 18
+  "caller": "filter_bar"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 12
+    - "file": "src/components/input/FilterBar.tsx"
+      "line": 195
+    "note": "保存ボタン (canSaveSegment) を押して小窓を開いたときだけ"
+  "summary":
+    "status": "interpretation"
+    "value": "名前と今のフィルターを segment として保存するフォーム。FilterBar は segmentId を渡さないので、このフォームの中の useWebsiteSegmentQuery は動かず (enabled が false)、フレームにしていない。送信は新規作成の POST になる"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 35
+    - "file": "src/components/hooks/queries/useWebsiteSegmentQuery.ts"
+      "line": 17
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 43
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 44
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 51
+- "id": "field_filters"
+  "layer": "component"
+  "kind": "component"
+  "name": "FieldFilters"
+  "source":
+    "file": "src/components/input/FieldFilters.tsx"
+    "line": 34
+  "caller": "segment_edit_form"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 14
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 89
+  "summary":
+    "status": "interpretation"
+    "value": "列の条件 (path / title / referrer / country / browser など) を並べて編集する。条件の行ごとに FilterRecord を描き、候補の期間は今日までの 6 か月に固定する。FilterEditForm (フィルターの小窓) も同じ部品を描く (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/components/input/FieldFilters.tsx"
+      "line": 44
+    - "file": "src/components/input/FieldFilters.tsx"
+      "line": 45
+    - "file": "src/components/input/FieldFilters.tsx"
+      "line": 159
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 138
+- "id": "filter_record"
+  "layer": "component"
+  "kind": "component"
+  "name": "FilterRecord"
+  "source":
+    "file": "src/components/common/FilterRecord.tsx"
+    "line": 38
+  "caller": "field_filters"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/input/FieldFilters.tsx"
+      "line": 21
+    - "file": "src/components/input/FieldFilters.tsx"
+      "line": 159
+    "note": "条件の行が 1 つ以上あるとき、行ごと"
+  "summary":
+    "status": "interpretation"
+    "value": "条件 1 行の編集欄。列 (type) の値の候補を、検索語と期間をつけて読み、選べるようにする"
+    "evidence":
+    - "file": "src/components/common/FilterRecord.tsx"
+      "line": 55
+    - "file": "src/components/common/FilterRecord.tsx"
+      "line": 56
+    - "file": "src/components/common/FilterRecord.tsx"
+      "line": 58
+- "id": "use_values"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteValuesQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteValuesQuery.ts"
+    "line": 6
+  "caller": "filter_record"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/common/FilterRecord.tsx"
+      "line": 55
+  "summary":
+    "status": "interpretation"
+    "value": "websiteId・type・期間がそろうとき、GET /websites/<websiteId>/values を type と検索語と期間で呼ぶ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteValuesQuery.ts"
+      "line": 54
+    - "file": "src/components/hooks/queries/useWebsiteValuesQuery.ts"
+      "line": 60
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_values"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/values"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/values/route.ts"
+    "line": 9
+  "caller": "use_values"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteValuesQuery.ts"
+      "line": 54
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリを検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection で確かめ (経路はフレーム q_can_view_website_section と同じ)、type が列の名前でなければ 400。getQueryFilters で期間を組み立て (経路はフレーム q_get_query_filters と同じ)、その列の値と件数を読んで、値の順に並べて返す。type が segment / cohort のときの getWebsiteSegments の枝は、FieldFilters の項目に無いので届かない"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 18
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 27
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 42
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 48
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 53
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 54
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 57
+  "parameters":
+  - "name": "type"
+    "value": "クエリ。列の名前 (FieldFilters の条件の行の name)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 42
+- "id": "q_get_values"
+  "layer": "query"
+  "kind": "function"
+  "name": "getValues (src/queries/sql/getValues.ts)"
+  "source":
+    "file": "src/queries/sql/getValues.ts"
+    "line": 13
+  "caller": "api_values"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/values/route.ts"
+      "line": 54
+  "summary":
+    "status": "interpretation"
+    "value": "期間内の、列の値ごとの件数を数える (検索語があれば絞る)。PostgreSQL では、列がセッションの列なら session から、それ以外は website_event から読む。ClickHouse では website_event から読む。parseFilters は使わない。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 7
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 53
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 54
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 70
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 117
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "生の SQL (prisma.rawQuery) の from session"
+    "evidence":
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 57
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "列がセッションの列 (browser / os / country など) のとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 73
+    - "file": "prisma/schema.prisma"
+      "line": 183
+    "note": "列がセッションの列でないとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 120
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+- "id": "ext_values_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_get_values"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 54
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 70
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_values_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_get_values"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getValues.ts"
+      "line": 117
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "property_filters"
+  "layer": "component"
+  "kind": "component"
+  "name": "PropertyFilters (source: session)"
+  "source":
+    "file": "src/components/property-data/PropertyFilters.tsx"
+    "line": 32
+  "caller": "segment_edit_form"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 101
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 102
+  "summary":
+    "status": "interpretation"
+    "value": "セッションのプロパティの条件を編集する。プロパティの名前の候補を読み、条件の行ごとに PropertyFilterRecord を描く。FilterEditForm (フィルターの小窓) も source: session で同じ部品を描く (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/components/property-data/PropertyFilters.tsx"
+      "line": 53
+    - "file": "src/components/property-data/PropertyFilters.tsx"
+      "line": 156
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 178
+    - "file": "src/components/input/FilterEditForm.tsx"
+      "line": 179
+- "id": "use_property_fields"
+  "layer": "component"
+  "kind": "hook"
+  "name": "usePropertyFieldsQuery"
+  "source":
+    "file": "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+    "line": 8
+  "caller": "property_filters"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/property-data/PropertyFilters.tsx"
+      "line": 53
+    "note": "項目を渡されていない (providedFields が無い) とき"
+  "summary":
+    "status": "interpretation"
+    "value": "source が session なので GET /websites/<websiteId>/session-data/properties を、期間・単位・タイムゾーン・URL のフィルターをつけて呼ぶ (source が event なら event-data/fields)"
+    "evidence":
+    - "file": "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      "line": 24
+    - "file": "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      "line": 25
+    - "file": "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      "line": 27
+    - "file": "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      "line": 37
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_session_data_properties"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/session-data/properties"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/session-data/properties/route.ts"
+    "line": 9
+  "caller": "use_property_fields"
+  "call":
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      "line": 27
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "引数 source で切り替わる。ここでは source: session。既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリを検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection (sessions) で確かめ (経路はフレーム q_can_view_website_section と同じ)、getQueryFilters でフィルターを組み立てて (経路はフレーム q_get_query_filters と同じ)、セッションのプロパティの名前と件数を返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/session-data/properties/route.ts"
+      "line": 20
+    - "file": "src/app/api/websites/[websiteId]/session-data/properties/route.ts"
+      "line": 28
+    - "file": "src/app/api/websites/[websiteId]/session-data/properties/route.ts"
+      "line": 33
+    - "file": "src/app/api/websites/[websiteId]/session-data/properties/route.ts"
+      "line": 36
+- "id": "q_session_data_properties"
+  "layer": "query"
+  "kind": "function"
+  "name": "getSessionDataProperties (src/queries/sql/sessions/getSessionDataProperties.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+    "line": 9
+  "caller": "api_session_data_properties"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/session-data/properties/route.ts"
+      "line": 36
+  "summary":
+    "status": "interpretation"
+    "value": "期間とフィルターで絞ったセッションを website_event から選び、その session_data のプロパティの名前ごとにセッション数を数える (プロパティの条件があれば getPropertyFilterQuery でさらに絞る)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 31
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 36
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 46
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 57
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 68
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 46
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "生の SQL の from session_data / join session_data (プロパティの条件の副問い合わせも session_data)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 57
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 68
+    - "file": "src/lib/prisma.ts"
+      "line": 346
+    - "file": "prisma/schema.prisma"
+      "line": 229
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 48
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 103
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "生の SQL の from session_data final / join session_data final"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 113
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 124
+    - "file": "src/lib/clickhouse.ts"
+      "line": 316
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+- "id": "ext_session_data_properties_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_session_data_properties"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 42
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_session_data_properties_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_session_data_properties"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataProperties.ts"
+      "line": 99
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "property_filter_record"
+  "layer": "component"
+  "kind": "component"
+  "name": "PropertyFilterRecord"
+  "source":
+    "file": "src/components/property-data/PropertyFilterRecord.tsx"
+    "line": 58
+  "caller": "property_filters"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/property-data/PropertyFilters.tsx"
+      "line": 23
+    - "file": "src/components/property-data/PropertyFilters.tsx"
+      "line": 156
+    "note": "プロパティの条件の行が 1 つ以上あるとき、行ごと"
+  "summary":
+    "status": "interpretation"
+    "value": "プロパティの条件 1 行の編集欄。数値・真偽値・日付・自由入力の演算子でなければ、そのプロパティの値の候補を、ほかの条件をつけて読む"
+    "evidence":
+    - "file": "src/components/property-data/PropertyFilterRecord.tsx"
+      "line": 93
+    - "file": "src/components/property-data/PropertyFilterRecord.tsx"
+      "line": 100
+- "id": "use_property_values"
+  "layer": "component"
+  "kind": "hook"
+  "name": "usePropertyValuesQuery"
+  "source":
+    "file": "src/components/hooks/queries/usePropertyValuesQuery.ts"
+    "line": 8
+  "caller": "property_filter_record"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/property-data/PropertyFilterRecord.tsx"
+      "line": 93
+    "note": "値を選ぶ演算子のときだけ (enabled)"
+  "summary":
+    "status": "interpretation"
+    "value": "source が session なので GET /websites/<websiteId>/session-data/values を、プロパティの名前・型・ほかの条件をつけて呼ぶ (source が event なら event-data/values)"
+    "evidence":
+    - "file": "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      "line": 38
+    - "file": "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      "line": 39
+    - "file": "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      "line": 41
+    - "file": "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      "line": 54
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_session_data_values"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/session-data/values"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/session-data/values/route.ts"
+    "line": 8
+  "caller": "use_property_values"
+  "call":
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      "line": 41
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "引数 source で切り替わる。ここでは source: session。既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリを検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection (sessions) で確かめ (経路はフレーム q_can_view_website_section と同じ)、getQueryFilters でフィルターを組み立てて (経路はフレーム q_get_query_filters と同じ)、プロパティの値の候補を返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/session-data/values/route.ts"
+      "line": 20
+    - "file": "src/app/api/websites/[websiteId]/session-data/values/route.ts"
+      "line": 28
+    - "file": "src/app/api/websites/[websiteId]/session-data/values/route.ts"
+      "line": 33
+    - "file": "src/app/api/websites/[websiteId]/session-data/values/route.ts"
+      "line": 35
+- "id": "q_session_data_values"
+  "layer": "query"
+  "kind": "function"
+  "name": "getSessionDataValues (src/queries/sql/sessions/getSessionDataValues.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+    "line": 9
+  "caller": "api_session_data_values"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/session-data/values/route.ts"
+      "line": 35
+  "summary":
+    "status": "interpretation"
+    "value": "期間とフィルターで website_event と session_data を結び、指定のプロパティの値ごとに件数を数える (配列の型なら要素に分けて数える)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 24
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 29
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 57
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 69
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 35
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 66
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "生の SQL の join session_data"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 38
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 69
+    - "file": "prisma/schema.prisma"
+      "line": 229
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 37
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 68
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 101
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 128
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "生の SQL の join session_data final"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 103
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 130
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+- "id": "ext_session_data_values_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_session_data_values"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 30
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 57
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_session_data_values_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_session_data_values"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 96
+    - "file": "src/queries/sql/sessions/getSessionDataValues.ts"
+      "line": 121
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "use_update_segment"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useUpdateQuery('/websites/<id>/segments')"
+  "source":
+    "file": "src/components/hooks/queries/useUpdateQuery.ts"
+    "line": 6
+  "caller": "segment_edit_form"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 43
+  "summary":
+    "status": "interpretation"
+    "value": "フォームの値に type: 'segment' を足して POST する mutation を作る"
+    "evidence":
+    - "file": "src/components/hooks/queries/useUpdateQuery.ts"
+      "line": 9
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 46
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_segment_create"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "POST /api/websites/[websiteId]/segments"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+    "line": 38
+  "caller": "use_update_segment"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
+      "line": 44
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "本文 (type / name / parameters) を検査して認証し (経路はフレーム q_parse_request と同じ)、cohort にセッションのプロパティ条件があれば 400。canUpdateWebsite で更新してよいかを確かめ (経路はフレーム q_can_update_website と同じ)、segment を作る"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 48
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 57
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 61
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 65
+  "parameters":
+  - "name": "type / name / parameters"
+    "value": "JSON 本文。type は 'segment'、parameters は今のフィルター"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 43
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 44
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 45
+- "id": "q_create_segment"
+  "layer": "query"
+  "kind": "function"
+  "name": "createSegment (src/queries/prisma/segment.ts)"
+  "source":
+    "file": "src/queries/prisma/segment.ts"
+    "line": 54
+  "caller": "api_segment_create"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/segments/route.ts"
+      "line": 65
+  "summary":
+    "status": "interpretation"
+    "value": "segment を 1 件作る"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 55
+  "io":
+  - "op": "create"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "segment"
+    "detail": "prisma.client.segment.create"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 55
+    - "file": "prisma/schema.prisma"
+      "line": 317
+- "id": "ext_prisma_create_segment"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client segment.create"
+  "source":
+    "file": "src/queries/prisma/segment.ts"
+    "line": 55
+  "caller": "q_create_segment"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/segment.ts"
+      "line": 55
+- "id": "metrics_bar"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsiteMetricsBar"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/WebsiteMetricsBar.tsx"
+    "line": 8
+  "caller": "website_page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 22
+  "summary":
+    "status": "interpretation"
+    "value": "訪問者・訪問・ページビュー・直帰率・平均滞在時間を、前の期間との差つきで帯に並べる (比較モードは使わないので compare は渡さない)"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteMetricsBar.tsx"
+      "line": 18
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteMetricsBar.tsx"
+      "line": 23
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteMetricsBar.tsx"
+      "line": 47
+- "id": "use_stats"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteStatsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteStatsQuery.ts"
+    "line": 21
+  "caller": "metrics_bar"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteMetricsBar.tsx"
+      "line": 18
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/stats を、期間 (startAt / endAt) と URL のフィルターをつけて呼ぶ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteStatsQuery.ts"
+      "line": 26
+    - "file": "src/components/hooks/queries/useWebsiteStatsQuery.ts"
+      "line": 27
+    - "file": "src/components/hooks/queries/useWebsiteStatsQuery.ts"
+      "line": 31
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_stats"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/stats"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+    "line": 8
+  "caller": "use_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteStatsQuery.ts"
+      "line": 31
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリを検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection (overview / compare) で確かめ (経路はフレーム q_can_view_website_section と同じ)、getQueryFilters でフィルターを組み立てて (経路はフレーム q_get_query_filters と同じ)、今の期間と比較の期間 (既定は直前の同じ長さ) の 2 回 getWebsiteStats を呼んで返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 16
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 24
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 28
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 30
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 32
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 38
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 22
+  - "name": "startAt / endAt / フィルター"
+    "value": "クエリ。期間と、URL のフィルター (列の条件、segment / cohort など)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 12
+- "id": "q_stats"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsiteStats (src/queries/sql/getWebsiteStats.ts)"
+  "source":
+    "file": "src/queries/sql/getWebsiteStats.ts"
+    "line": 17
+  "caller": "api_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 30
+    - "file": "src/app/api/websites/[websiteId]/stats/route.ts"
+      "line": 38
+  "summary":
+    "status": "interpretation"
+    "value": "期間とフィルターで website_event をセッションと訪問ごとにまとめ、ページビュー・訪問者・訪問・直帰・合計滞在時間を数える。イベントの列で絞るときは別の SQL になる。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 38
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 45
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 95
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 137
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 59
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 108
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 62
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 159
+    - "file": "src/lib/clickhouse.ts"
+      "line": 196
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+    "note": "イベントの列で絞るときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)。直帰を除くフィルターの副問い合わせ (src/lib/clickhouse.ts:212) でも読む"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 193
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "イベントの列で絞らないとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_stats_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 43
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 93
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_stats_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getWebsiteStats.ts"
+      "line": 206
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "website_chart"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsiteChart"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+    "line": 17
+  "caller": "website_page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 27
+  "summary":
+    "status": "interpretation"
+    "value": "ページビューとセッションの時系列グラフ (PageviewsChart) を描く。showAnnotations なので期間内の注釈を 1000 件まで読み、印として重ねる。注釈の印を押すとその日 (または月) に期間を絞った URL へ移り、「もっと見る」で WebsitePage に注釈の範囲を渡す"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+      "line": 35
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+      "line": 38
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+      "line": 40
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+      "line": 137
+- "id": "use_annotations"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteAnnotationsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteAnnotationsQuery.ts"
+    "line": 6
+  "caller": "website_chart"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+      "line": 35
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/annotations を、渡された条件で呼ぶ。グラフからは期間と pageSize 1000 (showAnnotations と websiteId があるとき)。AnnotationsModal も一覧のページと範囲を渡して同じフックを呼ぶ (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteAnnotationsQuery.ts"
+      "line": 16
+    - "file": "src/components/hooks/queries/useWebsiteAnnotationsQuery.ts"
+      "line": 17
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+      "line": 37
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 56
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_annotations_get"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/annotations"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+    "line": 9
+  "caller": "use_annotations"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteAnnotationsQuery.ts"
+      "line": 16
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリ (startAt / endAt / search / page / pageSize) を検査して認証し (経路はフレーム q_parse_request と同じ)、canViewSharedWebsiteFilters で確かめ、期間内の注釈をページ単位に読んで返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 20
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 29
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 33
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 26
+- "id": "q_can_view_shared_website_filters"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewSharedWebsiteFilters (src/permissions/share.ts)"
+  "source":
+    "file": "src/permissions/share.ts"
+    "line": 88
+  "caller": "api_annotations_get"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 29
+  "summary":
+    "status": "interpretation"
+    "value": "ログインしたユーザーがいれば canViewWebsite に進む。共有トークンだけのときは、トークンがこのサイトを含み、共有の設定でフィルターが禁じられていないかを見る (データは読まない)。GET /api/websites/[websiteId]/segments/[segmentId] と GET /api/websites/[websiteId]/segments も同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)。終端にならないよう、canViewWebsite を下に書き直した"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 92
+    - "file": "src/permissions/share.ts"
+      "line": 93
+    - "file": "src/permissions/share.ts"
+      "line": 98
+    - "file": "src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts"
+      "line": 20
+- "id": "q_can_view_website_rw2"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 8
+  "caller": "q_can_view_shared_website_filters"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 93
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。管理者か共有トークンで許されればデータを読まない。そうでなければ getEntity で対象を読み、持ち主かチームのメンバーかを確かめる。全体の経路はフレーム q_can_view_website"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 9
+    - "file": "src/permissions/website.ts"
+      "line": 24
+    - "file": "src/permissions/website.ts"
+      "line": 35
+- "id": "q_get_entity_rw2"
+  "layer": "query"
+  "kind": "function"
+  "name": "getEntity (src/lib/entity.ts)"
+  "source":
+    "file": "src/lib/entity.ts"
+    "line": 4
+  "caller": "q_can_view_website_rw2"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 24
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。同じ id で website / link / pixel / board を並べて読む。最も早い呼び出し (getWebsite) だけを下に書き直した。全体の経路はフレーム q_get_entity"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 6
+    - "file": "src/lib/entity.ts"
+      "line": 12
+- "id": "q_get_website_rw2"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_get_entity_rw2"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 6
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。id が uuid なら website を 1 件読み、最新の share の slug を付ける。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_website"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 81
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "detail": "prisma.client.website.findUnique (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "detail": "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "website が見つかったときだけ"
+- "id": "q_get_website_annotations"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsiteAnnotations (src/queries/prisma/annotation.ts)"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 19
+  "caller": "api_annotations_get"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 33
+  "summary":
+    "status": "interpretation"
+    "value": "サイトの注釈を、期間 (date の範囲) と note の検索語で絞り、date の新しい順にページ単位で読む (件数も数える)"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 26
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 30
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 42
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "annotation"
+    "detail": "pagedQuery('annotation') → findMany + count (where websiteId, date between)"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 42
+    - "file": "src/lib/prisma.ts"
+      "line": 761
+    - "file": "src/lib/prisma.ts"
+      "line": 775
+    - "file": "prisma/schema.prisma"
+      "line": 302
+- "id": "ext_prisma_paged_annotation"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client annotation.findMany / count (prisma.pagedQuery)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 761
+  "caller": "q_get_website_annotations"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 42
+    - "file": "src/lib/prisma.ts"
+      "line": 761
+    - "file": "src/lib/prisma.ts"
+      "line": 775
+- "id": "use_pageviews"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsitePageviewsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsitePageviewsQuery.ts"
+    "line": 11
+  "caller": "website_chart"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
+      "line": 40
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/pageviews を、期間・単位・タイムゾーン・URL のフィルターをつけて呼ぶ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsitePageviewsQuery.ts"
+      "line": 16
+    - "file": "src/components/hooks/queries/useWebsitePageviewsQuery.ts"
+      "line": 17
+    - "file": "src/components/hooks/queries/useWebsitePageviewsQuery.ts"
+      "line": 25
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_pageviews"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/pageviews"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+    "line": 8
+  "caller": "use_pageviews"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsitePageviewsQuery.ts"
+      "line": 25
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリを検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection (overview / compare) で確かめ (経路はフレーム q_can_view_website_section と同じ)、getQueryFilters でフィルターを組み立てて (経路はフレーム q_get_query_filters と同じ)、ページビューとセッションの時系列を並行に読む。compare があれば比較の期間も読む (この画面は compare を渡さない)"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 16
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 24
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 28
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 30
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 35
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 22
+  - "name": "startAt / endAt / フィルター"
+    "value": "クエリ。期間と、URL のフィルター (列の条件、segment / cohort など)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 12
+- "id": "q_pageview_stats"
+  "layer": "query"
+  "kind": "function"
+  "name": "getPageviewStats (src/queries/sql/pageviews/getPageviewStats.ts)"
+  "source":
+    "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+    "line": 9
+  "caller": "api_pageviews"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 31
+  "summary":
+    "status": "interpretation"
+    "value": "期間とフィルターで website_event を単位 (時・日・月など) ごとに数え、ページビューの時系列を作る。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 19
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 59
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 30
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 33
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 68
+    - "file": "src/lib/clickhouse.ts"
+      "line": 196
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+    "note": "イベントの列で絞るときか、単位が minute のときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)。直帰を除くフィルターの副問い合わせ (src/lib/clickhouse.ts:212) でも読む"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 88
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "上以外のとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_pageview_stats_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_pageview_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 25
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_pageview_stats_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_pageview_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewStats.ts"
+      "line": 101
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_session_stats"
+  "layer": "query"
+  "kind": "function"
+  "name": "getSessionStats (src/queries/sql/sessions/getSessionStats.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getSessionStats.ts"
+    "line": 9
+  "caller": "api_pageviews"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/pageviews/route.ts"
+      "line": 32
+  "summary":
+    "status": "interpretation"
+    "value": "期間とフィルターで website_event を単位ごとにまとめ、異なる session_id の数 (セッションの時系列) を作る。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 19
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 29
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 59
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 30
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 33
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 68
+    - "file": "src/lib/clickhouse.ts"
+      "line": 196
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+    "note": "イベントの列で絞るときか、単位が minute のときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)。直帰を除くフィルターの副問い合わせ (src/lib/clickhouse.ts:212) でも読む"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 88
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "上以外のとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_session_stats_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_session_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 25
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_session_stats_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_session_stats"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionStats.ts"
+      "line": 101
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "annotations_button"
+  "layer": "component"
+  "kind": "component"
+  "name": "AnnotationsButton"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsButton.tsx"
+    "line": 6
+  "caller": "website_page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 9
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 31
+  "summary":
+    "status": "interpretation"
+    "value": "グラフの凡例に置く「注釈」ボタン。押すと、今の期間 (startAt / endAt) を範囲にして AnnotationsModal を小窓で開く。AnnotationsModal の全体の経路はフレーム annotations_modal と同じ (WebsitePage からも開くので、呼び出し行の順でそちらの下に書いた)。終端にならないよう、AnnotationsModal を最も早い呼び出しの 1 本だけ下に書き直した"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsButton.tsx"
+      "line": 8
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsButton.tsx"
+      "line": 11
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsButton.tsx"
+      "line": 19
+- "id": "annotations_modal_rw"
+  "layer": "component"
+  "kind": "component"
+  "name": "AnnotationsModal"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+    "line": 38
+  "caller": "annotations_button"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsButton.tsx"
+      "line": 19
+    "note": "ボタンを押して小窓を開いたときだけ"
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。注釈の一覧を読み、編集・削除・新規作成を出す。最も早い呼び出し (useWebsiteAnnotationsQuery) だけを下に書き直した。全体の経路はフレーム annotations_modal"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 56
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 85
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 147
+- "id": "use_annotations_rw"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteAnnotationsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteAnnotationsQuery.ts"
+    "line": 6
+  "caller": "annotations_modal_rw"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 56
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。GET /websites/<websiteId>/annotations を、一覧のページと範囲で呼ぶ。全体の経路はフレーム use_annotations"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteAnnotationsQuery.ts"
+      "line": 16
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 57
+- "id": "api_annotations_get_rw"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/annotations"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+    "line": 9
+  "caller": "use_annotations_rw"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteAnnotationsQuery.ts"
+      "line": 16
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。最も早い呼び出し (parseRequest) だけを下に書き直した。全体の経路はフレーム api_annotations_get"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 20
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 29
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 33
+- "id": "q_parse_request_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "parseRequest (src/lib/request.ts)"
+  "source":
+    "file": "src/lib/request.ts"
+    "line": 16
+  "caller": "api_annotations_get_rw"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 20
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。クエリか本文を検査し、checkAuth で認証する。全体の経路はフレーム q_parse_request"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 30
+    - "file": "src/lib/request.ts"
+      "line": 52
+- "id": "q_check_auth_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "checkAuth (src/lib/auth.ts)"
+  "source":
+    "file": "src/lib/auth.ts"
+    "line": 71
+  "caller": "q_parse_request_rw1"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 52
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。トークンを解き、Redis のセッションと user を読んで認証する。全体の経路 (getUser とライブラリの呼び出しまで) はフレーム q_check_auth"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 94
+    - "file": "src/lib/auth.ts"
+      "line": 101
+    - "file": "src/lib/auth.ts"
+      "line": 102
+  "io":
+  - "op": "get"
+    "status": "fact"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "auth:*"
+    "detail": "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/auth.ts"
+      "line": 150
+    "note": "Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ"
+- "id": "website_panels"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsitePanels"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+    "line": 9
+  "caller": "website_page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 34
+  "summary":
+    "status": "interpretation"
+    "value": "タブ付きの表のパネル。ページ (path / fullPath / entry / exit)、流入元 (referrer / channel)、環境 (browser / os / device)、地域 (country / region / city) の MetricsTable を上位 10 件で出し、世界地図 (WorldMap) と曜日・時間帯の表 (WeeklyTraffic) を描く"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 11
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 34
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 55
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 74
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 94
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 108
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 114
+- "id": "metrics_table"
+  "layer": "component"
+  "kind": "component"
+  "name": "MetricsTable"
+  "source":
+    "file": "src/components/metrics/MetricsTable.tsx"
+    "line": 23
+  "caller": "website_panels"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 34
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 55
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 58
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 74
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 94
+  "summary":
+    "status": "interpretation"
+    "value": "受け取った type と limit で指標を読み、表に出す。この画面では type が path / fullPath / entry / exit / referrer / channel / browser / os / device / country / region / city の 12 通り。「もっと見る」は URL に view を付けるだけで、拡大表示の小窓 (ExpandedViewModal) が開く"
+    "evidence":
+    - "file": "src/components/metrics/MetricsTable.tsx"
+      "line": 36
+    - "file": "src/components/metrics/MetricsTable.tsx"
+      "line": 37
+    - "file": "src/components/metrics/MetricsTable.tsx"
+      "line": 38
+- "id": "use_metrics"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteMetricsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+    "line": 12
+  "caller": "metrics_table"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/metrics/MetricsTable.tsx"
+      "line": 36
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/metrics を、期間・URL のフィルター・type・limit をつけて呼ぶ。WorldMap も type: country で同じフックを呼ぶ (同じ URL・同じ問い合わせなので、呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+      "line": 18
+    - "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+      "line": 19
+    - "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+      "line": 33
+    - "file": "src/components/metrics/WorldMap.tsx"
+      "line": 31
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_metrics"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/metrics"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+    "line": 14
+  "caller": "use_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+      "line": 33
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリ (type / limit / offset / search / フィルター) を検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection で確かめ (経路はフレーム q_can_view_website_section と同じ)、getQueryFilters でフィルターを組み立てる (経路はフレーム q_get_query_filters と同じ)。type がセッションの列なら getSessionMetrics、イベントの列なら getPageviewMetrics (event だけは getEventMetrics。この画面は event を渡さない)、channel なら getChannelMetrics を呼ぶ。どれでもなければ 400"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 26
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 35
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 49
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 55
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 61
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 70
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 74
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 32
+  - "name": "type"
+    "value": "クエリ。指標の種類 (この画面では呼び出し側の値)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 19
+  - "name": "startAt / endAt / フィルター"
+    "value": "クエリ。期間と、URL のフィルター (列の条件、segment / cohort など)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 18
+- "id": "q_session_metrics"
+  "layer": "query"
+  "kind": "function"
+  "name": "getSessionMetrics (src/queries/sql/sessions/getSessionMetrics.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+    "line": 15
+  "caller": "api_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 55
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 56
+    - "file": "src/lib/constants.ts"
+      "line": 60
+    "note": "type がセッションの列 (browser / os / device / country / region / city) のとき"
+  "summary":
+    "status": "interpretation"
+    "value": "セッションの列 (browser / os / device / country / region / city) ごとに、期間とフィルターで異なる session_id を数える。PostgreSQL では session を必ず join する。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 39
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 52
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 94
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 54
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 57
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 100
+    - "file": "src/lib/clickhouse.ts"
+      "line": 196
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+    "note": "イベントの列で絞るときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)。直帰を除くフィルターの副問い合わせ (src/lib/clickhouse.ts:212) でも読む"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 120
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "イベントの列で絞らないとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_session_metrics_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_session_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 48
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_session_metrics_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_session_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionMetrics.ts"
+      "line": 136
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_pageview_metrics"
+  "layer": "query"
+  "kind": "function"
+  "name": "getPageviewMetrics (src/queries/sql/pageviews/getPageviewMetrics.ts)"
+  "source":
+    "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+    "line": 20
+  "caller": "api_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 61
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 66
+    - "file": "src/lib/constants.ts"
+      "line": 41
+    "note": "type がイベントの列 (path / fullPath / entry / exit / referrer) のとき"
+  "summary":
+    "status": "interpretation"
+    "value": "イベントの列 (path / fullPath / entry / exit / referrer) ごとに、期間とフィルターで訪問者を数える。entry / exit は訪問の最初 / 最後のページを選ぶ。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 52
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 57
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 86
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 132
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 66
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 87
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 90
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 147
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 163
+    - "file": "src/lib/clickhouse.ts"
+      "line": 196
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+    "note": "type が fullPath か、イベントの列で絞るときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)。直帰を除くフィルターの副問い合わせ (src/lib/clickhouse.ts:212) でも読む"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 205
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "上以外のとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_pageview_metrics_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_pageview_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 83
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_pageview_metrics_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_pageview_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      "line": 221
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_channel_metrics"
+  "layer": "query"
+  "kind": "function"
+  "name": "getChannelMetrics (src/queries/sql/getChannelMetrics.ts)"
+  "source":
+    "file": "src/queries/sql/getChannelMetrics.ts"
+    "line": 17
+  "caller": "api_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 70
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 71
+    "note": "type が channel のとき"
+  "summary":
+    "status": "interpretation"
+    "value": "イベントのリファラーの domain・URL のクエリ・UTM から流入の種類 (channel) を決め、訪問ごとに種類が決まる最初のイベントを 1 つ選んで、種類ごとに異なる session_id を数える。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 58
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 88
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 96
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 167
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 48
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 51
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 157
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)。直帰を除くフィルターの副問い合わせ (src/lib/clickhouse.ts:212) でも読む"
+    "evidence":
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 159
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "直帰を除くフィルター (excludeBounce) のときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_channel_metrics_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_channel_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 32
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_channel_metrics_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_channel_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getChannelMetrics.ts"
+      "line": 173
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "world_map"
+  "layer": "component"
+  "kind": "component"
+  "name": "WorldMap"
+  "source":
+    "file": "src/components/metrics/WorldMap.tsx"
+    "line": 21
+  "caller": "website_panels"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 108
+  "summary":
+    "status": "interpretation"
+    "value": "国ごとの訪問者の割合で世界地図を塗る。data を渡されていないので、useWebsiteMetricsQuery で type: country の指標を自分で読む。そのフックの全体の経路はフレーム use_metrics と同じ (MetricsTable の呼び出しのほうが行の順で早い)。終端にならないよう、最も早い呼び出しの 1 本だけ下に書き直した"
+    "evidence":
+    - "file": "src/components/metrics/WorldMap.tsx"
+      "line": 31
+    - "file": "src/components/metrics/WorldMap.tsx"
+      "line": 32
+    - "file": "src/components/metrics/WorldMap.tsx"
+      "line": 35
+- "id": "use_metrics_rw"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteMetricsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+    "line": 12
+  "caller": "world_map"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/metrics/WorldMap.tsx"
+      "line": 31
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。GET /websites/<websiteId>/metrics を type: country で呼ぶ。全体の経路はフレーム use_metrics"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+      "line": 33
+    - "file": "src/components/metrics/WorldMap.tsx"
+      "line": 32
+- "id": "api_metrics_rw"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/metrics"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+    "line": 14
+  "caller": "use_metrics_rw"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
+      "line": 33
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。type: country はセッションの列なので getSessionMetrics に進む。最も早い呼び出し (parseRequest) だけを下に書き直した。全体の経路はフレーム api_metrics"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 26
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 55
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 56
+    - "file": "src/lib/constants.ts"
+      "line": 66
+- "id": "q_parse_request_rw2"
+  "layer": "query"
+  "kind": "function"
+  "name": "parseRequest (src/lib/request.ts)"
+  "source":
+    "file": "src/lib/request.ts"
+    "line": 16
+  "caller": "api_metrics_rw"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/route.ts"
+      "line": 26
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。クエリか本文を検査し、checkAuth で認証する。全体の経路はフレーム q_parse_request"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 30
+    - "file": "src/lib/request.ts"
+      "line": 52
+- "id": "q_check_auth_rw2"
+  "layer": "query"
+  "kind": "function"
+  "name": "checkAuth (src/lib/auth.ts)"
+  "source":
+    "file": "src/lib/auth.ts"
+    "line": 71
+  "caller": "q_parse_request_rw2"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 52
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。トークンを解き、Redis のセッションと user を読んで認証する。全体の経路 (getUser とライブラリの呼び出しまで) はフレーム q_check_auth"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 94
+    - "file": "src/lib/auth.ts"
+      "line": 101
+    - "file": "src/lib/auth.ts"
+      "line": 102
+  "io":
+  - "op": "get"
+    "status": "fact"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "auth:*"
+    "detail": "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/auth.ts"
+      "line": 150
+    "note": "Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ"
+- "id": "weekly_traffic"
+  "layer": "component"
+  "kind": "component"
+  "name": "WeeklyTraffic"
+  "source":
+    "file": "src/components/metrics/WeeklyTraffic.tsx"
+    "line": 8
+  "caller": "website_panels"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx"
+      "line": 114
+  "summary":
+    "status": "interpretation"
+    "value": "曜日と時間帯ごとのセッション数を表 (ヒートマップ) にする"
+    "evidence":
+    - "file": "src/components/metrics/WeeklyTraffic.tsx"
+      "line": 9
+- "id": "use_weekly"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWeeklyTrafficQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWeeklyTrafficQuery.ts"
+    "line": 6
+  "caller": "weekly_traffic"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/metrics/WeeklyTraffic.tsx"
+      "line": 9
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/sessions/weekly を、期間・タイムゾーン・URL のフィルターをつけて呼ぶ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWeeklyTrafficQuery.ts"
+      "line": 9
+    - "file": "src/components/hooks/queries/useWeeklyTrafficQuery.ts"
+      "line": 10
+    - "file": "src/components/hooks/queries/useWeeklyTrafficQuery.ts"
+      "line": 18
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_weekly"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/sessions/weekly"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+    "line": 8
+  "caller": "use_weekly"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWeeklyTrafficQuery.ts"
+      "line": 18
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリ (startAt / endAt / timezone / フィルター) を検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection (overview / sessions) で確かめ (経路はフレーム q_can_view_website_section と同じ)、getQueryFilters でフィルターを組み立てて (経路はフレーム q_get_query_filters と同じ)、曜日・時間帯ごとの数を返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+      "line": 19
+    - "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+      "line": 27
+    - "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+      "line": 31
+    - "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+      "line": 33
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+      "line": 25
+  - "name": "startAt / endAt / フィルター"
+    "value": "クエリ。期間と、URL のフィルター (列の条件、segment / cohort など)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+      "line": 12
+- "id": "q_weekly"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWeeklyTraffic (src/queries/sql/getWeeklyTraffic.ts)"
+  "source":
+    "file": "src/queries/sql/getWeeklyTraffic.ts"
+    "line": 9
+  "caller": "api_weekly"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/weekly/route.ts"
+      "line": 33
+  "summary":
+    "status": "interpretation"
+    "value": "期間とフィルターで website_event を、タイムゾーンでの曜日と時間ごとにまとめ、異なる session_id を数える。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 21
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 31
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 58
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 32
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 35
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 63
+    - "file": "src/lib/clickhouse.ts"
+      "line": 196
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+    "note": "イベントの列で絞るときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "時間ごとの集計表 (website_event から materialized view で作る)。直帰を除くフィルターの副問い合わせ (src/lib/clickhouse.ts:212) でも読む"
+    "evidence":
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 78
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "イベントの列で絞らないとき"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_weekly_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_weekly"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 27
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_weekly_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_weekly"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getWeeklyTraffic.ts"
+      "line": 90
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "expanded_view_modal"
+  "layer": "component"
+  "kind": "component"
+  "name": "ExpandedViewModal → WebsiteExpandedView"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/ExpandedViewModal.tsx"
+    "line": 6
+  "caller": "website_page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 35
+    "note": "URL に view のパラメータがある (表の「もっと見る」を押した) ときだけ開く"
+  "summary":
+    "status": "interpretation"
+    "value": "URL に view があるとき開く拡大表示の小窓 (表の「もっと見る」で view が付く)。閉じると URL から view を外す。中身は WebsiteExpandedView"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/ExpandedViewModal.tsx"
+      "line": 15
+    - "file": "src/app/(main)/websites/[websiteId]/ExpandedViewModal.tsx"
+      "line": 21
+    - "file": "src/app/(main)/websites/[websiteId]/ExpandedViewModal.tsx"
+      "line": 33
+    - "file": "src/app/(main)/websites/[websiteId]/ExpandedViewModal.tsx"
+      "line": 44
+- "id": "website_expanded_view"
+  "layer": "component"
+  "kind": "component"
+  "name": "WebsiteExpandedView"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/WebsiteExpandedView.tsx"
+    "line": 8
+  "caller": "expanded_view_modal"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/ExpandedViewModal.tsx"
+      "line": 2
+    - "file": "src/app/(main)/websites/[websiteId]/ExpandedViewModal.tsx"
+      "line": 44
+  "summary":
+    "status": "interpretation"
+    "value": "左に指標の種類のメニュー (WebsiteExpandedMenu。URL の view を変えるリンクだけ)、右に URL の view の種類の拡大表 (MetricsExpandedTable) を出す。メニューには表のパネルに無い種類 (title / query / domain / language / screen / utm* / event / hostname / distinctId / tag) もある"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteExpandedView.tsx"
+      "line": 30
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteExpandedView.tsx"
+      "line": 48
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteExpandedView.tsx"
+      "line": 52
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteExpandedMenu.tsx"
+      "line": 54
+- "id": "metrics_expanded_table"
+  "layer": "component"
+  "kind": "component"
+  "name": "MetricsExpandedTable"
+  "source":
+    "file": "src/components/metrics/MetricsExpandedTable.tsx"
+    "line": 26
+  "caller": "website_expanded_view"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteExpandedView.tsx"
+      "line": 6
+    - "file": "src/app/(main)/websites/[websiteId]/WebsiteExpandedView.tsx"
+      "line": 52
+  "summary":
+    "status": "interpretation"
+    "value": "受け取った type の指標を、訪問者・訪問・ページビュー・直帰・滞在時間つきの表で出す。browser / country / device / os 以外では検索語で絞れる"
+    "evidence":
+    - "file": "src/components/metrics/MetricsExpandedTable.tsx"
+      "line": 38
+    - "file": "src/components/metrics/MetricsExpandedTable.tsx"
+      "line": 41
+    - "file": "src/components/metrics/MetricsExpandedTable.tsx"
+      "line": 43
+- "id": "use_expanded_metrics"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteExpandedMetricsQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteExpandedMetricsQuery.ts"
+    "line": 16
+  "caller": "metrics_expanded_table"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/metrics/MetricsExpandedTable.tsx"
+      "line": 41
+  "summary":
+    "status": "interpretation"
+    "value": "GET /websites/<websiteId>/metrics/expanded を、期間・URL のフィルター・type・検索語をつけて呼ぶ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteExpandedMetricsQuery.ts"
+      "line": 22
+    - "file": "src/components/hooks/queries/useWebsiteExpandedMetricsQuery.ts"
+      "line": 23
+    - "file": "src/components/hooks/queries/useWebsiteExpandedMetricsQuery.ts"
+      "line": 37
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_metrics_expanded"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/metrics/expanded"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+    "line": 14
+  "caller": "use_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteExpandedMetricsQuery.ts"
+      "line": 37
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "クエリ (type / limit / offset / search / フィルター) を検査して認証し (経路はフレーム q_parse_request と同じ)、canViewWebsiteSection (overview / compare) で確かめ、getQueryFilters でフィルターを組み立てる。type がセッションの列なら getSessionExpandedMetrics、イベントの列なら getPageviewExpandedMetrics (event だけは getEventExpandedMetrics)、channel なら getChannelExpandedMetrics を呼ぶ。どれでもなければ 400"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 26
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 34
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 39
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 45
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 51
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 60
+  "parameters":
+  - "name": "type"
+    "value": "クエリ。URL の view の値 (指標の種類)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 45
+- "id": "q_can_view_website_section"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewWebsiteSection (src/permissions/share.ts)"
+  "source":
+    "file": "src/permissions/share.ts"
+    "line": 53
+  "caller": "api_metrics_expanded"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 34
+  "summary":
+    "status": "interpretation"
+    "value": "ログインしたユーザーがいれば canViewWebsite に進む。共有トークンだけのときは、トークンがこのサイトを含み、共有の設定で求める区分 (overview など) が許されているかを見る (データは読まない)。metrics / pageviews / session-data/properties / session-data/values / sessions/weekly / stats / values の GET も同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 58
+    - "file": "src/permissions/share.ts"
+      "line": 59
+    - "file": "src/permissions/share.ts"
+      "line": 64
+    - "file": "src/permissions/share.ts"
+      "line": 77
+- "id": "q_can_view_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 8
+  "caller": "q_can_view_website_section"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 59
+  "summary":
+    "status": "interpretation"
+    "value": "管理者なら許す。共有トークンがこのサイトを含めば許す (データを読まない)。そうでなければ getEntity で id に当たるもの (website / link / pixel / board のどれか) を読み、作成者が本人なら許す。チームのものなら getTeamUser でメンバーかを確かめる。canViewSharedWebsite / canViewSharedWebsiteFilters も同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 9
+    - "file": "src/permissions/website.ts"
+      "line": 13
+    - "file": "src/permissions/website.ts"
+      "line": 24
+    - "file": "src/permissions/website.ts"
+      "line": 30
+    - "file": "src/permissions/website.ts"
+      "line": 35
+- "id": "q_get_entity"
+  "layer": "query"
+  "kind": "function"
+  "name": "getEntity (src/lib/entity.ts)"
+  "source":
+    "file": "src/lib/entity.ts"
+    "line": 4
+  "caller": "q_can_view_website"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 24
+  "summary":
+    "status": "interpretation"
+    "value": "同じ id で getWebsite / getLink / getPixel / getBoard を並べて呼び、最初に見つかったものを返す"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 5
+    - "file": "src/lib/entity.ts"
+      "line": 6
+    - "file": "src/lib/entity.ts"
+      "line": 7
+    - "file": "src/lib/entity.ts"
+      "line": 8
+    - "file": "src/lib/entity.ts"
+      "line": 9
+    - "file": "src/lib/entity.ts"
+      "line": 12
+- "id": "q_get_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite / findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 6
+  "summary":
+    "status": "interpretation"
+    "value": "id が uuid でなければ null。website を id で 1 件読み (deletedAt の条件は付けない)、見つかればその website の最新の share の slug を shareId として付ける。fetchWebsite (load.ts) と canUpdateWebsite も同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 81
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+    - "file": "src/queries/prisma/website.ts"
+      "line": 303
+    - "file": "src/lib/load.ts"
+      "line": 10
+    - "file": "src/permissions/website.ts"
+      "line": 141
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "detail": "prisma.client.website.findUnique (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "detail": "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "website が見つかったときだけ"
+- "id": "ext_prisma_get_website"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client website.findUnique / share.findFirst"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 77
+  "caller": "q_get_website"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+- "id": "q_get_link"
+  "layer": "query"
+  "kind": "function"
+  "name": "getLink / findLink (src/queries/prisma/link.ts)"
+  "source":
+    "file": "src/queries/prisma/link.ts"
+    "line": 12
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 7
+  "summary":
+    "status": "interpretation"
+    "value": "id で link を 1 件読む (deletedAt の条件は付けない)。ここでは、websiteId が link の id かもしれないので getEntity が並べて読む"
+    "evidence":
+    - "file": "src/queries/prisma/link.ts"
+      "line": 9
+    - "file": "src/queries/prisma/link.ts"
+      "line": 13
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "link"
+    "detail": "prisma.client.link.findUnique (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/link.ts"
+      "line": 9
+    - "file": "prisma/schema.prisma"
+      "line": 358
+- "id": "ext_prisma_get_link"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client link.findUnique"
+  "source":
+    "file": "src/queries/prisma/link.ts"
+    "line": 9
+  "caller": "q_get_link"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/link.ts"
+      "line": 9
+- "id": "q_get_pixel"
+  "layer": "query"
+  "kind": "function"
+  "name": "getPixel / findPixel (src/queries/prisma/pixel.ts)"
+  "source":
+    "file": "src/queries/prisma/pixel.ts"
+    "line": 12
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 8
+  "summary":
+    "status": "interpretation"
+    "value": "id で pixel を 1 件読む (deletedAt の条件は付けない)。ここでは、websiteId が pixel の id かもしれないので getEntity が並べて読む"
+    "evidence":
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 9
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 13
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "pixel"
+    "detail": "prisma.client.pixel.findUnique (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 9
+    - "file": "prisma/schema.prisma"
+      "line": 378
+- "id": "ext_prisma_get_pixel"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client pixel.findUnique"
+  "source":
+    "file": "src/queries/prisma/pixel.ts"
+    "line": 9
+  "caller": "q_get_pixel"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 9
+- "id": "q_get_board"
+  "layer": "query"
+  "kind": "function"
+  "name": "getBoard / findBoard (src/queries/prisma/board.ts)"
+  "source":
+    "file": "src/queries/prisma/board.ts"
+    "line": 13
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 9
+  "summary":
+    "status": "interpretation"
+    "value": "id で board を 1 件読む (deletedAt の条件は付けない)。ここでは、websiteId が board の id かもしれないので getEntity が並べて読む"
+    "evidence":
+    - "file": "src/queries/prisma/board.ts"
+      "line": 10
+    - "file": "src/queries/prisma/board.ts"
+      "line": 14
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "board"
+    "detail": "prisma.client.board.findUnique (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/board.ts"
+      "line": 10
+    - "file": "prisma/schema.prisma"
+      "line": 398
+- "id": "ext_prisma_get_board"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client board.findUnique"
+  "source":
+    "file": "src/queries/prisma/board.ts"
+    "line": 10
+  "caller": "q_get_board"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/board.ts"
+      "line": 10
+- "id": "q_get_team_user"
+  "layer": "query"
+  "kind": "function"
+  "name": "getTeamUser (src/queries/prisma/teamUser.ts)"
+  "source":
+    "file": "src/queries/prisma/teamUser.ts"
+    "line": 19
+  "caller": "q_can_view_website"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 35
+    "note": "対象がチームのもので、管理者でも作成者でもないときだけ"
+  "summary":
+    "status": "interpretation"
+    "value": "teamId と userId で、削除されていないチームの team_user を 1 件読む。canUpdateWebsite も同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 20
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 24
+    - "file": "src/permissions/website.ts"
+      "line": 152
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "team_user"
+    "detail": "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 20
+    - "file": "prisma/schema.prisma"
+      "line": 265
+  - "op": "read"
+    "status": "interpretation"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "team"
+    "detail": "リレーションの条件 team: { deletedAt: null }"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 24
+    - "file": "prisma/schema.prisma"
+      "line": 249
+    "note": "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+- "id": "ext_prisma_team_user"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client teamUser.findFirst"
+  "source":
+    "file": "src/queries/prisma/teamUser.ts"
+    "line": 20
+  "caller": "q_get_team_user"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 20
+- "id": "q_get_query_filters"
+  "layer": "query"
+  "kind": "function"
+  "name": "getQueryFilters → setWebsiteDate (src/lib/request.ts)"
+  "source":
+    "file": "src/lib/request.ts"
+    "line": 118
+  "caller": "api_metrics_expanded"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 39
+  "summary":
+    "status": "interpretation"
+    "value": "クエリから期間とフィルター (列の条件、イベント / セッションのプロパティ条件) を組み立てる。同じファイルの setWebsiteDate が fetchWebsite でサイトを読み、resetAt より前を期間から外す。CLOUD_MODE で個人のサイトなら fetchAccount で契約を見て、無ければ 6 か月前より前を外す。URL に segment / cohort があれば getWebsiteSegment でその定義を読み (経路はフレーム q_get_segment と同じ)、保存済みの条件をフィルターに足す。excludeBounce があれば直帰を除く印を足す。metrics / pageviews / session-data/properties / session-data/values / sessions/weekly / stats / values の GET も同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)。segments の GET も呼ぶが、websiteId 無しなのでサイトもセグメントも読まない"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 122
+    - "file": "src/lib/request.ts"
+      "line": 130
+    - "file": "src/lib/request.ts"
+      "line": 100
+    - "file": "src/lib/request.ts"
+      "line": 103
+    - "file": "src/lib/request.ts"
+      "line": 111
+    - "file": "src/lib/request.ts"
+      "line": 133
+    - "file": "src/lib/request.ts"
+      "line": 145
+    - "file": "src/lib/request.ts"
+      "line": 172
+- "id": "q_fetch_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "fetchWebsite (src/lib/load.ts)"
+  "source":
+    "file": "src/lib/load.ts"
+    "line": 6
+  "caller": "q_get_query_filters"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 100
+  "summary":
+    "status": "interpretation"
+    "value": "Redis が有効なら website:<id> のキャッシュを読み、無ければ getWebsite で読んで 86400 秒キャッシュする。Redis が無効なら getWebsite で読む (getWebsite の経路はフレーム q_get_website と同じ)。削除済みなら null"
+    "evidence":
+    - "file": "src/lib/load.ts"
+      "line": 9
+    - "file": "src/lib/load.ts"
+      "line": 10
+    - "file": "src/lib/load.ts"
+      "line": 12
+    - "file": "src/lib/load.ts"
+      "line": 15
+  "io":
+  - "op": "get"
+    "status": "fact"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "website:*"
+    "detail": "redis.client.fetch(`website:${websiteId}`) の最初の get"
+    "evidence":
+    - "file": "src/lib/load.ts"
+      "line": 10
+    - "file": "src/lib/redis.ts"
+      "line": 85
+    - "file": "src/lib/redis.ts"
+      "line": 37
+    "note": "Redis が有効 (REDIS_URL あり) のときだけ"
+  - "op": "set"
+    "status": "fact"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "website:*"
+    "detail": "キャッシュに無いとき getWebsite の結果を TTL 86400 秒で保存"
+    "evidence":
+    - "file": "src/lib/load.ts"
+      "line": 10
+    - "file": "src/lib/redis.ts"
+      "line": 92
+    - "file": "src/lib/redis.ts"
+      "line": 51
+    "note": "Redis が有効で、キャッシュに無かったときだけ"
+- "id": "ext_redis_website"
+  "layer": "external"
+  "kind": "library"
+  "name": "redis (node-redis クライアント) get / set"
+  "source":
+    "file": "src/lib/redis.ts"
+    "line": 37
+  "caller": "q_fetch_website"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/load.ts"
+      "line": 10
+    - "file": "src/lib/redis.ts"
+      "line": 37
+    - "file": "src/lib/redis.ts"
+      "line": 51
+- "id": "q_fetch_account"
+  "layer": "query"
+  "kind": "function"
+  "name": "fetchAccount (src/lib/load.ts)"
+  "source":
+    "file": "src/lib/load.ts"
+    "line": 42
+  "caller": "q_get_query_filters"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 104
+    "note": "CLOUD_MODE が設定され、サイトがチームのものでないときだけ"
+  "summary":
+    "status": "interpretation"
+    "value": "Redis から account:<userId> を読む (契約の有無を見るため)"
+    "evidence":
+    - "file": "src/lib/load.ts"
+      "line": 43
+  "io":
+  - "op": "get"
+    "status": "fact"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "account:*"
+    "detail": "redis.client.get(`account:${userId}`)"
+    "evidence":
+    - "file": "src/lib/load.ts"
+      "line": 43
+    "note": "CLOUD_MODE が設定され、サイトがチームのものでないときだけ"
+- "id": "ext_redis_account"
+  "layer": "external"
+  "kind": "library"
+  "name": "redis (node-redis クライアント) get"
+  "source":
+    "file": "src/lib/redis.ts"
+    "line": 37
+  "caller": "q_fetch_account"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/load.ts"
+      "line": 43
+    - "file": "src/lib/redis.ts"
+      "line": 37
+- "id": "q_session_expanded_metrics"
+  "layer": "query"
+  "kind": "function"
+  "name": "getSessionExpandedMetrics (src/queries/sql/sessions/getSessionExpandedMetrics.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+    "line": 28
+  "caller": "api_metrics_expanded"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 45
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 46
+    "note": "type がセッションの列 (browser / os / device / country / region / city / language / screen / distinctId) のとき"
+  "summary":
+    "status": "interpretation"
+    "value": "セッションの列の値ごとに、訪問ごとのページビュー数と滞在時間をまとめ、ページビュー・訪問者・訪問・直帰・合計滞在時間を数える (直帰を除くフィルターでなければ、カスタムイベントの有無も見る)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 52
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 55
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 65
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 87
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 96
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 67
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 52
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 99
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "type がセッションの列なので常に join する (joinSession)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 171
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 144
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "parseFilters の excludeBounceQuery (直帰を除く副問い合わせ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 173
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "直帰を除くフィルター (excludeBounce) のときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_session_expanded_metrics_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_session_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 77
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_session_expanded_metrics_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_session_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getSessionExpandedMetrics.ts"
+      "line": 152
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_event_expanded_metrics"
+  "layer": "query"
+  "kind": "function"
+  "name": "getEventExpandedMetrics (src/queries/sql/events/getEventExpandedMetrics.ts)"
+  "source":
+    "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+    "line": 24
+  "caller": "api_metrics_expanded"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 52
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 54
+    "note": "type が event のとき (拡大表示のメニューで選んだとき)"
+  "summary":
+    "status": "interpretation"
+    "value": "カスタムイベントの名前ごとに、訪問ごとの件数と滞在時間をまとめて数える。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 41
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 59
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 67
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 67
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 69
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 117
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_event_expanded_metrics_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_event_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 50
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_event_expanded_metrics_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_event_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/events/getEventExpandedMetrics.ts"
+      "line": 100
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_pageview_expanded_metrics"
+  "layer": "query"
+  "kind": "function"
+  "name": "getPageviewExpandedMetrics (src/queries/sql/pageviews/getPageviewExpandedMetrics.ts)"
+  "source":
+    "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+    "line": 28
+  "caller": "api_metrics_expanded"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 51
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 56
+    "note": "type が event 以外のイベントの列 (path / fullPath / entry / exit / title / query / referrer / domain / utm* / hostname / tag) のとき"
+  "summary":
+    "status": "interpretation"
+    "value": "イベントの列の値ごとに、訪問ごとのページビュー数と滞在時間をまとめ、ページビュー・訪問者・訪問・直帰・合計滞在時間を数える。entry / exit は訪問の最初 / 最後のページを選ぶ。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 45
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 68
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 105
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 111
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 111
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 75
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 114
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 201
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 174
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "parseFilters の excludeBounceQuery (直帰を除く副問い合わせ)"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 203
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "直帰を除くフィルター (excludeBounce) のときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_pageview_expanded_metrics_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_pageview_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 96
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_pageview_expanded_metrics_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_pageview_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts"
+      "line": 186
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_channel_expanded_metrics"
+  "layer": "query"
+  "kind": "function"
+  "name": "getChannelExpandedMetrics (src/queries/sql/getChannelExpandedMetrics.ts)"
+  "source":
+    "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+    "line": 32
+  "caller": "api_metrics_expanded"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 60
+    - "file": "src/app/api/websites/[websiteId]/metrics/expanded/route.ts"
+      "line": 61
+    "note": "type が channel のとき"
+  "summary":
+    "status": "interpretation"
+    "value": "リファラーの domain・URL のクエリ・UTM から流入の種類 (channel) を決め、種類ごとにページビュー・訪問者・訪問・直帰・合計滞在時間を数える。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 46
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 91
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 157
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 37
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "detail": "生の SQL (prisma.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 91
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 63
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "detail": "parseFilters の joinSessionQuery (inner join session)"
+    "evidence":
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 94
+    - "file": "src/lib/prisma.ts"
+      "line": 318
+    - "file": "prisma/schema.prisma"
+      "line": 84
+    "note": "セッションの列 (browser / os / country など) かリファラーで絞るときだけ。コホート指定時も join する (src/lib/prisma.ts:226)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 309
+    - "file": "src/lib/prisma.ts"
+      "line": 576
+    - "file": "prisma/schema.prisma"
+      "line": 205
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data)"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 313
+    - "file": "src/lib/prisma.ts"
+      "line": 702
+    - "file": "prisma/schema.prisma"
+      "line": 229
+    "note": "セッションのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event"
+    "detail": "生の SQL (clickhouse.rawQuery) の from website_event"
+    "evidence":
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 246
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 186
+    - "file": "db/clickhouse/schema.sql"
+      "line": 2
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "detail": "parseFilters の excludeBounceQuery (直帰を除く副問い合わせ)"
+    "evidence":
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 248
+    - "file": "src/lib/clickhouse.ts"
+      "line": 212
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "直帰を除くフィルター (excludeBounce) のときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "event_data"
+    "detail": "parseFilters の getEventPropertyFilterQuery の副問い合わせ (from event_data)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 278
+    - "file": "src/lib/clickhouse.ts"
+      "line": 540
+    - "file": "db/clickhouse/schema.sql"
+      "line": 57
+    "note": "イベントのプロパティで絞るときだけ"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_data"
+    "detail": "parseFilters の getSessionPropertyFilterQuery の副問い合わせ (from session_data final)"
+    "evidence":
+    - "file": "src/lib/clickhouse.ts"
+      "line": 280
+    - "file": "src/lib/clickhouse.ts"
+      "line": 663
+    - "file": "db/clickhouse/schema.sql"
+      "line": 76
+    "note": "セッションのプロパティで絞るときだけ"
+- "id": "ext_channel_expanded_metrics_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_channel_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 75
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+- "id": "ext_channel_expanded_metrics_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_channel_expanded_metrics"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/sql/getChannelExpandedMetrics.ts"
+      "line": 194
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "annotations_modal"
+  "layer": "component"
+  "kind": "component"
+  "name": "AnnotationsModal (AnnotationsButton / グラフの「もっと見る」)"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+    "line": 38
+  "caller": "website_page"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 10
+    - "file": "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
+      "line": 44
+    "note": "グラフの注釈の「もっと見る」で範囲を受け取ったときだけ開く"
+  "summary":
+    "status": "interpretation"
+    "value": "注釈の一覧の小窓。範囲 (グラフで押した範囲、または今の期間) で絞った注釈をページ単位に出す。一覧は useWebsiteAnnotationsQuery で読む (経路はフレーム use_annotations と同じ)。共有画面でなければ、新規作成と、各行の編集・削除を出す (編集・新規は AnnotationEditForm に切り替える)。凡例の注釈ボタン (AnnotationsButton) からも同じ部品が開く"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 56
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 85
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 105
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 137
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 147
+- "id": "annotation_edit_form"
+  "layer": "component"
+  "kind": "component"
+  "name": "AnnotationEditForm"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+    "line": 24
+  "caller": "annotations_modal"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 85
+    "note": "新規作成か、行の編集を押したときだけ"
+  "summary":
+    "status": "interpretation"
+    "value": "日付と note (500 字まで) のフォーム。送信で、注釈を渡されていれば更新、無ければ新規作成の POST を送り、成功したら annotations の更新印を進めて一覧を取り直させる"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+      "line": 45
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+      "line": 46
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+      "line": 52
+- "id": "use_update_annotation"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useUpdateQuery('/websites/<id>/annotations[/<annotationId>]')"
+  "source":
+    "file": "src/components/hooks/queries/useUpdateQuery.ts"
+    "line": 6
+  "caller": "annotation_edit_form"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+      "line": 45
+  "summary":
+    "status": "interpretation"
+    "value": "受け取った path にフォームの値 (date / allDay / note) を本文にして POST する mutation を作る"
+    "evidence":
+    - "file": "src/components/hooks/queries/useUpdateQuery.ts"
+      "line": 9
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+      "line": 52
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_annotation_create"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "POST /api/websites/[websiteId]/annotations"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+    "line": 44
+  "caller": "use_update_annotation"
+  "call":
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+      "line": 46
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "引数で切り替わる。注釈を渡されていない (新規作成の) とき。既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "本文 (date / allDay / note) を検査して認証し (経路はフレーム q_parse_request と同じ)、canUpdateWebsite で確かめ (経路はフレーム q_can_update_website と同じ)、ログインユーザーを作成者にして注釈を作る"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 48
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 57
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 61
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 64
+- "id": "q_create_annotation"
+  "layer": "query"
+  "kind": "function"
+  "name": "createAnnotation (src/queries/prisma/annotation.ts)"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 54
+  "caller": "api_annotation_create"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/route.ts"
+      "line": 61
+  "summary":
+    "status": "interpretation"
+    "value": "annotation を 1 件作る"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 55
+  "io":
+  - "op": "create"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "annotation"
+    "detail": "prisma.client.annotation.create"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 55
+    - "file": "prisma/schema.prisma"
+      "line": 302
+- "id": "ext_prisma_create_annotation"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client annotation.create"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 55
+  "caller": "q_create_annotation"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 55
+- "id": "api_annotation_update"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "POST /api/websites/[websiteId]/annotations/[annotationId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+    "line": 32
+  "caller": "use_update_annotation"
+  "call":
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationEditForm.tsx"
+      "line": 46
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "引数で切り替わる。行の編集で注釈を渡されたとき。既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "本文を検査して認証し、canUpdateWebsite で確かめ、サイトの注釈があるかを読んでから (無ければ 404) 更新する。この画面の API の受け口はどれも parseRequest を呼び、canUpdateWebsite と getWebsiteAnnotation は DELETE も呼ぶが、呼び出し行の順でこの受け口の下に書いた"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 36
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 45
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 49
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 55
+- "id": "q_parse_request"
+  "layer": "query"
+  "kind": "function"
+  "name": "parseRequest (src/lib/request.ts)"
+  "source":
+    "file": "src/lib/request.ts"
+    "line": 16
+  "caller": "api_annotation_update"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 36
+  "summary":
+    "status": "interpretation"
+    "value": "URL と JSON 本文を読み、スキーマがあれば検査し (GET はクエリ、それ以外は本文)、skipAuth が無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す。この画面の他の API の受け口 (daterange、segments/[segmentId] の GET、segments の GET / POST、stats、annotations の GET / POST、pageviews、metrics、metrics/expanded、values、session-data/properties、session-data/values、sessions/weekly、annotations/[annotationId] の DELETE) も同じ関数を呼ぶ"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 21
+    - "file": "src/lib/request.ts"
+      "line": 23
+    - "file": "src/lib/request.ts"
+      "line": 30
+    - "file": "src/lib/request.ts"
+      "line": 51
+    - "file": "src/lib/request.ts"
+      "line": 52
+- "id": "q_check_auth"
+  "layer": "query"
+  "kind": "function"
+  "name": "checkAuth (src/lib/auth.ts)"
+  "source":
+    "file": "src/lib/auth.ts"
+    "line": 71
+  "caller": "q_parse_request"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 52
+  "summary":
+    "status": "interpretation"
+    "value": "Bearer トークンを解き、2FA の仮トークンは拒否する。userId があれば getUser で user を読み、authKey があれば (Redis が有効なとき) Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。トークンが API キーなら api_key を読む別の経路があるが、この画面はログインのトークンを付けるので通らないものとして書いていない"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 74
+    - "file": "src/lib/auth.ts"
+      "line": 83
+    - "file": "src/lib/auth.ts"
+      "line": 94
+    - "file": "src/lib/auth.ts"
+      "line": 98
+    - "file": "src/lib/auth.ts"
+      "line": 101
+    - "file": "src/lib/auth.ts"
+      "line": 105
+  "io":
+  - "op": "get"
+    "status": "fact"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "auth:*"
+    "detail": "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/auth.ts"
+      "line": 150
+    "note": "Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ"
+- "id": "q_get_user"
+  "layer": "query"
+  "kind": "function"
+  "name": "getUser / findUser (src/queries/prisma/user.ts)"
+  "source":
+    "file": "src/queries/prisma/user.ts"
+    "line": 49
+  "caller": "q_check_auth"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 94
+  "summary":
+    "status": "interpretation"
+    "value": "id で削除されていない user を 1 件読む。checkAuth はパスワードの列も含めて読む (トークンのパスワードの指紋と比べるため)"
+    "evidence":
+    - "file": "src/queries/prisma/user.ts"
+      "line": 29
+    - "file": "src/queries/prisma/user.ts"
+      "line": 32
+    - "file": "src/queries/prisma/user.ts"
+      "line": 36
+    - "file": "src/lib/auth.ts"
+      "line": 94
+    - "file": "src/lib/auth.ts"
+      "line": 105
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "user"
+    "detail": "prisma.client.user.findUnique (where id, deletedAt null)"
+    "evidence":
+    - "file": "src/queries/prisma/user.ts"
+      "line": 32
+    - "file": "prisma/schema.prisma"
+      "line": 37
+- "id": "ext_prisma_user"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client user.findUnique"
+  "source":
+    "file": "src/queries/prisma/user.ts"
+    "line": 32
+  "caller": "q_get_user"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/user.ts"
+      "line": 32
+- "id": "ext_redis_auth"
+  "layer": "external"
+  "kind": "library"
+  "name": "redis (node-redis クライアント) get"
+  "source":
+    "file": "src/lib/redis.ts"
+    "line": 37
+  "caller": "q_check_auth"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/redis.ts"
+      "line": 37
+- "id": "q_can_update_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "canUpdateWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 132
+  "caller": "api_annotation_update"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 45
+  "summary":
+    "status": "interpretation"
+    "value": "ログインしたユーザーがいなければ拒否、管理者なら許す。getWebsite でサイトを読み、作成者が本人なら許す。チームのものなら getTeamUser でメンバーの役割を読み、websiteUpdate の権限があるかを見る (getTeamUser の経路はフレーム q_get_team_user と同じ)。annotations の POST、segments の POST、annotations/[annotationId] の DELETE も同じ関数を呼ぶ。終端にならないよう、getWebsite を下に書き直した"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 133
+    - "file": "src/permissions/website.ts"
+      "line": 137
+    - "file": "src/permissions/website.ts"
+      "line": 141
+    - "file": "src/permissions/website.ts"
+      "line": 147
+    - "file": "src/permissions/website.ts"
+      "line": 152
+    - "file": "src/permissions/website.ts"
+      "line": 154
+- "id": "q_get_website_rw3"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_can_update_website"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 141
+  "summary":
+    "status": "interpretation"
+    "value": "呼び出し元が終端にならないよう書き直したもの。id が uuid なら website を 1 件読み、最新の share の slug を付ける。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_website"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 81
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "detail": "prisma.client.website.findUnique (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "detail": "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "website が見つかったときだけ"
+- "id": "q_get_website_annotation"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsiteAnnotation (src/queries/prisma/annotation.ts)"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 13
+  "caller": "api_annotation_update"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 49
+  "summary":
+    "status": "interpretation"
+    "value": "id と websiteId で注釈を 1 件読む (無ければ route が 404 を返す)。DELETE も同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 14
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 15
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 76
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "annotation"
+    "detail": "prisma.client.annotation.findFirst (where id, websiteId)"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 14
+    - "file": "prisma/schema.prisma"
+      "line": 302
+- "id": "ext_prisma_get_website_annotation"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client annotation.findFirst"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 14
+  "caller": "q_get_website_annotation"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 14
+- "id": "q_update_annotation"
+  "layer": "query"
+  "kind": "function"
+  "name": "updateAnnotation (src/queries/prisma/annotation.ts)"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 58
+  "caller": "api_annotation_update"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 55
+  "summary":
+    "status": "interpretation"
+    "value": "id で注釈の date / allDay / note を更新する"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 59
+  "io":
+  - "op": "update"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "annotation"
+    "detail": "prisma.client.annotation.update (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 59
+    - "file": "prisma/schema.prisma"
+      "line": 302
+- "id": "ext_prisma_update_annotation"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client annotation.update"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 59
+  "caller": "q_update_annotation"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 59
+- "id": "annotation_delete_button"
+  "layer": "component"
+  "kind": "component"
+  "name": "AnnotationDeleteButton"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationDeleteButton.tsx"
+    "line": 6
+  "caller": "annotations_modal"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationsModal.tsx"
+      "line": 147
+    "note": "共有画面でないとき、一覧の各行に出る"
+  "summary":
+    "status": "interpretation"
+    "value": "確認の小窓で削除を押すと DELETE を送り、成功したら annotations の更新印を進める"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationDeleteButton.tsx"
+      "line": 16
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationDeleteButton.tsx"
+      "line": 20
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationDeleteButton.tsx"
+      "line": 23
+- "id": "use_delete_annotation"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useDeleteQuery('/websites/<id>/annotations/<annotationId>')"
+  "source":
+    "file": "src/components/hooks/queries/useDeleteQuery.ts"
+    "line": 4
+  "caller": "annotation_delete_button"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationDeleteButton.tsx"
+      "line": 16
+  "summary":
+    "status": "interpretation"
+    "value": "受け取った path に DELETE する mutation を作る"
+    "evidence":
+    - "file": "src/components/hooks/queries/useDeleteQuery.ts"
+      "line": 7
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+- "id": "api_annotation_delete"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "DELETE /api/websites/[websiteId]/annotations/[annotationId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+    "line": 60
+  "caller": "use_delete_annotation"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/annotations/AnnotationDeleteButton.tsx"
+      "line": 17
+    - "file": "src/lib/api-url.ts"
+      "line": 39
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "既定 (環境変数 apiUrl 無し) では basePath + /api + この URL。apiUrl があると別の URL に向く"
+  "summary":
+    "status": "interpretation"
+    "value": "認証し (経路はフレーム q_parse_request と同じ)、canUpdateWebsite で確かめ (経路はフレーム q_can_update_website と同じ)、サイトの注釈があるかを読んでから (経路はフレーム q_get_website_annotation と同じ。無ければ 404) 削除する"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 64
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 72
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 76
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 82
+- "id": "q_delete_annotation"
+  "layer": "query"
+  "kind": "function"
+  "name": "deleteAnnotation (src/queries/prisma/annotation.ts)"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 62
+  "caller": "api_annotation_delete"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/annotations/[annotationId]/route.ts"
+      "line": 82
+  "summary":
+    "status": "interpretation"
+    "value": "id で注釈を削除する"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 63
+  "io":
+  - "op": "delete"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "annotation"
+    "detail": "prisma.client.annotation.delete (where id)"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 63
+    - "file": "prisma/schema.prisma"
+      "line": 302
+- "id": "ext_prisma_delete_annotation"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client annotation.delete"
+  "source":
+    "file": "src/queries/prisma/annotation.ts"
+    "line": 63
+  "caller": "q_delete_annotation"
+  "call":
+    "status": "fact"
+    "evidence":
+    - "file": "src/queries/prisma/annotation.ts"
+      "line": 63

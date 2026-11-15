@@ -1,0 +1,31 @@
+# as-built-atlas の docker compose 定義 (OSS 所有。`abatlas upgrade` で置き換わる。手で直さない)
+# 設定は隣の .env に書く: ABATLAS_TARGET (対象リポジトリの clone)、ABATLAS_IMAGE、ABATLAS_PORT
+#
+#   docker compose run --rm abatlas <subcommand> ...   使い捨てのツール実行 (validate / enumerate / build / upgrade)
+#   docker compose up -d api                            webapp と集計表 API (http://localhost:8765) と MCP (http://localhost:8765/mcp)
+#
+# 分析リポジトリは /ws/analysis に、対象リポジトリは /ws/target に (読み取り専用で) 見える。
+# ツールは analysis/work-definition.yaml の clone_path の代わりに ABATLAS_TARGET_ROOT (= /ws/target) を使う。
+
+x-abatlas: &abatlas
+  image: ${ABATLAS_IMAGE:-ghcr.io/suwa-sh/as-built-atlas:latest}
+  working_dir: /ws/analysis
+  volumes:
+    - .:/ws/analysis
+    - ${ABATLAS_TARGET:?.env に ABATLAS_TARGET (対象リポジトリの clone の場所) を書く}:/ws/target:ro
+  environment:
+    ABATLAS_TARGET_ROOT: /ws/target
+    ABATLAS_ALLOWED_HOSTS: ${ABATLAS_ALLOWED_HOSTS:-}   # ループバック以外の名前で出すとき (API と MCP の両方に効く)
+    PYTHONDONTWRITEBYTECODE: "1"
+
+services:
+  abatlas:
+    <<: *abatlas
+    profiles: ["tools"]   # `docker compose up` では起動しない。`docker compose run --rm abatlas ...` で使う
+
+  api:
+    <<: *abatlas
+    command: ["serve", ".", "--host", "0.0.0.0", "--port", "8765"]
+    ports:
+      - "${ABATLAS_BIND:-127.0.0.1}:${ABATLAS_PORT:-8765}:8765"
+    restart: unless-stopped

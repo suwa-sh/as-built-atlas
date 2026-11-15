@@ -1,0 +1,25 @@
+id: reconcile_stock
+namespace: daily.inventory
+description: |
+  前日の入出庫 (stock_movements) を在庫数に反映し、日次の在庫スナップショットを mart に書く。Redis の在庫キャッシュも更新する
+labels:
+  owner: warehouse
+  criticality: high
+inputs:
+  - id: date
+    type: DATE
+    required: false
+    description: 処理対象日 (省略時は実行日)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh reconcile_stock --date "{{ inputs.date }}"

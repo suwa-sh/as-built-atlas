@@ -1,0 +1,44 @@
+id: close_week
+namespace: weekly
+description: |
+  週次の締め。コホート分析と仕入先向け明細を Subflow で呼ぶ。失敗時は lib.notify_failure に通知する
+labels:
+  owner: data-platform
+inputs:
+  - id: week_start
+    type: DATE
+    required: false
+    description: 週の初日 (月曜)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: cohort_retention
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: weekly
+    flowId: cohort_retention
+    wait: true
+    transmitFailed: true
+    inputs:
+      week_start: "{{ inputs.week_start }}"
+  - id: supplier_statements
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: weekly
+    flowId: supplier_statements
+    wait: true
+    transmitFailed: true
+    inputs:
+      week_start: "{{ inputs.week_start }}"
+errors:
+  - id: notify_failure
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: lib
+    flowId: notify_failure
+    inputs:
+      flow_id: "weekly.close_week"
+      execution_id: "{{ execution.id }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * 1"
+    timezone: Asia/Tokyo

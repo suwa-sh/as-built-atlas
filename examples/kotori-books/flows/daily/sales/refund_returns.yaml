@@ -1,0 +1,30 @@
+id: refund_returns
+namespace: daily.sales
+description: |
+  承認済みの返品について決済 API に返金を要求し、shop.returns と shop.payments に結果を書く。返金完了はメール API で顧客に知らせる
+labels:
+  owner: customer-support
+  criticality: high
+inputs:
+  - id: date
+    type: DATE
+    required: false
+    description: 処理対象日 (省略時は実行日)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh refund_returns --date "{{ inputs.date }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 4 * * *"
+    timezone: Asia/Tokyo

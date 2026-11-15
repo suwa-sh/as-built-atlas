@@ -1,0 +1,29 @@
+id: data_quality_checks
+namespace: daily
+description: |
+  主要テーブルの前日分の行の有無を検査し (0 件なら ng)、検査ごとの結果を audit.data_quality に書いてチャットに通知する
+labels:
+  owner: data-platform
+inputs:
+  - id: date
+    type: DATE
+    required: false
+    description: 処理対象日 (省略時は実行日)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh data_quality_checks --date "{{ inputs.date }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "30 6 * * *"
+    timezone: Asia/Tokyo

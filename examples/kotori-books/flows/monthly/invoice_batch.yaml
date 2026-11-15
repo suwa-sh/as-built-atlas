@@ -1,0 +1,30 @@
+id: invoice_batch
+namespace: monthly
+description: |
+  法人顧客の前月分の請求書 (PDF) を顧客ごとのディレクトリに作り、メールで送る
+labels:
+  owner: sales-ops
+  criticality: high
+inputs:
+  - id: month
+    type: STRING
+    required: false
+    description: 対象月 (YYYY-MM)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh invoice_batch --month "{{ inputs.month }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 6 1 * *"
+    timezone: Asia/Tokyo

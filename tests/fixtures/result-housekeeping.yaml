@@ -1,0 +1,93 @@
+# 見本: 分析結果 YAML (入口 1 件)。machine check の正例として使う。
+# 内容は架空の題材 (定期の掃除ジョブ) で、実在のリポジトリの分析結果ではない。
+format_version: 1
+entry:
+  id: daily.housekeeping
+  path: /daily/housekeeping
+  name: housekeeping
+  layer: scheduler
+  source: { file: flows/daily/housekeeping.yaml, line: 1 }
+target:
+  repo: github.example/acme/ops-batch
+  scope: batch
+  commit: 0a1b2c3d4e
+analyzer:
+  profile: { id: batch-kestra, version: "0.1.0" }
+  skill_version: "0.0.0-fixture"
+  analyzed_at: "2026-11-04T12:00:00+09:00"
+summary:
+  status: interpretation
+  value: ディスクと作業ツリーの定期ハウスキープ。housekeeping.d/*.sh を名前順に実行し、結果をチャットに通知する
+  evidence:
+    - { file: flows/daily/housekeeping.yaml, line: 4 }
+callstack:
+  - id: flow
+    layer: scheduler
+    kind: flow
+    name: daily.housekeeping
+    source: { file: flows/daily/housekeeping.yaml, line: 1 }
+    caller: null
+    parameters:
+      - name: dry_run
+        value: BOOLEAN。true なら削除せず列挙だけ
+        status: fact
+        evidence: [{ file: flows/daily/housekeeping.yaml, line: 44 }]
+  - id: run_sh
+    layer: shell
+    kind: script
+    name: scripts/housekeeping.sh
+    source: { file: scripts/housekeeping.sh, line: 1 }
+    caller: flow
+    call:
+      status: fact
+      evidence: [{ file: flows/daily/housekeeping.yaml, line: 57 }]
+    summary:
+      status: interpretation
+      value: housekeeping.d/ のスクリプトを名前順に実行し、RESULT 行を集めて exit code を決める
+      evidence: [{ file: scripts/housekeeping.sh, line: 1 }]
+    io:
+      - op: delete
+        status: unknown
+        reason: not_analyzed
+        resource: { kind: filesystem }
+        note: 各 housekeeping.d スクリプトの削除対象は 2 周目で辿る
+  - id: notify
+    layer: scheduler
+    kind: subflow
+    name: lib.notify
+    source: { file: flows/lib/notify.yaml, line: 1 }
+    caller: flow
+    call:
+      status: fact
+      evidence: [{ file: flows/daily/housekeeping.yaml, line: 62 }]
+  - id: notify_py
+    layer: program
+    kind: script
+    name: notify.py
+    source: { file: notify.py, line: 1 }
+    caller: notify
+    call:
+      status: interpretation
+      evidence: [{ file: flows/lib/notify.yaml, line: 1 }]
+      note: lib.notify の task が notify.py を呼ぶ (2 周目で行を確定する)
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: chat.example } }
+        evidence: [{ file: notify.py, line: 1 }]
+        note: チャットへの日次サマリ通知
+  - id: psycopg
+    layer: external
+    kind: library
+    name: psycopg (job_runs / job_outcomes への記録)
+    source: { file: scripts/housekeeping.sh, line: 1 }
+    caller: run_sh
+    call:
+      status: unknown
+      reason: not_analyzed
+    io:
+      - op: create
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: rdb, levels: { database: ops_logs, table: job_runs } }
+        note: 接続先 host は環境変数 DB_URL で、リポジトリに値が無い

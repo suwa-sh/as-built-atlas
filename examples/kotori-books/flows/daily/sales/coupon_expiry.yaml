@@ -1,0 +1,24 @@
+id: coupon_expiry
+namespace: daily.sales
+description: |
+  有効期限を過ぎたクーポンを失効させ、90 日より古い利用履歴を削除する
+labels:
+  owner: sales-ops
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh coupon_expiry
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+    timezone: Asia/Tokyo

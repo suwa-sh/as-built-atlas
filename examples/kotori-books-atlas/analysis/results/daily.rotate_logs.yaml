@@ -1,0 +1,123 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: daily.rotate_logs
+  path: /daily/rotate_logs
+  name: rotate_logs
+  layer: scheduler
+  source:
+    file: flows/daily/rotate_logs.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+  evidence:
+  - file: flows/daily/rotate_logs.yaml
+    line: 3
+  - file: scripts/rotate_logs.sh
+    line: 2
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: daily.rotate_logs
+  source:
+    file: flows/daily/rotate_logs.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+    evidence:
+    - file: flows/daily/rotate_logs.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 50 23 * * * (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/daily/rotate_logs.yaml
+      line: 23
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/rotate_logs.yaml
+      line: 7
+- id: script
+  layer: shell
+  kind: script
+  name: scripts/rotate_logs.sh
+  source:
+    file: scripts/rotate_logs.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/rotate_logs.yaml
+      line: 19
+  summary:
+    status: interpretation
+    value: ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+    evidence:
+    - file: scripts/rotate_logs.sh
+      line: 2
+  io:
+  - op: list
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: '*.log'
+    detail: 1 日経過したログを find で選ぶ
+    evidence:
+    - file: scripts/rotate_logs.sh
+      line: 5
+  - op: write
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: '*.log.gz'
+    detail: gzip の出力
+    evidence:
+    - file: scripts/rotate_logs.sh
+      line: 5
+  - op: delete
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: '*.log'
+    detail: gzip -f は元ファイルを消す
+    evidence:
+    - file: scripts/rotate_logs.sh
+      line: 5
+  - op: delete
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: '*.log.gz'
+    detail: 30 日を超えたもの
+    evidence:
+    - file: scripts/rotate_logs.sh
+      line: 6
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

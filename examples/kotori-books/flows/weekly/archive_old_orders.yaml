@@ -1,0 +1,30 @@
+id: archive_old_orders
+namespace: weekly
+description: |
+  2 年より古い注文を JSON Lines にして S3 のアーカイブに置き、DB から削除する
+labels:
+  owner: data-platform
+  criticality: high
+inputs:
+  - id: date
+    type: DATE
+    required: false
+    description: 処理対象日 (省略時は実行日)
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh archive_old_orders --date "{{ inputs.date }}"
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 1 * * 0"
+    timezone: Asia/Tokyo

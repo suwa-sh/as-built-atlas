@@ -1,0 +1,121 @@
+# プロファイル: Next.js (App Router) の画面を持つシステム (画面 → 画面の部品 → API の受け口 → サーバー側の関数 → データストア)
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: ui-nextjs
+version: "0.3.0"
+label: "Next.js App Router (page / layout → component → API route → server function → {datastore})"
+
+# tier は画面の architecture の図の枠 (画面での呼び名も tier)。役割の分け方で、どこで動くかではない: frontend の層にも、サーバー側で動くもの (Server Component) がある
+# label / tier / hierarchy.notes の text は画面に出る。"{id}" は用語集 (schema/vocab/terms.yaml) の呼び名に置き換わる
+layers:
+  - id: page
+    tier: frontend
+    label: page (App Router の page ファイル)
+    role: entry
+    stack: [Next.js App Router, React]
+    invokes_next: "page ファイルが import して描画するコンポーネント。祖先ディレクトリの layout ファイルは別の入口 (layout) なので、ここからは辿らない。サーバー側で動く page が、サーバー側の関数を直接呼ぶこともある"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で動く page が ORM や fetch を直接書くことがある。ふつうは呼び先のフレームに書く
+  - id: layout
+    tier: frontend
+    label: layout (App Router の layout ファイル)
+    role: entry
+    stack: [Next.js App Router, React]
+    invokes_next: "layout ファイルが import して描画するコンポーネント (ヘッダー、メニュー、ログイン確認、条件付きで開く小窓など)。`children` と並行ルートの props (`@slot`) の中身は、包まれる側の入口なので辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で動く layout が ORM や fetch を直接書くことがある
+  - id: component
+    tier: frontend
+    label: component (React component と、API を呼ぶ hook)
+    stack: [React, TanStack Query, fetch]
+    invokes_next: "子のコンポーネントとフックの呼び出し。次の api_route へは 2 通り: (a) フックや fetch が API を URL の文字列で呼ぶ (例: get(`/websites/${websiteId}/stats`)) → その URL に当たる route ファイルの HTTP メソッドの関数。(b) 'use server' の関数 (Server Function) を import して呼ぶ → その関数の定義。サーバー側で動くコンポーネントが、サーバー側の関数を直接呼ぶこともある"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で動くコンポーネントが直接データを読むとき、ブラウザから他社のサービスを呼ぶとき。自分のシステムの API は I/O ではなく次のフレーム
+  - id: api_route
+    tier: backend
+    label: API route (route ファイルの GET / POST / PUT / PATCH / DELETE と、'use server' の関数)
+    stack: [Next.js Route Handlers, Server Functions]
+    invokes_next: "import したサーバー側の関数 (問い合わせ、認証・権限の検査、入力の解釈) の呼び出し"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # 受け口が直接データを触る書き方もある
+  - id: query
+    tier: backend
+    label: server function (query、認証・権限、共通の lib)
+    stack: [TypeScript, Prisma, SQL]
+    invokes_next: "ORM・DB クライアント・キャッシュ・メッセージ基盤・HTTP クライアントの呼び出し (ここから先は boundary)"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: external
+    tier: backend
+    label: external library / service (boundary)
+    role: boundary
+    stack: [Prisma Client, ClickHouse client, Redis client, Kafka client, fetch]
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+
+hierarchy:
+  level_labels: [section+, page]   # URL の区切りがそのまま段。最後の段だけが page、それより前は section
+  derivation: "page ファイルの置き場 (app ディレクトリからの相対) を '/' で区切って段にする。URL に出ない入れ物 `(group)` は落とす。動的な段 `[id]` と並行ルート `@slot` はそのまま残す。割り込みルートの印 `(.)` `(..)` `(..)(..)` `(...)` は外す。並行ルート + 割り込みルートの page (一覧の上に重ねる小窓) の階層は、割り込み先の URL ではなく**置き場** (どの画面の上に重なるか) を表す (例: `feed/@modal/(..)photo/[id]` → `/feed/@modal/photo/[id]`。割り込み先の URL は /photo/[id])。`_folder` (private folder) の下の page は画面にならないので拾わない。app 直下の page (URL が / だけ) は `(root)` という 1 段にする"
+  entry_labels:   # 枠の入口は、詳細のページで page ではなく layout と呼ぶ
+    - { contains: "(layout)", label: layout }
+  notes:   # 段の名前に残る Next.js の書き方を、画面で説明する
+    - { contains: "[", text: "角かっこの段 (例: [id]) は、実行時に値が入る場所。対象のソースのフォルダ名をそのまま出している" }
+    - { contains: "(layout)", text: "(layout) で始まる {entry} は layout ファイル。後ろの段は layout の置き場のフォルダで、丸かっこの段は URL に出ない route group" }
+
+# 入口が別の入口の中で動く関係。列挙ツールが entries[].within (包む入口の id、外側から) を埋める
+within:
+  - layer: layout
+    rule: source_dir   # layout は、ソースのファイルが自分と同じフォルダか、その配下にある入口 (page と、内側の layout) を包む
+
+extractors:
+  - name: next-pages
+    run: abatlas-extract glob
+    layer: page
+    hint: "app ディレクトリの場所を実際に合わせる (`src/app` か `app`)。files・exclude・segments.strip_prefix の 3 つを同じ場所にする。next.config の pageExtensions を変えているシステムでは files の拡張子も合わせる。Pages Router (`pages/`) のシステムはこのプロファイルの対象外"
+    params:
+      files: ["src/app/**/page.tsx", "src/app/**/page.jsx", "src/app/**/page.ts", "src/app/**/page.js"]
+      exclude: ["src/app/_*/**", "src/app/**/_*/**"]   # _folder (private folder) の下はルーティングの対象外
+      segments:
+        strip_prefix: "src/app"
+        drop: ["\\([^)]+\\)"]                          # URL に出ない入れ物 (route group): (main) / (reports) …
+        replace: [{ pattern: "^(\\(\\.+\\))+", with: "" }]   # 割り込みルートの印: (.)photos / (..)(..)photos → photos
+        empty: "(root)"
+      id:
+        # id は結果のファイル名になるので記号を持てない。段の種類を「_ + 1 文字」の印で表し、名前の中の _ は 2 つ重ねる。
+        # 重ねた後の名前には _ が偶数個ずつしか現れないので、印 (_ が 1 つ) と取り違えない。静的な段と同じ名前が同居しても別の id になる
+        #   /blog/id → blog.id      /blog/[id] → blog.id_d      /blog/id_d → blog.id__d      / → root_r      /root → root      @modal → modal_s
+        replace:
+          - { pattern: "_", with: "__" }                                     # 名前の中の _ を重ねる (最初に行う)
+          - { pattern: "^\\[\\[\\.\\.\\.(.+)\\]\\]$", with: "\\1_o" }     # [[...path]] → path_o (optional catch-all)
+          - { pattern: "^\\[\\.\\.\\.(.+)\\]$", with: "\\1_c" }             # [...path]   → path_c (catch-all)
+          - { pattern: "^\\[(.+)\\]$", with: "\\1_d" }                       # [id]        → id_d   (dynamic)
+          - { pattern: "^@(.+)$", with: "\\1_s" }                            # @modal      → modal_s (slot)
+          - { pattern: "^\\(root\\)$", with: "root_r" }                      # app 直下の page (segments.empty)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }                          # 残りの記号を除く。これで同じ id になる画面が同居していれば、列挙は失敗して両方のファイルを示す (そのリポジトリ向けに replace を足す)
+      line_match: "export\\s+default"
+      contains:
+        client: "^['\"]use client['\"]"                # true なら page ファイル自身がブラウザ側で動く
+        metadata: "export\\s+(const\\s+metadata|(async\\s+)?function\\s+generateMetadata)"
+  - name: next-layouts
+    run: abatlas-extract glob
+    layer: layout
+    hint: "next-pages と同じ app ディレクトリにする (files・exclude・segments.strip_prefix)。layout ファイルが 1 つも無いシステムでは、この抽出器を入口の一覧に書かない"
+    params:
+      files: ["src/app/**/layout.tsx", "src/app/**/layout.jsx", "src/app/**/layout.ts", "src/app/**/layout.js"]
+      exclude: ["src/app/_*/**", "src/app/**/_*/**"]
+      segments:
+        strip_prefix: "src/app"
+        prefix: ["(layout)"]                                 # 画面の階層と分ける。app 直下の layout は /(layout) だけになる
+        replace: [{ pattern: "^(\\(\\.+\\))+", with: "" }]   # 割り込みルートの印を外す (next-pages と同じ)。入れ物 (group) は落とさない: どの入れ物の枠かが名前になる
+      id:
+        # next-pages と同じ印に、枠の印を足す。画面の id は _l / _g の印を持たないので、枠の id と取り違えない
+        #   app 直下 → layout_l      (main)/layout → layout_l.main_g      (main)/websites/[websiteId]/layout → layout_l.main_g.websites.websiteId_d
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(layout\\)$", with: "layout_l" }                  # 先頭の固定の段 (segments.prefix)
+          - { pattern: "^\\[\\[\\.\\.\\.(.+)\\]\\]$", with: "\\1_o" }
+          - { pattern: "^\\[\\.\\.\\.(.+)\\]$", with: "\\1_c" }
+          - { pattern: "^\\[(.+)\\]$", with: "\\1_d" }
+          - { pattern: "^@(.+)$", with: "\\1_s" }
+          - { pattern: "^\\((.+)\\)$", with: "\\1_g" }                       # (main) → main_g (入れ物)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      line_match: "export\\s+default"
+      contains:
+        client: "^['\"]use client['\"]"
+        metadata: "export\\s+(const\\s+metadata|(async\\s+)?function\\s+generateMetadata)"
+
+marts: []

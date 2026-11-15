@@ -1,0 +1,24 @@
+id: db_snapshot
+namespace: daily
+description: |
+  pg_dump で DB 全体のスナップショットを取り、S3 の kotori-backups/db/ に置く。7 日より古いローカルのダンプは消す
+labels:
+  owner: sre
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/db_snapshot.sh
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "30 23 * * *"
+    timezone: Asia/Tokyo

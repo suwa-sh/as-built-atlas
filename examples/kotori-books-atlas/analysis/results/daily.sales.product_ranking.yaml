@@ -1,0 +1,322 @@
+# 正解データ (examples/generator/kotori_books.py が生成)。手で直さず、生成スクリプトを直す
+format_version: 1
+entry:
+  id: daily.sales.product_ranking
+  path: /daily/sales/product_ranking
+  name: product_ranking
+  layer: scheduler
+  source:
+    file: flows/daily/sales/product_ranking.yaml
+    line: 1
+target:
+  repo: as-built-atlas/examples/kotori-books
+  clone_path: ../kotori-books
+  scope: .
+  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+analyzer:
+  profile:
+    id: batch-kestra
+    version: 0.1.0
+  skill_version: 0.3.0
+  analyzed_at: '2026-11-08T12:00:00+09:00'
+  analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+summary:
+  status: interpretation
+  value: 直近 7 日の販売数から商品ランキングを作り、mart.product_ranking を入れ替えて Redis に上位 100 件を置く
+  evidence:
+  - file: flows/daily/sales/product_ranking.yaml
+    line: 3
+  - file: jobs/product_ranking.py
+    line: 1
+callstack:
+- id: flow
+  layer: scheduler
+  kind: flow
+  name: daily.sales.product_ranking
+  source:
+    file: flows/daily/sales/product_ranking.yaml
+    line: 1
+  caller: null
+  summary:
+    status: interpretation
+    value: 直近 7 日の販売数から商品ランキングを作り、mart.product_ranking を入れ替えて Redis に上位 100 件を置く
+    evidence:
+    - file: flows/daily/sales/product_ranking.yaml
+      line: 3
+  parameters:
+  - name: triggers.schedule.cron
+    value: 30 2 * * * (Asia/Tokyo)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/product_ranking.yaml
+      line: 28
+  - name: inputs.date
+    value: DATE。処理対象日 (省略時は実行日)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/product_ranking.yaml
+      line: 8
+  - name: concurrency
+    value: limit 1, behavior CANCEL
+    status: fact
+    evidence:
+    - file: flows/daily/sales/product_ranking.yaml
+      line: 12
+- id: run_job
+  layer: shell
+  kind: script
+  name: scripts/run_job.sh
+  source:
+    file: scripts/run_job.sh
+    line: 1
+  caller: flow
+  call:
+    status: fact
+    evidence:
+    - file: flows/daily/sales/product_ranking.yaml
+      line: 24
+  summary:
+    status: interpretation
+    value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
+    evidence:
+    - file: scripts/run_job.sh
+      line: 2
+    - file: scripts/run_job.sh
+      line: 16
+  parameters:
+  - name: JOB
+    value: product_ranking (第 1 引数。実行するモジュール jobs.product_ranking とログ名になる)
+    status: fact
+    evidence:
+    - file: flows/daily/sales/product_ranking.yaml
+      line: 24
+    - file: scripts/run_job.sh
+      line: 5
+  - name: env.KOTORI_ENV
+    value: 読む設定ファイル config/<env>.env を選ぶ。Flow の env で prod
+    status: fact
+    evidence:
+    - file: flows/daily/sales/product_ranking.yaml
+      line: 22
+    - file: scripts/run_job.sh
+      line: 8
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: config
+        file: prod.env
+    detail: source で読む (接続先・バケット名)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 10
+  - op: append
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: product_ranking.log
+    detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
+    evidence:
+    - file: scripts/run_job.sh
+      line: 14
+    - file: scripts/run_job.sh
+      line: 16
+- id: job
+  layer: program
+  kind: module
+  name: jobs.product_ranking
+  source:
+    file: jobs/product_ranking.py
+    line: 1
+  caller: run_job
+  call:
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 16
+    note: JOB=product_ranking なので jobs.product_ranking が動く
+  summary:
+    status: interpretation
+    value: 直近 7 日の販売数から商品ランキングを作り、mart.product_ranking を入れ替えて Redis に上位 100 件を置く
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 1
+    - file: jobs/product_ranking.py
+      line: 18
+  parameters:
+  - name: --dry-run
+    value: 書き込みと外部呼び出しをせず件数だけ出す
+    status: fact
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 14
+  - name: --date
+    value: 処理対象日 (省略時は実行日) (Flow の inputs.date から)
+    status: fact
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: order_items
+    detail: 直近 7 日の確定注文の明細をカテゴリ内で販売数順に順位付け
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 26
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: orders
+    detail: 直近 7 日の確定注文の明細をカテゴリ内で販売数順に順位付け
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 27
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: shop
+        table: products
+    detail: 直近 7 日の確定注文の明細をカテゴリ内で販売数順に順位付け
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 28
+  - op: delete
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: mart
+        table: product_ranking
+    detail: 同じ日の順位を消す
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 38
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        host: db.internal
+        dbms: postgresql
+        database: kotori
+        schema: mart
+        table: product_ranking
+    detail: 順位 1 行 = 商品 1 件 (カテゴリ内 100 位まで)
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 41
+  - op: set
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        host: cache.internal
+        instance: '0'
+        key_pattern: ranking:daily:{category_id}
+    detail: カテゴリごとに上位 100 件の商品
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 47
+  - op: expire
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        host: cache.internal
+        instance: '0'
+        key_pattern: ranking:daily:{category_id}
+    detail: 36 時間で失効
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 51
+- id: lib_db
+  layer: program
+  kind: module
+  name: jobs.lib.db
+  source:
+    file: jobs/lib/db.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 8
+  summary:
+    status: interpretation
+    value: PostgreSQL への接続と問い合わせ (psycopg の薄いラッパー)。
+    evidence:
+    - file: jobs/lib/db.py
+      line: 1
+- id: psycopg
+  layer: external
+  kind: library
+  name: psycopg
+  source:
+    file: jobs/lib/db.py
+    line: 6
+  caller: lib_db
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/db.py
+      line: 13
+- id: lib_cache
+  layer: program
+  kind: module
+  name: jobs.lib.cache
+  source:
+    file: jobs/lib/cache.py
+    line: 1
+  caller: job
+  call:
+    status: fact
+    evidence:
+    - file: jobs/product_ranking.py
+      line: 8
+  summary:
+    status: interpretation
+    value: Redis のキャッシュ (redis-py の薄いラッパー)。キーの設計は docs/keys.md。
+    evidence:
+    - file: jobs/lib/cache.py
+      line: 1
+- id: redis
+  layer: external
+  kind: library
+  name: redis
+  source:
+    file: jobs/lib/cache.py
+    line: 7
+  caller: lib_cache
+  call:
+    status: fact
+    evidence:
+    - file: jobs/lib/cache.py
+      line: 17
+notes: 正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)

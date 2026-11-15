@@ -1,0 +1,116 @@
+format_version: 1
+entry:
+  id: layout_l
+  path: /(layout)
+  name: "(layout)"
+  layer: layout
+  source: { file: src/app/layout.tsx, line: 16 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.3.0" }
+  skill_version: "0.3.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-13T03:09:03+09:00"
+  reviewed:
+    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
+    at: "2026-11-13T03:15:00+09:00"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "すべての画面を包むいちばん外側の枠 (app 直下の layout)。データの読み書きも外部への送信もしない。環境変数 DISABLE_UI があれば空の html と body だけを返し、画面を何も描かない。そうでなければ html の head にアイコンと manifest と meta (検索エンジンに載せない noindex,nofollow など) を置き、body の Suspense の中で Providers を描いて、包まれる画面 (children) をその中に置く。Providers はブラウザ側で動き、UI ライブラリの設定、ルーター、翻訳 (next-intl)、TanStack Query のクライアント (再試行なし、60 秒は新しいとみなす)、エラーの受け止め (画面にエラーを出し、ブラウザの console に書くだけ) を順に重ねる。翻訳の文言は en-US を同梱し、それ以外の言語は同じサーバーの静的ファイル /intl/messages/<言語>.json をブラウザから読む。generateMetadata は、要求のヘッダーからサイトの基準 URL を決め (host は x-forwarded-host か host、プロトコルは x-forwarded-proto か x-forwarded-protocol。どちらも無ければ localhost なら http、それ以外は https)、タイトルの書式 (%s | Umami) を決める"
+  evidence:
+    - { file: src/app/layout.tsx, line: 17 }
+    - { file: src/app/layout.tsx, line: 37 }
+    - { file: src/app/layout.tsx, line: 41 }
+    - { file: src/app/layout.tsx, line: 52 }
+    - { file: src/app/Providers.tsx, line: 13 }
+    - { file: src/app/Providers.tsx, line: 15 }
+    - { file: src/app/Providers.tsx, line: 35 }
+    - { file: src/components/common/ErrorBoundary.tsx, line: 8 }
+    - { file: src/components/hooks/useLocale.ts, line: 23 }
+    - { file: src/lib/get-base-url.ts, line: 23 }
+    - { file: src/lib/get-base-url.ts, line: 32 }
+    - { file: src/lib/get-base-url.ts, line: 33 }
+notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる画面) と、内側の layout ((main) など) は別の入口なので辿らない。(2) データに届かない枠なので、context.md の決まり (データに届かない画面・枠は、最後に頼るライブラリを external フレームにして閉じる) に従い、翻訳のライブラリ next-intl と、要求のヘッダーを読む next/headers を external にした。I/O は無し。(3) 翻訳の文言の読み込み: useLocale は、同梱していない言語 (en-US 以外) のとき httpGet (src/lib/fetch.ts の fetch) で basePath + /intl/messages/<言語>.json を読む。これは public/intl にある同じリポジトリの静的ファイルで、サーバーのデータでも他社のサービスでもないので、翻訳のライブラリの一部として扱い I/O に書かなかった ((main) の枠の分析と同じ扱い)。(4) 言語・テーマ・時間帯・期間の選択は localStorage から読み (src/store/app.ts:15)、言語を変えると localStorage に書く (useLocale.ts:33)。ブラウザの中の保存なので I/O に書かない。(5) ErrorBoundary の onError は console.error に書くだけで、外へ送らない。(6) generateMetadata が読むのは要求のヘッダーだけで、ヘッダーが無いか URL にできなければ HOMEPAGE_URL を基準にする。(7) フレームにしなかったもの: ZenProvider / RouterProvider (UI ライブラリ @umami/react-zen の部品)、QueryClientProvider (TanStack Query のクライアントを配るだけで、ここでは問い合わせをしない)、ErrorBoundary と useMessages (翻訳の文言を引くだけ)、getBaseUrl (ヘッダーから URL を組み立てるだけ)、フォント (next/font/google はビルド時に取り込む) と CSS の import。(8) レビューの指摘 2 件 (どちらも low) を直した: 入口の summary の根拠に、TanStack Query の設定 (Providers.tsx:13 / :15) と console への書き出し (ErrorBoundary.tsx:8) の行を足した。基準 URL を決めるヘッダーに x-forwarded-protocol と、ヘッダーが無いときの既定 (localhost なら http、それ以外は https) を書き足し、根拠に get-base-url.ts:23 / :32 / :33 を足した"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: layout
+    layer: layout
+    kind: layout
+    name: "ルートの layout (src/app/layout.tsx)"
+    source: { file: src/app/layout.tsx, line: 16 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く layout。DISABLE_UI があれば空の html を返す。そうでなければ head にアイコン・manifest・meta を置き、Suspense の中で Providers を描いて children を渡す。generateMetadata で、要求のヘッダーから基準 URL (metadataBase) を決め、タイトルの書式 (%s | Umami、既定は Umami) を決める。データは読まない"
+      evidence:
+        - { file: src/app/layout.tsx, line: 17 }
+        - { file: src/app/layout.tsx, line: 27 }
+        - { file: src/app/layout.tsx, line: 37 }
+        - { file: src/app/layout.tsx, line: 40 }
+        - { file: src/app/layout.tsx, line: 41 }
+        - { file: src/app/layout.tsx, line: 48 }
+        - { file: src/app/layout.tsx, line: 52 }
+        - { file: src/app/layout.tsx, line: 54 }
+        - { file: src/lib/get-base-url.ts, line: 22 }
+        - { file: src/lib/get-base-url.ts, line: 27 }
+
+  - id: ext_next_headers
+    layer: external
+    kind: library
+    name: "next/headers headers()"
+    source: { file: src/app/layout.tsx, line: 49 }
+    caller: layout
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/layout.tsx, line: 3 }
+        - { file: src/app/layout.tsx, line: 49 }
+      note: "generateMetadata が要求のヘッダーを読むために呼ぶ。読んだヘッダーは getBaseUrl に渡す"
+
+  - id: providers
+    layer: component
+    kind: component
+    name: "Providers (src/app/Providers.tsx)"
+    source: { file: src/app/Providers.tsx, line: 35 }
+    caller: layout
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/layout.tsx, line: 6 }
+        - { file: src/app/layout.tsx, line: 41 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。ZenProvider → RouterProvider → MessagesProvider → QueryClientProvider → ErrorBoundary の順に重ねて children を包む。MessagesProvider は useLocale で今の言語と文言を得て、html の dir と lang を設定し、NextIntlClientProvider に渡す。useLocale は、同梱していない言語なら同じサーバーの静的ファイル /intl/messages/<言語>.json を読み、URL に ?locale= があればその言語に切り替える。QueryClient は再試行なし、画面に戻ったときの読み直しなし、60 秒は新しいとみなす設定。ErrorBoundary はエラーを画面に出して console.error に書くだけ。データは読まない"
+      evidence:
+        - { file: src/app/Providers.tsx, line: 1 }
+        - { file: src/app/Providers.tsx, line: 10 }
+        - { file: src/app/Providers.tsx, line: 13 }
+        - { file: src/app/Providers.tsx, line: 15 }
+        - { file: src/app/Providers.tsx, line: 21 }
+        - { file: src/app/Providers.tsx, line: 24 }
+        - { file: src/app/Providers.tsx, line: 37 }
+        - { file: src/app/Providers.tsx, line: 41 }
+        - { file: src/components/hooks/useLocale.ts, line: 7 }
+        - { file: src/components/hooks/useLocale.ts, line: 23 }
+        - { file: src/components/hooks/useLocale.ts, line: 43 }
+        - { file: src/components/hooks/useLocale.ts, line: 55 }
+        - { file: src/components/common/ErrorBoundary.tsx, line: 8 }
+        - { file: src/components/common/ErrorBoundary.tsx, line: 34 }
+
+  - id: ext_next_intl
+    layer: external
+    kind: library
+    name: "next-intl NextIntlClientProvider"
+    source: { file: src/app/Providers.tsx, line: 29 }
+    caller: providers
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/Providers.tsx, line: 4 }
+        - { file: src/app/Providers.tsx, line: 29 }
+      note: "MessagesProvider が今の言語の文言を渡す。翻訳のほかに、UI ライブラリ (ZenProvider / RouterProvider) と TanStack Query (QueryClientProvider) も重ねるが、どれもデータに届かないのでフレームにしなかった"

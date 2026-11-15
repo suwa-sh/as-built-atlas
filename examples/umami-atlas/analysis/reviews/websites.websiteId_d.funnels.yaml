@@ -1,0 +1,49 @@
+format_version: 1
+entry_id: websites.websiteId_d.funnels
+reviewed_at: "2026-11-13T03:24:00+09:00"
+reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー (ui-nextjs 0.3.0 の再分析の結果に対する初回)"
+machine_check: ok
+findings:
+  - kind: avoidable_unknown
+    severity: low
+    where: callstack/website_filter_button/summary
+    claim: "notes の (c) は、WebsiteFilterButton のダイアログとセグメントの保存フォームの入力欄を unknown + not_analyzed で閉じる理由を「どちらも開くまで何も読まない」としている。しかしこの理由は、辿っている FunnelEditForm (ダイアログを開くと values や event-data/properties を読む) にもそのまま当てはまり、辿るものと閉じるものを分ける基準になっていない。実際の基準は「どの画面でも使う共通の絞り込みの部品か」で、frame の note にはそう書いてある"
+    evidence: { file: src/components/input/WebsiteFilterButton.tsx, line: 92 }
+    suggestion: "notes の (c) の理由を「どの画面でも使う共通の絞り込みの部品で、この画面の機能ではないので辿らない (この画面の機能である FunnelEditForm は、開いたときの読み取りまで辿る)」に改める。unknown + not_analyzed で閉じる扱いはそのままでよい"
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の summary は「共有ページ (/share/ を含む URL) では追加・編集・削除の部品を出さない」と書くが、この入口の URL は /websites/<id>/funnels で /share/ を含まないので、この分岐はこの入口では起きない。共有ページで同じ FunnelsPage を描くのは別の入口 (src/app/share/[slug]/[[...path]]/SharePage.tsx) である。api_funnels_get などの parameters の authorization (ログインのトークン) も、この入口ではログイン済みであることが前提になっている"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/(reports)/funnels/FunnelsPage.tsx", line: 17 }
+    suggestion: "入口の summary の共有ページの一文を「この URL では /share/ を含まないので、追加・編集・削除の部品は常に出る (共有ページで同じ部品を描くのは share の入口)」に改める。funnels_page・funnel・funnel_add_button・saved_definition_edit_button の条件の記述は、部品の動きとして残してよい"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/lookup_field/summary
+    claim: "「直近 6 か月の値の候補を、入力のあと 300 ミリ秒待ってから useWebsiteValuesQuery で読む」は、読み取りの起きる時点として狭い。search の初期値は今の値 (LookupField.tsx 27 行) で、useWebsiteValuesQuery は websiteId・type・期間があれば有効になる (useWebsiteValuesQuery.ts 60 行) ので、段の行が描かれた時点で GET …/values を 1 回呼ぶ。編集のときは保存済みの段の数だけ、開いた直後に呼ぶ。300 ミリ秒の待ちは入力が変わったときの再問い合わせにだけ効く"
+    evidence: { file: src/components/input/LookupField.tsx, line: 27 }
+    suggestion: "summary を「段の行が描かれた時点で、今の値を search にして直近 6 か月の値の候補を読む。入力が変わると 300 ミリ秒待ってから読み直す」に改め、evidence に useWebsiteValuesQuery.ts 60 行を足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/segment_edit_form/call
+    claim: "call の note「URL に絞り込みがあり、segment / cohort が無く、共有ページでないとき、保存のボタンから開く」は条件が 1 つ足りない。canSaveSegment は、URL にイベントのプロパティの絞り込み (epf) があると false になる (FilterBar.tsx 39 行)。filter_bar の summary の「絞り込みがあるときは「セグメントとして保存」を出す」も同じ"
+    evidence: { file: src/components/input/FilterBar.tsx, line: 39 }
+    suggestion: "note に「イベントのプロパティの絞り込みが無いとき」を足し、filter_bar の summary の条件も「絞り込み (またはセッションのプロパティの絞り込み) があり、イベントのプロパティの絞り込みと segment / cohort が無いとき」に改める。evidence に FilterBar.tsx 36〜42 行を足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/funnels_page/summary
+    claim: "summary の「Funnel はこれ (startDate / endDate) を受け取らない。集計の期間は useAnalyticsQuery が URL から読む」は正しいが、evidence は FunnelsPage.tsx の行だけで、この 2 点を支える行が無い。根拠は Funnel の props の分解に startDate / endDate が無いこと (Funnel.tsx 21 行) と、useAnalyticsQuery が useDateParameters から startAt / endAt を付けること (useAnalyticsQuery.ts 14・17 行)"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/(reports)/funnels/Funnel.tsx", line: 21 }
+    suggestion: "funnels_page の summary の evidence に Funnel.tsx 21 行と useAnalyticsQuery.ts 14 行を足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_get_query_filters/summary
+    claim: "「契約が無ければ 6 か月前より前を切る」は境界がずれている。コードは startOfMonth(subMonths(new Date(), 6)) なので、切るのは「6 か月前の月の初日より前」"
+    evidence: { file: src/lib/request.ts, line: 107 }
+    suggestion: "「契約が無ければ、6 か月前の月の初日より前を切る」に改める"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/event_data_filter_row/call
+    claim: "call の note「段の種類が event のときだけ」は条件が足りない。EventDataFilterRow は段の filters の 1 件ごとに描かれる (FunnelEditForm.tsx 120〜125 行) ので、段の種類が event で、しかも保存済みの絞り込みがあるか、絞り込みの行を足したときだけ描かれる。行を足すボタンは、その段のイベントにプロパティがあるとき (hasEventData) だけ出る (136 行)"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/(reports)/funnels/FunnelEditForm.tsx", line: 120 }
+    suggestion: "note を「段の種類が event で、その段に絞り込みの行があるときだけ (保存済みの絞り込みか、プロパティがあるときに出る追加のボタンで足した行)」に改める"
+notes: "初回のレビュー (ui-nextjs 0.3.0 で再分析した結果に対して)。0.1.0 の結果に対する古いレビュー (祖先の layout の 2 段階認証・telemetry などの指摘) は、それらのフレームが別の入口に移ったので引き継がず、この結果だけを見て書き直した。機械チェック (validate result) は OK。主張は対象のコミット 559e3c60 のコードで 1 つずつ確かめた。根拠の行 (page / FunnelsPage / Funnel / FunnelEditForm / EventDataFilterRow / 各 route / getFunnel / getValues / getEventDataProperties / getEventDataValues / getWebsiteDateRange / request.ts / auth.ts / load.ts / redis.ts / permissions / queries/prisma)、テーブル名 (schema.prisma の @@map)、PostgreSQL と ClickHouse の両方の I/O、external の source の行 (prisma.ts 746・761・775、clickhouse.ts 721、redis.ts 37・51) は、すべてコードどおりだった。同じ関数を 1 回だけ書く置き場 (parseRequest は daterange、canViewWebsiteSection と getQueryFilters は event-data/properties、getReport と canViewReport は funnels/[funnelId] の GET、canUpdateWebsite は funnels の POST、getWebsiteSegment は segments/[segmentId] の GET、getWebsite は getEntity の下、getTeamUser は website.ts 35 行) は、呼び出しの行のファイルのパスの辞書順で確かめ、どれもプロファイルの決まりと合っていた。終端にならないための書き直し (_rw_ のフレーム) も、いちばん早い呼び出しを選んでいた。画面の event のキーは filterParams (schema.ts 60 行) にあるので、api_event_data_values の「イベント名は絞り込みの event として効く」も正しい。website_filter_button と segment_filter_fields の unknown + not_analyzed は、前回のレビューとサイトの概要画面の入口のレビューで受け入れた扱いなので、閉じること自体は指摘せず、notes の理由の書き方だけを low で指摘した。指摘は 7 件で、すべて low (根拠の補い・条件の書き漏れ・表現)"

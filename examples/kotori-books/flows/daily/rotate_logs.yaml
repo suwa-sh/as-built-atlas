@@ -1,0 +1,24 @@
+id: rotate_logs
+namespace: daily
+description: |
+  ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+labels:
+  owner: sre
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/rotate_logs.sh
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "50 23 * * *"
+    timezone: Asia/Tokyo

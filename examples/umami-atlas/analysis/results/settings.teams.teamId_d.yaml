@@ -1,0 +1,1472 @@
+format_version: 1
+entry:
+  id: settings.teams.teamId_d
+  path: /settings/teams/[teamId]
+  name: "[teamId]"
+  layer: page
+  source: { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.3.0" }
+  skill_version: "0.3.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-13T02:25:00+09:00"
+  reviewed:
+    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
+    at: "2026-11-13T02:33:17+09:00"
+    findings_open: 1
+summary:
+  status: interpretation
+  value: "設定メニューの中で 1 つのチームを見て編集する画面。URL の teamId で GET /api/teams/[teamId] を呼び、team とメンバー (team_user) を読んでチーム名とチーム ID を出す (招待コードは編集できる人にだけ見せる)。オーナーかマネージャー (か管理者) なら、名前と招待コードを POST /api/teams/[teamId] で更新でき (team の update)、メンバー表 (GET /api/teams/[teamId]/users で team_user と user を読む) からオーナー以外のメンバーの役割の変更 (team_user の update) と削除 (team_user の delete) ができる。オーナーでないメンバーには退出ボタンがあり、自分の team_user を削除する。オーナーには削除ボタンがあり、DELETE /api/teams/[teamId] でチームと、そのチームの team_user / share / link / pixel / board を消し、Redis が有効なら link:* / pixel:* のキャッシュも消す。権限は各 API が team_user を読んで確かめ、各 API の認証はログイントークンから user を読む (Redis のセッションを使うときは auth:* も読む)。ログイン中のユーザーは useLoginQuery から得る (ストアに無いときだけ POST /api/auth/verify で user と所属の team を読む)。URL に /admin を含まないので、メンバー追加ボタンとチームの 2 段階認証の設定はこの画面には出ない"
+  evidence:
+    - { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 7 }
+    - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 7 }
+    - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 16 }
+    - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 20 }
+    - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 26 }
+    - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 40 }
+    - { file: "src/app/api/teams/[teamId]/route.ts", line: 20 }
+    - { file: src/queries/prisma/team.ts, line: 162 }
+notes: "プロファイル 0.3.0 で再分析した (対象のコミットは 0.2.0 のときと同じ)。0.3.0 では祖先ディレクトリの layout は別の入口 (layout_l.main_g と layout_l.main_g.settings) として分析するので、この画面からは辿らない。0.2.0 の結果からの変更: [1] 枠を経由してだけ動くもの ((main) の layout ファイルと App、2 段階認証の状態と設定用の小窓、更新のお知らせ (api.umami.is)、利用状況の送信 (/telemetry.js → i.umami.is)) のフレームと I/O を外した。[2] 画面の側でも呼んでいる部品は残し、置き場を画面の側に付け替えた: useTeamQuery 以下は TeamProvider (TeamProvider.tsx:10。画面の側の呼び出しはここだけ) の下、useLoginQuery 以下は TeamLeaveButton (TeamLeaveButton.tsx:10。TeamSettings.tsx:16 とパスの文字コード順で比べると T が [ より前) の下、parseRequest → checkAuth は POST /api/auth/verify (auth/verify/route.ts:6。src/app/api/auth が src/app/api/teams より前) の下、getUser は checkAuth (auth.ts:94) の下。[3] TeamProvider の下に置いていた書き直しのフレーム 4 つ (useTeamQuery → GET /api/teams/[teamId] → parseRequest → checkAuth) は、本来の経路を TeamProvider の下に置いたので要らなくなり外した。[4] 画面の側の grep で、useLoginQuery / useTeamQuery を呼ぶのは TeamSettings・TeamLeaveButton・TeamProvider だけと確かめた (TeamTwoFactorSettings も useTeamQuery を呼ぶが、URL に /admin を含むときだけ描くのでこの画面では動かない)。[5] deleteTeam のクラウドモードの枝 (論理削除) は 0.2.0 と同じく I/O に書いていない。理由は settings の layout (src/app/(main)/settings/layout.tsx:5) がクラウドモードで null を返し、この画面そのものが描かれないため。これは枠の振る舞いなので入口の summary には書かず、ここに残す。0.2.0 以前から引き継ぐ判断: (a) external フレームの source はライブラリを実際に呼ぶ行にし、1 つのフレームが複数の行でライブラリを呼ぶとき (deleteTeam、pagedQuery など) は最初に呼ぶ行を source、残りを call の evidence に入れた。(b) 同じ関数は、呼び出し行のファイルのパスを文字コード順で比べていちばん早い呼び出し元の下に 1 回だけ書いた。置き場: getTeamUser は POST /api/teams/[teamId]/users/[userId] (route.ts:50。src/app/api が src/permissions より前) の下、canViewTeam は GET /api/teams/[teamId] (route.ts:16。teams/[teamId]/route.ts が teams/[teamId]/users/route.ts より前) の下、canUpdateTeam は POST /api/teams/[teamId] (route.ts:43) の下、メンバー削除の DELETE (useDeleteQuery 以下) は TeamLeaveForm (src/app/(main)/teams/TeamLeaveForm.tsx が src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx より前) の下。(c) 呼び出し元が終端になってしまう場合 (TeamMemberRemoveButton、canViewTeam / canUpdateTeam / canDeleteTeam / canDeleteTeamUser) は、各段で最も早い呼び出しを 1 本だけ書き直し、I/O を持つ最初のフレームで止めた (TeamMemberRemoveButton の下は parseRequest → checkAuth の Redis の読み取りで止まり、getTeamUser の書き直しには external を付けていない)。書き直したフレームの summary に、全体の経路が書いてあるフレームを示した。(d) ブラウザが付けるトークンは localStorage のログイントークン (src/lib/client.ts:4) なので、checkAuth の API キーの経路はこの画面からは使わないものとして書いていない。parseShareToken (auth.ts:88) はヘッダーのトークンを解くだけでデータを読まない。(e) URL の接頭辞: /auth で始まる URL は常に basePath + /api だが、/teams は環境変数 apiUrl が設定されているとその URL に向く (src/lib/api-url.ts:39)。既定 (apiUrl 無し) で同じリポジトリの route に当たるので、その呼び出しは interpretation にした。(f) GET /api/teams/[teamId]/users の引数は page / pageSize / maxResults / search。フックが付ける orderBy / sortDescending はスキーマに無いので捨てられる (0.2.0 のレビューの high の指摘で直したもの)。(g) 0.2.0 のレビューで直さなかった 1 件 (low): TeamMemberEditButton と TeamMemberEditForm を 1 つのフレームにまとめている点。ボタンは小窓を開いて保存後に更新印を付けるだけでデータに触れないので、そのまま残した (0.3.0 のレビューでも同じ指摘 (low) が出たが、同じ理由で直していない)。0.3.0 のレビューのもう 1 件 (low: 入口の summary が招待コードを全員に見せるように読める) は、編集できる人にだけ見せると直した"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "[teamId] (src/app/(main)/settings/teams/[teamId]/page.tsx)"
+    source: { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page。URL の teamId を params から取り出して TeamSettingsPage に渡すだけ"
+      evidence:
+        - { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 5 }
+        - { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 7 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段 [teamId]"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 4 }
+
+  # ---------------------------------------------------------------- 画面の本体
+  - id: team_settings_page
+    layer: component
+    kind: component
+    name: "TeamSettingsPage"
+    source: { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 5 }
+    caller: page
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/teams/[teamId]/page.tsx", line: 7 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。TeamProvider で teamId のチームを読み込み、その中に TeamSettings を描く"
+      evidence:
+        - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 1 }
+        - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 7 }
+        - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 8 }
+
+  - id: team_provider
+    layer: component
+    kind: component
+    name: "TeamProvider"
+    source: { file: "src/app/(main)/teams/TeamProvider.tsx", line: 9 }
+    caller: team_settings_page
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 3 }
+        - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 7 }
+    summary:
+      status: interpretation
+      value: "useTeamQuery でチームを読み、読み込み中は Loading、読めなければ何も描かない。読めたら TeamContext に入れて子 (TeamSettings / TeamEditForm の useTeam) に渡す"
+      evidence:
+        - { file: "src/app/(main)/teams/TeamProvider.tsx", line: 10 }
+        - { file: "src/app/(main)/teams/TeamProvider.tsx", line: 16 }
+        - { file: "src/app/(main)/teams/TeamProvider.tsx", line: 20 }
+
+  # ---- チームの読み込み
+  - id: use_team_query
+    layer: component
+    kind: hook
+    name: "useTeamQuery"
+    source: { file: src/components/hooks/queries/useTeamQuery.ts, line: 6 }
+    caller: team_provider
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/TeamProvider.tsx", line: 4 }
+        - { file: "src/app/(main)/teams/TeamProvider.tsx", line: 10 }
+    summary:
+      status: interpretation
+      value: "teamId があるとき GET /teams/<teamId> を呼ぶ。queryKey に teams:<teamId> の更新印を入れるので、編集・削除のあと読み直す"
+      evidence:
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 13 }
+
+  - id: api_team_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]"
+    source: { file: "src/app/api/teams/[teamId]/route.ts", line: 7 }
+    caller: use_team_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 12 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>。apiUrl があるとその URL に向く"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し、canViewTeam で見てよいかを確かめ (だめなら 401)、getTeam でメンバー込みのチームを読む。無ければ 404。parseRequest の経路はフレーム q_parse_request と同じ"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 8 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 16 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 20 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 23 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/route.ts", line: 14 }
+
+  - id: q_can_view_team
+    layer: query
+    kind: function
+    name: "canViewTeam (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 6 }
+    caller: api_team_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 16 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getTeamUser でそのチームのメンバーかを確かめる。GET /api/teams/[teamId]/users も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+
+  - id: q_get_team_user_view
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/team.ts, line: 15 }
+      note: "管理者でないときだけ"
+    summary:
+      status: interpretation
+      value: "teamId と userId で、削除されていないチームの team_user を 1 件読む。呼び出し元が終端にならないよう書き直したもの。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_team_user"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: q_get_team
+    layer: query
+    kind: function
+    name: "getTeam / findTeam (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 17 }
+    caller: api_team_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 20 }
+    summary:
+      status: interpretation
+      value: "id で team を 1 件読み、includeMembers なのでメンバー (team_user) も含める。deletedAt の条件は付けない"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 14 }
+        - { file: src/queries/prisma/team.ts, line: 23 }
+        - { file: src/queries/prisma/team.ts, line: 27 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 14 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "include: { members: true }"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 27 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーションの読み込み。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_get_team
+    layer: external
+    kind: library
+    name: "Prisma Client team.findUnique"
+    source: { file: src/queries/prisma/team.ts, line: 14 }
+    caller: q_get_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 14 }
+
+  - id: team_settings
+    layer: component
+    kind: component
+    name: "TeamSettings"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 14 }
+    caller: team_settings_page
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/teams/[teamId]/TeamSettingsPage.tsx", line: 8 }
+    summary:
+      status: interpretation
+      value: "TeamContext のチームとログイン中のユーザーから、オーナーか (閲覧専用でない) と、編集できるか (管理者、またはオーナーかマネージャーで閲覧専用でない) を決める。見出しとチーム名を出し、オーナーでなければ退出ボタンを描く。編集フォームとメンバー表はいつも描き (編集できるかは allowEdit で渡す)、オーナーならチームの削除を描く。ログイン中のユーザーは useLoginQuery を呼んで得る。経路はフレーム use_login_query と同じ。URL に /admin を含むときだけ出すメンバー追加ボタンとチームの 2 段階認証の設定は、この画面 (/settings/teams/...) では描かない"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 15 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 16 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 40 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 20 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 22 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 26 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 37 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 45 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 49 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 54 }
+
+  # ---- チームの編集
+  - id: team_edit_form
+    layer: component
+    kind: component
+    name: "TeamEditForm"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 17 }
+    caller: team_settings
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 9 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 40 }
+    summary:
+      status: interpretation
+      value: "チーム ID (読み取り専用)、名前 (必須)、招待コード (編集できる人だけに見せる) のフォーム。編集できる人は招待コードを team_<ランダム 16 文字> で作り直せ、保存で POST /teams/<teamId> を呼んで、teams と teams:<teamId> の更新印を付ける"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 15 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 31 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 37 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 52 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 55 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 62 }
+    parameters:
+      - name: name
+        value: "フォームの入力 (必須)。初期値はチームの値"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 52 }
+      - name: accessCode
+        value: "読み取り専用。作り直しボタンで team_<ランダム 16 文字> を入れる"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 57 }
+          - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 62 }
+
+  - id: use_update_team
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/teams/<teamId>')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: team_edit_form
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 31 }
+    summary:
+      status: interpretation
+      value: "受け取った path に、フォームの値を本文にして POST する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+
+  - id: api_team_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/teams/[teamId]"
+    source: { file: "src/app/api/teams/[teamId]/route.ts", line: 29 }
+    caller: use_update_team
+    call:
+      status: interpretation
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 31 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>"
+    summary:
+      status: interpretation
+      value: "本文を name と accessCode (どちらも任意、50 文字まで) のスキーマで検査して認証し (parseRequest の経路はフレーム q_parse_request と同じ)、canUpdateTeam で更新してよいかを確かめ (だめなら 401)、updateTeam でチームを更新する"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 30 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 35 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 43 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 47 }
+    parameters:
+      - name: name
+        value: "JSON 本文。任意の文字列 (50 文字まで)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/route.ts", line: 31 }
+      - name: accessCode
+        value: "JSON 本文。任意の文字列 (50 文字まで)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/route.ts", line: 32 }
+
+  - id: q_can_update_team
+    layer: query
+    kind: function
+    name: "canUpdateTeam (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 30 }
+    caller: api_team_post
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 43 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getTeamUser で自分の team_user を読み、その役割が team:update の権限を持つかを hasPermission (定数の表を見るだけ) で確かめる。POST /api/teams/[teamId]/users/[userId] も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/permissions/team.ts, line: 35 }
+        - { file: src/permissions/team.ts, line: 39 }
+        - { file: src/permissions/team.ts, line: 41 }
+        - { file: src/lib/auth.ts, line: 164 }
+
+  - id: q_get_team_user_update
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_update_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/team.ts, line: 39 }
+      note: "管理者でないときだけ"
+    summary:
+      status: interpretation
+      value: "teamId と自分の userId で、削除されていないチームの team_user を 1 件読む。呼び出し元が終端にならないよう書き直したもの。全体の経路はフレーム q_get_team_user"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: q_update_team
+    layer: query
+    kind: function
+    name: "updateTeam (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 148 }
+    caller: api_team_post
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 47 }
+    summary:
+      status: interpretation
+      value: "id で team を、検査済みの本文 (name / accessCode) と updatedAt で更新する"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 151 }
+        - { file: src/queries/prisma/team.ts, line: 157 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.update (where id)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 151 }
+          - { file: prisma/schema.prisma, line: 249 }
+
+  - id: ext_prisma_update_team
+    layer: external
+    kind: library
+    name: "Prisma Client team.update"
+    source: { file: src/queries/prisma/team.ts, line: 151 }
+    caller: q_update_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 151 }
+
+  # ---- メンバー表
+  - id: team_members_data_table
+    layer: component
+    kind: component
+    name: "TeamMembersDataTable"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamMembersDataTable.tsx", line: 5 }
+    caller: team_settings
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 11 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 47 }
+    summary:
+      status: interpretation
+      value: "useTeamMembersQuery でメンバーを読み、検索付きの DataGrid の中に TeamMembersTable を描く"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersDataTable.tsx", line: 12 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersDataTable.tsx", line: 15 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersDataTable.tsx", line: 16 }
+
+  - id: use_team_members_query
+    layer: component
+    kind: hook
+    name: "useTeamMembersQuery (usePagedQuery)"
+    source: { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 5 }
+    caller: team_members_data_table
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersDataTable.tsx", line: 12 }
+    summary:
+      status: interpretation
+      value: "teamId があるとき GET /teams/<teamId>/users を、URL のクエリの page / search / orderBy / sortDescending を付けて呼ぶ (orderBy / sortDescending は API のスキーマに無いので捨てられる)。teams:members の更新印で読み直す"
+      evidence:
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 14 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+
+  - id: api_team_users_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/users"
+    source: { file: "src/app/api/teams/[teamId]/users/route.ts", line: 8 }
+    caller: use_team_members_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 12 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>/users"
+    summary:
+      status: interpretation
+      value: "ページングと検索の引数を検査して認証し、canViewTeam でメンバーかを確かめ (だめなら 401)、getQueryFilters で引数を整え (websiteId が無いのでデータは読まない)、getTeamUsers で削除されていないユーザーの team_user を、ユーザーの id と username を含めて作成順に読む。parseRequest も canViewTeam も呼ぶ。経路はそれぞれフレーム q_parse_request と q_can_view_team と同じ"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 14 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 22 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 26 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 28 }
+        - { file: src/lib/request.ts, line: 129 }
+    parameters:
+      - name: page / pageSize / maxResults / search
+        value: "URL のクエリ (pagingParams と searchParams のスキーマ)。フックが付ける orderBy / sortDescending はスキーマに無いので捨てられ、並びは常に作成順 (createdAt の昇順)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 10 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 11 }
+          - { file: src/lib/schema.ts, line: 73 }
+          - { file: src/lib/schema.ts, line: 87 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 44 }
+
+  - id: q_get_team_users
+    layer: query
+    kind: function
+    name: "getTeamUsers (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 29 }
+    caller: api_team_users_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 28 }
+    summary:
+      status: interpretation
+      value: "受け取った条件に username の部分一致の検索を足し、prisma.pagedQuery('teamUser') でページ分を findMany し、件数を count で数える"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 37 }
+        - { file: src/queries/prisma/teamUser.ts, line: 40 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "client['teamUser'].findMany (where teamId, user.deletedAt null。take / skip) と count"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 41 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { user: { select: id, username } } と、条件 user.deletedAt null、検索 user.username contains"
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 32 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 37 }
+          - { file: src/queries/prisma/teamUser.ts, line: 37 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "TeamUser.user のリレーションとして読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_get_team_users
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findMany / count (pagedQuery の中)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_team_users
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 40 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "リポジトリの pagedQuery がライブラリを包んでいるので、その中の findMany の行を source にした"
+
+  - id: team_members_table
+    layer: component
+    kind: component
+    name: "TeamMembersTable"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 7 }
+    caller: team_members_data_table
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersDataTable.tsx", line: 3 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersDataTable.tsx", line: 16 }
+    summary:
+      status: interpretation
+      value: "ユーザー名と役割の表。編集できる人 (allowEdit) には、オーナー以外の行に役割の編集ボタンと削除ボタンを出す"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 28 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 33 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 36 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 42 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 43 }
+
+  # ---- メンバーの役割の変更
+  - id: team_member_edit_form
+    layer: component
+    kind: component
+    name: "TeamMemberEditButton / TeamMemberEditForm"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamMemberEditForm.tsx", line: 13 }
+    caller: team_members_table
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 42 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditButton.tsx", line: 31 }
+      note: "TeamMemberEditButton は小窓を開いてフォームを描き、保存後に teams:members の更新印を付けるだけ"
+    summary:
+      status: interpretation
+      value: "役割 (マネージャー / メンバー / 閲覧専用) を選ぶフォーム。保存で POST /teams/<teamId>/users/<userId> を呼ぶ"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditForm.tsx", line: 26 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditForm.tsx", line: 40 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditButton.tsx", line: 23 }
+    parameters:
+      - name: role
+        value: "選択 (ROLES.teamManager / teamMember / teamViewOnly の定数)。初期値は今の役割"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditForm.tsx", line: 42 }
+          - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditForm.tsx", line: 44 }
+
+  - id: use_update_team_user
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/teams/<teamId>/users/<userId>')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: team_member_edit_form
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditForm.tsx", line: 26 }
+    summary:
+      status: interpretation
+      value: "受け取った path に、選んだ役割を本文にして POST する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+
+  - id: api_team_user_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/teams/[teamId]/users/[userId]"
+    source: { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 30 }
+    caller: use_update_team_user
+    call:
+      status: interpretation
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberEditForm.tsx", line: 26 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>/users/<userId>"
+    summary:
+      status: interpretation
+      value: "本文の role を検査して認証し、canUpdateTeam で更新してよいかを確かめる。対象の team_user を読み (無ければ 400)、管理者でなければ自分の team_user も読んで、自分の役割の順位が相手より上でなければ 401。updateTeamUser で役割を更新する。parseRequest と canUpdateTeam も呼ぶ。経路はそれぞれフレーム q_parse_request と q_can_update_team と同じ"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 38 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 46 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 50 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 58 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 62 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 67 }
+    parameters:
+      - name: role
+        value: "JSON 本文 (teamRoleParam のスキーマ)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 35 }
+
+  # getTeamUser の経路はここに 1 回だけ書く (呼び出し行の順でいちばん早い route.ts:50)
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: api_team_user_post
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 50 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 58 }
+      note: "対象のメンバーを読む。管理者でなければ自分の分ももう 1 度読む"
+    summary:
+      status: interpretation
+      value: "teamId と userId で、削除されていないチームの team_user を 1 件読む。canViewTeam / canUpdateTeam / canDeleteTeam / canDeleteTeamUser と、DELETE /api/teams/[teamId]/users/[userId] も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_get_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+
+  - id: q_update_team_user
+    layer: query
+    kind: function
+    name: "updateTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 61 }
+    caller: api_team_user_post
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 67 }
+    summary:
+      status: interpretation
+      value: "team_user の id で、役割を更新する"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 62 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.update (where id)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 62 }
+          - { file: prisma/schema.prisma, line: 265 }
+
+  - id: ext_prisma_update_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.update"
+    source: { file: src/queries/prisma/teamUser.ts, line: 62 }
+    caller: q_update_team_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 62 }
+
+  # ---- メンバーの削除 (編集できる人)。DELETE の経路は TeamLeaveForm の下に 1 回だけ書く
+  - id: team_member_remove_button
+    layer: component
+    kind: component
+    name: "TeamMemberRemoveButton"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx", line: 6 }
+    caller: team_members_table
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 5 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMembersTable.tsx", line: 43 }
+    summary:
+      status: interpretation
+      value: "確認の小窓で削除を押すと DELETE /teams/<teamId>/users/<userId> を呼び、teams:members の更新印を付ける。useDeleteQuery を退出と同じ URL の形で呼ぶので、経路はフレーム use_delete_team_user と同じ (呼び出し行の順で TeamLeaveForm の下に書いた)。メンバーの削除では、退出と違って canDeleteTeamUser と route が自分の team_user も読む"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx", line: 19 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx", line: 23 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx", line: 25 }
+        - { file: src/permissions/team.ts, line: 71 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 100 }
+
+  # 以下 4 フレームは、TeamMemberRemoveButton が終端にならないための書き直し (各段で最も早い呼び出しを 1 本だけ辿り、I/O を持つフレームで止める)
+  - id: use_delete_team_user_rw
+    layer: component
+    kind: hook
+    name: "useDeleteQuery('/teams/<teamId>/users/<userId>')"
+    source: { file: src/components/hooks/queries/useDeleteQuery.ts, line: 4 }
+    caller: team_member_remove_button
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx", line: 19 }
+    summary:
+      status: interpretation
+      value: "受け取った path に DELETE する mutation を作る。書き直したもの。全体の経路はフレーム use_delete_team_user"
+      evidence:
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+
+  - id: api_team_user_delete_rw
+    layer: api_route
+    kind: route_handler
+    name: "DELETE /api/teams/[teamId]/users/[userId]"
+    source: { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 72 }
+    caller: use_delete_team_user_rw
+    call:
+      status: interpretation
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx", line: 19 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>/users/<userId>"
+    summary:
+      status: interpretation
+      value: "書き直したもの。最も早い呼び出しの parseRequest だけを辿る。全体の経路はフレーム api_team_user_delete"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 76 }
+
+  - id: q_parse_request_rw_member_delete
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_team_user_delete_rw
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 76 }
+    summary:
+      status: interpretation
+      value: "書き直したもの。checkAuth で認証する。全体の経路はフレーム q_parse_request"
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+
+  - id: q_check_auth_rw_member_delete
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request_rw_member_delete
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+    summary:
+      status: interpretation
+      value: "書き直したもの。最初の I/O (Redis のセッションの読み取り) で止める。全体の経路はフレーム q_check_auth"
+      evidence:
+        - { file: src/lib/auth.ts, line: 102 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)"
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ"
+
+  # ---- チームからの退出 (オーナーでない人)
+  - id: team_leave_button
+    layer: component
+    kind: component
+    name: "TeamLeaveButton"
+    source: { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 7 }
+    caller: team_settings
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 2 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 37 }
+      note: "オーナーでなく、URL に /admin を含まないときだけ描く (この画面では後者は常に真)"
+    summary:
+      status: interpretation
+      value: "退出の小窓に TeamLeaveForm を描く。退出できたら teams の更新印を付けて /settings/teams へ移る。自分の userId は useLoginQuery を呼んで得る (TeamSettings も同じ関数を呼ぶが、呼び出し行の順でこちらの下に書いた)"
+      evidence:
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 10 }
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 13 }
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 15 }
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 29 }
+
+  # ---- ログイン中のユーザー (TeamLeaveButton と TeamSettings が呼ぶ。経路はここに 1 回だけ書く)
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: team_leave_button
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 3 }
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 10 }
+      note: "要求を出すのはストアにユーザーが無いときだけ (enabled: !user)。ふつうは枠 ((main) の layout の App) が先に同じ関数でストアに入れているので、この画面から要求が出るのはストアが空のときに限られる"
+    summary:
+      status: interpretation
+      value: "ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は apiUrl の設定に関わらず basePath + /api に向く"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できれば getAllUserTeams で所属チームを読み、ユーザーと所属チームを返す"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 4 }
+
+  - id: q_team_verify
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_verify
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team_verify
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_team_verify
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+
+  # ---- 認証 (この画面のどの API も最初に parseRequest を呼ぶ。呼び出し行の順で、ここに 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_verify
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 1 }
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "URL と JSON 本文を読み (スキーマがあれば検査し)、skipAuth が無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す。この画面の他の API (teams/[teamId] の GET / POST / DELETE、teams/[teamId]/users の GET、teams/[teamId]/users/[userId] の POST / DELETE) も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+    summary:
+      status: interpretation
+      value: "署名付きトークンを解き、userId があれば user を読み、authKey があれば (Redis が有効なとき) Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。2FA の仮トークンは拒否する。API キーの経路は、ブラウザがログイントークンを付けるのでこの画面からは使わない。user の読み取りは getUser を呼ぶ"
+      evidence:
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 108 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ"
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+      note: "トークンに userId があるとき (auth.ts:94) と、Redis のセッションに userId があったとき (auth.ts:105) のどちらか"
+    summary:
+      status: interpretation
+      value: "id で削除されていない user を 1 件読む。checkAuth は includePassword: true で呼ぶので、パスワードの列も読む (パスワードの指紋の照合のため)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 29 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: src/lib/auth.ts, line: 94 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: prisma/schema.prisma, line: 37 }
+          - { file: prisma/schema.prisma, line: 8 }
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: team_leave_form
+    layer: component
+    kind: component
+    name: "TeamLeaveForm"
+    source: { file: "src/app/(main)/teams/TeamLeaveForm.tsx", line: 4 }
+    caller: team_leave_button
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 5 }
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 29 }
+    summary:
+      status: interpretation
+      value: "確認で、自分 (ログイン中のユーザー) について DELETE /teams/<teamId>/users/<userId> を呼び、teams:members の更新印を付ける"
+      evidence:
+        - { file: "src/app/(main)/teams/TeamLeaveForm.tsx", line: 18 }
+        - { file: "src/app/(main)/teams/TeamLeaveForm.tsx", line: 24 }
+        - { file: "src/app/(main)/teams/TeamLeaveButton.tsx", line: 31 }
+
+  - id: use_delete_team_user
+    layer: component
+    kind: hook
+    name: "useDeleteQuery('/teams/<teamId>/users/<userId>')"
+    source: { file: src/components/hooks/queries/useDeleteQuery.ts, line: 4 }
+    caller: team_leave_form
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/TeamLeaveForm.tsx", line: 18 }
+    summary:
+      status: interpretation
+      value: "受け取った path に DELETE する mutation を作る。TeamMemberRemoveButton も同じ URL の形で呼ぶ"
+      evidence:
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/components/hooks/useApi.ts, line: 63 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamMemberRemoveButton.tsx", line: 19 }
+
+  - id: api_team_user_delete
+    layer: api_route
+    kind: route_handler
+    name: "DELETE /api/teams/[teamId]/users/[userId]"
+    source: { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 72 }
+    caller: use_delete_team_user
+    call:
+      status: interpretation
+      evidence:
+        - { file: "src/app/(main)/teams/TeamLeaveForm.tsx", line: 18 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>/users/<userId>"
+    summary:
+      status: interpretation
+      value: "認証し (parseRequest の経路はフレーム q_parse_request と同じ)、canDeleteTeamUser で消してよいかを確かめる。対象の team_user を読み (無ければ 400)、管理者でなければオーナーは消せない。管理者でなく自分以外を消すとき (メンバーの削除) は自分の team_user も読み、順位が相手より上でなければ 401。deleteTeamUser で消す。退出 (相手が自分) では canDeleteTeamUser がデータを読まずに許し、順位の確認も飛ばす。対象と自分の team_user の読み取りは getTeamUser を呼ぶ。経路はフレーム q_get_team_user と同じ"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 76 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 84 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 88 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 94 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 99 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 100 }
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 109 }
+        - { file: src/permissions/team.ts, line: 67 }
+
+  - id: q_can_delete_team_user
+    layer: query
+    kind: function
+    name: "canDeleteTeamUser (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 58 }
+    caller: api_team_user_delete
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 84 }
+    summary:
+      status: interpretation
+      value: "管理者か、消す相手が自分なら許す。そうでなければ getTeamUser で自分の team_user を読み、team:update の権限を持つかを確かめる"
+      evidence:
+        - { file: src/permissions/team.ts, line: 63 }
+        - { file: src/permissions/team.ts, line: 67 }
+        - { file: src/permissions/team.ts, line: 71 }
+        - { file: src/permissions/team.ts, line: 73 }
+
+  - id: q_get_team_user_delete_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_delete_team_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/team.ts, line: 71 }
+      note: "管理者でなく、相手が自分でないときだけ (メンバーの削除のとき。退出ではこの枝に入らない)"
+    summary:
+      status: interpretation
+      value: "teamId と自分の userId で、削除されていないチームの team_user を 1 件読む。呼び出し元が終端にならないよう書き直したもの。全体の経路はフレーム q_get_team_user"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: q_delete_team_user
+    layer: query
+    kind: function
+    name: "deleteTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 70 }
+    caller: api_team_user_delete
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 109 }
+    summary:
+      status: interpretation
+      value: "teamId と userId で team_user を消す"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 71 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.deleteMany (where teamId, userId)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 71 }
+          - { file: prisma/schema.prisma, line: 265 }
+
+  - id: ext_prisma_delete_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.deleteMany"
+    source: { file: src/queries/prisma/teamUser.ts, line: 71 }
+    caller: q_delete_team_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 71 }
+
+  # ---- チームの削除 (オーナー)
+  - id: team_manage
+    layer: component
+    kind: component
+    name: "TeamManage"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamManage.tsx", line: 7 }
+    caller: team_settings
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 10 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamSettings.tsx", line: 56 }
+      note: "オーナーのときだけ描く"
+    summary:
+      status: interpretation
+      value: "チーム削除の説明と削除ボタン。小窓に TeamDeleteForm を描き、削除できたら teams の更新印を付けて /settings/teams へ移る"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamManage.tsx", line: 13 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamManage.tsx", line: 14 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamManage.tsx", line: 23 }
+
+  - id: team_delete_form
+    layer: component
+    kind: component
+    name: "TeamDeleteForm"
+    source: { file: "src/app/(main)/teams/[teamId]/TeamDeleteForm.tsx", line: 6 }
+    caller: team_manage
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamManage.tsx", line: 5 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamManage.tsx", line: 23 }
+    summary:
+      status: interpretation
+      value: "DELETE と打ち込ませる確認フォーム。確認で DELETE /teams/<teamId> を呼び、teams と teams:<teamId> の更新印を付ける"
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamDeleteForm.tsx", line: 4 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamDeleteForm.tsx", line: 16 }
+        - { file: "src/app/(main)/teams/[teamId]/TeamDeleteForm.tsx", line: 21 }
+
+  - id: use_delete_team
+    layer: component
+    kind: hook
+    name: "useDeleteQuery('/teams/<teamId>')"
+    source: { file: src/components/hooks/queries/useDeleteQuery.ts, line: 4 }
+    caller: team_delete_form
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamDeleteForm.tsx", line: 16 }
+    summary:
+      status: interpretation
+      value: "受け取った path に DELETE する mutation を作る (メンバーの削除とは URL が違うので別に書く)"
+      evidence:
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/components/hooks/useApi.ts, line: 63 }
+
+  - id: api_team_delete
+    layer: api_route
+    kind: route_handler
+    name: "DELETE /api/teams/[teamId]"
+    source: { file: "src/app/api/teams/[teamId]/route.ts", line: 52 }
+    caller: use_delete_team
+    call:
+      status: interpretation
+      evidence:
+        - { file: "src/app/(main)/teams/[teamId]/TeamDeleteForm.tsx", line: 16 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>"
+    summary:
+      status: interpretation
+      value: "認証し (parseRequest の経路はフレーム q_parse_request と同じ)、canDeleteTeam で消してよいかを確かめ (だめなら 401)、deleteTeam でチームと関連を消す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 56 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 64 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 68 }
+
+  - id: q_can_delete_team
+    layer: query
+    kind: function
+    name: "canDeleteTeam (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 44 }
+    caller: api_team_delete
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 64 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getTeamUser で自分の team_user を読み、その役割が team:delete の権限を持つかを確かめる"
+      evidence:
+        - { file: src/permissions/team.ts, line: 49 }
+        - { file: src/permissions/team.ts, line: 53 }
+        - { file: src/permissions/team.ts, line: 55 }
+
+  - id: q_get_team_user_delete_team
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_delete_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/team.ts, line: 53 }
+      note: "管理者でないときだけ"
+    summary:
+      status: interpretation
+      value: "teamId と自分の userId で、削除されていないチームの team_user を 1 件読む。呼び出し元が終端にならないよう書き直したもの。全体の経路はフレーム q_get_team_user"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: q_delete_team
+    layer: query
+    kind: function
+    name: "deleteTeam (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 162 }
+    caller: api_team_delete
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 68 }
+    summary:
+      status: interpretation
+      value: "チームの link / pixel / board を読み、それらの id を共有の対象として集める。トランザクションで team_user、その共有 (share)、link、pixel、board、team を順に消し、終わったら Redis が有効なら、まだ論理削除されていない link / pixel の slug のキャッシュを消す。クラウドモードの枝 (論理削除) は、この画面がクラウドモードで出ないので届かない"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 166 }
+        - { file: src/queries/prisma/team.ts, line: 177 }
+        - { file: src/queries/prisma/team.ts, line: 179 }
+        - { file: src/queries/prisma/team.ts, line: 183 }
+        - { file: src/queries/prisma/team.ts, line: 191 }
+        - { file: src/queries/prisma/team.ts, line: 219 }
+        - { file: src/queries/prisma/team.ts, line: 234 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "client.link.findMany (where teamId。id / slug / deletedAt)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 167 }
+          - { file: prisma/schema.prisma, line: 358 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "client.pixel.findMany (where teamId。id / slug / deletedAt)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 171 }
+          - { file: prisma/schema.prisma, line: 378 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "client.board.findMany (where teamId。id)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 175 }
+          - { file: prisma/schema.prisma, line: 398 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "client.teamUser.deleteMany (where teamId)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 220 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "client.share.deleteMany (where entityId in チームの link / pixel / board の id)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 225 }
+          - { file: prisma/schema.prisma, line: 412 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "client.link.deleteMany (where teamId)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 226 }
+          - { file: prisma/schema.prisma, line: 358 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "client.pixel.deleteMany (where teamId)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 227 }
+          - { file: prisma/schema.prisma, line: 378 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "client.board.deleteMany (where teamId)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 228 }
+          - { file: prisma/schema.prisma, line: 398 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "client.team.delete (where id)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 229 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: delete
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "link:*" } }
+        detail: "redis.client.del(`link:${slug}`)。論理削除されていない link の slug ごと"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 185 }
+          - { file: src/lib/redis.ts, line: 57 }
+        note: "Redis が有効 (REDIS_URL あり) で、対象の slug があるときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "pixel:*" } }
+        detail: "redis.client.del(`pixel:${slug}`)。論理削除されていない pixel の slug ごと"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 186 }
+          - { file: src/lib/redis.ts, line: 57 }
+        note: "Redis が有効 (REDIS_URL あり) で、対象の slug があるときだけ"
+
+  - id: ext_prisma_delete_team
+    layer: external
+    kind: library
+    name: "Prisma Client (link / pixel / board の findMany と、トランザクションの中の deleteMany / delete)"
+    source: { file: src/queries/prisma/team.ts, line: 167 }
+    caller: q_delete_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 167 }
+        - { file: src/queries/prisma/team.ts, line: 171 }
+        - { file: src/queries/prisma/team.ts, line: 175 }
+        - { file: src/queries/prisma/team.ts, line: 219 }
+        - { file: src/queries/prisma/team.ts, line: 220 }
+        - { file: src/queries/prisma/team.ts, line: 225 }
+        - { file: src/queries/prisma/team.ts, line: 226 }
+        - { file: src/queries/prisma/team.ts, line: 227 }
+        - { file: src/queries/prisma/team.ts, line: 228 }
+        - { file: src/queries/prisma/team.ts, line: 229 }
+        - { file: src/lib/prisma.ts, line: 844 }
+      note: "最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行 (transaction は src/lib/prisma.ts:844 の client.$transaction) は evidence に入れた"
+
+  - id: ext_redis_del
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) del"
+    source: { file: src/lib/redis.ts, line: 57 }
+    caller: q_delete_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 185 }
+        - { file: src/queries/prisma/team.ts, line: 186 }
+        - { file: src/lib/redis.ts, line: 57 }

@@ -1,0 +1,2138 @@
+format_version: 1
+entry:
+  id: layout_l.main_g
+  path: /(layout)/(main)
+  name: "(main)"
+  layer: layout
+  source: { file: "src/app/(main)/layout.tsx", line: 5 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.3.0" }
+  skill_version: "0.3.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-13T02:29:04+09:00"
+  reviewed:
+    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
+    at: "2026-11-13T03:30:00+09:00"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "ログイン後の画面すべて ((main) の下) を包む枠。Suspense の中で App を描き、包まれる画面 (children) はその中に置く。App はブラウザ側で動き、POST /api/auth/verify でログインを確かめ (ユーザーと所属チーム。失敗なら /login へ移る)、GET /api/config で設定値 (環境変数だけ) を読み、URL に /teams/<id> があれば GET /api/teams/[teamId] でチーム (team と team_user) を読む (読めなければ / へ戻す)。ログイン済みでクラウドモードでなければ GET /api/2fa/status で 2 段階認証が必須かを読み (two_factor_auth / app_setting / user / team_user / team)、必須なのに未設定なら閉じられない設定用の小窓から POST /api/2fa/setup/initiate と confirm を呼ぶ (two_factor_auth / two_factor_backup_code / two_factor_rate_limit / two_factor_otp_used を書く)。管理者には本番で更新の確認 (ブラウザから api.umami.is)、本番では利用状況の送信 (/telemetry.js が返すスクリプトでブラウザから i.umami.is) を行う。上部のナビ (TopNav) は URL に含まれる id で選択欄を出し分ける: /websites/<id> ならサイトの選択欄 (GET /api/websites/[websiteId] と、サイトの一覧 GET /api/teams/[teamId]/websites か /api/users/[userId]/websites)、/links/<id> ならリンク、/pixels/<id> ならピクセル、/boards/<id> ならボードの選択欄 (それぞれ 1 件の GET と、一覧の GET。一覧は URL に /teams/<id> があればチームの API、無ければ自分の API)。どれも読むだけで、website / share / user / link / pixel / board / team_user を読む。/boards/create では URL の id の正規表現が先頭の c だけに当たるので、ボードの選択欄が出て GET /api/boards/c を呼ぶ。サイドとモバイルのナビ (メニュー、ユーザーのメニュー、チームの切り替え) は、ログインで得たユーザーと設定値を使うだけで新たにデータを読まない。ユーザーと設定値が無い・チームが読めないあいだは何も描かない"
+  evidence:
+    - { file: "src/app/(main)/layout.tsx", line: 8 }
+    - { file: "src/app/(main)/App.tsx", line: 21 }
+    - { file: "src/app/(main)/App.tsx", line: 24 }
+    - { file: "src/app/(main)/App.tsx", line: 25 }
+    - { file: "src/app/(main)/App.tsx", line: 54 }
+    - { file: "src/app/(main)/App.tsx", line: 75 }
+    - { file: "src/app/(main)/TopNav.tsx", line: 53 }
+    - { file: src/components/hooks/useNavigation.ts, line: 13 }
+notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる画面) と、外側のルートの layout (src/app/layout.tsx)、内側の admin / settings / websites/[websiteId] の layout は別の入口なので辿らない。(2) フレームにしなかったもの: GET /api/config (useConfig。skipAuth で環境変数を返すだけでデータを読まない)、SideNav / MobileNav / WebsiteNav / SettingsNav / AdminNav / useWebsiteNavItems (リンクを並べるだけ)、TeamsButton (ログインで得た user.teams を出すだけ)、UserButton (ログインのユーザーと設定値、言語の切り替え。言語の JSON は public/intl の静的ファイルで、翻訳のライブラリと同じ扱い)、TwoFactorSetupModal の取り消し (App は required={true} で描くので cancel のボタンが出ない)。(3) 環境変数 selfTrack / selfRecord があるとき App は /script.js と /recorder.js を読み込み、この画面自身を計測させるが、計測の受信はこのプロファイルの対象外 (context.md の「画面を通らない受け口 (外部向け API、計測の受信) は分析の対象にならない」) なので辿っていない。(4) URL の接頭辞: /auth と /config は常に basePath + /api。それ以外は環境変数 apiUrl があるとその URL に向く (src/lib/api-url.ts:39)。既定 (apiUrl 無し) で同じリポジトリの route に当たるので、/auth 以外の呼び出しは interpretation にした。(5) 同じ処理の置き場 (呼び出し行のファイルのパスの文字コード順、同じなら行番号順): parseRequest → checkAuth は POST /api/2fa/setup/confirm (confirm/route.ts:18) の下、getUser は POST /api/2fa/setup/initiate (initiate/route.ts:33。src/lib/auth.ts より先) の下、getTeamUser は canViewBoard (src/permissions/board.ts:178。link / pixel / team / website より先) の下、canViewTeam は GET /api/teams/[teamId]/boards (boards/route.ts:21。teams/[teamId]/route.ts より先) の下、getWebsite は GET /api/websites/[websiteId] (route.ts:34。src/lib/entity.ts より先) の下、getLink / getPixel / getBoard はそれぞれの 1 件の GET の route の下。呼び出し元が終端になってしまう getEntity / canViewLink / canViewPixel / canViewTeam の下には、決まりどおり最も早い呼び出しの 1 本 (getWebsite / getLink / getPixel / getTeamUser) を、I/O を持つフレームまで書き直した。(6) 一覧の問い合わせ: getUserXxx / getTeamXxx は条件を組み立てて共通の getXxxs (website / link / pixel / board) を呼ぶだけなので、1 つのフレーム (name に両方) にまとめ、それぞれに I/O を書いた。共通の prisma.pagedQuery (src/lib/prisma.ts:761 の client[model].findMany と :775 の count) は、引数のモデル名で届くテーブルが変わるので、テーブルごとに external を 1 つ書いた。同じテーブルに届く 2 つの呼び出し元 (自分の一覧とチームの一覧) は、共通の getXxxs を呼ぶ行の順 (website.ts:150 が :169 より先、link.ts:41 が :53 より先、pixel.ts:36 が :47 より先、board.ts:38 が :52 より先) で早いほう、つまりどれも自分の一覧の下にだけ external を書いた。(7) /me/websites (useUserWebsitesQuery の第 3 の枝) には届かない。TopNav は App がユーザーを得てから描くので userId が常にある (App.tsx:54)。getAllUserWebsitesIncludingTeamAccess も、TopNav が includeTeams を渡さないので届かない。(8) ブラウザが付けるトークンは localStorage のログイントークン (src/lib/client.ts:4) なので、checkAuth の API キーの経路と、各権限の検査の共有トークンの枝は、この枠からは使わないものとして書いていない。(9) useNavigation の正規表現は末尾を固定していない ([a-f0-9-]+) ので、/boards/create では boardId が c になり、BoardSelect が描かれて GET /api/boards/c を呼ぶ。board.id は uuid の列 (prisma/schema.prisma:382) で、canViewBoard から呼ぶ getBoard は id の形を確かめずに findUnique するので、c で探すと uuid の形の誤りで失敗し、ボードの選択欄は名前を出せないと読める (interpretation。実行しての確認はしていない)。データの読み書きの先 (board の read) は変わらない。(10) レビューの指摘 2 件 (どちらも low) を直した: parseRequest の summary の根拠に URL と本文を読む行 (request.ts:21 / :23) を足した。/boards/create の応答を「確かめていない」から、uuid の列と getBoard の書き方からの読み取り (上の 9) に直した。あわせて、レビューの所見 (同じテーブルに届く一覧の external の置き場が website だけ違った) を受け、website の external もチームの一覧から自分の一覧の下へ移し、4 種類とも同じ決め方 (上の 6) にそろえた"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: layout
+    layer: layout
+    kind: layout
+    name: "(main) の layout (src/app/(main)/layout.tsx)"
+    source: { file: "src/app/(main)/layout.tsx", line: 5 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く layout。Suspense の中で App を描き、包まれる画面 (children) を App に渡す。metadata でタイトルの書式 (%s | Umami) を決める。データは自分では読まない"
+      evidence:
+        - { file: "src/app/(main)/layout.tsx", line: 7 }
+        - { file: "src/app/(main)/layout.tsx", line: 8 }
+        - { file: "src/app/(main)/layout.tsx", line: 13 }
+
+  - id: app_shell
+    layer: component
+    kind: component
+    name: "App (src/app/(main)/App.tsx)"
+    source: { file: "src/app/(main)/App.tsx", line: 20 }
+    caller: layout
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/layout.tsx", line: 3 }
+        - { file: "src/app/(main)/layout.tsx", line: 8 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。useLoginQuery でログインを確かめ (失敗なら /login へ移る)、useConfig で GET /config (環境変数の設定値を返すだけ) を読み、URL から teamId を取り出して useTeamQuery を呼ぶ。チームが読めなければ / へ戻す。ログインしていてクラウドモードでなければ 2 段階認証の状態を読み、必須なのに未設定なら設定用の小窓を出す。ユーザーと設定値がそろってから、ナビ (MobileNav / SideNav / TopNav) と children を描く。更新のお知らせ (UpdateNotice) を描き、本番では /telemetry.js を読み込む。選んだチームは localStorage に覚える (I/O には書かない)"
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 1 }
+        - { file: "src/app/(main)/App.tsx", line: 21 }
+        - { file: "src/app/(main)/App.tsx", line: 22 }
+        - { file: "src/app/(main)/App.tsx", line: 24 }
+        - { file: "src/app/(main)/App.tsx", line: 25 }
+        - { file: "src/app/(main)/App.tsx", line: 30 }
+        - { file: "src/app/(main)/App.tsx", line: 39 }
+        - { file: "src/app/(main)/App.tsx", line: 47 }
+        - { file: "src/app/(main)/App.tsx", line: 54 }
+        - { file: "src/app/(main)/App.tsx", line: 75 }
+        - { file: "src/app/(main)/App.tsx", line: 84 }
+        - { file: "src/app/(main)/App.tsx", line: 87 }
+        - { file: src/components/hooks/useConfig.ts, line: 22 }
+        - { file: src/app/api/config/route.ts, line: 8 }
+
+  # ---- ログインの確認
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: app_shell
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 21 }
+    summary:
+      status: interpretation
+      value: "ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は apiUrl の設定に関わらず basePath + /api に向く。TeamsButton と UserButton も同じフックでストアのユーザーを使う"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できればユーザーと所属チームを返す。parseRequest の経路はフレーム q_parse_request と同じ"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 4 }
+
+  - id: q_team_verify
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_verify
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む (TopNav の TeamsButton がこの一覧を使う)"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team_verify
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_team_verify
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+
+  # ---- チームの読み込み (URL に /teams/<id> があるときだけ)
+  - id: use_team_query
+    layer: component
+    kind: hook
+    name: "useTeamQuery"
+    source: { file: src/components/hooks/queries/useTeamQuery.ts, line: 6 }
+    caller: app_shell
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 24 }
+      note: "teamId は useNavigation が URL の /teams/<id> から取り出す (/teams/<id>/… の画面のほか /settings/teams/<id> と /admin/teams/<id> にも当たる)。無ければ呼ばない"
+    summary:
+      status: interpretation
+      value: "teamId があるとき GET /teams/<teamId> を呼ぶ。queryKey に teams:<teamId> の更新印を入れるので、編集のあと読み直す"
+      evidence:
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 13 }
+        - { file: src/components/hooks/useNavigation.ts, line: 9 }
+
+  - id: api_team_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]"
+    source: { file: "src/app/api/teams/[teamId]/route.ts", line: 7 }
+    caller: use_team_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useTeamQuery.ts, line: 12 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/teams/<teamId>。apiUrl があるとその URL に向く"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し、canViewTeam で見てよいかを確かめ (だめなら 401)、getTeam でメンバー込みのチームを読む。無ければ 404。parseRequest の経路はフレーム q_parse_request、canViewTeam の経路はフレーム q_can_view_team と同じ"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 8 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 16 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 20 }
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 23 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/route.ts", line: 14 }
+
+  - id: q_get_team
+    layer: query
+    kind: function
+    name: "getTeam / findTeam (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 17 }
+    caller: api_team_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/route.ts", line: 20 }
+    summary:
+      status: interpretation
+      value: "id で team を 1 件読み、includeMembers なのでメンバー (team_user) も含める。deletedAt の条件は付けない"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 14 }
+        - { file: src/queries/prisma/team.ts, line: 23 }
+        - { file: src/queries/prisma/team.ts, line: 27 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 14 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "include: { members: true }"
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 27 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーションの読み込み。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_get_team
+    layer: external
+    kind: library
+    name: "Prisma Client team.findUnique"
+    source: { file: src/queries/prisma/team.ts, line: 14 }
+    caller: q_get_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 14 }
+
+  # ---- 2 段階認証の状態
+  - id: use_two_factor_status
+    layer: component
+    kind: hook
+    name: "useTwoFactorStatusQuery"
+    source: { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 11 }
+    caller: app_shell
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 25 }
+      note: "ログイン済みで、設定値 cloudMode が偽のときだけ有効"
+    summary:
+      status: interpretation
+      value: "GET /2fa/status を呼ぶ。画面に戻ったときと再接続のときにも読み直す"
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 16 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 18 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+
+  - id: api_2fa_status
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/2fa/status"
+    source: { file: src/app/api/2fa/status/route.ts, line: 6 }
+    caller: use_two_factor_status
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 16 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/2fa/status。apiUrl があるとその URL に向く"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、サーバーがクラウドモードなら固定値を返す。そうでなければユーザーの two_factor_auth と、全体で必須か (app_setting の twoFactorRequiredGlobal) を読む。暗号鍵が未設定なら必須にしない。次にユーザーで必須か (user.twoFactorRequired)、所属チームで必須か (team_user → team.twoFactorRequired) を順に読み、最初に当たった理由で isRequired を返す"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 7 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+        - { file: src/app/api/2fa/status/route.ts, line: 25 }
+        - { file: src/app/api/2fa/status/route.ts, line: 28 }
+        - { file: src/app/api/2fa/status/route.ts, line: 34 }
+        - { file: src/app/api/2fa/status/route.ts, line: 54 }
+        - { file: src/app/api/2fa/status/route.ts, line: 70 }
+        - { file: src/app/api/2fa/status/route.ts, line: 73 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.findUnique (where userId)"
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 25 }
+          - { file: prisma/schema.prisma, line: 492 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: app_setting } }
+        detail: "prisma.client.appSetting.findUnique (where key = twoFactorRequiredGlobal)"
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 28 }
+          - { file: prisma/schema.prisma, line: 533 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (select twoFactorRequired)"
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 54 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "暗号鍵が設定済みで、全体の必須設定が無いときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findMany (where userId)"
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 70 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "全体でもユーザーでも必須でないときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (id in 所属チーム, twoFactorRequired true)"
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 73 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "所属チームが 1 つ以上あるときだけ"
+
+  - id: ext_prisma_2fa_status
+    layer: external
+    kind: library
+    name: "Prisma Client (twoFactorAuth / appSetting / user / teamUser / team の読み取り)"
+    source: { file: src/app/api/2fa/status/route.ts, line: 25 }
+    caller: api_2fa_status
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 25 }
+        - { file: src/app/api/2fa/status/route.ts, line: 28 }
+        - { file: src/app/api/2fa/status/route.ts, line: 54 }
+        - { file: src/app/api/2fa/status/route.ts, line: 70 }
+        - { file: src/app/api/2fa/status/route.ts, line: 73 }
+      note: "最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行は evidence に入れた"
+
+  # ---- 2 段階認証の設定用の小窓 (必須なのに未設定のときだけ)
+  - id: two_factor_setup_modal
+    layer: component
+    kind: component
+    name: "TwoFactorSetupModal"
+    source: { file: src/components/modals/TwoFactorSetupModal.tsx, line: 59 }
+    caller: app_shell
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 15 }
+        - { file: "src/app/(main)/App.tsx", line: 84 }
+      note: "2 段階認証が必須 (isRequired) で、まだ有効になっていない (isEnabled が偽) ときだけ描く"
+    summary:
+      status: interpretation
+      value: "開いた時点で POST /2fa/setup/initiate を呼んで QR コードと手入力用の鍵を受け取る。6 桁のコードを入れると POST /2fa/setup/confirm で有効にしてバックアップコードを受け取る。App は required={true} で描くので、取り消しボタン (POST /2fa/setup/cancel) は出ず、小窓も閉じられない。この枠から cancel は呼ばれない"
+      evidence:
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 69 }
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 70 }
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 71 }
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 123 }
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 200 }
+        - { file: "src/app/(main)/App.tsx", line: 84 }
+
+  - id: use_update_2fa_initiate
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/2fa/setup/initiate')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: two_factor_setup_modal
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 69 }
+    summary:
+      status: interpretation
+      value: "受け取った path に POST する mutation を作る。URL には useApi → getApiUrl が接頭辞を付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+
+  - id: api_2fa_initiate
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/2fa/setup/initiate"
+    source: { file: src/app/api/2fa/setup/initiate/route.ts, line: 16 }
+    caller: use_update_2fa_initiate
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 69 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/2fa/setup/initiate"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、暗号鍵が無ければ 503。user を読み、two_factor_auth が既に有効なら 400。TOTP の秘密を作って暗号化し、two_factor_auth に無効のまま upsert して、QR コードと手入力用の鍵を返す"
+      evidence:
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 21 }
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 28 }
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 33 }
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 41 }
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 48 }
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 53 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.findUnique (where userId)"
+        evidence:
+          - { file: src/app/api/2fa/setup/initiate/route.ts, line: 39 }
+          - { file: prisma/schema.prisma, line: 492 }
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.upsert の create (userId, 暗号化した secret, isEnabled false)"
+        evidence:
+          - { file: src/app/api/2fa/setup/initiate/route.ts, line: 53 }
+          - { file: src/app/api/2fa/setup/initiate/route.ts, line: 56 }
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.upsert の update (secret を作り直し、isEnabled false)"
+        evidence:
+          - { file: src/app/api/2fa/setup/initiate/route.ts, line: 53 }
+          - { file: src/app/api/2fa/setup/initiate/route.ts, line: 55 }
+
+  - id: ext_prisma_2fa_initiate
+    layer: external
+    kind: library
+    name: "Prisma Client twoFactorAuth.findUnique / upsert"
+    source: { file: src/app/api/2fa/setup/initiate/route.ts, line: 39 }
+    caller: api_2fa_initiate
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 39 }
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 53 }
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser / findUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: api_2fa_initiate
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 33 }
+    summary:
+      status: interpretation
+      value: "id で削除されていない user を 1 件読む (パスワードの列は includePassword のときだけ)。ここでは QR コードに入れるユーザー名のため。checkAuth もパスワード込みで同じ関数を呼ぶ (呼び出し行の順でこちらの下に書いた)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 29 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/app/api/2fa/setup/initiate/route.ts, line: 50 }
+        - { file: src/lib/auth.ts, line: 94 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: prisma/schema.prisma, line: 37 }
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: use_update_2fa_confirm
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/2fa/setup/confirm')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: two_factor_setup_modal
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 70 }
+    summary:
+      status: interpretation
+      value: "受け取った path に、入力した 6 桁のコードを本文にして POST する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+
+  - id: api_2fa_confirm
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/2fa/setup/confirm"
+    source: { file: src/app/api/2fa/setup/confirm/route.ts, line: 11 }
+    caller: use_update_2fa_confirm
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/modals/TwoFactorSetupModal.tsx, line: 70 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/2fa/setup/confirm"
+    summary:
+      status: interpretation
+      value: "本文の token (6 文字) を検査して認証する。two_factor_auth が設定待ちでなければ 400。試行回数の制限と、同じコードの使い回しを確かめ、TOTP を照合する (合わなければ失敗を記録)。合えばトランザクションで two_factor_auth を有効にし、バックアップコードを作り直し、使ったコードを記録する。最後に試行回数を消してバックアップコードを返す"
+      evidence:
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 16 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 31 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 42 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 57 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 63 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 74 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 83 }
+    parameters:
+      - name: token
+        value: "JSON 本文。6 文字の文字列"
+        status: fact
+        evidence:
+          - { file: src/app/api/2fa/setup/confirm/route.ts, line: 16 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.findUnique (where userId)"
+        evidence:
+          - { file: src/app/api/2fa/setup/confirm/route.ts, line: 31 }
+          - { file: prisma/schema.prisma, line: 492 }
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "tx.twoFactorAuth.update (isEnabled true)"
+        evidence:
+          - { file: src/app/api/2fa/setup/confirm/route.ts, line: 75 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_backup_code } }
+        detail: "tx.twoFactorBackupCode.deleteMany (where userId)"
+        evidence:
+          - { file: src/app/api/2fa/setup/confirm/route.ts, line: 76 }
+          - { file: prisma/schema.prisma, line: 504 }
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_backup_code } }
+        detail: "tx.twoFactorBackupCode.createMany (ハッシュにしたバックアップコード)"
+        evidence:
+          - { file: src/app/api/2fa/setup/confirm/route.ts, line: 77 }
+          - { file: prisma/schema.prisma, line: 504 }
+
+  - id: ext_prisma_2fa_confirm
+    layer: external
+    kind: library
+    name: "Prisma Client (twoFactorAuth.findUnique と、トランザクションの中の update / deleteMany / createMany)"
+    source: { file: src/app/api/2fa/setup/confirm/route.ts, line: 31 }
+    caller: api_2fa_confirm
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 31 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 74 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 75 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 76 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 77 }
+        - { file: src/lib/prisma.ts, line: 844 }
+      note: "最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行 (prisma.transaction は src/lib/prisma.ts:844 の client.$transaction) は evidence に入れた"
+
+  # ---- 認証 (この枠のどの API も最初に parseRequest を呼ぶ。呼び出し行の順で、ここに 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_2fa_confirm
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 18 }
+    summary:
+      status: interpretation
+      value: "URL と JSON 本文を読み (スキーマがあれば検査し)、skipAuth が無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す。この枠の他の API (auth/verify、2fa/status、2fa/setup/initiate、teams/[teamId]、websites/[websiteId]、teams/[teamId]/websites、users/[userId]/websites、links/[linkId]、links、teams/[teamId]/links、pixels/[pixelId]、pixels、teams/[teamId]/pixels、boards/[boardId]、boards、teams/[teamId]/boards の GET / POST) も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 27 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+    summary:
+      status: interpretation
+      value: "署名付きトークンを解き、2FA の仮トークンは拒否する。userId があれば user を読み、authKey があれば (Redis が有効なとき) Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。user の読み取りは getUser を呼ぶ。経路はフレーム q_get_user と同じ。API キーの経路と共有トークンは、ブラウザがログイントークンを付けるのでこの枠からは使わない"
+      evidence:
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 108 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ"
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  - id: q_rate_limit_2fa_confirm
+    layer: query
+    kind: function
+    name: "checkRateLimit / recordFailedAttempt / resetRateLimit (src/lib/two-factor/rate-limit.ts)"
+    source: { file: src/lib/two-factor/rate-limit.ts, line: 8 }
+    caller: api_2fa_confirm
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 42 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 64 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 83 }
+    summary:
+      status: interpretation
+      value: "two_factor_rate_limit でユーザーの試行回数を管理する。checkRateLimit は締め出し中かを読み、recordFailedAttempt は直列化のトランザクションで回数を 1 増やし (無ければ作る)、5 回に達したら 15 分締め出す。resetRateLimit は記録を消す"
+      evidence:
+        - { file: src/lib/two-factor/rate-limit.ts, line: 11 }
+        - { file: src/lib/two-factor/rate-limit.ts, line: 28 }
+        - { file: src/lib/two-factor/rate-limit.ts, line: 35 }
+        - { file: src/lib/two-factor/rate-limit.ts, line: 56 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_rate_limit } }
+        detail: "prisma.client.twoFactorRateLimit.findUnique (where userId)"
+        evidence:
+          - { file: src/lib/two-factor/rate-limit.ts, line: 11 }
+          - { file: prisma/schema.prisma, line: 526 }
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_rate_limit } }
+        detail: "tx.twoFactorRateLimit.upsert の create (attempts 1)"
+        evidence:
+          - { file: src/lib/two-factor/rate-limit.ts, line: 30 }
+          - { file: src/lib/two-factor/rate-limit.ts, line: 33 }
+        note: "コードが合わなかったときだけ"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_rate_limit } }
+        detail: "tx.twoFactorRateLimit.upsert の update (attempts を 1 増やす) と、5 回に達したときの update (lockedUntil)"
+        evidence:
+          - { file: src/lib/two-factor/rate-limit.ts, line: 32 }
+          - { file: src/lib/two-factor/rate-limit.ts, line: 37 }
+        note: "コードが合わなかったときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_rate_limit } }
+        detail: "prisma.client.twoFactorRateLimit.deleteMany (where userId)"
+        evidence:
+          - { file: src/lib/two-factor/rate-limit.ts, line: 56 }
+        note: "設定が完了したときだけ"
+
+  - id: ext_prisma_rate_limit_2fa_confirm
+    layer: external
+    kind: library
+    name: "Prisma Client twoFactorRateLimit (findUnique / トランザクションの中の upsert と update / deleteMany)"
+    source: { file: src/lib/two-factor/rate-limit.ts, line: 11 }
+    caller: q_rate_limit_2fa_confirm
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/two-factor/rate-limit.ts, line: 11 }
+        - { file: src/lib/two-factor/rate-limit.ts, line: 28 }
+        - { file: src/lib/two-factor/rate-limit.ts, line: 30 }
+        - { file: src/lib/two-factor/rate-limit.ts, line: 37 }
+        - { file: src/lib/two-factor/rate-limit.ts, line: 56 }
+        - { file: src/lib/prisma.ts, line: 844 }
+      note: "最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行 (prisma.transaction は src/lib/prisma.ts:844 の client.$transaction) は evidence に入れた"
+
+  - id: q_replay_2fa_confirm
+    layer: query
+    kind: function
+    name: "isOtpReplayed / markOtpUsed (src/lib/two-factor/replay-prevention.ts)"
+    source: { file: src/lib/two-factor/replay-prevention.ts, line: 18 }
+    caller: api_2fa_confirm
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 57 }
+        - { file: src/app/api/2fa/setup/confirm/route.ts, line: 80 }
+    summary:
+      status: interpretation
+      value: "two_factor_otp_used で使ったコードを 90 秒覚える。isOtpReplayed は記録を読み、期限切れなら消して未使用とする。markOtpUsed は設定確定のトランザクションの中で記録を upsert する"
+      evidence:
+        - { file: src/lib/two-factor/replay-prevention.ts, line: 9 }
+        - { file: src/lib/two-factor/replay-prevention.ts, line: 10 }
+        - { file: src/lib/two-factor/replay-prevention.ts, line: 19 }
+        - { file: src/lib/two-factor/replay-prevention.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_otp_used } }
+        detail: "prisma.client.twoFactorOtpUsed.findUnique (where userId_otp)"
+        evidence:
+          - { file: src/lib/two-factor/replay-prevention.ts, line: 19 }
+          - { file: prisma/schema.prisma, line: 515 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_otp_used } }
+        detail: "prisma.client.twoFactorOtpUsed.delete (期限切れの記録)"
+        evidence:
+          - { file: src/lib/two-factor/replay-prevention.ts, line: 24 }
+        note: "期限切れの記録があったときだけ"
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_otp_used } }
+        detail: "client.twoFactorOtpUsed.upsert の create (userId, otp, expiresAt)"
+        evidence:
+          - { file: src/lib/two-factor/replay-prevention.ts, line: 10 }
+          - { file: src/lib/two-factor/replay-prevention.ts, line: 13 }
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_otp_used } }
+        detail: "client.twoFactorOtpUsed.upsert の update (expiresAt)"
+        evidence:
+          - { file: src/lib/two-factor/replay-prevention.ts, line: 10 }
+          - { file: src/lib/two-factor/replay-prevention.ts, line: 12 }
+
+  - id: ext_prisma_replay_2fa_confirm
+    layer: external
+    kind: library
+    name: "Prisma Client twoFactorOtpUsed (findUnique / delete / upsert)"
+    source: { file: src/lib/two-factor/replay-prevention.ts, line: 19 }
+    caller: q_replay_2fa_confirm
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/two-factor/replay-prevention.ts, line: 19 }
+        - { file: src/lib/two-factor/replay-prevention.ts, line: 24 }
+        - { file: src/lib/two-factor/replay-prevention.ts, line: 10 }
+      note: "実行の順で最初に呼ぶ行 (isOtpReplayed の findUnique) を source にし、残りの行は evidence に入れた"
+
+  # ---- 更新のお知らせ
+  - id: update_notice
+    layer: component
+    kind: component
+    name: "UpdateNotice"
+    source: { file: "src/app/(main)/UpdateNotice.tsx", line: 9 }
+    caller: app_shell
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 18 }
+        - { file: "src/app/(main)/App.tsx", line: 85 }
+    summary:
+      status: interpretation
+      value: "本番で、管理者で、更新確認とプライベートモードが無効でなく、URL が /share/ を含まず、クラウドモードでなく、まだ閉じていなければ、checkVersion でブラウザから最新版を問い合わせ、新しい版があればお知らせを出す。確認済みの版は localStorage に記録する (I/O には書かない)"
+      evidence:
+        - { file: "src/app/(main)/UpdateNotice.tsx", line: 15 }
+        - { file: "src/app/(main)/UpdateNotice.tsx", line: 25 }
+        - { file: "src/app/(main)/UpdateNotice.tsx", line: 41 }
+        - { file: src/store/version.ts, line: 17 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: api.umami.is, path: /v1/updates } }
+        detail: "fetch(`${UPDATES_URL}?v=${current}`) を GET。UPDATES_URL は https://api.umami.is/v1/updates"
+        evidence:
+          - { file: src/store/version.ts, line: 20 }
+          - { file: src/lib/constants.ts, line: 19 }
+        note: "NODE_ENV が production、ユーザーが管理者、DISABLE_UPDATES と PRIVATE_MODE が無く、クラウドモードでないときだけ"
+
+  - id: ext_fetch_updates
+    layer: external
+    kind: library
+    name: "fetch (ブラウザ)"
+    source: { file: src/store/version.ts, line: 20 }
+    caller: update_notice
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/UpdateNotice.tsx", line: 41 }
+        - { file: src/store/version.ts, line: 20 }
+
+  # ---- 利用状況の送信 (テレメトリ)
+  - id: api_telemetry
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/scripts/telemetry (/telemetry.js)"
+    source: { file: src/app/api/scripts/telemetry/route.ts, line: 3 }
+    caller: app_shell
+    call:
+      status: interpretation
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 87 }
+        - { file: next.config.ts, line: 249 }
+        - { file: next.config.ts, line: 250 }
+      note: "App が本番で、URL に /share/ を含まないとき <Script src=/telemetry.js> を読み込み、next.config の rewrites が /api/scripts/telemetry へ回す"
+    summary:
+      status: interpretation
+      value: "本番で DISABLE_TELEMETRY と PRIVATE_MODE が無ければ、i.umami.is/a.png?v=<版> の画像を body に足すスクリプトを返す。無効なら何もしないスクリプトを返す。データは読まない"
+      evidence:
+        - { file: src/app/api/scripts/telemetry/route.ts, line: 5 }
+        - { file: src/app/api/scripts/telemetry/route.ts, line: 9 }
+        - { file: src/app/api/scripts/telemetry/route.ts, line: 18 }
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: i.umami.is, path: /a.png } }
+        detail: "返したスクリプトがブラウザに img 要素を足し、src=TELEMETRY_PIXEL?v=CURRENT_VERSION を GET させる。TELEMETRY_PIXEL は https://i.umami.is/a.png"
+        evidence:
+          - { file: src/app/api/scripts/telemetry/route.ts, line: 18 }
+          - { file: src/lib/constants.ts, line: 20 }
+        note: "呼ぶのはサーバーではなく、スクリプトを実行したブラウザ。NODE_ENV が production で、DISABLE_TELEMETRY と PRIVATE_MODE が無いときだけ"
+
+  # ---------------------------------------------------------------- 上部のナビ (URL の id で選択欄を出し分ける)
+  - id: top_nav
+    layer: component
+    kind: component
+    name: "TopNav"
+    source: { file: "src/app/(main)/TopNav.tsx", line: 11 }
+    caller: app_shell
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/App.tsx", line: 7 }
+        - { file: "src/app/(main)/App.tsx", line: 75 }
+    summary:
+      status: interpretation
+      value: "useNavigation で URL から teamId / websiteId / linkId / pixelId / boardId を取り出す。いつも TeamsButton (ログインで得た user.teams を並べ、チームの画面へ移るだけでデータを新たに読まない) を描き、id があればその種類の選択欄 (WebsiteSelect / LinkSelect / PixelSelect / BoardSelect) を描く。選ぶと /websites/<id> などへ移る。正規表現は末尾を固定しないので、/boards/create では boardId が c になる"
+      evidence:
+        - { file: "src/app/(main)/TopNav.tsx", line: 12 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 19 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 52 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 53 }
+        - { file: src/components/hooks/useNavigation.ts, line: 9 }
+        - { file: src/components/hooks/useNavigation.ts, line: 10 }
+        - { file: src/components/hooks/useNavigation.ts, line: 13 }
+        - { file: src/components/input/TeamsButton.tsx, line: 21 }
+        - { file: src/components/input/TeamsButton.tsx, line: 80 }
+
+  # ---- サイトの選択欄 (URL に /websites/<id> があるときだけ)
+  - id: website_select
+    layer: component
+    kind: component
+    name: "WebsiteSelect"
+    source: { file: src/components/input/WebsiteSelect.tsx, line: 12 }
+    caller: top_nav
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/TopNav.tsx", line: 9 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 58 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 59 }
+      note: "URL に /websites/<id> があるときだけ"
+    summary:
+      status: interpretation
+      value: "useWebsiteQuery で今のサイトの名前を読み、useUserWebsitesQuery でサイトの一覧 (検索語、100 件) を読んで選択欄にする。includeTeams は渡さない"
+      evidence:
+        - { file: src/components/input/WebsiteSelect.tsx, line: 28 }
+        - { file: src/components/input/WebsiteSelect.tsx, line: 32 }
+        - { file: src/components/input/WebsiteSelect.tsx, line: 34 }
+
+  - id: use_website_query
+    layer: component
+    kind: hook
+    name: "useWebsiteQuery"
+    source: { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 6 }
+    caller: website_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/WebsiteSelect.tsx, line: 28 }
+    summary:
+      status: interpretation
+      value: "websiteId があるとき GET /websites/<websiteId> を呼ぶ。queryKey に website:<id> の更新印を入れる"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 13 }
+
+  - id: api_website_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/websites/[websiteId]"
+    source: { file: "src/app/api/websites/[websiteId]/route.ts", line: 18 }
+    caller: use_website_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 12 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/websites/<websiteId>"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewSharedWebsite で見てよいかを確かめ (だめなら 401)、getWebsite でサイトを読む"
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 22 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 30 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 34 }
+
+  - id: q_can_view_shared_website
+    layer: query
+    kind: function
+    name: "canViewSharedWebsite (src/permissions/share.ts)"
+    source: { file: src/permissions/share.ts, line: 80 }
+    caller: api_website_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 30 }
+    summary:
+      status: interpretation
+      value: "ログインしたユーザーがいれば canViewWebsite に任せる (この枠ではいつもこちら)"
+      evidence:
+        - { file: src/permissions/share.ts, line: 81 }
+        - { file: src/permissions/share.ts, line: 82 }
+
+  - id: q_can_view_website
+    layer: query
+    kind: function
+    name: "canViewWebsite (src/permissions/website.ts)"
+    source: { file: src/permissions/website.ts, line: 8 }
+    caller: q_can_view_shared_website
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/share.ts, line: 82 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getEntity で id に当たるもの (website / link / pixel / board のどれか) を読み、作成者が本人なら許す。チームのものなら getTeamUser でメンバーかを確かめる。getTeamUser の経路はフレーム q_get_team_user と同じ"
+      evidence:
+        - { file: src/permissions/website.ts, line: 9 }
+        - { file: src/permissions/website.ts, line: 24 }
+        - { file: src/permissions/website.ts, line: 30 }
+        - { file: src/permissions/website.ts, line: 35 }
+
+  - id: q_get_entity
+    layer: query
+    kind: function
+    name: "getEntity (src/lib/entity.ts)"
+    source: { file: src/lib/entity.ts, line: 4 }
+    caller: q_can_view_website
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/website.ts, line: 24 }
+    summary:
+      status: interpretation
+      value: "同じ id で getWebsite / getLink / getPixel / getBoard を並べて呼び、最初に見つかったものを返す。getLink / getPixel / getBoard の経路はフレーム q_get_link / q_get_pixel / q_get_board、getWebsite の全体の経路はフレーム q_get_website と同じ。終端にならないよう、最も早い呼び出し (getWebsite) だけを下に書き直した"
+      evidence:
+        - { file: src/lib/entity.ts, line: 5 }
+        - { file: src/lib/entity.ts, line: 6 }
+        - { file: src/lib/entity.ts, line: 7 }
+        - { file: src/lib/entity.ts, line: 8 }
+        - { file: src/lib/entity.ts, line: 9 }
+        - { file: src/lib/entity.ts, line: 12 }
+
+  - id: q_get_website_rw
+    layer: query
+    kind: function
+    name: "getWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 80 }
+    caller: q_get_entity
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/entity.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう書き直したもの。id が uuid なら website を 1 件読み、最新の share の slug を付ける。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_website"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 81 }
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 95 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 77 }
+          - { file: prisma/schema.prisma, line: 130 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 304 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "website が見つかったときだけ"
+
+  - id: q_get_website
+    layer: query
+    kind: function
+    name: "getWebsite / findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 80 }
+    caller: api_website_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 34 }
+    summary:
+      status: interpretation
+      value: "id が uuid でなければ null。website を id で 1 件読み (deletedAt の条件は付けない)、見つかればその website の最新の share の slug を shareId として付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 81 }
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 95 }
+        - { file: src/queries/prisma/website.ts, line: 303 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 77 }
+          - { file: prisma/schema.prisma, line: 130 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 304 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "website が見つかったときだけ"
+
+  - id: ext_prisma_get_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.findUnique / share.findFirst"
+    source: { file: src/queries/prisma/website.ts, line: 77 }
+    caller: q_get_website
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 77 }
+        - { file: src/queries/prisma/website.ts, line: 304 }
+
+  - id: use_user_websites_query
+    layer: component
+    kind: hook
+    name: "useUserWebsitesQuery"
+    source: { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 6 }
+    caller: website_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/WebsiteSelect.tsx, line: 32 }
+    summary:
+      status: interpretation
+      value: "teamId があれば GET /teams/<teamId>/websites、無ければ GET /users/<userId>/websites を呼ぶ (userId は常にあるので /me/websites には届かない)。usePagedQuery が URL の page / search / orderBy / sortDescending を引数に足し、WebsiteSelect の search と pageSize 100 で上書きする"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 18 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 21 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+        - { file: "src/app/(main)/App.tsx", line: 54 }
+
+  - id: api_team_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/websites"
+    source: { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 8 }
+    caller: use_user_websites_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 19 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> があるときだけこちら"
+    summary:
+      status: interpretation
+      value: "page / pageSize / maxResults / search / orderBy / sortDescending をスキーマで検査して認証し (parseRequest の経路はフレーム q_parse_request と同じ)、canViewTeam で見てよいかを確かめ (経路はフレーム q_can_view_team と同じ)、getQueryFilters (websiteId を渡さないので DB を読まない) で条件を作り、チームのサイトの一覧を返す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 9 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 15 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 21 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 25 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 27 }
+        - { file: src/lib/request.ts, line: 129 }
+
+  - id: q_get_team_websites
+    layer: query
+    kind: function
+    name: "getTeamWebsites → getWebsites / attachShareIdToWebsites (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 168 }
+    caller: api_team_websites_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 27 }
+    summary:
+      status: interpretation
+      value: "teamId のサイトを、作成者 (createUser の id / username) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させてページ単位で読む (pagedQuery で件数も数える)。見つかったサイトの share の slug を付ける。ライブラリの呼び出しはフレーム ext_prisma_paged_website と同じ"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 172 }
+        - { file: src/queries/prisma/website.ts, line: 175 }
+        - { file: src/queries/prisma/website.ts, line: 108 }
+        - { file: src/queries/prisma/website.ts, line: 114 }
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/queries/prisma/website.ts, line: 119 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.pagedQuery('website', …) の findMany と count (where teamId, deletedAt null, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 117 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 130 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { createUser: { select id, username } }"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 175 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "Website.createUser (User) のリレーションの読み込み。テーブル名はコードに直接は出ない"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findMany (entityId in サイトの id, distinct entityId)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 334 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "サイトが 1 件以上あるときだけ"
+
+  - id: api_user_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/users/[userId]/websites"
+    source: { file: "src/app/api/users/[userId]/websites/route.ts", line: 7 }
+    caller: use_user_websites_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 21 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> が無いときはこちら (userId はログインしたユーザー)"
+    summary:
+      status: interpretation
+      value: "スキーマで検査して認証し (経路はフレーム q_parse_request と同じ)、管理者でも本人でもなければ 401 (DB は読まない)。includeTeams が無いので getUserWebsites で本人のサイトの一覧を返す"
+      evidence:
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 8 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 15 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 29 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+
+  - id: q_get_user_websites
+    layer: query
+    kind: function
+    name: "getUserWebsites → getWebsites / attachShareIdToWebsites (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 149 }
+    caller: api_user_websites_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+    summary:
+      status: interpretation
+      value: "userId のサイトを、持ち主 (user の username / id) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させて、既定では name の順にページ単位で読む (pagedQuery で件数も数える)。見つかったサイトの share の slug を付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 153 }
+        - { file: src/queries/prisma/website.ts, line: 156 }
+        - { file: src/queries/prisma/website.ts, line: 164 }
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/queries/prisma/website.ts, line: 119 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.pagedQuery('website', …) の findMany と count (where userId, deletedAt null, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 117 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 130 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { user: { select username, id } }"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 156 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "Website.user (User) のリレーションの読み込み。テーブル名はコードに直接は出ない"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findMany (entityId in サイトの id, distinct entityId)"
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 334 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "サイトが 1 件以上あるときだけ"
+
+  - id: ext_prisma_paged_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.findMany / count (pagedQuery) と share.findMany"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_user_websites
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+      note: "pagedQuery は引数のモデル名 (ここでは website) で client[model] を呼ぶ。同じテーブルに届くチームの一覧 (q_get_team_websites) の下には書かない"
+
+  # ---- リンクの選択欄 (URL に /links/<id> があるときだけ)
+  - id: link_select
+    layer: component
+    kind: component
+    name: "LinkSelect"
+    source: { file: src/components/input/LinkSelect.tsx, line: 7 }
+    caller: top_nav
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/TopNav.tsx", line: 6 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 68 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 69 }
+      note: "URL に /links/<id> があるときだけ"
+    summary:
+      status: interpretation
+      value: "useLinkQuery で今のリンクの名前を読み、useLinksQuery でリンクの一覧 (検索語、20 件) を読んで選択欄にする"
+      evidence:
+        - { file: src/components/input/LinkSelect.tsx, line: 21 }
+        - { file: src/components/input/LinkSelect.tsx, line: 24 }
+
+  - id: use_link_query
+    layer: component
+    kind: hook
+    name: "useLinkQuery"
+    source: { file: src/components/hooks/queries/useLinkQuery.ts, line: 4 }
+    caller: link_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/LinkSelect.tsx, line: 21 }
+    summary:
+      status: interpretation
+      value: "linkId があるとき GET /links/<linkId> を呼ぶ"
+      evidence:
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 13 }
+
+  - id: api_link_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/links/[linkId]"
+    source: { file: "src/app/api/links/[linkId]/route.ts", line: 7 }
+    caller: use_link_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 11 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/links/<linkId>"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewLink で見てよいかを確かめ (だめなら 401)、getLink でリンクを読んで返す"
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 8 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 16 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 20 }
+
+  - id: q_can_view_link
+    layer: query
+    kind: function
+    name: "canViewLink (src/permissions/link.ts)"
+    source: { file: src/permissions/link.ts, line: 6 }
+    caller: api_link_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 16 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getLink でリンクを読み、作成者が本人なら許す。チームのリンクなら getTeamUser でメンバーかを確かめる (経路はフレーム q_get_team_user と同じ)。getLink の全体の経路はフレーム q_get_link。終端にならないよう getLink を下に書き直した"
+      evidence:
+        - { file: src/permissions/link.ts, line: 7 }
+        - { file: src/permissions/link.ts, line: 23 }
+        - { file: src/permissions/link.ts, line: 29 }
+        - { file: src/permissions/link.ts, line: 34 }
+
+  - id: q_get_link_rw
+    layer: query
+    kind: function
+    name: "getLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 12 }
+    caller: q_can_view_link
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/link.ts, line: 23 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう書き直したもの。id で link を 1 件読む。全体の経路はフレーム q_get_link"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 9 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  - id: q_get_link
+    layer: query
+    kind: function
+    name: "getLink / findLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 12 }
+    caller: api_link_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 20 }
+    summary:
+      status: interpretation
+      value: "id で link を 1 件読む (deletedAt の条件は付けない)"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 9 }
+        - { file: src/queries/prisma/link.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 9 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  - id: ext_prisma_get_link
+    layer: external
+    kind: library
+    name: "Prisma Client link.findUnique"
+    source: { file: src/queries/prisma/link.ts, line: 9 }
+    caller: q_get_link
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 9 }
+
+  - id: use_links_query
+    layer: component
+    kind: hook
+    name: "useLinksQuery"
+    source: { file: src/components/hooks/queries/useLinksQuery.ts, line: 6 }
+    caller: link_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/LinkSelect.tsx, line: 24 }
+    summary:
+      status: interpretation
+      value: "teamId があれば GET /teams/<teamId>/links、無ければ GET /links を呼ぶ。usePagedQuery が URL の page などを引数に足し、LinkSelect の search と pageSize 20 で上書きする"
+      evidence:
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+
+  - id: api_links_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/links"
+    source: { file: src/app/api/links/route.ts, line: 9 }
+    caller: use_links_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> が無いときはこちら"
+    summary:
+      status: interpretation
+      value: "スキーマで検査して認証し (経路はフレーム q_parse_request と同じ)、権限の検査は無く、getQueryFilters (DB は読まない) で条件を作って本人のリンクの一覧を返す"
+      evidence:
+        - { file: src/app/api/links/route.ts, line: 10 }
+        - { file: src/app/api/links/route.ts, line: 16 }
+        - { file: src/app/api/links/route.ts, line: 22 }
+        - { file: src/app/api/links/route.ts, line: 24 }
+
+  - id: q_get_user_links
+    layer: query
+    kind: function
+    name: "getUserLinks → getLinks (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 40 }
+    caller: api_links_get
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/links/route.ts, line: 24 }
+    summary:
+      status: interpretation
+      value: "userId の、削除されていないリンクを、検索語を name / url / slug に部分一致させてページ単位で読む (pagedQuery で件数も数える)"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 44 }
+        - { file: src/queries/prisma/link.ts, line: 45 }
+        - { file: src/queries/prisma/link.ts, line: 30 }
+        - { file: src/queries/prisma/link.ts, line: 37 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.pagedQuery('link', …) の findMany と count (where userId, deletedAt null, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 37 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  - id: ext_prisma_paged_link
+    layer: external
+    kind: library
+    name: "Prisma Client link.findMany / count (pagedQuery)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_user_links
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "pagedQuery は引数のモデル名 (ここでは link) で client[model] を呼ぶ。同じテーブルに届くチームの一覧 (q_get_team_links) の下には書かない"
+
+  - id: api_team_links_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/links"
+    source: { file: "src/app/api/teams/[teamId]/links/route.ts", line: 8 }
+    caller: use_links_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> があるときだけこちら"
+    summary:
+      status: interpretation
+      value: "スキーマで検査して認証し (経路はフレーム q_parse_request と同じ)、canViewTeam で見てよいかを確かめ (経路はフレーム q_can_view_team と同じ)、チームのリンクの一覧を返す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 15 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 21 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 27 }
+
+  - id: q_get_team_links
+    layer: query
+    kind: function
+    name: "getTeamLinks → getLinks (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 52 }
+    caller: api_team_links_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 27 }
+    summary:
+      status: interpretation
+      value: "teamId のリンクを (deletedAt の条件は付けずに)、検索語を name / url / slug に部分一致させてページ単位で読む。ライブラリの呼び出しはフレーム ext_prisma_paged_link と同じ"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 56 }
+        - { file: src/queries/prisma/link.ts, line: 37 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.pagedQuery('link', …) の findMany と count (where teamId, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 37 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  # ---- ピクセルの選択欄 (URL に /pixels/<id> があるときだけ)
+  - id: pixel_select
+    layer: component
+    kind: component
+    name: "PixelSelect"
+    source: { file: src/components/input/PixelSelect.tsx, line: 7 }
+    caller: top_nav
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/TopNav.tsx", line: 7 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 80 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 81 }
+      note: "URL に /pixels/<id> があるときだけ"
+    summary:
+      status: interpretation
+      value: "usePixelQuery で今のピクセルの名前を読み、usePixelsQuery でピクセルの一覧 (検索語、20 件) を読んで選択欄にする"
+      evidence:
+        - { file: src/components/input/PixelSelect.tsx, line: 21 }
+        - { file: src/components/input/PixelSelect.tsx, line: 24 }
+
+  - id: use_pixel_query
+    layer: component
+    kind: hook
+    name: "usePixelQuery"
+    source: { file: src/components/hooks/queries/usePixelQuery.ts, line: 4 }
+    caller: pixel_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/PixelSelect.tsx, line: 21 }
+    summary:
+      status: interpretation
+      value: "pixelId があるとき GET /pixels/<pixelId> を呼ぶ"
+      evidence:
+        - { file: src/components/hooks/queries/usePixelQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/usePixelQuery.ts, line: 13 }
+
+  - id: api_pixel_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/pixels/[pixelId]"
+    source: { file: "src/app/api/pixels/[pixelId]/route.ts", line: 7 }
+    caller: use_pixel_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/usePixelQuery.ts, line: 11 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/pixels/<pixelId>"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewPixel で見てよいかを確かめ (だめなら 401)、getPixel でピクセルを読んで返す"
+      evidence:
+        - { file: "src/app/api/pixels/[pixelId]/route.ts", line: 8 }
+        - { file: "src/app/api/pixels/[pixelId]/route.ts", line: 16 }
+        - { file: "src/app/api/pixels/[pixelId]/route.ts", line: 20 }
+
+  - id: q_can_view_pixel
+    layer: query
+    kind: function
+    name: "canViewPixel (src/permissions/pixel.ts)"
+    source: { file: src/permissions/pixel.ts, line: 6 }
+    caller: api_pixel_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/pixels/[pixelId]/route.ts", line: 16 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getPixel でピクセルを読み、作成者が本人なら許す。チームのピクセルなら getTeamUser でメンバーかを確かめる (経路はフレーム q_get_team_user と同じ)。getPixel の全体の経路はフレーム q_get_pixel。終端にならないよう getPixel を下に書き直した"
+      evidence:
+        - { file: src/permissions/pixel.ts, line: 7 }
+        - { file: src/permissions/pixel.ts, line: 23 }
+        - { file: src/permissions/pixel.ts, line: 29 }
+        - { file: src/permissions/pixel.ts, line: 34 }
+
+  - id: q_get_pixel_rw
+    layer: query
+    kind: function
+    name: "getPixel (src/queries/prisma/pixel.ts)"
+    source: { file: src/queries/prisma/pixel.ts, line: 12 }
+    caller: q_can_view_pixel
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/pixel.ts, line: 23 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう書き直したもの。id で pixel を 1 件読む。全体の経路はフレーム q_get_pixel"
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "prisma.client.pixel.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/pixel.ts, line: 9 }
+          - { file: prisma/schema.prisma, line: 378 }
+
+  - id: q_get_pixel
+    layer: query
+    kind: function
+    name: "getPixel / findPixel (src/queries/prisma/pixel.ts)"
+    source: { file: src/queries/prisma/pixel.ts, line: 12 }
+    caller: api_pixel_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/pixels/[pixelId]/route.ts", line: 20 }
+    summary:
+      status: interpretation
+      value: "id で pixel を 1 件読む (deletedAt の条件は付けない)"
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 9 }
+        - { file: src/queries/prisma/pixel.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "prisma.client.pixel.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/pixel.ts, line: 9 }
+          - { file: prisma/schema.prisma, line: 378 }
+
+  - id: ext_prisma_get_pixel
+    layer: external
+    kind: library
+    name: "Prisma Client pixel.findUnique"
+    source: { file: src/queries/prisma/pixel.ts, line: 9 }
+    caller: q_get_pixel
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 9 }
+
+  - id: use_pixels_query
+    layer: component
+    kind: hook
+    name: "usePixelsQuery"
+    source: { file: src/components/hooks/queries/usePixelsQuery.ts, line: 6 }
+    caller: pixel_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/PixelSelect.tsx, line: 24 }
+    summary:
+      status: interpretation
+      value: "teamId があれば GET /teams/<teamId>/pixels、無ければ GET /pixels を呼ぶ。usePagedQuery が URL の page などを引数に足し、PixelSelect の search と pageSize 20 で上書きする"
+      evidence:
+        - { file: src/components/hooks/queries/usePixelsQuery.ts, line: 17 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+
+  - id: api_pixels_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/pixels"
+    source: { file: src/app/api/pixels/route.ts, line: 9 }
+    caller: use_pixels_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/usePixelsQuery.ts, line: 17 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> が無いときはこちら"
+    summary:
+      status: interpretation
+      value: "スキーマで検査して認証し (経路はフレーム q_parse_request と同じ)、権限の検査は無く、getQueryFilters (DB は読まない) で条件を作って本人のピクセルの一覧を返す"
+      evidence:
+        - { file: src/app/api/pixels/route.ts, line: 16 }
+        - { file: src/app/api/pixels/route.ts, line: 22 }
+        - { file: src/app/api/pixels/route.ts, line: 24 }
+
+  - id: q_get_user_pixels
+    layer: query
+    kind: function
+    name: "getUserPixels → getPixels (src/queries/prisma/pixel.ts)"
+    source: { file: src/queries/prisma/pixel.ts, line: 35 }
+    caller: api_pixels_get
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/pixels/route.ts, line: 24 }
+    summary:
+      status: interpretation
+      value: "userId のピクセルを (deletedAt の条件は付けずに)、検索語を name / slug に部分一致させてページ単位で読む (pagedQuery で件数も数える)"
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 39 }
+        - { file: src/queries/prisma/pixel.ts, line: 29 }
+        - { file: src/queries/prisma/pixel.ts, line: 32 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "prisma.pagedQuery('pixel', …) の findMany と count (where userId, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/pixel.ts, line: 32 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 378 }
+
+  - id: ext_prisma_paged_pixel
+    layer: external
+    kind: library
+    name: "Prisma Client pixel.findMany / count (pagedQuery)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_user_pixels
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "pagedQuery は引数のモデル名 (ここでは pixel) で client[model] を呼ぶ。同じテーブルに届くチームの一覧 (q_get_team_pixels) の下には書かない"
+
+  - id: api_team_pixels_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/pixels"
+    source: { file: "src/app/api/teams/[teamId]/pixels/route.ts", line: 8 }
+    caller: use_pixels_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/usePixelsQuery.ts, line: 17 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> があるときだけこちら"
+    summary:
+      status: interpretation
+      value: "スキーマで検査して認証し (経路はフレーム q_parse_request と同じ)、canViewTeam で見てよいかを確かめ (経路はフレーム q_can_view_team と同じ)、チームのピクセルの一覧を返す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/pixels/route.ts", line: 15 }
+        - { file: "src/app/api/teams/[teamId]/pixels/route.ts", line: 21 }
+        - { file: "src/app/api/teams/[teamId]/pixels/route.ts", line: 27 }
+
+  - id: q_get_team_pixels
+    layer: query
+    kind: function
+    name: "getTeamPixels → getPixels (src/queries/prisma/pixel.ts)"
+    source: { file: src/queries/prisma/pixel.ts, line: 46 }
+    caller: api_team_pixels_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/pixels/route.ts", line: 27 }
+    summary:
+      status: interpretation
+      value: "teamId のピクセルを、検索語を name / slug に部分一致させてページ単位で読む。ライブラリの呼び出しはフレーム ext_prisma_paged_pixel と同じ"
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 50 }
+        - { file: src/queries/prisma/pixel.ts, line: 32 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "prisma.pagedQuery('pixel', …) の findMany と count (where teamId, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/pixel.ts, line: 32 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 378 }
+
+  # ---- ボードの選択欄 (URL に /boards/<id> があるときだけ。/boards/create でも id が c になって出る)
+  - id: board_select
+    layer: component
+    kind: component
+    name: "BoardSelect"
+    source: { file: src/components/input/BoardSelect.tsx, line: 7 }
+    caller: top_nav
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/(main)/TopNav.tsx", line: 5 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 92 }
+        - { file: "src/app/(main)/TopNav.tsx", line: 93 }
+      note: "URL に /boards/<id> があるときだけ。useNavigation の正規表現 /\\/boards\\/([a-f0-9-]+)/ は末尾を固定しないので、/boards/create では boardId が c になって描かれる"
+    summary:
+      status: interpretation
+      value: "useBoardQuery で今のボードの名前を読み、useBoardsQuery でボードの一覧 (検索語、20 件) を読んで選択欄にする"
+      evidence:
+        - { file: src/components/input/BoardSelect.tsx, line: 21 }
+        - { file: src/components/input/BoardSelect.tsx, line: 24 }
+        - { file: src/components/hooks/useNavigation.ts, line: 13 }
+
+  - id: use_board_query
+    layer: component
+    kind: hook
+    name: "useBoardQuery"
+    source: { file: src/components/hooks/queries/useBoardQuery.ts, line: 6 }
+    caller: board_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/BoardSelect.tsx, line: 21 }
+    summary:
+      status: interpretation
+      value: "boardId があり、create でないとき GET /boards/<boardId> を呼ぶ。この枠から渡る boardId は正規表現で 16 進の文字だけになるので、/boards/create では c が渡り、create の判定には当たらず呼ぶ"
+      evidence:
+        - { file: src/components/hooks/queries/useBoardQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useBoardQuery.ts, line: 13 }
+        - { file: src/components/hooks/useNavigation.ts, line: 13 }
+
+  - id: api_board_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/boards/[boardId]"
+    source: { file: "src/app/api/boards/[boardId]/route.ts", line: 15 }
+    caller: use_board_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useBoardQuery.ts, line: 12 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (環境変数 apiUrl 無し) では basePath + /api/boards/<boardId>"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewBoard で見てよいかを確かめ (だめなら 401)、getBoard でボードを読んで返す"
+      evidence:
+        - { file: "src/app/api/boards/[boardId]/route.ts", line: 16 }
+        - { file: "src/app/api/boards/[boardId]/route.ts", line: 24 }
+        - { file: "src/app/api/boards/[boardId]/route.ts", line: 28 }
+
+  - id: q_can_view_board
+    layer: query
+    kind: function
+    name: "canViewBoard (src/permissions/board.ts)"
+    source: { file: src/permissions/board.ts, line: 154 }
+    caller: api_board_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/boards/[boardId]/route.ts", line: 24 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getBoard でボードを読み (経路はフレーム q_get_board と同じ)、作成者が本人なら許す。チームのボードなら getTeamUser でメンバーかを確かめる"
+      evidence:
+        - { file: src/permissions/board.ts, line: 155 }
+        - { file: src/permissions/board.ts, line: 167 }
+        - { file: src/permissions/board.ts, line: 173 }
+        - { file: src/permissions/board.ts, line: 178 }
+
+  # getTeamUser は、呼び出し行の順 (src/permissions/board.ts が link / pixel / team / website より先) でここに 1 回だけ書く
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_board
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/board.ts, line: 178 }
+      note: "チームのボードで、管理者でも作成者でもないときだけ"
+    summary:
+      status: interpretation
+      value: "teamId と userId で、削除されていないチームの team_user を 1 件読む。canViewLink / canViewPixel / canViewTeam / canViewWebsite も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+
+  - id: q_get_board
+    layer: query
+    kind: function
+    name: "getBoard / findBoard (src/queries/prisma/board.ts)"
+    source: { file: src/queries/prisma/board.ts, line: 13 }
+    caller: api_board_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/boards/[boardId]/route.ts", line: 28 }
+    summary:
+      status: interpretation
+      value: "id で board を 1 件読む (関連のテーブルは読まない)。canViewBoard と getEntity も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 10 }
+        - { file: src/queries/prisma/board.ts, line: 14 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "prisma.client.board.findUnique (where id)"
+        evidence:
+          - { file: src/queries/prisma/board.ts, line: 10 }
+          - { file: prisma/schema.prisma, line: 398 }
+
+  - id: ext_prisma_get_board
+    layer: external
+    kind: library
+    name: "Prisma Client board.findUnique"
+    source: { file: src/queries/prisma/board.ts, line: 10 }
+    caller: q_get_board
+    call:
+      status: fact
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 10 }
+
+  - id: use_boards_query
+    layer: component
+    kind: hook
+    name: "useBoardsQuery"
+    source: { file: src/components/hooks/queries/useBoardsQuery.ts, line: 6 }
+    caller: board_select
+    call:
+      status: fact
+      evidence:
+        - { file: src/components/input/BoardSelect.tsx, line: 24 }
+    summary:
+      status: interpretation
+      value: "teamId があれば GET /teams/<teamId>/boards、無ければ GET /boards を呼ぶ。usePagedQuery が URL の page などを引数に足し、BoardSelect の search と pageSize 20 で上書きする"
+      evidence:
+        - { file: src/components/hooks/queries/useBoardsQuery.ts, line: 17 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+
+  - id: api_boards_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/boards"
+    source: { file: src/app/api/boards/route.ts, line: 15 }
+    caller: use_boards_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useBoardsQuery.ts, line: 17 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> が無いときはこちら"
+    summary:
+      status: interpretation
+      value: "スキーマで検査して認証し (経路はフレーム q_parse_request と同じ)、権限の検査は無く、getQueryFilters (DB は読まない) で条件を作って本人のボードの一覧を返す"
+      evidence:
+        - { file: src/app/api/boards/route.ts, line: 22 }
+        - { file: src/app/api/boards/route.ts, line: 28 }
+        - { file: src/app/api/boards/route.ts, line: 30 }
+
+  - id: q_get_user_boards
+    layer: query
+    kind: function
+    name: "getUserBoards → getBoards (src/queries/prisma/board.ts)"
+    source: { file: src/queries/prisma/board.ts, line: 37 }
+    caller: api_boards_get
+    call:
+      status: fact
+      evidence:
+        - { file: src/app/api/boards/route.ts, line: 30 }
+    summary:
+      status: interpretation
+      value: "userId の、種類がダッシュボードでないボードを、検索語を name / description に部分一致させてページ単位で読む (pagedQuery で件数も数える)"
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 41 }
+        - { file: src/queries/prisma/board.ts, line: 43 }
+        - { file: src/queries/prisma/board.ts, line: 31 }
+        - { file: src/queries/prisma/board.ts, line: 34 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "prisma.pagedQuery('board', …) の findMany と count (where userId, type not dashboard, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/board.ts, line: 34 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 398 }
+
+  - id: ext_prisma_paged_board
+    layer: external
+    kind: library
+    name: "Prisma Client board.findMany / count (pagedQuery)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_user_boards
+    call:
+      status: fact
+      evidence:
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "pagedQuery は引数のモデル名 (ここでは board) で client[model] を呼ぶ。同じテーブルに届くチームの一覧 (q_get_team_boards) の下には書かない"
+
+  - id: api_team_boards_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/boards"
+    source: { file: "src/app/api/teams/[teamId]/boards/route.ts", line: 8 }
+    caller: use_boards_query
+    call:
+      status: interpretation
+      evidence:
+        - { file: src/components/hooks/queries/useBoardsQuery.ts, line: 17 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "teamId の有無で切り替わる。URL に /teams/<id> があるときだけこちら"
+    summary:
+      status: interpretation
+      value: "スキーマで検査して認証し (経路はフレーム q_parse_request と同じ)、canViewTeam で見てよいかを確かめ、チームのボードの一覧を返す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/boards/route.ts", line: 15 }
+        - { file: "src/app/api/teams/[teamId]/boards/route.ts", line: 21 }
+        - { file: "src/app/api/teams/[teamId]/boards/route.ts", line: 27 }
+
+  # canViewTeam は、呼び出し行の順 (teams/[teamId]/boards/route.ts が links / pixels / route.ts / websites より先) でここに 1 回だけ書く
+  - id: q_can_view_team
+    layer: query
+    kind: function
+    name: "canViewTeam (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 6 }
+    caller: api_team_boards_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/boards/route.ts", line: 21 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。そうでなければ getTeamUser でそのチームのメンバーかを確かめる。GET /api/teams/[teamId]、teams/[teamId]/websites、links、pixels も同じ関数を呼ぶ。getTeamUser の全体の経路はフレーム q_get_team_user。終端にならないよう下に書き直した"
+      evidence:
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+
+  - id: q_get_team_user_rw
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_team
+    call:
+      status: fact
+      evidence:
+        - { file: src/permissions/team.ts, line: 15 }
+      note: "管理者でないときだけ"
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう書き直したもの。teamId と userId で、削除されていないチームの team_user を 1 件読む。全体の経路はフレーム q_get_team_user"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: q_get_team_boards
+    layer: query
+    kind: function
+    name: "getTeamBoards → getBoards (src/queries/prisma/board.ts)"
+    source: { file: src/queries/prisma/board.ts, line: 51 }
+    caller: api_team_boards_get
+    call:
+      status: fact
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/boards/route.ts", line: 27 }
+    summary:
+      status: interpretation
+      value: "teamId の、種類がダッシュボードでないボードを、検索語を name / description に部分一致させてページ単位で読む。ライブラリの呼び出しはフレーム ext_prisma_paged_board と同じ"
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 55 }
+        - { file: src/queries/prisma/board.ts, line: 57 }
+        - { file: src/queries/prisma/board.ts, line: 34 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "prisma.pagedQuery('board', …) の findMany と count (where teamId, type not dashboard, 検索語)"
+        evidence:
+          - { file: src/queries/prisma/board.ts, line: 34 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 398 }

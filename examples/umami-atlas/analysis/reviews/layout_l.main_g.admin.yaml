@@ -1,0 +1,13 @@
+format_version: 1
+entry_id: layout_l.main_g.admin
+reviewed_at: "2026-11-13T03:18:00+09:00"
+reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: low
+    where: callstack/use_login_query/summary
+    claim: "『ふつうはストアにユーザーがあり、リクエストは出ない』と推測の言い方で書き、notes (2) でも『実行しての確認はしていない interpretation』としているが、コードから決まる。(main)/layout.tsx:8 で App が必ずこの枠を包み、App.tsx:54 はストアのユーザー (useLoginQuery と同じ useApp のセレクター) が無ければ null を返して children を描かない。ストアのユーザーを消す setUser(null) は (main) の外の LogoutPage.tsx:20 だけ。よって AdminLayout が描かれる時点で user は必ずあり、enabled: !user が偽なので、この入口から POST /api/auth/verify は出ない"
+    evidence: { file: "src/app/(main)/App.tsx", line: 54 }
+    suggestion: "use_login_query の summary と notes (2) を『この枠が描かれるときは必ずストアにユーザーがあるので、この入口からはリクエストが出ない (App.tsx:54、(main)/layout.tsx:8、useLoginQuery.ts:19)』と言い切り、api_verify 以下のフレームの note に『この入口からは実際には呼ばれない経路』と添える"
+notes: "機械チェック (validate result) は OK。全フレームの call / summary / parameters / io の根拠行を開いて確かめ、行番号はすべて実在して主張を支えている。layout.tsx (cloudMode で null、AdminLayout を描く、metadata のタイトル書式)、AdminLayout.tsx ('use client'、useLoginQuery、isAdmin と cloudMode の判定、PageBody)、PageBody.tsx (幅 1320px、margin 0 auto)、useLoginQuery.ts (queryKey login、post /auth/verify、enabled !user)、api-url.ts (/auth は basePath + /api)、useApi.ts:28 と client.ts:4 (Bearer に localStorage のトークン)、verify/route.ts、request.ts (URL と本文の読み取り、checkAuth)、auth.ts (2FA 仮トークンの拒否、userId / Redis authKey の経路、パスワード指紋、isAdmin)、api-key.ts:15 (/api/auth は API キー拒否)、user.ts (findUnique、deletedAt null、includePassword)、team.ts (team.findMany、members.some)、redis.ts:37、next.config.ts:16 と :217、SideNav.tsx:117、MobileNav.tsx:64 をすべて確認した。テーブル名は schema.prisma の @@map (user:37、team:249、team_user:265) と dbms (postgresql:8) に一致。Redis の key_pattern auth:* は saveAuth (auth.ts:150) の組み立てと合い、context.md の kvs の当てはめどおり。team_user をリレーションの条件として interpretation にしているのは、(main) の枠の結果とレビューでも同じ扱いなので指摘にしない。辿り漏れは無い (parseShareToken はヘッダーのトークンを解くだけ、json はレスポンスを作るだけ、PageBody の useMessages は文言を引くだけで、どれもデータに届かない)。気になった点 (指摘にはしない): ext_prisma_team の call の evidence にある verify/route.ts:12 は getAllUserTeams を呼ぶ行で、Prisma を呼ぶ行ではない (team.ts:93 があるので主張は支えられている)"

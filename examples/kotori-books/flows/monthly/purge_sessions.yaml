@@ -1,0 +1,24 @@
+id: purge_sessions
+namespace: monthly
+description: |
+  90 日以上使われていないセッションを Redis から消し、同じ期間放置されたカートを shop.carts から削除する
+labels:
+  owner: sre
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh purge_sessions
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 4 1 * *"
+    timezone: Asia/Tokyo

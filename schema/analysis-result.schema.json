@@ -1,0 +1,429 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suwa-sh/as-built-atlas/schema/analysis-result.schema.json",
+  "title": "分析結果 (入口 1 件 = YAML 1 ファイル)",
+  "description": "正本。主張 (claim) ごとに 状態 (fact / interpretation / unknown) と根拠を持つ。コールスタックの各段はプロファイルの層を名乗る。機械チェック (abatlas validate) はこの schema に加えて、層がプロファイルにあるか、呼び出し元の参照が解決するか、根拠のファイルが scope にあるかを検査する。",
+  "type": "object",
+  "required": [
+    "format_version",
+    "entry",
+    "target",
+    "analyzer",
+    "summary",
+    "callstack"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": 1
+    },
+    "entry": {
+      "type": "object",
+      "required": [
+        "id",
+        "path",
+        "layer",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string", "pattern": "^/[^/]+(/[^/]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "layer": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        }
+      }
+    },
+    "target": {
+      "$ref": "work-definition.schema.json#/$defs/target"
+    },
+    "analyzer": {
+      "type": "object",
+      "description": "どの分析器で作ったか。target.commit と合わせて冪等の判定に使う",
+      "required": [
+        "profile",
+        "skill_version",
+        "analyzed_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "type": "object",
+          "required": [
+            "id",
+            "version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        },
+        "skill_version": {
+          "type": "string",
+          "description": "分析 skill (OSS 層) の版"
+        },
+        "model": {
+          "type": "string",
+          "description": "使ったモデルの識別 (任意)"
+        },
+        "analyzed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "analyst": {
+          "type": "string",
+          "description": "誰が回したか (任意。進行状況 mart の人別集計用)"
+        },
+        "reviewed": {
+          "type": "object",
+          "description": "フレッシュ文脈のレビューの結果 (任意)",
+          "additionalProperties": false,
+          "properties": {
+            "by": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "findings_open": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "run": {
+          "type": "object",
+          "description": "実行の記録 (任意)。分析 skill は書かない。claude -p などを呼んだ側が終了後に書く (実行中のセッションは自身のコストを知れない)",
+          "additionalProperties": false,
+          "properties": {
+            "cost_usd": {
+              "type": "number",
+              "minimum": 0
+            },
+            "duration_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "by": {
+              "type": "string",
+              "description": "書いた主体 (runner の名前など)"
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/text_claim",
+      "description": "入口の概要 (解釈)"
+    },
+    "callstack": {
+      "type": "array",
+      "description": "入口から外部ライブラリ呼び出し (boundary 層) までのフレーム。順序は呼び出し順でなくてよい。関係は caller で表す",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/frame"
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "分析者の自由記述 (正本の項目にはしない)"
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": [
+        "file",
+        "line"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "target.scope からの相対パス"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "claim_base": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "fact",
+            "interpretation",
+            "unknown"
+          ]
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "reason": {
+          "type": "string",
+          "description": "status: unknown のときの理由。schema/vocab/unknown-reasons.yaml の key"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "fact"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "evidence"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "interpretation"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "evidence"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          }
+        }
+      ]
+    },
+    "text_claim": {
+      "description": "文字列の値を持つ主張。unknown のときは value を省く",
+      "allOf": [
+        {
+          "$ref": "#/$defs/claim_base"
+        },
+        {
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "status": true,
+            "evidence": true,
+            "reason": true,
+            "note": true
+          },
+          "additionalProperties": false
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "frame": {
+      "type": "object",
+      "required": [
+        "id",
+        "layer",
+        "name",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "この YAML の中で一意"
+        },
+        "layer": {
+          "type": "string",
+          "description": "プロファイルの層 id"
+        },
+        "kind": {
+          "type": "string",
+          "description": "フレームの種類 (script / program / skill / library / service など。プロファイルの context.md で揃える)"
+        },
+        "name": {
+          "type": "string",
+          "description": "人が読む名前 (スクリプト名、関数名、skill 名)"
+        },
+        "source": {
+          "$ref": "#/$defs/source",
+          "description": "このフレームの定義場所。unknown のフレームは呼び出し箇所を指す。boundary 層のフレーム (リポジトリに定義が無いライブラリ・SDK・CLI) は、リポジトリの中でそれを使っている箇所を指す (どの行にするかはプロファイルの context.md の決まりに従う)"
+        },
+        "caller": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "呼び出し元フレームの id。入口のフレームは null"
+        },
+        "call": {
+          "$ref": "#/$defs/call_claim",
+          "description": "caller からこのフレームへの呼び出しが成立していることの主張 (事実なら呼び出し箇所が根拠)"
+        },
+        "summary": {
+          "$ref": "#/$defs/text_claim"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/claim_base"
+              },
+              {
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "分かる範囲の値や由来"
+                  },
+                  "status": true,
+                  "evidence": true,
+                  "reason": true,
+                  "note": true
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "io": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/io"
+          }
+        }
+      }
+    },
+    "io": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/claim_base"
+        },
+        {
+          "required": [
+            "op",
+            "resource"
+          ],
+          "properties": {
+            "op": {
+              "type": "string",
+              "minLength": 1,
+              "description": "操作。resource.kind ごとに使える id が決まっている (schema/vocab/resource-kinds.yaml の kinds.<kind>.ops[].id。例: rdb は create / read / update / delete、filesystem は read / write / append / delete / list、external_api は call)。機械チェックと ETL が種類と突き合わせる"
+            },
+            "resource": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "description": "schema/vocab/resource-kinds.yaml の kind"
+                },
+                "levels": {
+                  "type": "object",
+                  "description": "データの階層の段 → 値。段の名前は resource-kinds.yaml に従う。分からない段は書かない (理由は親の reason)",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "detail": {
+              "type": "string",
+              "description": "列・キー・メソッドなど、段より細かい情報"
+            },
+            "status": true,
+            "evidence": true,
+            "reason": true,
+            "note": true
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "call_claim": {
+      "description": "呼び出しが成立していることの主張 (項目は claim_base のものだけ)",
+      "allOf": [
+        {
+          "$ref": "#/$defs/claim_base"
+        },
+        {
+          "properties": {
+            "status": true,
+            "evidence": true,
+            "reason": true,
+            "note": true
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

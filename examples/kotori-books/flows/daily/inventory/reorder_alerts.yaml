@@ -1,0 +1,24 @@
+id: reorder_alerts
+namespace: daily.inventory
+description: |
+  在庫が発注点を下回った SKU の発注案を warehouse.purchase_orders に作り、仕入先担当にメールで知らせる
+labels:
+  owner: warehouse
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh reorder_alerts
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 6 * * *"
+    timezone: Asia/Tokyo

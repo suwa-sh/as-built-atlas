@@ -1,0 +1,24 @@
+id: legacy_price_sync
+namespace: weekly
+description: |
+  旧価格計算エンジン (bin/legacy_pricing、バイナリ) を実行し、出力の価格表で shop.product_prices を更新する。変更は audit.price_changes に残す
+labels:
+  owner: commerce-platform
+concurrency:
+  limit: 1
+  behavior: CANCEL
+tasks:
+  - id: run
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    workingDirectory: /opt/kotori
+    env:
+      KOTORI_ENV: prod
+    commands:
+      - bash scripts/run_job.sh legacy_price_sync
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 2 * * 6"
+    timezone: Asia/Tokyo
