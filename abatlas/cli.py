@@ -9,6 +9,8 @@
     abatlas validate review <review.yaml>... [--result <result.yaml>]
   入口の列挙
     abatlas enumerate <entry-list.yaml> [--profile <profile.yaml>] [--dry-run]
+    abatlas code-search <work-definition.yaml> --language <言語> --files <glob>... (--pattern <コードの形> | --rule <JSON か @file>) [--exclude <glob>...] [--limit 200]
+      対象のコードを構文で探し、一致した場所を「ファイル:行: 1 行目」で出す (入口を見つけるときに、その場で調べる用。一覧は変えない)
   分析リポジトリ (コンテナの中で動かす。分析リポジトリは /ws/analysis、対象は /ws/target)
     abatlas init <repo> --profile <id> [--targets <製品,...>]         OSS 所有の配置 + 対象層の初期ファイル + 中ハーネス (6 製品)
     abatlas upgrade <repo>                                             OSS 所有のパスだけ置き換え、製品別 adapter を再生成
@@ -135,6 +137,15 @@ def main(argv=None) -> int:
     e.add_argument("--profile")
     e.add_argument("--dry-run", action="store_true")
 
+    cs = sub.add_parser("code-search", help="対象のコードを構文で探す (ast-grep の規則)")
+    cs.add_argument("work", help="作業定義 (analysis/work-definition.yaml)。対象の場所と範囲を読む")
+    cs.add_argument("--language", required=True)
+    cs.add_argument("--files", required=True, nargs="+", help="glob (対象の範囲からの相対)")
+    cs.add_argument("--exclude", nargs="*", default=[])
+    cs.add_argument("--pattern", help="コードの形 (ast-grep の pattern。穴は $NAME)")
+    cs.add_argument("--rule", help="ast-grep の規則。JSON 文字列か、@path で JSON / YAML ファイル")
+    cs.add_argument("--limit", type=int, default=200)
+
     from .layout import DEFAULT_TARGETS
 
     i = sub.add_parser("init", help="分析リポジトリを初期化する (OSS 所有の配置 + 対象層 + 中ハーネス)")
@@ -198,6 +209,31 @@ def main(argv=None) -> int:
             return rc
         if a.cmd == "enumerate":
             enumerate_entries(Path(a.entry_list), _profile_path(a.profile, Path(a.entry_list)), write=not a.dry_run)
+            return 0
+        if a.cmd == "code-search":
+            import json
+
+            import yaml
+
+            from .extractors.ast_query import search
+            from .validate import _resolve_scope
+
+            if bool(a.pattern) == bool(a.rule):
+                raise SystemExit("code-search: --pattern か --rule の、どちらか 1 つを渡す")
+            if a.pattern:
+                rule = {"pattern": a.pattern}
+            elif a.rule.startswith("@"):
+                rule = yaml.safe_load(Path(a.rule[1:]).read_text(encoding="utf-8"))
+            else:
+                try:
+                    rule = json.loads(a.rule)
+                except json.JSONDecodeError as ex:
+                    raise SystemExit(f"code-search: --rule を JSON として読めない: {ex}")
+            work_path = Path(a.work)
+            scope = _resolve_scope(load_yaml(work_path)["target"], work_path.parent)
+            if scope is None or not scope.is_dir():
+                raise SystemExit(f"code-search: {a.work} の target.clone_path/scope が見つからない: {scope}")
+            print("\n".join(search(scope, a.files, a.exclude, a.language, rule, a.limit)))
             return 0
         if a.cmd == "init":
             from .layout import init_repo

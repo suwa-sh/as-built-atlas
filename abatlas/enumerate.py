@@ -1,7 +1,9 @@
 """列挙ツール: 入口一覧 (entry-list) の extractors を実行し、候補を entries に書き戻す。
 
 - 各抽出器を子プロセスで実行し、標準出力の JSON Lines を schema で検証する
-- 既存の entries の status (approved / rejected) と note は、同じ id なら引き継ぐ
+- 既存の entries の status (approved / rejected) と note は、同じ id なら引き継ぐ。
+  ただし、人が判断した後に、同じ id の指す先 (階層パス、層、定義のファイル) が変わったら、candidate に戻す
+- 同じ id が、2 つの抽出器から違う入口 (指す先が違う) として出たら止まる (指す先が同じなら、先に書いた抽出器の候補を残す)
 - 列挙は決定的: 同じ対象コミット・同じ設定なら同じ entries になる (順序は id 順)
 - プロファイルが within (入口が別の入口の中で動く関係) を宣言していれば、entries[].within を埋める
 """
@@ -23,6 +25,8 @@ from .validate import _resolve_scope, rejected_wrappers, validate_entry_list, wi
 CORE_EXTRACTORS = {
     "structured-query": [sys.executable, "-m", "abatlas.extractors.structured_query"],
     "glob": [sys.executable, "-m", "abatlas.extractors.file_glob"],
+    "ast": [sys.executable, "-m", "abatlas.extractors.ast_query"],
+    "listed": [sys.executable, "-m", "abatlas.extractors.listed"],
 }
 
 
@@ -49,6 +53,18 @@ def _command(run: str, profile_dir: Path | None, entry_list_dir: Path) -> list[s
             raise SystemExit(f"extractor '{run}' が見つからない (探した場所: {', '.join(str(c) for c in candidates)})")
         exe = found
     return [str(exe)] + parts[1:]
+
+
+def _target(entry: dict) -> tuple[str, str, str]:
+    """入口が指す先: 階層パス、層、定義のファイル。これが同じなら、同じ入口として扱う。
+
+    行は含めない (対象のコミットを進めると、行はずれる)。説明の文 (attributes) も含めない (書き直すたびに、言い回しが変わる)。
+    """
+    return (entry["path"], entry["layer"], entry["source"]["file"])
+
+
+def _show(target: tuple[str, str, str]) -> str:
+    return f"'{target[0]}' (層 {target[1]}、{target[2]})"
 
 
 def run_extractor(ex: dict, scope: Path, profile_dir: Path | None, entry_list_dir: Path) -> list[dict]:
@@ -98,7 +114,15 @@ def enumerate_entries(entry_list_path: Path, profile_path: Path | None = None, w
             )
         for rec in recs:
             if rec["id"] in found:
-                print(f"  warn: id '{rec['id']}' が複数の抽出器から出た ({found[rec['id']]['extractor']} と {rec['extractor']})。先勝ち", file=sys.stderr)
+                first = found[rec["id"]]
+                a, b = _target(first), _target(rec)
+                if a != b:
+                    # 別の入口が同じ id になっている。片方を黙って捨てると、その入口は一覧にも承認にも現れない
+                    raise SystemExit(
+                        f"id '{rec['id']}' が 2 つの抽出器から、違う入口として出た: {first['extractor']} は {_show(a)}、{rec['extractor']} は {_show(b)}。"
+                        " 別の入口なら、どちらかの id を変える。同じ入口なら、片方の設定から外す。既存の一覧は変更しない"
+                    )
+                print(f"  warn: id '{rec['id']}' が複数の抽出器から出た ({first['extractor']} と {rec['extractor']})。先に書いた抽出器の候補を残す", file=sys.stderr)
                 continue
             found[rec["id"]] = rec
 
@@ -106,6 +130,12 @@ def enumerate_entries(entry_list_path: Path, profile_path: Path | None = None, w
     for eid in sorted(found):
         rec = found[eid]
         old = previous.get(eid, {})
+        # 人が判断した後に、同じ id の指す先 (階層パスか、定義のファイル) が変わったら、判断をやり直してもらう。
+        # 行だけの違いは、同じ入口として扱う (対象のコミットを進めると、行はずれる)
+        if old.get("status", "candidate") != "candidate" and _target(old) != _target(rec):
+            print(f"  info: 入口 '{eid}' は、{old['status']} の後に指す先が変わった ({_show(_target(old))} → {_show(_target(rec))})。"
+                  " candidate に戻す (承認し直す)", file=sys.stderr)
+            old = {}
         entry = {
             "id": rec["id"],
             "path": rec["path"],
