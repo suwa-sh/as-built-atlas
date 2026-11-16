@@ -36,14 +36,16 @@ description: 分析対象リポジトリの「入口」(ジョブ・エンドポ
 5. 試す: `<abatlas> enumerate analysis/entry-list.yaml --dry-run` (プロファイルは、作業定義の `profile.dir` から自動で読まれる。読んだ場所が出力の最初に出る。「自動で読めない」と出たら、`profile.dir` を直す)
    - 失敗したら標準エラーの指摘 (契約違反・schema 違反・規則の誤り・読めない言語) に従って設定を直す。抽出器のコードは直さない
    - 直しても通らない抽出器は、`extractors[]` から外す。その抽出器で取るはずだった入口は、手順 6 で読んで足す。外した理由は、報告に書く
-   - 件数と階層パスの分布を見て、明らかな漏れ (定義ファイルがあるのに出ない) や重複 (同じ入口が別 id) があれば設定を見直す
+   - `--dry-run` は、一覧を書かずに、候補を 1 行 1 件 (id、階層パス、層、抽出器、状態) で出す。件数と階層パスの分布を見て、明らかな漏れ (定義ファイルがあるのに出ない) や重複 (同じ入口が別 id) があれば設定を見直す
 6. 抽出器で取れない入口を足す。次の 3 つを調べ、見つけた入口を `abatlas-extract listed` の `params.entries` に書く
    - 列挙の出力の「読めなかった参照」(ファイルと行)。その名前の定義を辿って読む
    - プロファイルの `context.md` に書いてある、取れない入口の探し方
    - 手順 5 で外した抽出器が取るはずだった入口
-   - 入口ごとに、`id`、`path` (階層パス。プロファイルの `hierarchy.derivation` と、抽出器が出した入口の付け方に合わせる)、`source` (入口を定義しているファイルと行)、`reason` (なぜ入口と判断したか、なぜ抽出器で取れないか) を書く
+   - 入口ごとに、`id`、`path` (階層パス。プロファイルの `hierarchy.derivation` と、抽出器が出した入口の付け方に合わせる)、`source` (入口を定義しているファイルと行。定義が複数行なら、始まりの行)、`reason` (なぜ入口と判断したか、なぜ抽出器で取れないか) を書く。人が読む名前があれば `name`、抽出器が出す入口と同じ付随の情報があれば `attributes` も書く (どちらも任意)
+   - ファイルのパス (`source.file`、抽出器の `files`、`code-search` の `--files`) は、すべて、作業定義の `target.scope` からの相対で書く (`clone_path` からではない。例: scope が `ui` なら、`ui/src/a.ts` ではなく `src/a.ts`)
+   - 入口にするか迷うもの (データの読み書きに至るかを、数段先まで読まないと決められないもの) は、足す。承認のときに、人が外せる。迷ったことを `reason` に書く
    - 読んでも入口の数や名前が決まらないもの (実行時の値で決まる定義など) は、足さない。報告に、場所と理由を書く
-   - `listed` は、`extractors[]` の最後に書く (同じ入口が抽出器からも出たら、抽出器の候補が残る)
+   - `listed` は、`extractors[]` の最後に書く。抽出器が出した入口を、`listed` に重ねて書かない (同じ id で、指す先か行が違うと、列挙が止まる)
    - `listed` が出す入口の層は、抽出器の `layer` で決まる (入口ごとには書けない)。入口の層が 2 つ以上あるプロファイルでは、層ごとに別の名前の `listed` を作り (例: `agent-listed-page`、`agent-listed-layout`)、その層の入口だけを書く
 7. 本番の列挙: `--dry-run` を外して実行する。`entries[]` に `status: candidate` で候補が書かれる
 8. 人に渡す報告を書く (標準出力でよい)
@@ -64,7 +66,8 @@ extractors:
       entries:
         - id: orders
           path: /orders
-          source: { file: ui/src/orders/orderTabs.ts, line: 1 }
+          name: orders/list
+          source: { file: src/orders/orderTabs.ts, line: 1 }   # scope からの相対
           reason: 画面の定義の配列に ORDER_ROUTE として入っている。定義は、このファイルにある
 ```
 
@@ -86,5 +89,5 @@ extractors:
 
 ## 参照
 
-- 抽出器の契約と `params` の書き方: `<oss>/docs/architecture/profiles.md` の「抽出器の契約」、`<oss>/schema/entry-candidate.schema.json`、プロファイルの `profile.yaml` の `extractors[]` (既定の params と hint)。`params` の全項目は、`<oss>/abatlas/extractors/` の各ファイルの冒頭
+- 抽出器の契約と `params` の書き方: `<oss>/docs/architecture/profiles.md` の「抽出器の契約」、`<oss>/schema/entry-candidate.schema.json`、プロファイルの `profile.yaml` の `extractors[]` (既定の params と hint)。コア同梱の抽出器の `params` の全項目は、`<abatlas> extractors <名前>` で出す (名前は `structured-query` / `glob` / `ast` / `listed`)
 - 入口一覧の形式: `<oss>/schema/entry-list.schema.json`

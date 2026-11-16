@@ -143,6 +143,12 @@ def extract(scope: Path, params: dict, layer: str):
     id_join = id_conf.get("join", ".")
     unresolved_rule = params.get("unresolved")
 
+    # 規則の誤りは、対象のファイルが 1 つも無くても見つける (空の文字に当てて、ast-grep に検査させる)
+    find_all("", language, rule, "params.rule")
+    if unresolved_rule is not None:
+        find_all("", language, unresolved_rule, "params.unresolved")
+    _segments("", seg_conf)
+
     rels = target_files(scope, files, _as_list(params.get("exclude")))
     if not rels and not params.get("allow_empty"):
         raise SystemExit(f"[ast] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true")

@@ -116,10 +116,12 @@ def enumerate_entries(entry_list_path: Path, profile_path: Path | None = None, w
             if rec["id"] in found:
                 first = found[rec["id"]]
                 a, b = _target(first), _target(rec)
-                if a != b:
-                    # 別の入口が同じ id になっている。片方を黙って捨てると、その入口は一覧にも承認にも現れない
+                la, lb = first["source"]["line"], rec["source"]["line"]
+                if a != b or la != lb:
+                    # 別の入口が同じ id になっている。片方を黙って捨てると、その入口は一覧にも承認にも現れない。
+                    # 1 回の列挙の中では行はずれないので、行も比べる (同じファイルの別の行の定義は、別の入口かもしれない)
                     raise SystemExit(
-                        f"id '{rec['id']}' が 2 つの抽出器から、違う入口として出た: {first['extractor']} は {_show(a)}、{rec['extractor']} は {_show(b)}。"
+                        f"id '{rec['id']}' が 2 つの抽出器から、違う入口として出た: {first['extractor']} は {_show(a)} の {la} 行、{rec['extractor']} は {_show(b)} の {lb} 行。"
                         " 別の入口なら、どちらかの id を変える。同じ入口なら、片方の設定から外す。既存の一覧は変更しない"
                     )
                 print(f"  warn: id '{rec['id']}' が複数の抽出器から出た ({first['extractor']} と {rec['extractor']})。先に書いた抽出器の候補を残す", file=sys.stderr)

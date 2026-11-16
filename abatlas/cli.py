@@ -9,6 +9,8 @@
     abatlas validate review <review.yaml>... [--result <result.yaml>]
   入口の列挙
     abatlas enumerate <entry-list.yaml> [--profile <profile.yaml>] [--dry-run]
+      --dry-run は、一覧を書かずに、候補を 1 行 1 件 (id、階層パス、層、抽出器、状態。タブ区切り) で出す
+    abatlas extractors [<名前>]                                        コア同梱の抽出器の一覧。名前を渡すと、その params の全項目
     abatlas code-search <work-definition.yaml> --language <言語> --files <glob>... (--pattern <コードの形> | --rule <JSON か @file>) [--exclude <glob>...] [--limit 200]
       対象のコードを構文で探し、一致した場所を「ファイル:行: 1 行目」で出す (入口を見つけるときに、その場で調べる用。一覧は変えない)
   分析リポジトリ (コンテナの中で動かす。分析リポジトリは /ws/analysis、対象は /ws/target)
@@ -137,6 +139,9 @@ def main(argv=None) -> int:
     e.add_argument("--profile")
     e.add_argument("--dry-run", action="store_true")
 
+    xs = sub.add_parser("extractors", help="コア同梱の抽出器の一覧と、params の全項目を出す")
+    xs.add_argument("kind", nargs="?")
+
     cs = sub.add_parser("code-search", help="対象のコードを構文で探す (ast-grep の規則)")
     cs.add_argument("work", help="作業定義 (analysis/work-definition.yaml)。対象の場所と範囲を読む")
     cs.add_argument("--language", required=True)
@@ -208,7 +213,22 @@ def main(argv=None) -> int:
                     rc |= _report(p, validate_result_file(path, _profile_path(a.profile, path), Path(a.work) if a.work else None))
             return rc
         if a.cmd == "enumerate":
-            enumerate_entries(Path(a.entry_list), _profile_path(a.profile, Path(a.entry_list)), write=not a.dry_run)
+            out = enumerate_entries(Path(a.entry_list), _profile_path(a.profile, Path(a.entry_list)), write=not a.dry_run)
+            if a.dry_run:  # 一覧を書かないので、候補をここに出す (件数だけでは、漏れや重複を確かめられない)
+                for e in out["entries"]:
+                    print(f"{e['id']}\t{e['path']}\t{e['layer']}\t{e.get('extractor', '')}\t{e['status']}")
+            return 0
+        if a.cmd == "extractors":
+            import importlib
+
+            from .enumerate import CORE_EXTRACTORS
+
+            if a.kind is None:
+                print("コア同梱の抽出器: " + ", ".join(sorted(CORE_EXTRACTORS)) + " (abatlas extractors <名前> で、params の全項目を出す)")
+                return 0
+            if a.kind not in CORE_EXTRACTORS:
+                raise SystemExit(f"extractors: '{a.kind}' は、コア同梱の抽出器に無い ({', '.join(sorted(CORE_EXTRACTORS))})")
+            print((importlib.import_module(CORE_EXTRACTORS[a.kind][-1]).__doc__ or "").strip())
             return 0
         if a.cmd == "code-search":
             import json

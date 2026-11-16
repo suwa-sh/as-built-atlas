@@ -147,6 +147,12 @@ def test_stops_with_a_reason(app: Path, capsys):
     assert capsys.readouterr().out == "", "止まるときは、候補を 1 件も出さない"
     recs, err = _run(ast_query, app, _params(files="ui/src/nowhere/*.ts", allow_empty=True), capsys)
     assert recs == [] and "files=0 entries=0" in err
+    # 対象のファイルが 1 つも無くても、規則の誤りは見つける
+    for over, message in [({"unresolved": {}}, "params.unresolved が無いか、形が違う"), ({"rule": {"kind": "no_such_kind_of_node"}}, "params.rule を ast-grep が受け付けない"),
+                          ({"segments": {"strip_prefix": "ui"}}, "segments に、使えない項目がある")]:
+        with pytest.raises(SystemExit) as ex:
+            ast_query.extract(app, _params(files="ui/src/nowhere/*.ts", allow_empty=True, **over), "screen")
+        assert message in str(ex.value), message
 
 
 LISTED = [
@@ -268,7 +274,7 @@ def test_enumerate_mixes_tool_and_agent_entries_and_keeps_approvals(app: Path, c
     before = path.read_text(encoding="utf-8")
     same_place = {"file": "ui/src/routes/routes.ts", "line": 7}
     for over, shown in [
-        ({"path": "/somewhere/else", "source": same_place}, "vue-routes は '/dashboards' (層 screen、ui/src/routes/routes.ts)、agent-listed は '/somewhere/else' (層 screen、ui/src/routes/routes.ts)"),
+        ({"path": "/somewhere/else", "source": same_place}, "vue-routes は '/dashboards' (層 screen、ui/src/routes/routes.ts) の 7 行、agent-listed は '/somewhere/else' (層 screen、ui/src/routes/routes.ts) の 7 行"),
         ({"path": "/dashboards", "source": LISTED[0]["source"]}, "agent-listed は '/dashboards' (層 screen、ui/src/orders/orderTabs.ts)"),
     ]:
         rewrite(id="dashboards", **over)
@@ -281,7 +287,12 @@ def test_enumerate_mixes_tool_and_agent_entries_and_keeps_approvals(app: Path, c
         enumerate_entries(path)
     assert "agent-listed は '/dashboards' (層 job、ui/src/routes/routes.ts)" in str(ex.value)
     set_listed_layer("screen")
-    # 同じ入口の重複は、先に書いた抽出器の候補を残す
+    rewrite(source={"file": "ui/src/routes/routes.ts", "line": 8})  # 同じファイルの別の行の定義は、別の入口かもしれない
+    with pytest.raises(SystemExit) as ex:
+        enumerate_entries(path)
+    assert "vue-routes は '/dashboards' (層 screen、ui/src/routes/routes.ts) の 7 行、agent-listed は '/dashboards' (層 screen、ui/src/routes/routes.ts) の 8 行" in str(ex.value)
+    rewrite(source=same_place)
+    # 同じ入口の重複 (指す先も行も同じ) は、先に書いた抽出器の候補を残す
     capsys.readouterr()
     same = {e["id"]: e for e in enumerate_entries(path, write=False)["entries"]}
     assert same["dashboards"]["extractor"] == "vue-routes" and "先に書いた抽出器の候補を残す" in capsys.readouterr().err
@@ -317,3 +328,21 @@ def test_code_search_prints_places_without_touching_the_list(app: Path, capsys):
         assert cli_main(["code-search", str(work), *args]) == 2
         assert message in capsys.readouterr().err, message
     assert path.read_text(encoding="utf-8") == before
+
+
+def test_dry_run_prints_candidates_and_extractors_prints_params(app: Path, capsys):
+    """試しの列挙は、一覧を書かずに候補を出す。抽出器の params の説明は、コマンドで出せる (分析リポジトリには、抽出器のソースが無い)。"""
+    path = _entry_list(app, [{"name": "vue-routes", "run": "abatlas-extract ast", "layer": "screen", "params": _params()}])
+    before = path.read_text(encoding="utf-8")
+    capsys.readouterr()
+    assert cli_main(["enumerate", str(path), "--dry-run"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert "books.bookId\t/books/:bookId\tscreen\tvue-routes\tcandidate" in out and len(out) == 3
+    assert path.read_text(encoding="utf-8") == before
+    assert cli_main(["extractors"]) == 0
+    assert "ast, glob, listed, structured-query" in capsys.readouterr().out
+    for kind, needle in [("ast", "unresolved:"), ("listed", "reason:"), ("glob", "strip_prefix:"), ("structured-query", "records:")]:
+        assert cli_main(["extractors", kind]) == 0
+        assert needle in capsys.readouterr().out, kind
+    assert cli_main(["extractors", "nope"]) == 2
+
