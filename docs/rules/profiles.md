@@ -11,7 +11,8 @@
 | 形式の定義、ETL、コアの集計表、画面は、プロファイルに依らない。対象の種類ごとの違いは、プロファイルに閉じる | プロファイルを足しても、コアを直さない | `tests/test_examples_umami.py` (2 本目のプロファイル) |
 | ツールが読むことは `profile.yaml`、エージェントが読むことは `context.md` に書く | 読み手を分ける | `abatlas validate profile` |
 | 分析者によって書き方が割れた所は、`context.md` に、決まりと理由を書く | 突き合わせが、書き方の違いで食い違わない | — |
-| 決定論で決まること (入口の列挙、包む関係) は、`profile.yaml` の宣言からツールが決める。エージェントに決めさせない | 同じ入力から、同じ結果を出す | `tests/test_file_glob.py` |
+| 決定論で決まること (抽出器で取れる入口、包む関係) は、`profile.yaml` の宣言からツールが決める。エージェントに決めさせない | 同じ入力から、同じ結果を出す | `tests/test_file_glob.py` |
+| 抽出器で取れない入口がある種類では、`context.md` に、取れない入口の探し方を書く。エージェントが足す入口は、`listed` 抽出器の設定に、根拠と理由を付けて書かせる | 道具だけでは漏れる入口を、気づかれないままにしない ([ADR 0011](../adr/0011-agent-enumerates-entries.md)) | `tests/test_ast_query.py` |
 | 表示項目 (`label`、`layers` の `label` / `tier`、`hierarchy.notes` の `text`) は、呼び名を `"{id}"` で書く | [ADR 0002](../adr/0002-labels-from-glossary.md) | プロファイルの検査 |
 | `layers[].invokes_next` は自由文。コードの例を書いてよい (呼び名の置き換えの対象外) | 波かっこを含むコードを書ける | — |
 | 分析の判断が変わる直しでは、`version` を上げる | 再分析するかどうかは、版の比較で決まる | — |

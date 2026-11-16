@@ -10,7 +10,7 @@
 flowchart TB
   T[対象の clone] --> I
   I["init<br>配布物と、エージェントの設定を置く"] --> D
-  D["入口のパターンを決める (エージェント)<br>抽出器とパラメータを entry-list.yaml に書く"] --> E
+  D["入口を見つける (エージェント)<br>抽出器とパラメータを entry-list.yaml に書く。<br>抽出器で取れない入口は、読んで足す"] --> E
   E["enumerate (ツール)<br>抽出器を実行し、入口の候補を出す"] --> H
   H["承認 (人)<br>status を approved / rejected にする"] --> A
   A["分析 (エージェント)<br>入口ごとに results/ に YAML を書く"] --> V
@@ -26,7 +26,7 @@ flowchart TB
 | 段 | 誰が | 入力 | 出力 |
 |---|---|---|---|
 | init | ツール | プロファイルの id | OSS 所有のファイル、作業定義のひな形、エージェントの設定 (6 製品分) |
-| 入口のパターンを決める | エージェント (入口発見 skill) | 対象のコード | `entry-list.yaml` の `extractors` |
+| 入口を見つける | エージェント (入口発見 skill) | 対象のコード | `entry-list.yaml` の `extractors`。抽出器で取れない入口は、根拠と理由を付けて、`listed` 抽出器の設定に書く |
 | enumerate | ツール | `extractors` | `entries` (`status: candidate`)。抽出器の出力は形式を検査する |
 | 承認 | 人 | `entries` | `entries[].status` = `approved` / `rejected` |
 | 分析 | エージェント (分析 skill) | 承認済みの入口、`.agents/memory` の癖 | `results/<file>` |
@@ -34,6 +34,8 @@ flowchart TB
 | レビュー | エージェント (レビュー skill) | 分析結果 | `reviews/<file>`。形式を検査する |
 | build | ツール | `results/`、`entry-list.yaml`、プロファイル | `analysis/data/abatlas.duckdb` |
 | serve | ツール | DuckDB | API、MCP (`/mcp`)、webapp (`/`) |
+
+入口を列挙する主体は、エージェントです。抽出器は、その土台です。抽出器が取れた入口も、エージェントが足した入口も、同じ `entries` に並び、人が承認します。エージェントが足した入口には、印 (`attributes.listed_by: agent`) と理由が付きます ([profiles.md](profiles.md) の「抽出器の契約」)。
 
 分析にかかった費用と時間 (`analyzer.run`) は、エージェントを呼び出した側が後から追記します。分析 skill は書きません ([formats.md](formats.md) の「来歴」)。
 

@@ -58,6 +58,15 @@ type: Troubleshooting
 - 再発防止: docs/architecture/ から外を指すときは、配られるかを考える
 - 最終確認日: 2026-11-15
 
+## ast-grep が、通常の例外でなく異常終了で失敗を返す
+- 適用対象: abatlas/extractors/ast_query.py (構文を読む抽出器、code-search)
+- 症状: 読めない言語や、規則の誤りを渡すと、標準エラーに panic の文が出て、except Exception を素通りする
+- 原因: ast-grep-py は、失敗を PanicException (BaseException の子) で返すことがある
+- 検出: uv run pytest -q tests/test_ast_query.py (止まるときの文を、条件ごとに確かめている)
+- 復旧: 言語名は、呼ぶ前に SUPPORTED_LANGUAGES で確かめる。規則の誤りは BaseException で受けて、理由を付けた SystemExit に変える (KeyboardInterrupt と SystemExit は、そのまま通す)
+- 再発防止: ast-grep-py の版を上げたら、読める言語の一覧 (定数) と、止まるときのテストを流し直す。版は固定してある (pyproject.toml)
+- 最終確認日: 2026-11-16
+
 ## 項目名を機械的に置き換えると、説明の文と、用語の id が巻き込まれる
 - 適用対象: 項目名の入れ替え (複数のファイルにまたがる置き換え)
 - 症状: 説明の文で語の意味が入れ替わる (例: 「zone は枠 (画面での呼び名は tier)」が、順に置き換わって崩れる)。用語の id やテストの検査対象の語まで置き換わり、検査が弱くなる

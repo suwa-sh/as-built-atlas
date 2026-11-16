@@ -15,7 +15,7 @@ okf_version: "0.2"
 ## 必要なときに読む
 - CI が失敗したとき: [CI のトラブルシューティング](../../docs/troubleshooting/README.md)
 - 直しても画面が変わらない、テストは通るのに壊れている、確かめ方に迷うとき: [確かめるときの、はまり所](troubleshooting/dev-verify.md)
-- 呼び名の検査が落ちる、見本の差分が広がる、図が描けない、配布先でリンクが切れるとき: [直すときの、はまり所](troubleshooting/dev-editing.md)
+- 呼び名の検査が落ちる、見本の差分が広がる、図が描けない、配布先でリンクが切れる、構文を読む抽出器が異常終了するとき: [直すときの、はまり所](troubleshooting/dev-editing.md)
 
 ## 書くもの、書かないもの
 - ここは、エージェントだけが読む。人も守る決まりは `docs/rules/` に、決定の経緯は `docs/adr/` に書く

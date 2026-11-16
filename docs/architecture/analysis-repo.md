@@ -83,6 +83,7 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 | 作業定義を検査する | `docker compose run --rm abatlas validate work analysis/work-definition.yaml` |
 | 入口の一覧を検査する | `docker compose run --rm abatlas validate entries analysis/entry-list.yaml` |
 | 入口を列挙する | `docker compose run --rm abatlas enumerate analysis/entry-list.yaml` |
+| 対象のコードを、構文で探す | `docker compose run --rm abatlas code-search analysis/work-definition.yaml --language <言語> --files <glob> --pattern '<コードの形>'` |
 | 分析結果を検査する | `docker compose run --rm abatlas validate result analysis/results/<file> --work analysis/work-definition.yaml` |
 | 集計する | `docker compose run --rm abatlas build .` |
 | 画面・API・MCP を起動する | `docker compose up -d api` (画面は <http://localhost:8765>、MCP は <http://localhost:8765/mcp>) |
