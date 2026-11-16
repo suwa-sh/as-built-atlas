@@ -139,6 +139,7 @@ flowchart LR
 |---|---|---|
 | `batch-kestra` | Kestra で定期起動されるバッチ | Flow 1 本 |
 | `ui-nextjs` | Next.js (App Router) の画面を持つシステム | 画面 1 つ、画面を包む共通の枠 1 つ |
+| `ui-vue-router` | Vue Router の画面を持つシステム (バックエンドは別) | 画面 1 つ、アプリ全体の枠 1 つ |
 
 プロファイルは、自分のシステムに合わせて直せます (例: 使っていない層を外す)。手順は [docs/architecture/profiles.md](docs/architecture/profiles.md) にあります。
 
