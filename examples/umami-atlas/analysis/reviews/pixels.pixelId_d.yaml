@@ -7,12 +7,14 @@ findings:
   - kind: missing_frame
     severity: low
     where: callstack/website_chart/summary
+    resolved: true
     claim: "useWebsiteAnnotationsQuery (WebsiteChart.tsx:35) と、その先の GET /api/websites/[websiteId]/annotations を段にしていない。分析の skill は、この入口からは条件が成り立たないように見える呼び出しも、消さずに conditional で書き、理由を note に書くと決めている。結果の notes (4) に辿らなかった理由はあるが、同じ結果の中で、同じくこの入口では届かないと読んだ fetchAccount と getEventExpandedMetrics は conditional の段にしていて、扱いがそろっていない。同じ扱いが、PixelControls の ExportButton (PixelControls.tsx:31)、GET metrics の getEventMetrics (metrics/route.ts:64)、GET values の getWebsiteSegments (values/route.ts:49)、FilterEditForm の SegmentFilters / PropertyFilters (FilterEditForm.tsx:147 から) にもある"
     evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx", line: 35 }
     suggestion: "フックを always、受け口を conditional (showAnnotations を渡されたとき) の段として足し、この画面は渡さないことを note に書く。ほかの 4 つも同じ形で足す。足さないなら、skill の決まりと違う扱いにする基準 (親が props を渡さない・パスで決まる、のように静的に決まるものは書かない、など) を notes (4) に書く (続きを書くかどうかは、人が決める)"
   - kind: missing_item
     severity: low
     where: callstack/q_get_values/io/1/fields
+    resolved: true
     claim: "getValues が取り出して検索の条件にも使う列 (select ${column}。getValues.ts:56 / :72 / :119。column は FILTER_COLUMNS[type]) が、3 つの読み取り (io/0、io/1、io/2) のどれの fields にも無い。note と notes (5)(h) は「実行時に決まる」としているが、type の候補は useFields の列 (src/components/hooks/useFields.ts:15 から) に限られ、コードから読める。同じ結果の q_session_metrics と q_pageview_metrics は、同じ形 (type で決まる列) を、この画面が渡す type の分だけ fields に書いていて、扱いがそろっていない"
     evidence: { file: "src/queries/sql/getValues.ts", line: 72 }
     suggestion: "この画面が渡す type に当たる列を read / filter で足す。session (io/0) には browser / os / device / country / region / city / distinct_id、website_event (io/1、io/2) には url_path / url_query / page_title / referrer_domain / hostname / tag / event_name / utm_source / utm_medium / utm_campaign / utm_content / utm_term (ClickHouse の io/2 にはセッションの列も)。フィルターの小窓からは一部しか選べないが、セグメントの保存のフォームの FieldFilters は列を外さない"

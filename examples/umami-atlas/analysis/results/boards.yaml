@@ -18,11 +18,11 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.0
   model: claude-fable-5-2
-  analyzed_at: '2026-11-17T15:06:44Z'
+  analyzed_at: '2026-11-17T22:00:13Z'
   reviewed:
     by: claude-fable-5-2 (fresh context)
     at: '2026-11-17T15:06:11Z'
-    findings_open: 2
+    findings_open: 0
 summary:
   status: interpretation
   value: ボードの一覧の画面。URL に /teams/<id> があればチームのボード (GET /api/teams/[teamId]/boards。チームのメンバーか管理者だけ)、無ければ本人のボード (GET /api/boards) を、検索とページ送り・並べ替え付きで board から読んで表にする (種類が dashboard のものは出さない)。行からは、ボードの表示・設計・編集の画面へ移れ、削除のボタンで DELETE /api/boards/[boardId] を呼んで board を消せる (持ち主か、website:delete を持つチームのメンバー。管理者は可)。追加のボタンは小窓を開き、名前・説明・種類・対象 (種類が website / pixel / link のとき) を入れて保存すると、POST /api/boards で board を作り、できたボードの設計の画面へ移る。作る前に、サーバーが、作る権限 (website:create。チームのボードなら、チームでの役割) と、対象のサイト・ピクセル・リンクを本人が見られるか (website / link / pixel / board / team_user を読む) を確かめる。対象の選択欄は、選ばれているもの 1 件 (GET /api/websites/[websiteId]・/api/pixels/[pixelId]・/api/links/[linkId]) と、選べるものの一覧 (チームのもの、または本人のもの) を読む。各 API の認証は、ログイントークンから user を読む (Redis のセッションを使うときは auth:* も読む)
@@ -73,7 +73,7 @@ summary:
     line: 150
   - file: src/queries/prisma/board.ts
     line: 43
-notes: '指示書 0.4.0 とプロファイル 0.4.0 で分析した。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。BoardsPage.tsx では、追加のボタン (17 行目) が一覧 (20 行目) より前、BoardEditForm.tsx では、useBoardQuery (61 行目) が useUpdateQuery (62 行目) と選択欄 (158 行目) より前。このため、認証の経路 (parseRequest → checkAuth → getUser) と getBoard / getTeamUser の置き場は、GET /api/boards/[boardId] の下になった。(3) 迷った点: その GET /api/boards/[boardId] は、この画面からは呼ばれないように見える (BoardEditForm が useBoardQuery に空文字を渡し、enabled が偽になる)。指示書の「条件が成り立たないように見える呼び出しは、消さずに conditional で書く」に従って書いたので、実際には動かない受け口の下に、認証の経路がぶら下がる木になっている。認証の経路そのものは、実際に動く API (POST /api/boards、GET /api/boards、DELETE /api/boards/[boardId] など) が必ず通るので、読み書きの中身は変わらない。同じ理由で conditional にしたもの: getReport (この画面のフォームは、部品の行を持たない parameters を送る)、WebsiteSelect の useLoginQuery からの POST /api/auth/verify、GET /api/me/websites、getAllUserWebsitesIncludingTeamAccess。(4) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。このリポジトリの決まりで、external の段までは書かず、確認・設定・ルールも繰り返していない): canCreateTeamWebsite と canViewTeam の下の getTeamUser、canDeleteBoard の下の getBoard、canViewPixel の下の getPixel、canViewLink の下の getLink、canViewSharedWebsite の下の canViewWebsite → getEntity → getWebsite、GET /api/pixels/[pixelId]・GET /api/links/[linkId]・GET /api/me/websites の下の parseRequest → checkAuth → getUser。(5) BoardEditForm から先の、対象の選択欄 (WebsiteSelect / PixelSelect / LinkSelect) と、認証・権限の関数は、ボードの編集の画面 (boards.boardId_d.edit) と同じコードを通る。同じ綴りと同じ書き方になるように、その結果のフレームを、対象のコードで行を確かめたうえで写し、この入口に合わせて呼び出し元・条件・説明を直した。(6) canCreateWebsite (src/permissions/website.ts:120) は、データを読まないので段にせず、権限の確認を POST /api/boards の段に書いた (admin.teams の canCreateTeam と同じ扱い)。(7) フレームにしなかったもの: BoardDesignButton / BoardEditButton (行き先を出すだけのリンク。links を BoardsTable に書いた)、useNavigation / useMessages / useModified (URL・翻訳・更新印の小道具)、PageBody / PageHeader / Panel / DataGrid / DialogButton / ConfirmationForm / SortableLabel (見た目と、URL の書き換えだけの部品)。(8) リンクの行き先 (links の target) は、同じ行き先がほかの入口の結果で /boards/${boardId} と書かれているので、その綴りに合わせた (コードの書き方は、BoardsTable が `/boards/${id}`、BoardAddButton が `/boards/${board.id}/design`。note に書いた)。(9) checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。(10) 画面から API を呼ぶ URL は、環境変数 API_URL が設定されていると (/auth と /config 以外は) その URL に向く。既定で同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL は API を呼ぶフックの settings に書いた (この画面からは API を呼ばない useBoardQuery には書いていない)。引数で行き先が切り替わる一覧の API (teamId の有無) は、interpretation にした。DB の接続先の環境変数は、決まりのとおり書いていない。(11) 権限の確認の value は、このリポジトリの決まりのとおり、確認する関数の名前だけ (canDeleteBoard など) と、権限の定数の名前だけ (PERMISSIONS.websiteCreate など) を書き、条件の説明は note に書いた。管理者はどの確認も素通りするが、管理者であることを求める確認ではないので、role の確認としては書かず、note に書いた。(12) 行の削除の fields は、name が * で use は write とし、条件の列を filter で書いた。board の作成では、コードが値を渡す列だけを書いた (created_at と updated_at は、スキーマの既定値が決めるので書いていない)。(13) テストとの対応は、作業定義で選ばれていないので分析していない。(14) レビューの指摘は low が 2 件で、どちらも直していない。(a) 管理者の素通り (user.isAdmin) を、role の確認として別に 1 件書くか、ownership の確認の note に書くかが、入口の間で分かれている。(b) API を呼ぶフックの settings に、API_URL だけを書くか、BASE_PATH も書くかが、入口の間で分かれている。どちらも、同じコードを通るボードの編集の画面 (boards.boardId_d.edit) とこの結果は同じ書き方で、このリポジトリの決まり (analysis-conventions.md) はどちらにするかを決めていない。この入口だけを直すと、ボードの 2 つの画面の間で綴りが分かれるので、そのままにした。どちらにそろえるかは、人が決める。'
+notes: '指示書 0.4.0 とプロファイル 0.4.0 で分析した。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。BoardsPage.tsx では、追加のボタン (17 行目) が一覧 (20 行目) より前、BoardEditForm.tsx では、useBoardQuery (61 行目) が useUpdateQuery (62 行目) と選択欄 (158 行目) より前。このため、認証の経路 (parseRequest → checkAuth → getUser) と getBoard / getTeamUser の置き場は、GET /api/boards/[boardId] の下になった。(3) 迷った点: その GET /api/boards/[boardId] は、この画面からは呼ばれないように見える (BoardEditForm が useBoardQuery に空文字を渡し、enabled が偽になる)。指示書の「条件が成り立たないように見える呼び出しは、消さずに conditional で書く」に従って書いたので、実際には動かない受け口の下に、認証の経路がぶら下がる木になっている。認証の経路そのものは、実際に動く API (POST /api/boards、GET /api/boards、DELETE /api/boards/[boardId] など) が必ず通るので、読み書きの中身は変わらない。同じ理由で conditional にしたもの: getReport (この画面のフォームは、部品の行を持たない parameters を送る)、WebsiteSelect の useLoginQuery からの POST /api/auth/verify、GET /api/me/websites、getAllUserWebsitesIncludingTeamAccess。(4) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。このリポジトリの決まりで、external の段までは書かず、確認・設定・ルールも繰り返していない): canCreateTeamWebsite と canViewTeam の下の getTeamUser、canDeleteBoard の下の getBoard、canViewPixel の下の getPixel、canViewLink の下の getLink、canViewSharedWebsite の下の canViewWebsite → getEntity → getWebsite、GET /api/pixels/[pixelId]・GET /api/links/[linkId]・GET /api/me/websites の下の parseRequest → checkAuth → getUser。(5) BoardEditForm から先の、対象の選択欄 (WebsiteSelect / PixelSelect / LinkSelect) と、認証・権限の関数は、ボードの編集の画面 (boards.boardId_d.edit) と同じコードを通る。同じ綴りと同じ書き方になるように、その結果のフレームを、対象のコードで行を確かめたうえで写し、この入口に合わせて呼び出し元・条件・説明を直した。(6) canCreateWebsite (src/permissions/website.ts:120) は、データを読まないので段にせず、権限の確認を POST /api/boards の段に書いた (admin.teams の canCreateTeam と同じ扱い)。(7) フレームにしなかったもの: BoardDesignButton / BoardEditButton (行き先を出すだけのリンク。links を BoardsTable に書いた)、useNavigation / useMessages / useModified (URL・翻訳・更新印の小道具)、PageBody / PageHeader / Panel / DataGrid / DialogButton / ConfirmationForm / SortableLabel (見た目と、URL の書き換えだけの部品)。(8) リンクの行き先 (links の target) は、同じ行き先がほかの入口の結果で /boards/${boardId} と書かれているので、その綴りに合わせた (コードの書き方は、BoardsTable が `/boards/${id}`、BoardAddButton が `/boards/${board.id}/design`。note に書いた)。(9) checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。(10) 画面から API を呼ぶ URL は、環境変数 API_URL が設定されていると (/auth と /config 以外は) その URL に向く。既定で同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL と BASE_PATH は、このリポジトリの決まりのとおり、この入口で最初に API を呼ぶフレーム (use_create_board。POST /api/boards を呼ぶ) の settings に 1 回だけ書いた (木の上でそれより前の useBoardQuery は、この画面からは API を呼ばないので書いていない)。引数で行き先が切り替わる一覧の API (teamId の有無) は、interpretation にした。DB の接続先の環境変数は、決まりのとおり書いていない。(11) 権限の確認の value は、このリポジトリの決まりのとおり、確認する関数の名前だけ (canDeleteBoard など) と、権限の定数の名前だけ (PERMISSIONS.websiteCreate など) を書き、条件の説明は note に書いた。管理者の素通り (user.isAdmin) は、ほかの入口の結果と同じく、それを判定する段に role の確認として別に 1 件書いた。(12) 行の削除の fields は、name が * で use は write とし、条件の列を filter で書いた。board の作成では、コードが値を渡す列だけを書いた (created_at と updated_at は、スキーマの既定値が決めるので書いていない)。(13) テストとの対応は、作業定義で選ばれていないので分析していない。(14) レビューの指摘 2 件 (どちらも low) は、どちらも直した。(a) 管理者の素通りを、role (user.isAdmin) の確認として、canViewBoard / canViewWebsite / canViewPixel / canViewLink / canViewTeam / canCreateTeamWebsite / canDeleteBoard / canCreateWebsite (POST /api/boards の段) と、GET /api/users/[userId]/websites の段に足した。(b) BASE_PATH を足し、API_URL と BASE_PATH を、決まりのとおり、最初に API を呼ぶフレームに 1 回だけ書いた (ほかのフックの API_URL は消した)。'
 callstack:
 - id: page
   layer: page
@@ -763,6 +763,13 @@ callstack:
     - file: src/permissions/board.ts
       line: 180
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/board.ts
+      line: 155
+    note: 管理者なら、ほかの確認をせずに許す
   - kind: ownership
     value: canViewBoard
     status: fact
@@ -999,6 +1006,19 @@ callstack:
       line: 14
     - file: next.config.ts
       line: 215
+  - name: BASE_PATH
+    kind: env
+    effect: API の URL の前に付く
+    status: fact
+    evidence:
+    - file: next.config.ts
+      line: 15
+    - file: next.config.ts
+      line: 216
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 44
 - id: api_boards_post
   layer: api_route
   kind: route_handler
@@ -1120,6 +1140,15 @@ callstack:
     - file: src/app/api/boards/route.ts
       line: 51
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 125
+    - file: src/app/api/boards/route.ts
+      line: 61
+    note: 確かめるのは canCreateWebsite (src/permissions/website.ts:120。データを読まないので段にしていない)。管理者なら、役割の権限を見ずに許す
   - kind: permission
     value: PERMISSIONS.websiteCreate
     status: fact
@@ -1248,6 +1277,13 @@ callstack:
     - file: src/lib/auth.ts
       line: 164
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/team.ts
+      line: 81
+    note: 管理者なら、ほかの確認をせずに許す
   - kind: ownership
     value: canCreateTeamWebsite
     status: fact
@@ -1441,6 +1477,13 @@ callstack:
     - file: src/permissions/website.ts
       line: 37
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    note: 管理者なら、ほかの確認をせずに許す
   - kind: ownership
     value: canViewWebsite
     status: fact
@@ -1785,6 +1828,13 @@ callstack:
     - file: src/permissions/pixel.ts
       line: 36
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/pixel.ts
+      line: 7
+    note: 管理者なら、ほかの確認をせずに許す
   - kind: ownership
     value: canViewPixel
     status: fact
@@ -1892,6 +1942,13 @@ callstack:
     - file: src/permissions/link.ts
       line: 36
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/link.ts
+      line: 7
+    note: 管理者なら、ほかの確認をせずに許す
   - kind: ownership
     value: canViewLink
     status: fact
@@ -2271,20 +2328,6 @@ callstack:
       line: 13
     - file: src/components/hooks/useApi.ts
       line: 42
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_website_get
   layer: api_route
   kind: route_handler
@@ -2711,20 +2754,6 @@ callstack:
       line: 34
     - file: src/lib/url.ts
       line: 5
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_team_websites_get
   layer: api_route
   kind: route_handler
@@ -2813,6 +2842,13 @@ callstack:
     - file: src/permissions/team.ts
       line: 15
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/team.ts
+      line: 11
+    note: 管理者なら、ほかの確認をせずに許す
   - kind: ownership
     value: canViewTeam
     status: fact
@@ -3154,6 +3190,13 @@ callstack:
     - file: src/app/api/users/[userId]/websites/route.ts
       line: 21
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/app/api/users/[userId]/websites/route.ts
+      line: 23
+    note: コードの書き方は auth.user.isAdmin。管理者なら、本人でなくても通す
   - kind: ownership
     value: auth.user.id === userId
     status: fact
@@ -3757,20 +3800,6 @@ callstack:
       line: 13
     - file: src/components/hooks/useApi.ts
       line: 42
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_pixel_get
   layer: api_route
   kind: route_handler
@@ -3967,20 +3996,6 @@ callstack:
       line: 24
     - file: src/components/input/PixelSelect.tsx
       line: 24
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_team_pixels_get
   layer: api_route
   kind: route_handler
@@ -4315,20 +4330,6 @@ callstack:
       line: 13
     - file: src/components/hooks/useApi.ts
       line: 42
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_link_get
   layer: api_route
   kind: route_handler
@@ -4525,20 +4526,6 @@ callstack:
       line: 24
     - file: src/components/input/LinkSelect.tsx
       line: 24
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_team_links_get
   layer: api_route
   kind: route_handler
@@ -4909,20 +4896,6 @@ callstack:
       line: 24
     - file: src/components/hooks/useApi.ts
       line: 42
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_team_boards_get
   layer: api_route
   kind: route_handler
@@ -5419,20 +5392,6 @@ callstack:
       line: 7
     - file: src/components/hooks/useApi.ts
       line: 63
-  settings:
-  - name: API_URL
-    kind: env
-    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
-    status: fact
-    evidence:
-    - file: src/lib/api-url.ts
-      line: 38
-    - file: src/lib/api-url.ts
-      line: 39
-    - file: next.config.ts
-      line: 14
-    - file: next.config.ts
-      line: 215
 - id: api_board_delete
   layer: api_route
   kind: route_handler
@@ -5516,6 +5475,13 @@ callstack:
     - file: src/permissions/board.ts
       line: 236
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/board.ts
+      line: 219
+    note: 管理者なら、ほかの確認をせずに許す
   - kind: ownership
     value: canDeleteBoard
     status: fact

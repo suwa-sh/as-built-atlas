@@ -7,18 +7,21 @@ findings:
   - kind: missing_frame
     severity: low
     where: "callstack/filter_edit_form"
+    resolved: true
     claim: "FilterEditForm はイベントのプロパティのタブで PropertyFilters (source: event) を描き (FilterEditForm.tsx:166)、usePropertyFieldsQuery から GET /websites/<id>/event-data/fields に届くが、パスが /events で終わるときだけという理由で段にしていない。この画面から条件が成り立たないように見える呼び出しも消さずに conditional で書く決まり (analysis-conventions.md の木の書き方) と合わない (注釈の API は決まりどおり書いている)"
     evidence: { file: "src/components/input/FilterEditForm.tsx", line: 166 }
     suggestion: "PropertyFilters (source: event) から event-data/fields の受け口と、その先の問い合わせまでを conditional の段として足し、この画面のパスでは描かれない理由を note に書く"
   - kind: missing_frame
     severity: low
     where: "callstack/website_controls"
+    resolved: true
     claim: "WebsiteControls は allowDownload のときに ExportButton を描き (WebsiteControls.tsx:42)、ExportButton は GET /websites/<id>/export を呼ぶ (ExportButton.tsx:20) が、渡さないという理由で summary と notes (5) で触れるだけで段にしていない。条件が成り立たないように見える呼び出しを消さずに conditional で書く決まりと合わない"
     evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 42 }
     suggestion: "ExportButton から export の受け口とその先までを conditional の段として足し、この画面が allowDownload を渡さないこと (ComparePage.tsx:12) を note に書く"
   - kind: missing_frame
     severity: low
     where: "callstack/api_values"
+    resolved: true
     claim: "GET values は type が segment / cohort のとき getWebsiteSegments を呼ぶ (values/route.ts:49) が、この画面の列に segment / cohort が無いという理由で段にしていない。入口から深さ優先で辿ると getWebsiteSegments に最初に着くのはこの受け口なので、決まりどおりなら q_get_website_segments はここに conditional で置き、GET segments の側が「経路は同じ」と書く形になる"
     evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 49 }
     suggestion: "getWebsiteSegments の段を api_values の下に conditional で置き (届かないように見える理由を note に書く)、api_segments_get の summary で同じ経路を指す。置き場を変えないなら、その理由を notes に書く"
@@ -39,6 +42,7 @@ findings:
   - kind: missing_item
     severity: low
     where: "callstack/q_get_values/io/1/fields"
+    resolved: true
     claim: "getValues が取り出して検索する列は FILTER_COLUMNS[type] で、type はこの画面では useFields の固定の一覧から event を除いたもの (FieldFilters.tsx:43、FilterEditForm.tsx:61) なので、コードから列挙できる。それでも「実行時に決まる」として fields に書いていない (同じ結果の metrics の段では、この画面の type に当たる列を書いている)。io/0 (session) と io/2 (ClickHouse の website_event) も同じ"
     evidence: { file: "src/components/hooks/useFields.ts", line: 15 }
     suggestion: "website_event の io には url_path / url_query / page_title / referrer_domain / utm_source / utm_medium / utm_campaign / utm_content / utm_term / hostname / tag を、session の io には country / region / city / browser / os / device / distinct_id を、use: read と filter で足す (ClickHouse の io には両方)"

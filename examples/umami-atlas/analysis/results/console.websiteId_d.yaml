@@ -18,11 +18,11 @@ analyzer:
     version: "0.4.0"
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T11:47:00Z"
+  analyzed_at: "2026-11-17T21:59:08Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T11:47:00Z"
-    findings_open: 2
+    findings_open: 1
 summary:
   status: "interpretation"
   value: "計測を試すための画面 (Test console)。環境変数 ENABLE_TEST_CONSOLE が無ければ、何も描かない。あれば、ブラウザ側の TestConsolePage が、サイト 1 件を GET /api/websites/[websiteId] で読み (ログインの確認で user、REDIS_URL があれば Redis の auth:*。見る権限の確認で website / share / link / pixel / board / team_user)、読めたら、このサイトの id を付けて、計測のスクリプト (/script.js) と記録のスクリプト (/recorder.js) を読み込む。計測のスクリプトは、読み込まれた時点と、画面のリンク・ボタン・div の操作で、POST /api/send へページビュー・イベント・利用者のデータ・表示速度の指標を送る。この受け口は認証をせず、送られたものを保存する: PostgreSQL を使うときは session / website_event / event_data / revenue / session_data (条件によって session_link) に書き、CLICKHOUSE_URL があるときは ClickHouse の website_event / event_data / session_data に書く (KAFKA_URL と KAFKA_BROKER があれば、Kafka のトピック event / event_data / session_data へ送る)。保存の前に、サイトの有無 (REDIS_URL があれば Redis の website:* に読み書き) と、送信元の場所 (サーバーの GeoLite2 のファイル) を調べる。記録のスクリプトは、サイトの記録の設定を GET /api/websites/[websiteId]/recorder で読み、有効で抽選に当たれば、操作の記録とヒートマップを POST /api/record へ送る (session_replay / heatmap_event に書く。ClickHouse と Kafka でも同じ名前。CLOUD_MODE なら、契約を Redis の team:* / account:* から読む)。画面の下には、同じサイトのページビューとセッションの時系列 (GET pageviews) と、イベントの時系列 (GET events/series) のグラフを出す。どちらも website_event (ClickHouse では時間ごとの集計表 website_event_stats_hourly も) を読み、URL の絞り込みに応じて session / event_data / session_data / segment も読む。注釈 (GET annotations) は、この画面からは読まないように見える。ほかの画面への遷移は無い (リンクは、同じ画面の ?page=1 / ?page=2 と、外部の https://www.google.com だけ)"
@@ -47,7 +47,7 @@ summary:
     line: 75
   - file: "src/app/api/record/route.ts"
     line: 104
-notes: "(1) 入口は page のフレーム 1 つ。画面を包む枠 (ルートと (main) の layout) の処理は、枠の入口の結果にあるので、辿っていない。(2) 計測と記録のスクリプトの扱い: TestConsolePage は、2 つのスクリプトを import ではなく <Script src> で読み込む。プロファイルは「画面を通らない計測の受信は対象にしない」と決めているが、この画面は、計測を試すために、自分でスクリプトを読み込んで window.umami を呼ぶ画面なので、スクリプトのソース (src/tracker/index.ts、src/recorder/index.js。rollup の設定で public/script.js / public/recorder.js になる) を component の層のフレーム (kind: script) にして、送信先の受け口 (POST /api/send、GET recorder、POST /api/record) から、保存の終端まで辿った。スクリプトの読み込みそのもの (同じサーバーの静的なファイル) は、段にも読み書きにも書いていない。スクリプトと受け口のつながりは、作るときの置き換え (__COLLECT_API_HOST__ / __COLLECT_API_ENDPOINT__) と、読み込んだ URL のホストで決まるので、tracker と api_send の call は interpretation にした。/script.js が別の URL へ転送される設定 (TRACKER_SCRIPT_URL、本番の CLOUD_MODE) のときは、動くスクリプトが変わりうる。TRACKER_SCRIPT_URL の転送先は、値がリポジトリに無いので unknown (not_traceable_in_repo) にした。(3) フレームにしなかったもの: PageBody / PageHeader / Panel / Link / Button など (見た目だけ)、useApi (URL とヘッダーを組み立てるだけ。API_URL の設定は、これを使う 4 つのフックに書いた)、useDateRange / useDateParameters / useFilterParameters / useTimezone / useNavigation / useLocale (URL と画面の状態から期間や絞り込みを作るだけ)、PageviewsChart / BarChart / LoadingPanel (描くだけ)、受け口の中の補助の関数 (parseToken / createToken、isbot、hasBlockedIp、getRecorderConfig、getReplayEventCount、withCorsHeaders)。hasBlockedIp の設定 (IGNORE_IP) は、呼ぶ受け口に書いた。(4) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた: parseRequest → checkAuth → getUser と、canViewWebsite → getEntity → getWebsite / getLink / getPixel / getBoard、getTeamUser は、最初に着く GET /api/websites/[websiteId] の下。fetchWebsite と getClientInfo は POST /api/send の下、fetchAccount は POST /api/record の下 (getQueryFilters からは、summary で指した)。呼び先がすべて他の下にあって終端になる 3 か所 (GET recorder、canViewSharedWebsiteFilters、canViewWebsiteSection) は、読み書きを持つ最初の段 (getWebsite) までを、もう一度書いた (id が _rw1 / _rw2 / _rw3 で終わるフレーム。確認・設定・ルールは繰り返していない)。(5) external のフレームは、既にある結果に合わせて、呼ぶ問い合わせの関数ごとに書いた (同じ行 prisma.ts:746、clickhouse.ts:737、kafka.ts:128 を、関数ごとに違うテーブルやトピックで呼ぶため)。(6) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は書いていない。ブラウザのフックが付けるのはログイントークン (useApi.ts:28) と読んだため。共有トークンのヘッダーは、ブラウザの store に share があるときだけ付く (useApi.ts:22-25)。この画面でそれが起きないとは言い切れないので、共有トークンの確認も書いた。(7) この入口からは条件が成り立たないように見えるが、消さずに conditional で書いたもの: GET annotations (WebsiteChart に showAnnotations を渡さない)、saveSessionLink / updateSession (この画面は、利用者の id を付けずに identify を呼ぶ)。(8) 接続先の段 (host、database、broker) は、プロファイルの決まりどおり書いていない。Kafka のトピックの名前と、GeoLite2 のファイルの既定のパスは、コードから読めるので書いた。DATABASE_URL は、決まりどおり設定に書いていない。(9) ClickHouse を使うとき、売上 (revenue) を別に保存する処理は、アプリのコードには無い (saveRevenue は PostgreSQL だけ)。ClickHouse の側で website_event から作る表があるかは、db/clickhouse/schema.sql の表の定義の行しか読んでいないので、書いていない。(11) 直さなかったレビューの指摘 (low、2 件): canViewWebsite の中の共有トークンの確認の値 (canViewWebsite) と、share.ts の 3 つの関数の確認の値 (関数の名前) は、websites.websiteId_d や funnels の結果と同じ綴りなので、そのままにした。links.linkId_d の結果は別の綴り (shareToken / shareTokenIncludesWebsite) で、どちらにそろえるかは analysis-conventions.md で決める必要がある。(10) ブラウザの中の保存 (localStorage の umami.disabled、ログイントークン) は、決まりどおり I/O に書いていない。"
+notes: "(1) 入口は page のフレーム 1 つ。画面を包む枠 (ルートと (main) の layout) の処理は、枠の入口の結果にあるので、辿っていない。(2) 計測と記録のスクリプトの扱い: TestConsolePage は、2 つのスクリプトを import ではなく <Script src> で読み込む。プロファイルは「画面を通らない計測の受信は対象にしない」と決めているが、この画面は、計測を試すために、自分でスクリプトを読み込んで window.umami を呼ぶ画面なので、スクリプトのソース (src/tracker/index.ts、src/recorder/index.js。rollup の設定で public/script.js / public/recorder.js になる) を component の層のフレーム (kind: script) にして、送信先の受け口 (POST /api/send、GET recorder、POST /api/record) から、保存の終端まで辿った。スクリプトの読み込みそのもの (同じサーバーの静的なファイル) は、段にも読み書きにも書いていない。スクリプトと受け口のつながりは、作るときの置き換え (__COLLECT_API_HOST__ / __COLLECT_API_ENDPOINT__) と、読み込んだ URL のホストで決まるので、tracker と api_send の call は interpretation にした。/script.js が別の URL へ転送される設定 (TRACKER_SCRIPT_URL、本番の CLOUD_MODE) のときは、動くスクリプトが変わりうる。TRACKER_SCRIPT_URL の転送先は、値がリポジトリに無いので unknown (not_traceable_in_repo) にした。(3) フレームにしなかったもの: PageBody / PageHeader / Panel / Link / Button など (見た目だけ)、useApi (URL とヘッダーを組み立てるだけ。API_URL の設定は、これを使う 4 つのフックに書いた)、useDateRange / useDateParameters / useFilterParameters / useTimezone / useNavigation / useLocale (URL と画面の状態から期間や絞り込みを作るだけ)、PageviewsChart / BarChart / LoadingPanel (描くだけ)、受け口の中の補助の関数 (parseToken / createToken、isbot、hasBlockedIp、getRecorderConfig、getReplayEventCount、withCorsHeaders)。hasBlockedIp の設定 (IGNORE_IP) は、呼ぶ受け口に書いた。(4) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた: parseRequest → checkAuth → getUser と、canViewWebsite → getEntity → getWebsite / getLink / getPixel / getBoard、getTeamUser は、最初に着く GET /api/websites/[websiteId] の下。fetchWebsite と getClientInfo は POST /api/send の下、fetchAccount は POST /api/record の下 (getQueryFilters からは、summary で指した)。呼び先がすべて他の下にあって終端になる 3 か所 (GET recorder、canViewSharedWebsiteFilters、canViewWebsiteSection) は、読み書きを持つ最初の段 (getWebsite) までを、もう一度書いた (id が _rw1 / _rw2 / _rw3 で終わるフレーム。確認・設定・ルールは繰り返していない)。(5) external のフレームは、既にある結果に合わせて、呼ぶ問い合わせの関数ごとに書いた (同じ行 prisma.ts:746、clickhouse.ts:737、kafka.ts:128 を、関数ごとに違うテーブルやトピックで呼ぶため)。(6) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は書いていない。ブラウザのフックが付けるのはログイントークン (useApi.ts:28) と読んだため。共有トークンのヘッダーは、ブラウザの store に share があるときだけ付く (useApi.ts:22-25)。この画面でそれが起きないとは言い切れないので、共有トークンの確認も書いた。(7) この入口からは条件が成り立たないように見えるが、消さずに conditional で書いたもの: GET annotations (WebsiteChart に showAnnotations を渡さない)、saveSessionLink / updateSession (この画面は、利用者の id を付けずに identify を呼ぶ)。(8) 接続先の段 (host、database、broker) は、プロファイルの決まりどおり書いていない。Kafka のトピックの名前と、GeoLite2 のファイルの既定のパスは、コードから読めるので書いた。DATABASE_URL は、決まりどおり設定に書いていない。(9) ClickHouse を使うとき、売上 (revenue) を別に保存する処理は、アプリのコードには無い (saveRevenue は PostgreSQL だけ)。ClickHouse の側で website_event から作る表があるかは、db/clickhouse/schema.sql の表の定義の行しか読んでいないので、書いていない。(11) レビューの指摘の扱い: canViewWebsite の中の共有トークンの確認 (website.ts:13-21) は、別の確認 (kind は other) にしていたのを、ほかの入口の結果 (settings.websites.websiteId_d など) と同じく、持ち主・所属の確認 (canViewWebsite) の根拠と note にまとめた (直した)。share.ts の 3 つの関数の確認の値 (関数の名前) は直していない: いまの結果では、links.linkId_d を含むどの入口も同じ関数の名前で書いていて、綴りはそろっているため。(10) ブラウザの中の保存 (localStorage の umami.disabled、ログイントークン) は、決まりどおり I/O に書いていない。"
 callstack:
 - id: "page"
   layer: "page"
@@ -735,8 +735,8 @@ callstack:
       line: 10
     - file: "src/lib/auth.ts"
       line: 137
-    note: "この 3 つの確認は、どれか 1 つを満たせば通る。管理者は、ほかの確認もデータの読み取りもせずに通る。user.isAdmin は、checkAuth が user.role === ROLES.admin で決める"
-  - kind: "other"
+    note: "この 2 つの確認は、どれか 1 つを満たせば通る。管理者は、ほかの確認もデータの読み取りもせずに通る。user.isAdmin は、checkAuth が user.role === ROLES.admin で決める"
+  - kind: "ownership"
     value: "canViewWebsite"
     status: "fact"
     evidence:
@@ -746,11 +746,6 @@ callstack:
       line: 14
     - file: "src/permissions/website.ts"
       line: 21
-    note: "共有トークンの websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じなら通る"
-  - kind: "ownership"
-    value: "canViewWebsite"
-    status: "fact"
-    evidence:
     - file: "src/permissions/website.ts"
       line: 26
     - file: "src/permissions/website.ts"
@@ -763,7 +758,7 @@ callstack:
       line: 35
     - file: "src/permissions/website.ts"
       line: 37
-    note: "対象に持ち主 (entity.userId) があれば、user.id === entity.userId のときだけ通る (チームの確認へ進まない)。持ち主が無くチーム (entity.teamId) があれば、getTeamUser(entity.teamId, user.id) が当たる (チームのメンバー) ときだけ通る"
+    note: "共有トークンの websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じときも、データを読まずに通る (website.ts:13-21。ほかの入口の結果に合わせて、別の確認にせずここに書いた)。対象に持ち主 (entity.userId) があれば、user.id === entity.userId のときだけ通る (チームの確認へ進まない)。持ち主が無くチーム (entity.teamId) があれば、getTeamUser(entity.teamId, user.id) が当たる (チームのメンバー) ときだけ通る"
 - id: "q_get_entity"
   layer: "query"
   kind: "function"

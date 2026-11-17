@@ -18,11 +18,11 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.0
   model: claude-opus-5-5
-  analyzed_at: '2026-11-17T16:09:46Z'
+  analyzed_at: '2026-11-17T22:27:02Z'
   reviewed:
     by: claude-opus-5-5 (fresh context)
     at: '2026-11-17T16:09:14Z'
-    findings_open: 4
+    findings_open: 0
 summary:
   status: interpretation
   value: 1 つのサイトの表示性能 (Web Vitals) の画面。Performance が、GET /api/websites/<id>/performance/stats で 5 つの指標 (LCP / INP / CLS / FCP / TTFB) の 50・75・95 パーセンタイルとサンプル数を、performance/chart で選んだ指標の時系列を、performance/metrics でページの path・タイトル・端末・ブラウザごとの百分位を読む。3 つの受け口とも、website_event のうち性能の計測のイベント (event_type 5) だけを集計し、PostgreSQL と ClickHouse のどちらで読むかは、設定 (CLICKHOUSE_URL) で切り替わる (PostgreSQL で端末・ブラウザごとに読むときは session を結合する)。指標のカードを押すと時系列と表を読み直す。上部の WebsiteControls は、絞り込みのボタン (列の値・セグメント・セッションのプロパティの候補を読む。この画面では referrer・UTM などの列を選べない)、期間の選択 (daterange)、絞り込みの帯 (保存済みの segment の読み取りと、セグメントとして保存する書き込み) を描く。どの受け口も parseRequest → checkAuth で認証する (user を読む。Redis が有効なら auth:* も読む)。権限の確認では website / link / pixel / board / team_user を読み、共有トークンだけのときは performance のセクションを見てよいかを確かめる。利用者の操作による書き込みは、セグメントとして保存 (segment の作成) だけ。ほかに、Redis が有効なら、サイトの情報を website:* にキャッシュする
@@ -43,7 +43,7 @@ summary:
     line: 15
   - file: src/queries/sql/performance/getPerformanceStats.ts
     line: 52
-notes: 'プロファイル 0.4.0・skill 0.4.0 で分析した。[木の形] 同じ処理は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に書いた。PerformancePage の中の順は、useDateRange (10 行。API を呼ばない) → WebsiteControls (14 行) → Performance (15 行)。だから、parseRequest → checkAuth → getUser、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は、WebsiteControls の絞り込みのボタン (WebsiteFilterButton → FilterEditForm → FieldFilters → FilterRecord → useWebsiteValuesQuery → GET values) の下に書き、性能の 3 つの受け口では、呼ぶことと経路が同じことを summary に書いた。WebsiteControls の下の木は、同じコミットの同じ部品を、同じ props (websiteId だけ) で描く画面 (websites.websiteId_d.attribution) の木と同じになるので、それを写した。この画面に合わせて直したのは、呼び出し元 (PerformancePage.tsx 14 行)、FilterEditForm の選べない列のルール (パスに /performance を含むので、referrer・query・event・tag・distinctId・UTM の 5 つを除く)、FieldFilters の列の例、parseRequest / canViewWebsiteSection / getQueryFilters の summary にある、この画面のほかの受け口の一覧 (attribution を performance/stats・chart・metrics に替えた)、canViewWebsiteSection の確認の note (性能の受け口はセクション performance を渡す)。[迷った点と選んだ扱い] (1) PerformanceMetricsTable は、Performance.tsx の中の別の関数の部品で、4 か所 (path / title / device / browser) から type だけを変えて描く。同じ関数・同じフック・同じ受け口・同じ問い合わせの関数なので、1 つのフレームにまとめた。届く列と表は type で変わる (device / browser のときは、PostgreSQL で session を結合する) ので、問い合わせの I/O に、4 つの type で届く列と表をすべて書き、note に type ごとの違いを書いた。(2) タブの中身 (TabPanel) を、タブを選ぶまで描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードには描く条件が無いので always にし、note に書いた。(3) 指標 (metric) と項目の列 (column) は SQL に文字列で埋め込まれるが、受け口が metric を 5 つの値に、type を 4 つの値に限って検査し、列の名前は受け口の固定の対応表から決まるので、読める列として fields に書いた (unknown にしていない)。(4) 指標の評価 (良い・要改善・悪い) は、段にしていない部品 (PerformanceCard) の中の関数なので、それを描く Performance の rules に書いた。表で、選んだ百分位の値が 0 の行を除き、上位 20 行だけ出すこと、値の書式 (ms / s) は、画面での表示なので rules に書かず、summary に書いた。(5) 百分位の選択は、読んだ値のどれを出すかを変えるだけで、問い合わせのクエリに入らない (stats の問い合わせのキーにも入らない) ので、受け口の呼び出しの条件にしていない。(6) MetricLabel / FilterLink / TypeIcon (表の行のラベルとアイコン) は、同じ画面の URL のクエリを書き換えるか、同じサーバーの静的な画像を出すだけなので、フレームにも links にもしていない。BarChart、PerformanceCard、ListTable、LoadingPanel も見た目だけなので、フレームにしていない。(7) ライブラリを呼ぶ同じ行 (prisma.ts 746 行の $queryRawUnsafe、clickhouse.ts 721 行の query) は、呼び出し元ごとに読む表と列が違うので、問い合わせの関数ごとに書いた。(8) 生の SQL のうち、parseFilters が実行時に組み立てる条件の列は fields に書かず、note に書いた。イベントのプロパティの絞り込み (epf) は、useFilterParameters がパスが /events で終わる画面でだけ付けるので、この画面からは届かないように見えるが、受け口と問い合わせの関数は扱えるので、event_data の読み取りを interpretation で書き、note に理由を書いた。(9) 期間の localStorage など、ブラウザの中の保存は I/O に書いていない。(10) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。 [レビュー] 指摘は 4 件で、すべて low。high が無いので、もう一度のレビューはしていない。4 件とも直していない。理由: (a) PerformanceMetricsTable を 1 つのフレームにまとめたこと (type が device / browser のときは PostgreSQL で session に届くので、届く先ごとに分けるべきという指摘): 届く表と列は、q_get_performance_metrics の I/O と note にすべて書いてあり、読み書きの抜けは無い。4 つに分けると、同じ受け口と問い合わせの関数の木を 4 回書くことになる。まとめる書き方を認めるかは人が決めることなので、分けずに残した (認めないなら、path・title と device・browser の 2 つに分ける)。 (b) この画面からは条件が成り立たない呼び出しを conditional のフレームにしていない 3 件 (WebsiteControls の ExportButton、FilterEditForm のイベントのプロパティの欄、GET values の getWebsiteSegments の枝): WebsiteControls の下の木を写した元の結果 (websites.websiteId_d.attribution) から受け継いだもので、compare の画面のレビューも同じ 3 件を挙げている。WebsiteControls を使う画面の結果をそろえて直すのがよいので、この画面だけでは直さなかった (summary と note には、届かない理由を書いてある)。'
+notes: 'プロファイル 0.4.0・skill 0.4.0 で分析した。[木の形] 同じ処理は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に書いた。PerformancePage の中の順は、useDateRange (10 行。API を呼ばない) → WebsiteControls (14 行) → Performance (15 行)。だから、parseRequest → checkAuth → getUser、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は、WebsiteControls の絞り込みのボタン (WebsiteFilterButton → FilterEditForm → FieldFilters → FilterRecord → useWebsiteValuesQuery → GET values) の下に書き、性能の 3 つの受け口では、呼ぶことと経路が同じことを summary に書いた。WebsiteControls の下の木は、同じコミットの同じ部品を、同じ props (websiteId だけ) で描く画面 (websites.websiteId_d.attribution) の木と同じになるので、それを写した。この画面に合わせて直したのは、呼び出し元 (PerformancePage.tsx 14 行)、FilterEditForm の選べない列のルール (パスに /performance を含むので、referrer・query・event・tag・distinctId・UTM の 5 つを除く)、FieldFilters の列の例、parseRequest / canViewWebsiteSection / getQueryFilters の summary にある、この画面のほかの受け口の一覧 (attribution を performance/stats・chart・metrics に替えた)、canViewWebsiteSection の確認の note (性能の受け口はセクション performance を渡す)。[迷った点と選んだ扱い] (1) PerformanceMetricsTable は、Performance.tsx の中の別の関数の部品で、4 か所 (path / title / device / browser) から type だけを変えて描く。届く表が type で変わる (device / browser は SESSION_COLUMNS に入るので、PostgreSQL ではいつも session を結合する) ので、context.md の「引数で読み書き先が変わるものは、届く先ごとに書く」に従い、path / title (performance_metrics_table から q_get_performance_metrics まで) と device / browser (performance_metrics_table_session から q_get_performance_metrics_session まで) の 2 つの経路に分けた。後の経路では、受け口の検査のルール・設定・問い合わせのルールを繰り返さず、前の経路のフレームを指した。(2) タブの中身 (TabPanel) を、タブを選ぶまで描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードには描く条件が無いので always にし、note に書いた。(3) 指標 (metric) と項目の列 (column) は SQL に文字列で埋め込まれるが、受け口が metric を 5 つの値に、type を 4 つの値に限って検査し、列の名前は受け口の固定の対応表から決まるので、読める列として fields に書いた (unknown にしていない)。(4) 指標の評価 (良い・要改善・悪い) は、段にしていない部品 (PerformanceCard) の中の関数なので、それを描く Performance の rules に書いた。表で、選んだ百分位の値が 0 の行を除き、上位 20 行だけ出すこと、値の書式 (ms / s) は、画面での表示なので rules に書かず、summary に書いた。(5) 百分位の選択は、読んだ値のどれを出すかを変えるだけで、問い合わせのクエリに入らない (stats の問い合わせのキーにも入らない) ので、受け口の呼び出しの条件にしていない。(6) MetricLabel / FilterLink / TypeIcon (表の行のラベルとアイコン) は、同じ画面の URL のクエリを書き換えるか、同じサーバーの静的な画像を出すだけなので、フレームにも links にもしていない。BarChart、PerformanceCard、ListTable、LoadingPanel も見た目だけなので、フレームにしていない。(7) ライブラリを呼ぶ同じ行 (prisma.ts 746 行の $queryRawUnsafe、clickhouse.ts 721 行の query) は、呼び出し元ごとに読む表と列が違うので、問い合わせの関数ごとに書いた。(8) 生の SQL のうち、parseFilters が実行時に組み立てる条件の列は fields に書かず、note に書いた。イベントのプロパティの絞り込み (epf) は、useFilterParameters がパスが /events で終わる画面でだけ付けるので、この画面からは届かないように見えるが、受け口と問い合わせの関数は扱えるので、event_data の読み取りを interpretation で書き、note に理由を書いた。(9) 期間の localStorage など、ブラウザの中の保存は I/O に書いていない。(10) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。 [レビュー] 指摘は 4 件で、すべて low。high が無いので、もう一度のレビューはしていない。4 件とも直した。(a) PerformanceMetricsTable を、届く表で path / title と device / browser の 2 つの経路に分けた (上の (1))。(b) この画面からは条件が成り立たないように見える呼び出しを、決まりどおり conditional のフレームにして、理由を note に書いた: ExportButton (WebsiteControls.tsx:42。allowDownload を渡さない) から GET export・canViewAuthenticatedWebsite・getEventMetrics / getPageviewMetrics / getSessionMetrics まで、FilterEditForm のイベントのプロパティの欄 (FilterEditForm.tsx:166。パスが /events で終わらない) から event-data/fields と event-data/values の受け口・問い合わせまで。木は、同じ部品を書いて指摘が直された入口 (export は links.linkId_d、イベントのプロパティは websites.websiteId_d.compare) の結果を写し、この画面での条件と、export が渡す type に当たる列に直した。(c) getWebsiteSegments を GET values の下に conditional で移し (values/route.ts:49。この画面の列に segment / cohort が無い)、GET segments の summary で同じ経路を指した。parseRequest・canViewWebsiteSection・getQueryFilters の summary の「この画面のほかの受け口」にも、足した受け口を足した。'
 callstack:
 - id: page
   layer: page
@@ -123,7 +123,7 @@ callstack:
       line: 14
   summary:
     status: interpretation
-    value: フィルターのボタン、期間の選択、いまのフィルターの帯を並べる。この画面は websiteId だけを渡し、allowDownload と allowMonthFilter は渡さないので、ExportButton と MonthFilter は描かない。useShare は共有画面の設定を読むだけで、データを読まない
+    value: フィルターのボタン、期間の選択、いまのフィルターの帯を並べる。この画面は websiteId だけを渡し、allowDownload と allowMonthFilter は渡さないので、ExportButton と MonthFilter は描かない (ExportButton はデータに届くので、消さずにフレーム export_button として書いた。MonthFilter はデータに届かない)。useShare は共有画面の設定を読むだけで、データを読まない
     evidence:
     - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
       line: 27
@@ -202,7 +202,7 @@ callstack:
       line: 92
   summary:
     status: interpretation
-    value: '絞り込みを編集するフォーム。タブごとに、列の絞り込み (FieldFilters)、セグメントとコホートの一覧 (SegmentFilters を 2 回)、セッションのプロパティの絞り込み (PropertyFilters の source: session) を描く。イベントのプロパティのタブは、パスが /events で終わるときだけなので、この画面では出ない。自分では API を呼ばない'
+    value: '絞り込みを編集するフォーム。タブごとに、列の絞り込み (FieldFilters)、セグメントとコホートの一覧 (SegmentFilters を 2 回)、セッションのプロパティの絞り込み (PropertyFilters の source: session) を描く。イベントのプロパティのタブ (PropertyFilters の source: event) は、パスが /events で終わるときだけなので、この画面では出ないように見える (消さずにフレーム property_filters_event として書いた)。自分では API を呼ばない'
     evidence:
     - file: src/components/input/FilterEditForm.tsx
       line: 38
@@ -384,7 +384,7 @@ callstack:
     note: フックの enabled (websiteId・type・期間がそろっていること) は、この画面ではいつも成り立つ (websiteId は URL、type は行の列、期間は FieldFilters が作る)。API_URL を設定すると、向き先が変わる
   summary:
     status: interpretation
-    value: 列の値の候補を返す受け口。入力の検査とログインの確認 (parseRequest)、サイトを見る権限の確認 (canViewWebsiteSection)、期間と絞り込みの組み立て (getQueryFilters) の後、getValues で値ごとの件数を読む。type が segment / cohort のときは getWebsiteSegments でセグメントの名前を返す枝 (route.ts:48) があるが、この画面の列 (useFields) には segment / cohort が無いので届かない
+    value: 列の値の候補を返す受け口。入力の検査とログインの確認 (parseRequest)、サイトを見る権限の確認 (canViewWebsiteSection)、期間と絞り込みの組み立て (getQueryFilters) の後、getValues で値ごとの件数を読む。type が segment / cohort のときは getWebsiteSegments でセグメントの名前を返す枝 (route.ts:48) がある。この画面の列 (useFields) には segment / cohort が無いので届かないように見えるが、消さずにフレーム q_get_website_segments として書いた
     evidence:
     - file: src/app/api/websites/[websiteId]/values/route.ts
       line: 18
@@ -423,7 +423,7 @@ callstack:
       line: 18
   summary:
     status: interpretation
-    value: '受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す。この画面のほかの受け口も、最初に同じ関数を呼ぶ: segments の GET / POST、segments/[segmentId] の GET、session-data/properties、session-data/values、daterange、performance/stats、performance/chart、performance/metrics。経路はここと同じ'
+    value: '受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す。この画面のほかの受け口も、最初に同じ関数を呼ぶ: segments の GET / POST、segments/[segmentId] の GET、event-data/fields と event-data/values (この画面では呼ばれないように見える)、session-data/properties、session-data/values、daterange、export (この画面では呼ばれないように見える)、performance/stats、performance/chart、performance/metrics。経路はここと同じ'
     evidence:
     - file: src/lib/request.ts
       line: 22
@@ -702,7 +702,7 @@ callstack:
       line: 27
   summary:
     status: interpretation
-    value: 'サイトの、あるセクションを見てよいかを決める。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める。この画面のほかの受け口も同じ関数を呼ぶ (渡すセクションが違う): session-data/properties と session-data/values (sessions)、performance/stats と performance/chart と performance/metrics (performance)。経路はここと同じ'
+    value: 'サイトの、あるセクションを見てよいかを決める。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める。この画面のほかの受け口も同じ関数を呼ぶ (渡すセクションが違う): event-data/fields と event-data/values (events。この画面では呼ばれないように見える)、session-data/properties と session-data/values (sessions)、performance/stats と performance/chart と performance/metrics (performance)。経路はここと同じ'
     evidence:
     - file: src/permissions/share.ts
       line: 58
@@ -1195,6 +1195,111 @@ callstack:
     evidence:
     - file: src/queries/prisma/teamUser.ts
       line: 20
+- id: "q_get_website_segments"
+  layer: "query"
+  kind: "function"
+  name: "getWebsiteSegments → getSegments (src/queries/prisma/segment.ts)"
+  source:
+    file: "src/queries/prisma/segment.ts"
+    line: 42
+  caller: "api_values"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "type が segment / cohort のとき (セグメントやコホートの名前を候補として返すとき)"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/values/route.ts"
+      line: 48
+    - file: "src/app/api/websites/[websiteId]/values/route.ts"
+      line: 49
+    note: "FieldFilters の項目 (useFields) に segment / cohort が無いので、この画面からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた。GET segments の受け口 (segments/route.ts:33) も同じ関数を呼ぶ。入口から深さ優先で辿ると、GET values の受け口 (values/route.ts:49) が先に着くので、ここに書いた"
+  summary:
+    status: "interpretation"
+    value: "サイトと種類 (segment / cohort) で segment を絞り、pagedQuery で 1 ページ分と件数を読む (検索語があれば名前で絞る。GET values からは filters を渡さないので、検索語では絞らない)"
+    evidence:
+    - file: "src/queries/prisma/segment.ts"
+      line: 26
+    - file: "src/queries/prisma/segment.ts"
+      line: 33
+    - file: "src/queries/prisma/segment.ts"
+      line: 43
+    - file: "src/queries/prisma/segment.ts"
+      line: 46
+    - file: "src/queries/prisma/segment.ts"
+      line: 47
+    - file: "src/lib/prisma.ts"
+      line: 761
+    - file: "src/lib/prisma.ts"
+      line: 775
+  io:
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "segment"
+    fields:
+    - name: "*"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "type"
+      use:
+      - "filter"
+    - name: "name"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/prisma/segment.ts"
+      line: 33
+    - file: "src/queries/prisma/segment.ts"
+      line: 46
+    - file: "src/queries/prisma/segment.ts"
+      line: 47
+    - file: "src/queries/prisma/segment.ts"
+      line: 28
+    - file: "src/lib/prisma.ts"
+      line: 761
+    - file: "src/lib/prisma.ts"
+      line: 775
+    - file: "prisma/schema.prisma"
+      line: 317
+    note: "name の条件は、検索語があるときだけ。並べ替えの列は、クエリの orderBy で実行時に決まる。1 ページ分の行 (findMany) と件数 (count) の 2 回読む"
+- id: "ext_prisma_segment_find_many"
+  layer: "external"
+  kind: "library"
+  name: "Prisma Client segment.findMany (prisma.pagedQuery)"
+  source:
+    file: "src/lib/prisma.ts"
+    line: 761
+  caller: "q_get_website_segments"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/queries/prisma/segment.ts"
+      line: 33
+    - file: "src/lib/prisma.ts"
+      line: 761
+- id: "ext_prisma_segment_count"
+  layer: "external"
+  kind: "library"
+  name: "Prisma Client segment.count (prisma.pagedQuery)"
+  source:
+    file: "src/lib/prisma.ts"
+    line: 775
+  caller: "q_get_website_segments"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/queries/prisma/segment.ts"
+      line: 33
+    - file: "src/lib/prisma.ts"
+      line: 775
 - id: q_get_query_filters
   layer: query
   kind: function
@@ -1214,7 +1319,7 @@ callstack:
     note: type が segment / cohort でないときの枝 (route.ts:52)。この画面の列 (useFields) には segment / cohort が無いので、いつもこの枝を通る
   summary:
     status: interpretation
-    value: 'クエリから、期間・単位・列の絞り込み・プロパティの絞り込みを取り出して、問い合わせ用の条件にまとめる。websiteId を渡されたときは、サイトの情報 (fetchWebsite) で期間の開始を直し、URL に segment / cohort があれば、保存した定義 (getWebsiteSegment) を絞り込みに足す。この画面のほかの受け口も同じ関数を呼ぶ: session-data/properties、session-data/values、performance/stats、performance/chart、performance/metrics。segments の GET は websiteId を渡さずに呼ぶ (サイトの情報もセグメントも読まない)。経路はここと同じ'
+    value: 'クエリから、期間・単位・列の絞り込み・プロパティの絞り込みを取り出して、問い合わせ用の条件にまとめる。websiteId を渡されたときは、サイトの情報 (fetchWebsite) で期間の開始を直し、URL に segment / cohort があれば、保存した定義 (getWebsiteSegment) を絞り込みに足す。この画面のほかの受け口も同じ関数を呼ぶ: event-data/fields、event-data/values、export (この 3 つは、この画面では呼ばれないように見える)、session-data/properties、session-data/values、performance/stats、performance/chart、performance/metrics。segments の GET は websiteId を渡さずに呼ぶ (サイトの情報もセグメントも読まない)。経路はここと同じ'
     evidence:
     - file: src/lib/request.ts
       line: 122
@@ -1822,7 +1927,7 @@ callstack:
     note: フックの enabled (websiteId があること) は、この画面ではいつも成り立つ。API_URL を設定すると、向き先が変わる
   summary:
     status: interpretation
-    value: サイトのセグメント (またはコホート) の一覧を返す受け口。parseRequest (route.ts:18) と getQueryFilters (route.ts:31。websiteId を渡さない) も呼ぶ。経路は、フレーム q_parse_request / q_get_query_filters と同じ。見る権限は canViewSharedWebsiteFilters で確かめる
+    value: サイトのセグメント (またはコホート) の一覧を返す受け口。parseRequest (route.ts:18)、getQueryFilters (route.ts:31。websiteId を渡さない)、getWebsiteSegments (route.ts:33) も呼ぶ。経路は、フレーム q_parse_request / q_get_query_filters / q_get_website_segments と同じ (getWebsiteSegments は、入口から深さ優先で辿ると GET values の受け口が先に着く)。見る権限は canViewSharedWebsiteFilters で確かめる
     evidence:
     - file: src/app/api/websites/[websiteId]/segments/route.ts
       line: 18
@@ -1984,107 +2089,953 @@ callstack:
     - file: prisma/schema.prisma
       line: 412
     note: サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)
-- id: q_get_website_segments
-  layer: query
-  kind: function
-  name: getWebsiteSegments → getSegments (src/queries/prisma/segment.ts)
+- id: "property_filters_event"
+  layer: "component"
+  kind: "component"
+  name: "PropertyFilters (source: event)"
   source:
-    file: src/queries/prisma/segment.ts
-    line: 42
-  caller: api_segments_get
+    file: "src/components/property-data/PropertyFilters.tsx"
+    line: 32
+  caller: "filter_edit_form"
   call:
-    status: fact
-    when: always
+    status: "fact"
+    when: "conditional"
+    condition: "画面のパスに /pixels も /links も含まず、パスが /events で終わり、websiteId があるとき (!isPixelLink && websiteId && isEventsPath)"
     evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 33
+    - file: "src/components/input/FilterEditForm.tsx"
+      line: 37
+    - file: "src/components/input/FilterEditForm.tsx"
+      line: 38
+    - file: "src/components/input/FilterEditForm.tsx"
+      line: 166
+    - file: "src/components/input/FilterEditForm.tsx"
+      line: 168
+    note: "この画面のパス (/websites/<id>/performance) は /events で終わらないので、ここからは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた。タブを選ぶまで中身を描くかどうかは UI ライブラリ (Tabs / TabPanel) の動きで、リポジトリからは読めない"
   summary:
-    status: interpretation
-    value: サイトと種類 (segment / cohort) で segment を絞り、pagedQuery で 1 ページ分と件数を読む (検索語があれば名前で絞る)
+    status: "interpretation"
+    value: "イベントのプロパティの名前の一覧 (usePropertyFieldsQuery の source: event) を出し、選んだプロパティごとに条件の行 (PropertyFilterRecord) を描く。FilterEditForm からは eventName を渡さないので、すべてのイベントのプロパティが候補になる。同じ部品を source: session でも描く (フレーム property_filters)。届く URL が違うので、別のフレームにした"
     evidence:
-    - file: src/queries/prisma/segment.ts
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 53
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 59
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 156
+    - file: "src/components/input/FilterEditForm.tsx"
+      line: 168
+  rules:
+  - kind: "decision"
+    value: "同じ名前のプロパティが複数の型で保存されているときは、件数がいちばん多い型だけを一覧に残す"
+    status: "interpretation"
+    evidence:
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 56
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 58
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 59
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 61
+    note: "一覧は件数の多い順に返るので、先に来た型を残す。source: session の側 (フレーム property_filters) も同じ処理"
+- id: "use_property_fields_event"
+  layer: "component"
+  kind: "hook"
+  name: "usePropertyFieldsQuery (source: event)"
+  source:
+    file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+    line: 8
+  caller: "property_filters_event"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 53
+  summary:
+    status: "interpretation"
+    value: "プロパティの名前の一覧を読むフック。source が event なので GET /websites/<id>/event-data/fields を呼ぶ。期間と URL のフィルターを送る (eventName は、渡されたときだけ送る)"
+    evidence:
+    - file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      line: 25
+    - file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
       line: 26
-    - file: src/queries/prisma/segment.ts
-      line: 33
-    - file: src/queries/prisma/segment.ts
-      line: 43
-    - file: src/queries/prisma/segment.ts
+    - file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      line: 30
+- id: "api_event_data_fields"
+  layer: "api_route"
+  kind: "route_handler"
+  name: "GET /api/websites/[websiteId]/event-data/fields"
+  source:
+    file: "src/app/api/websites/[websiteId]/event-data/fields/route.ts"
+    line: 8
+  caller: "use_property_fields_event"
+  call:
+    status: "interpretation"
+    when: "always"
+    evidence:
+    - file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      line: 25
+    - file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      line: 26
+    - file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
+      line: 37
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 54
+    - file: "src/lib/api-url.ts"
+      line: 44
+    note: "URL は引数の source で 2 つに切り替わる。ここは source: event (FilterEditForm.tsx:169)。enabled (fields を親から渡されていないこと、websiteId があること) は、この呼び出し元ではいつも成り立つ"
+  summary:
+    status: "interpretation"
+    value: "イベントのプロパティの名前と型ごとに、件数を返す受け口。parseRequest (route.ts:19)、canViewWebsiteSection (route.ts:27。セクションは events)、getQueryFilters (route.ts:32) も呼ぶ。経路は、フレーム q_parse_request / q_can_view_website_section / q_get_query_filters と同じ。eventName があれば、そのイベントに絞る"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/event-data/fields/route.ts"
+      line: 15
+    - file: "src/app/api/websites/[websiteId]/event-data/fields/route.ts"
+      line: 19
+    - file: "src/app/api/websites/[websiteId]/event-data/fields/route.ts"
+      line: 27
+    - file: "src/app/api/websites/[websiteId]/event-data/fields/route.ts"
+      line: 32
+    - file: "src/app/api/websites/[websiteId]/event-data/fields/route.ts"
+      line: 34
+- id: "q_event_data_fields"
+  layer: "query"
+  kind: "function"
+  name: "getEventDataFields (src/queries/sql/events/getEventDataFields.ts)"
+  source:
+    file: "src/queries/sql/events/getEventDataFields.ts"
+    line: 8
+  caller: "api_event_data_fields"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/event-data/fields/route.ts"
+      line: 34
+  summary:
+    status: "interpretation"
+    value: "期間とフィルターで event_data を website_event と結び、プロパティの名前 (data_key) と型 (data_type) ごとに件数を数える。eventName を渡されたときは、そのイベントのプロパティだけに絞る (FilterEditForm からは渡さない)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 11
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 27
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 35
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 36
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 45
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 69
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 85
+  settings:
+  - name: "CLICKHOUSE_URL"
+    kind: "env"
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: "fact"
+    evidence:
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 32
+    - file: "src/lib/db.ts"
+      line: 38
+  rules:
+  - kind: "calculation"
+    value: "プロパティの名前と型の組ごとに件数を数え、件数の多い順 (同じなら名前の順) に並べる"
+    status: "interpretation"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 34
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 45
+    - file: "src/queries/sql/events/getEventDataFields.ts"
       line: 46
-    - file: src/queries/prisma/segment.ts
-      line: 47
-    - file: src/lib/prisma.ts
-      line: 761
-    - file: src/lib/prisma.ts
-      line: 775
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 85
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 86
   io:
-  - op: read
-    status: fact
+  - op: "read"
+    status: "fact"
     resource:
-      kind: rdb
+      kind: "rdb"
       levels:
-        dbms: postgresql
-        table: segment
+        dbms: "postgresql"
+        table: "event_data"
     fields:
-    - name: '*'
+    - name: "data_key"
       use:
-      - read
-    - name: website_id
+      - "read"
+    - name: "data_type"
       use:
-      - filter
-    - name: type
+      - "read"
+    - name: "website_event_id"
       use:
-      - filter
-    - name: name
+      - "filter"
+    - name: "website_id"
       use:
-      - filter
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
     evidence:
-    - file: src/queries/prisma/segment.ts
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 32
+    - file: "src/queries/sql/events/getEventDataFields.ts"
       line: 33
-    - file: src/queries/prisma/segment.ts
-      line: 46
-    - file: src/queries/prisma/segment.ts
-      line: 47
-    - file: src/queries/prisma/segment.ts
-      line: 28
-    - file: src/lib/prisma.ts
-      line: 761
-    - file: src/lib/prisma.ts
-      line: 775
-    - file: prisma/schema.prisma
-      line: 317
-    note: name の条件は、検索語があるときだけ。並べ替えの列は、クエリの orderBy で実行時に決まる。1 ページ分の行 (findMany) と件数 (count) の 2 回読む
-- id: ext_prisma_segment_find_many
-  layer: external
-  kind: library
-  name: Prisma Client segment.findMany (prisma.pagedQuery)
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 35
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 36
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 42
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 43
+    - file: "prisma/schema.prisma"
+      line: 205
+    note: "URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "website_event"
+    fields:
+    - name: "event_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_name"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 36
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 37
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 38
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 27
+    - file: "prisma/schema.prisma"
+      line: 183
+    note: "event_name の条件は、eventName を渡されたときだけ"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session"
+    fields:
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 41
+    - file: "src/lib/prisma.ts"
+      line: 298
+    - file: "src/lib/prisma.ts"
+      line: 318
+    - file: "prisma/schema.prisma"
+      line: 84
+    note: "セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 313
+    - file: "src/lib/prisma.ts"
+      line: 702
+    - file: "prisma/schema.prisma"
+      line: 229
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "event_data"
+    fields:
+    - name: "data_key"
+      use:
+      - "read"
+    - name: "data_type"
+      use:
+      - "read"
+    - name: "event_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_name"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 66
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 67
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 69
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 77
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 78
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 81
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 82
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 61
+    - file: "db/clickhouse/schema.sql"
+      line: 57
+    note: "event_name の条件は、eventName を渡されたときだけ。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "website_event"
+    fields:
+    - name: "*"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    - name: "event_name"
+      use:
+      - "filter"
+    - name: "event_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 71
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 72
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 73
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 74
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 76
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 77
+    - file: "db/clickhouse/schema.sql"
+      line: 2
+    note: "any left join の副問い合わせで、カスタムイベント (event_type = 2) だけを読む。event_name の条件は、eventName を渡されたときだけ"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 280
+    - file: "src/lib/clickhouse.ts"
+      line: 663
+    - file: "db/clickhouse/schema.sql"
+      line: 76
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+- id: "ext_event_data_fields_pg"
+  layer: "external"
+  kind: "library"
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
   source:
-    file: src/lib/prisma.ts
-    line: 761
-  caller: q_get_website_segments
+    file: "src/lib/prisma.ts"
+    line: 746
+  caller: "q_event_data_fields"
   call:
-    status: fact
-    when: always
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
     evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 33
-    - file: src/lib/prisma.ts
-      line: 761
-- id: ext_prisma_segment_count
-  layer: external
-  kind: library
-  name: Prisma Client segment.count (prisma.pagedQuery)
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 29
+    - file: "src/lib/prisma.ts"
+      line: 746
+  settings:
+  - name: "DATABASE_REPLICA_URL"
+    kind: "env"
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: "interpretation"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 738
+    - file: "src/lib/prisma.ts"
+      line: 55
+    - file: "src/lib/prisma.ts"
+      line: 861
+- id: "ext_event_data_fields_ch"
+  layer: "external"
+  kind: "library"
+  name: "ClickHouse client (@clickhouse/client) query"
   source:
-    file: src/lib/prisma.ts
-    line: 775
-  caller: q_get_website_segments
+    file: "src/lib/clickhouse.ts"
+    line: 721
+  caller: "q_event_data_fields"
   call:
-    status: fact
-    when: always
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
     evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 33
-    - file: src/lib/prisma.ts
-      line: 775
+    - file: "src/queries/sql/events/getEventDataFields.ts"
+      line: 63
+    - file: "src/lib/clickhouse.ts"
+      line: 721
+- id: "property_filter_record_event"
+  layer: "component"
+  kind: "component"
+  name: "PropertyFilterRecord (source: event)"
+  source:
+    file: "src/components/property-data/PropertyFilterRecord.tsx"
+    line: 58
+  caller: "property_filters_event"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "プロパティの条件の行が 1 つ以上あるとき (URL に条件がある、または利用者がプロパティを足した)"
+    evidence:
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 155
+    - file: "src/components/property-data/PropertyFilters.tsx"
+      line: 156
+  summary:
+    status: "interpretation"
+    value: "プロパティの条件の 1 行。型 (文字列 / 数値 / 真偽 / 日付 / 配列) で選べる演算子が決まる。値を一覧から選ぶ型と演算子のときだけ、usePropertyValuesQuery で候補を読む。source: session の側 (フレーム property_filter_record) と同じ部品"
+    evidence:
+    - file: "src/components/property-data/PropertyFilterRecord.tsx"
+      line: 82
+    - file: "src/components/property-data/PropertyFilterRecord.tsx"
+      line: 91
+    - file: "src/components/property-data/PropertyFilterRecord.tsx"
+      line: 93
+    - file: "src/components/property-data/PropertyFilterRecord.tsx"
+      line: 100
+- id: "use_property_values_event"
+  layer: "component"
+  kind: "hook"
+  name: "usePropertyValuesQuery (source: event)"
+  source:
+    file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+    line: 8
+  caller: "property_filter_record_event"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/components/property-data/PropertyFilterRecord.tsx"
+      line: 93
+  summary:
+    status: "interpretation"
+    value: "プロパティの値の候補を読むフック。source が event なので GET /websites/<id>/event-data/values を呼ぶ。プロパティの名前と型、ほかの行の条件、期間、URL のフィルターを送る (eventName は、渡されたときだけ)"
+    evidence:
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 39
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 40
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 44
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 49
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 51
+- id: "api_event_data_values"
+  layer: "api_route"
+  kind: "route_handler"
+  name: "GET /api/websites/[websiteId]/event-data/values"
+  source:
+    file: "src/app/api/websites/[websiteId]/event-data/values/route.ts"
+    line: 8
+  caller: "use_property_values_event"
+  call:
+    status: "interpretation"
+    when: "conditional"
+    condition: "プロパティの型が数値・真偽・日付でなく、演算子が自由入力 (contains / doesNotContain / regex / notRegex) でないとき"
+    evidence:
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 39
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 40
+    - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
+      line: 54
+    - file: "src/components/property-data/PropertyFilterRecord.tsx"
+      line: 100
+    - file: "src/lib/api-url.ts"
+      line: 44
+    note: "URL は引数の source で 2 つに切り替わる。ここは source: event (FilterEditForm.tsx:169 から PropertyFilters.tsx:158 を通る)"
+  summary:
+    status: "interpretation"
+    value: "イベントのプロパティ 1 つの、値ごとの件数を返す受け口。parseRequest (route.ts:21)、canViewWebsiteSection (route.ts:29。セクションは events)、getQueryFilters (route.ts:34) も呼ぶ。経路は、フレーム q_parse_request / q_can_view_website_section / q_get_query_filters と同じ"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/event-data/values/route.ts"
+      line: 16
+    - file: "src/app/api/websites/[websiteId]/event-data/values/route.ts"
+      line: 21
+    - file: "src/app/api/websites/[websiteId]/event-data/values/route.ts"
+      line: 29
+    - file: "src/app/api/websites/[websiteId]/event-data/values/route.ts"
+      line: 34
+    - file: "src/app/api/websites/[websiteId]/event-data/values/route.ts"
+      line: 36
+- id: "q_event_data_values"
+  layer: "query"
+  kind: "function"
+  name: "getEventDataValues (src/queries/sql/events/getEventDataValues.ts)"
+  source:
+    file: "src/queries/sql/events/getEventDataValues.ts"
+    line: 14
+  caller: "api_event_data_values"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/event-data/values/route.ts"
+      line: 36
+  summary:
+    status: "interpretation"
+    value: "期間内のカスタムイベント (event_type = 2) の event_data から、指定のプロパティの値ごとの件数を、多い順に 100 件まで返す。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 21
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 78
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 82
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 88
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 92
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 93
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 151
+  settings:
+  - name: "CLICKHOUSE_URL"
+    kind: "env"
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: "fact"
+    evidence:
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 32
+    - file: "src/lib/db.ts"
+      line: 38
+  rules:
+  - kind: "calculation"
+    value: "数値の値は末尾の .0000 を外し、日時の値は時間の単位に丸めて、値としてまとめる"
+    status: "interpretation"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 73
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 74
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 147
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 148
+  - kind: "decision"
+    value: "型が配列 (dataType が array) のプロパティは、配列の要素に分けて、要素ごとに数える"
+    status: "interpretation"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 40
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 52
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 111
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 115
+  io:
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "event_data"
+    fields:
+    - name: "string_value"
+      use:
+      - "read"
+    - name: "date_value"
+      use:
+      - "read"
+    - name: "data_type"
+      use:
+      - "read"
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "website_event_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 73
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 74
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 78
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 86
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 87
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 88
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 89
+    - file: "prisma/schema.prisma"
+      line: 205
+    note: "data_type の条件は、型 (dataType) を渡されたときだけ。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "website_event"
+    fields:
+    - name: "event_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    - name: "event_name"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 79
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 80
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 81
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 82
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 83
+    - file: "prisma/schema.prisma"
+      line: 183
+    note: "event_name の条件は、eventName を渡されたときだけ (FilterEditForm からは渡さない)"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session"
+    fields:
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 85
+    - file: "src/lib/prisma.ts"
+      line: 298
+    - file: "src/lib/prisma.ts"
+      line: 318
+    - file: "prisma/schema.prisma"
+      line: 84
+    note: "セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 313
+    - file: "src/lib/prisma.ts"
+      line: 702
+    - file: "prisma/schema.prisma"
+      line: 229
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "event_data"
+    fields:
+    - name: "string_value"
+      use:
+      - "read"
+    - name: "date_value"
+      use:
+      - "read"
+    - name: "data_type"
+      use:
+      - "read"
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "event_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_name"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 147
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 148
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 151
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 163
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 164
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 165
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 166
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 167
+    - file: "db/clickhouse/schema.sql"
+      line: 57
+    note: "event_name の条件は eventName を、data_type の条件は型を渡されたときだけ。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "website_event"
+    fields:
+    - name: "*"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    - name: "event_name"
+      use:
+      - "filter"
+    - name: "event_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 153
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 154
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 155
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 156
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 157
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 158
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 159
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 160
+    - file: "db/clickhouse/schema.sql"
+      line: 2
+    note: "any left join の副問い合わせで、カスタムイベント (event_type = 2) だけを読む"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 280
+    - file: "src/lib/clickhouse.ts"
+      line: 663
+    - file: "db/clickhouse/schema.sql"
+      line: 76
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+- id: "ext_event_data_values_pg"
+  layer: "external"
+  kind: "library"
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  source:
+    file: "src/lib/prisma.ts"
+    line: 746
+  caller: "q_event_data_values"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 41
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 69
+    - file: "src/lib/prisma.ts"
+      line: 746
+  settings:
+  - name: "DATABASE_REPLICA_URL"
+    kind: "env"
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: "interpretation"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 738
+    - file: "src/lib/prisma.ts"
+      line: 55
+    - file: "src/lib/prisma.ts"
+      line: 861
+- id: "ext_event_data_values_ch"
+  layer: "external"
+  kind: "library"
+  name: "ClickHouse client (@clickhouse/client) query"
+  source:
+    file: "src/lib/clickhouse.ts"
+    line: 721
+  caller: "q_event_data_values"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 112
+    - file: "src/queries/sql/events/getEventDataValues.ts"
+      line: 144
+    - file: "src/lib/clickhouse.ts"
+      line: 721
 - id: property_filters
   layer: component
   kind: component
@@ -3349,6 +4300,1429 @@ callstack:
     - file: src/queries/sql/getWebsiteDateRange.ts
       line: 45
     - file: src/lib/clickhouse.ts
+      line: 721
+- id: "export_button"
+  layer: "component"
+  kind: "component"
+  name: "ExportButton"
+  source:
+    file: "src/components/input/ExportButton.tsx"
+    line: 9
+  caller: "website_controls"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "allowDownload が true のとき"
+    evidence:
+    - file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      line: 16
+    - file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx"
+      line: 42
+    - file: "src/app/(main)/websites/[websiteId]/(reports)/performance/PerformancePage.tsx"
+      line: 14
+    note: "allowDownload の既定値は false で、この画面は渡さない (PerformancePage.tsx:14) ので、この入口からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた"
+  summary:
+    status: "interpretation"
+    value: "ダウンロードのボタン。押すと、期間・URL のフィルター・URL のクエリを付けて GET /websites/<id>/export を呼び、返った ZIP (base64) を、ブラウザで download.zip として保存させる"
+    evidence:
+    - file: "src/components/input/ExportButton.tsx"
+      line: 17
+    - file: "src/components/input/ExportButton.tsx"
+      line: 20
+    - file: "src/components/input/ExportButton.tsx"
+      line: 24
+    - file: "src/components/input/ExportButton.tsx"
+      line: 27
+    - file: "src/components/input/ExportButton.tsx"
+      line: 61
+- id: "api_export_get"
+  layer: "api_route"
+  kind: "route_handler"
+  name: "GET /api/websites/[websiteId]/export"
+  source:
+    file: "src/app/api/websites/[websiteId]/export/route.ts"
+    line: 9
+  caller: "export_button"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "利用者がダウンロードのボタンを押したとき"
+    evidence:
+    - file: "src/components/input/ExportButton.tsx"
+      line: 17
+    - file: "src/components/input/ExportButton.tsx"
+      line: 20
+    - file: "src/lib/api-url.ts"
+      line: 44
+    note: "API_URL を設定すると、向き先が変わる"
+  summary:
+    status: "interpretation"
+    value: "サイトの 7 つの集計 (カスタムイベント、ページ、リファラー、ブラウザ、OS、デバイス、国) を並べて読み、それぞれを CSV にして、1 つの ZIP (base64) で返す受け口。CSV の値が数式として読まれる文字 (= + - @ など) で始まるときは、先頭に ' を付ける。parseRequest (route.ts:17) と getQueryFilters (route.ts:29) も呼ぶ。経路は、フレーム q_parse_request / q_get_query_filters と同じ。見る権限は canViewAuthenticatedWebsite で確かめる"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 17
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 25
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 29
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 31
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 32
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 33
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 34
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 35
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 45
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 48
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 70
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 81
+- id: "q_can_view_authenticated_website"
+  layer: "query"
+  kind: "function"
+  name: "canViewAuthenticatedWebsite (src/permissions/share.ts)"
+  source:
+    file: "src/permissions/share.ts"
+    line: 101
+  caller: "api_export_get"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 25
+  summary:
+    status: "interpretation"
+    value: "ログインした利用者がサイトを見てよいかを決める。共有トークンだけ (利用者がいない) なら許さない。利用者がいれば canViewWebsite に任せる (経路は、フレーム q_can_view_website と同じ)。呼び先が canViewWebsite だけで終端になるので、その先のいちばん早い呼び出しを書き直した (q_can_view_website_rw3 から)"
+    evidence:
+    - file: "src/permissions/share.ts"
+      line: 105
+    - file: "src/permissions/share.ts"
+      line: 106
+    - file: "src/permissions/share.ts"
+      line: 109
+  guards:
+  - kind: "other"
+    value: "auth?.user"
+    status: "fact"
+    evidence:
+    - file: "src/permissions/share.ts"
+      line: 105
+    - file: "src/permissions/share.ts"
+      line: 106
+    note: "共有トークンだけの呼び出しを通さない (ログインした利用者がいること)。その上の確認は canViewWebsite (フレーム q_can_view_website)。綴りは、ほかの入口の結果 (websites.websiteId_d.realtime など) にそろえた"
+- id: "q_can_view_website_rw3"
+  layer: "query"
+  kind: "function"
+  name: "canViewWebsite (src/permissions/website.ts)"
+  source:
+    file: "src/permissions/website.ts"
+    line: 8
+  caller: "q_can_view_authenticated_website"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/permissions/share.ts"
+      line: 109
+    note: "ログインした利用者がいないときだけ、呼ばずに打ち切る (share.ts:105)"
+  summary:
+    status: "interpretation"
+    value: "フレーム q_can_view_website と同じ処理。呼び出し元 (q_can_view_authenticated_website) が終端にならないように、いちばん早い呼び出し (getEntity) を書き直した。権限の確認の内容は q_can_view_website に書いた"
+    evidence:
+    - file: "src/permissions/website.ts"
+      line: 8
+    - file: "src/permissions/website.ts"
+      line: 24
+- id: "q_get_entity_rw3"
+  layer: "query"
+  kind: "function"
+  name: "getEntity (src/lib/entity.ts)"
+  source:
+    file: "src/lib/entity.ts"
+    line: 4
+  caller: "q_can_view_website_rw3"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "利用者が管理者でなく、共有トークンの対象でもないとき"
+    evidence:
+    - file: "src/permissions/website.ts"
+      line: 24
+  summary:
+    status: "interpretation"
+    value: "フレーム q_get_entity と同じ処理 (website / link / pixel / board を同じ id で並べて読む)。ここでは、いちばん早い getWebsite だけを書き直した"
+    evidence:
+    - file: "src/lib/entity.ts"
+      line: 5
+    - file: "src/lib/entity.ts"
+      line: 6
+- id: "q_get_website_rw4"
+  layer: "query"
+  kind: "function"
+  name: "getWebsite (src/queries/prisma/website.ts)"
+  source:
+    file: "src/queries/prisma/website.ts"
+    line: 80
+  caller: "q_get_entity_rw3"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/lib/entity.ts"
+      line: 6
+  summary:
+    status: "interpretation"
+    value: "フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。external のフレームは q_get_website の下に書いた"
+    evidence:
+    - file: "src/queries/prisma/website.ts"
+      line: 85
+    - file: "src/queries/prisma/website.ts"
+      line: 95
+  io:
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "website"
+    fields:
+    - name: "*"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/prisma/website.ts"
+      line: 77
+    - file: "src/queries/prisma/website.ts"
+      line: 85
+    - file: "prisma/schema.prisma"
+      line: 130
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "share"
+    fields:
+    - name: "slug"
+      use:
+      - "read"
+    - name: "entity_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/prisma/website.ts"
+      line: 304
+    - file: "src/queries/prisma/website.ts"
+      line: 95
+    - file: "prisma/schema.prisma"
+      line: 412
+    note: "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- id: "q_event_metrics"
+  layer: "query"
+  kind: "function"
+  name: "getEventMetrics (src/queries/sql/events/getEventMetrics.ts)"
+  source:
+    file: "src/queries/sql/events/getEventMetrics.ts"
+    line: 21
+  caller: "api_export_get"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 31
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 32
+    note: "受け口 export は、いつも type: event で呼ぶ。この画面のほかの段 (性能の 3 つの受け口) は、この関数を呼ばない"
+  summary:
+    status: "interpretation"
+    value: "カスタムイベントの名前 (event_name) ごとに、期間とフィルターに当たるイベントの件数 (count(*)) を数える。イベントの種類をカスタムイベントに絞る条件を、この関数が足す (GET metrics の受け口も同じ条件を足す)。ほかの集計と違い、直帰を除くフィルターは使わず、ClickHouse でも時間ごとの集計表ではなく website_event を読む。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    evidence:
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 24
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 35
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 36
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 38
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 42
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 49
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 50
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 75
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 78
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 82
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 83
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 84
+    - file: "src/app/api/websites/[websiteId]/metrics/route.ts"
+      line: 63
+    - file: "src/lib/constants.ts"
+      line: 94
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 37
+  io:
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "website_event"
+    fields:
+    - name: "event_name"
+      use:
+      - "read"
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 36
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 42
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 49
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 51
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 54
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 55
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 56
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 57
+    - file: "src/app/api/websites/[websiteId]/metrics/route.ts"
+      line: 63
+    - file: "src/lib/constants.ts"
+      line: 94
+    - file: "src/lib/constants.ts"
+      line: 96
+    - file: "prisma/schema.prisma"
+      line: 183
+    note: "event_type の条件は、この関数が足す絞り込み (eventType = カスタムイベント。GET metrics の受け口 route.ts:63 も同じ値を足す) から来る。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session"
+    fields:
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 53
+    - file: "src/lib/prisma.ts"
+      line: 298
+    - file: "src/lib/prisma.ts"
+      line: 318
+    - file: "prisma/schema.prisma"
+      line: 84
+    note: "セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "event_data"
+    fields:
+    - name: "website_event_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 309
+    - file: "src/lib/prisma.ts"
+      line: 576
+    - file: "prisma/schema.prisma"
+      line: 205
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 313
+    - file: "src/lib/prisma.ts"
+      line: 702
+    - file: "prisma/schema.prisma"
+      line: 229
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "website_event"
+    fields:
+    - name: "event_name"
+      use:
+      - "read"
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 73
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 78
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 82
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 84
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 86
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 87
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 88
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 89
+    - file: "src/app/api/websites/[websiteId]/metrics/route.ts"
+      line: 63
+    - file: "src/lib/constants.ts"
+      line: 94
+    - file: "src/lib/constants.ts"
+      line: 96
+    - file: "src/lib/clickhouse.ts"
+      line: 196
+    - file: "db/clickhouse/schema.sql"
+      line: 2
+    note: "event_type の条件は、この関数が足す絞り込み (eventType = カスタムイベント。GET metrics の受け口 route.ts:63 も同じ値を足す) から来る。コホートを指定したときは、副問い合わせでも読む (src/lib/clickhouse.ts:196)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "event_data"
+    fields:
+    - name: "event_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 278
+    - file: "src/lib/clickhouse.ts"
+      line: 540
+    - file: "db/clickhouse/schema.sql"
+      line: 57
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 280
+    - file: "src/lib/clickhouse.ts"
+      line: 663
+    - file: "db/clickhouse/schema.sql"
+      line: 76
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  settings:
+  - name: "CLICKHOUSE_URL"
+    kind: "env"
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: "fact"
+    evidence:
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 32
+    - file: "src/lib/db.ts"
+      line: 38
+  rules:
+  - kind: "calculation"
+    value: "カスタムイベントは、名前ごとに、訪問者の数ではなくイベントの件数で数える"
+    status: "interpretation"
+    evidence:
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 49
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 50
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 57
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 82
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 83
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 89
+- id: "ext_event_metrics_pg"
+  layer: "external"
+  kind: "library"
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  source:
+    file: "src/lib/prisma.ts"
+    line: 746
+  caller: "q_event_metrics"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 47
+    - file: "src/lib/prisma.ts"
+      line: 746
+  settings:
+  - name: "DATABASE_REPLICA_URL"
+    kind: "env"
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: "interpretation"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 738
+    - file: "src/lib/prisma.ts"
+      line: 55
+    - file: "src/lib/prisma.ts"
+      line: 861
+- id: "ext_event_metrics_ch"
+  layer: "external"
+  kind: "library"
+  name: "ClickHouse client (@clickhouse/client) query"
+  source:
+    file: "src/lib/clickhouse.ts"
+    line: 721
+  caller: "q_event_metrics"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/events/getEventMetrics.ts"
+      line: 81
+    - file: "src/lib/clickhouse.ts"
+      line: 721
+- id: "q_pageview_metrics"
+  layer: "query"
+  kind: "function"
+  name: "getPageviewMetrics (src/queries/sql/pageviews/getPageviewMetrics.ts)"
+  source:
+    file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+    line: 20
+  caller: "api_export_get"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 31
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 33
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 34
+    note: "受け口 export は、いつも type: path と referrer の 2 回呼ぶ。この画面のほかの段 (性能の 3 つの受け口) は、この関数を呼ばない"
+  summary:
+    status: "interpretation"
+    value: "イベントの列の値ごとに、期間とフィルターで異なる session_id (訪問者) を数える。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 23
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 35
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 52
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 78
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 86
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 132
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 232
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 37
+  io:
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "website_event"
+    fields:
+    - name: "url_path"
+      use:
+      - "read"
+      - "filter"
+    - name: "referrer_domain"
+      use:
+      - "read"
+      - "filter"
+    - name: "hostname"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 53
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 85
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 86
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 87
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 92
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 93
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 94
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 95
+    - file: "prisma/schema.prisma"
+      line: 183
+    note: "集計する列は type で決まる。fields には、export が渡す type (path と referrer) に当たる列を書いた。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session"
+    fields:
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 90
+    - file: "src/lib/prisma.ts"
+      line: 318
+    - file: "prisma/schema.prisma"
+      line: 84
+    note: "セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "event_data"
+    fields:
+    - name: "website_event_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 309
+    - file: "src/lib/prisma.ts"
+      line: 576
+    - file: "prisma/schema.prisma"
+      line: 205
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 313
+    - file: "src/lib/prisma.ts"
+      line: 702
+    - file: "prisma/schema.prisma"
+      line: 229
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "website_event"
+    fields:
+    - name: "url_path"
+      use:
+      - "read"
+      - "filter"
+    - name: "referrer_domain"
+      use:
+      - "read"
+      - "filter"
+    - name: "hostname"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 132
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 137
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 161
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 162
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 163
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 167
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 168
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 169
+    - file: "src/lib/clickhouse.ts"
+      line: 196
+    - file: "db/clickhouse/schema.sql"
+      line: 2
+    note: "イベントの列で絞るときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)。集計する列は type で決まる。fields には、export が渡す type (path と referrer) に当たる列を書いた。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "website_event_stats_hourly"
+    fields:
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "url_path"
+      use:
+      - "read"
+    - name: "referrer_domain"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 181
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 203
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 204
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 205
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 208
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 209
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 210
+    - file: "src/lib/clickhouse.ts"
+      line: 212
+    - file: "db/clickhouse/schema.sql"
+      line: 113
+    note: "イベントの列で絞らないとき。直帰を除くフィルターのときは、どちらの SQL でも副問い合わせで読む (src/lib/clickhouse.ts:212。visit_id / views / event_name も読む)。集計する列は type で決まる。fields には、export が渡す type (path と referrer) に当たる列を書いた。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "event_data"
+    fields:
+    - name: "event_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 278
+    - file: "src/lib/clickhouse.ts"
+      line: 540
+    - file: "db/clickhouse/schema.sql"
+      line: 57
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 280
+    - file: "src/lib/clickhouse.ts"
+      line: 663
+    - file: "db/clickhouse/schema.sql"
+      line: 76
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  settings:
+  - name: "CLICKHOUSE_URL"
+    kind: "env"
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: "fact"
+    evidence:
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 32
+    - file: "src/lib/db.ts"
+      line: 38
+  rules:
+  - kind: "decision"
+    value: "リファラーは、自分のホストからの流入と、空の値を除いて数える (ClickHouse で時間ごとの集計表から数える SQL だけは、空の値だけを除く)"
+    status: "interpretation"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 52
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 53
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 54
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 136
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 137
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 183
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 184
+- id: "ext_pageview_metrics_pg"
+  layer: "external"
+  kind: "library"
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  source:
+    file: "src/lib/prisma.ts"
+    line: 746
+  caller: "q_pageview_metrics"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 83
+    - file: "src/lib/prisma.ts"
+      line: 746
+  settings:
+  - name: "DATABASE_REPLICA_URL"
+    kind: "env"
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: "interpretation"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 738
+    - file: "src/lib/prisma.ts"
+      line: 55
+    - file: "src/lib/prisma.ts"
+      line: 861
+- id: "ext_pageview_metrics_ch"
+  layer: "external"
+  kind: "library"
+  name: "ClickHouse client (@clickhouse/client) query"
+  source:
+    file: "src/lib/clickhouse.ts"
+    line: 721
+  caller: "q_pageview_metrics"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/pageviews/getPageviewMetrics.ts"
+      line: 221
+    - file: "src/lib/clickhouse.ts"
+      line: 721
+- id: "q_session_metrics"
+  layer: "query"
+  kind: "function"
+  name: "getSessionMetrics (src/queries/sql/sessions/getSessionMetrics.ts)"
+  source:
+    file: "src/queries/sql/sessions/getSessionMetrics.ts"
+    line: 15
+  caller: "api_export_get"
+  call:
+    status: "fact"
+    when: "always"
+    evidence:
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 31
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 35
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 36
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 37
+    - file: "src/app/api/websites/[websiteId]/export/route.ts"
+      line: 38
+    note: "受け口 export は、いつも type: browser / os / device / country の 4 回呼ぶ。この画面のほかの段 (性能の 3 つの受け口) は、この関数を呼ばない"
+  summary:
+    status: "interpretation"
+    value: "セッションの列の値ごとに、期間とフィルターで異なる session_id を数える (既定は上位 500 件)。PostgreSQL では session を必ず join する。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    evidence:
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 18
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 30
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 39
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 52
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 66
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 94
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 37
+  io:
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "website_event"
+    fields:
+    - name: "session_id"
+      use:
+      - "read"
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 52
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 54
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 58
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 59
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 60
+    - file: "prisma/schema.prisma"
+      line: 183
+    note: "URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session"
+    fields:
+    - name: "browser"
+      use:
+      - "read"
+      - "filter"
+    - name: "os"
+      use:
+      - "read"
+      - "filter"
+    - name: "device"
+      use:
+      - "read"
+      - "filter"
+    - name: "country"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "website_id"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 39
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 51
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 53
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 57
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 61
+    - file: "src/lib/prisma.ts"
+      line: 318
+    - file: "prisma/schema.prisma"
+      line: 84
+    note: "type がセッションの列なので、いつも join する (joinSession)。集計する列は type で決まる。fields には、export が渡す type (browser / os / device / country) に当たる列を書いた。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "event_data"
+    fields:
+    - name: "website_event_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 309
+    - file: "src/lib/prisma.ts"
+      line: 576
+    - file: "prisma/schema.prisma"
+      line: 205
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "postgresql"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "session_id"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 313
+    - file: "src/lib/prisma.ts"
+      line: 702
+    - file: "prisma/schema.prisma"
+      line: 229
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "website_event"
+    fields:
+    - name: "browser"
+      use:
+      - "read"
+      - "filter"
+    - name: "os"
+      use:
+      - "read"
+      - "filter"
+    - name: "device"
+      use:
+      - "read"
+      - "filter"
+    - name: "country"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 97
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 98
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 100
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 103
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 104
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 105
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 106
+    - file: "src/lib/clickhouse.ts"
+      line: 196
+    - file: "db/clickhouse/schema.sql"
+      line: 2
+    note: "イベントの列で絞るときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた。集計する列は type で決まる。export が渡す type (browser / os / device / country) に当たる列を書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "website_event_stats_hourly"
+    fields:
+    - name: "browser"
+      use:
+      - "read"
+      - "filter"
+    - name: "os"
+      use:
+      - "read"
+      - "filter"
+    - name: "device"
+      use:
+      - "read"
+      - "filter"
+    - name: "country"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "event_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 117
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 118
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 120
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 123
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 124
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 125
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 126
+    - file: "src/lib/clickhouse.ts"
+      line: 212
+    - file: "db/clickhouse/schema.sql"
+      line: 113
+    note: "イベントの列で絞らないとき。直帰を除くフィルターのときは、どちらの SQL でも副問い合わせで読む (src/lib/clickhouse.ts:212。visit_id / views / event_name も読む)。集計する列は type で決まる。fields には、export が渡す type (browser / os / device / country) に当たる列を書いた。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "event_data"
+    fields:
+    - name: "event_id"
+      use:
+      - "read"
+    - name: "website_id"
+      use:
+      - "filter"
+    - name: "created_at"
+      use:
+      - "filter"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 278
+    - file: "src/lib/clickhouse.ts"
+      line: 540
+    - file: "db/clickhouse/schema.sql"
+      line: 57
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: "read"
+    status: "fact"
+    resource:
+      kind: "rdb"
+      levels:
+        dbms: "clickhouse"
+        table: "session_data"
+    fields:
+    - name: "website_id"
+      use:
+      - "read"
+      - "filter"
+    - name: "session_id"
+      use:
+      - "read"
+    - name: "data_key"
+      use:
+      - "filter"
+    - name: "data_type"
+      use:
+      - "filter"
+    evidence:
+    - file: "src/lib/clickhouse.ts"
+      line: 280
+    - file: "src/lib/clickhouse.ts"
+      line: 663
+    - file: "db/clickhouse/schema.sql"
+      line: 76
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  settings:
+  - name: "CLICKHOUSE_URL"
+    kind: "env"
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: "fact"
+    evidence:
+    - file: "src/lib/db.ts"
+      line: 27
+    - file: "src/lib/db.ts"
+      line: 32
+    - file: "src/lib/db.ts"
+      line: 38
+- id: "ext_session_metrics_pg"
+  layer: "external"
+  kind: "library"
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  source:
+    file: "src/lib/prisma.ts"
+    line: 746
+  caller: "q_session_metrics"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 48
+    - file: "src/lib/prisma.ts"
+      line: 746
+  settings:
+  - name: "DATABASE_REPLICA_URL"
+    kind: "env"
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: "interpretation"
+    evidence:
+    - file: "src/lib/prisma.ts"
+      line: 738
+    - file: "src/lib/prisma.ts"
+      line: 55
+    - file: "src/lib/prisma.ts"
+      line: 861
+- id: "ext_session_metrics_ch"
+  layer: "external"
+  kind: "library"
+  name: "ClickHouse client (@clickhouse/client) query"
+  source:
+    file: "src/lib/clickhouse.ts"
+    line: 721
+  caller: "q_session_metrics"
+  call:
+    status: "fact"
+    when: "conditional"
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    evidence:
+    - file: "src/queries/sql/sessions/getSessionMetrics.ts"
+      line: 136
+    - file: "src/lib/clickhouse.ts"
       line: 721
 - id: filter_bar
   layer: component
@@ -4894,7 +7268,7 @@ callstack:
 - id: performance_metrics_table
   layer: component
   kind: component
-  name: PerformanceMetricsTable (Performance.tsx の中の部品)
+  name: PerformanceMetricsTable (Performance.tsx の中の部品。type が path / title)
   source:
     file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
     line: 269
@@ -4907,11 +7281,7 @@ callstack:
       line: 217
     - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
       line: 226
-    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
-      line: 244
-    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
-      line: 253
-    note: 4 か所から、type だけを変えて描く (path・title・device・browser)。どれもタブの中身 (TabPanel) で、コードには描く条件が無い。タブを選ぶまで中身を描くかどうかは UI ライブラリ (Tabs / TabPanel) の動きで、リポジトリからは読めない。同じ関数なので 1 つのフレームで表し、届く列の違いは q_get_performance_metrics の I/O に書いた
+    note: ページのパネルの 2 つのタブ (path・title) から、type だけを変えて描く。どれもタブの中身 (TabPanel) で、コードには描く条件が無い。タブを選ぶまで中身を描くかどうかは UI ライブラリ (Tabs / TabPanel) の動きで、リポジトリからは読めない。同じ部品を環境のパネル (device・browser) からも描くが、そちらは PostgreSQL で session を結合して読み、届く表が違うので、別のフレーム performance_metrics_table_session に書いた
   summary:
     status: interpretation
     value: 項目ごとの表。usePerformanceMetricsQuery で、選んだ指標の、項目の値ごとの百分位と件数を読み、選んだ百分位の値が 0 より大きい行を、上位 20 行まで ListTable に出す
@@ -4926,17 +7296,13 @@ callstack:
       line: 292
   parameters:
   - name: params (websiteId / startDate / endDate / unit / metric / type)
-    value: Performance の期間と選んだ指標に、表ごとの type (path / title / device / browser) を足したもの
+    value: Performance の期間と選んだ指標に、表ごとの type (path / title) を足したもの
     status: fact
     evidence:
     - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
       line: 218
     - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
       line: 227
-    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
-      line: 245
-    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
-      line: 254
 - id: use_performance_metrics
   layer: component
   kind: hook
@@ -5113,7 +7479,7 @@ callstack:
       line: 94
   summary:
     status: interpretation
-    value: website_event から、期間の中の性能の計測 (event_type 5) を読み、項目の列 (url_path / page_title / device / browser) の値ごとに、選んだ指標の百分位と件数を返す。PostgreSQL 用 (Prisma の生 SQL) と ClickHouse 用の実装があり、設定でどちらかが動く。PostgreSQL では、項目がセッションの列 (device / browser) のとき、または URL の絞り込みにセッションの列か referrer があるとき session を結合する。URL の絞り込みに cohort・プロパティがあれば、それぞれの読み取りが足される
+    value: website_event から、期間の中の性能の計測 (event_type 5) を読み、項目の列 (url_path / page_title) の値ごとに、選んだ指標の百分位と件数を返す。PostgreSQL 用 (Prisma の生 SQL) と ClickHouse 用の実装があり、設定でどちらかが動く。PostgreSQL では、URL の絞り込みにセッションの列か referrer があるとき session を結合する (項目が device / browser のときの呼び出しは、いつも session を結合するので、フレーム q_get_performance_metrics_session に分けた)。URL の絞り込みに cohort・プロパティがあれば、それぞれの読み取りが足される
     evidence:
     - file: src/queries/sql/performance/getPerformanceMetrics.ts
       line: 25
@@ -5225,19 +7591,13 @@ callstack:
     - file: prisma/schema.prisma
       line: 84
     fields:
-    - name: device
-      use:
-      - read
-    - name: browser
-      use:
-      - read
     - name: session_id
       use:
       - filter
     - name: website_id
       use:
       - filter
-    note: 項目 (type) が device / browser のとき (SESSION_COLUMNS に入る列なので、joinSession を付けて session を結合する) は、その 1 列を session から取り出してまとめる。ほかに、URL の絞り込みにセッションの列か referrer があるとき、cohort があるときも結合する。絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない
+    note: 項目 (type) が path / title のときは、URL の絞り込みにセッションの列か referrer があるとき、cohort があるときだけ結合する (項目が device / browser のときは、フレーム q_get_performance_metrics_session)。絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない
   - op: read
     status: interpretation
     resource:
@@ -5345,12 +7705,6 @@ callstack:
     - name: page_title
       use:
       - read
-    - name: device
-      use:
-      - read
-    - name: browser
-      use:
-      - read
     - name: lcp
       use:
       - read
@@ -5375,7 +7729,7 @@ callstack:
     - name: created_at
       use:
       - filter
-    note: ClickHouse の website_event は、セッションの列 (device・browser) も持つ。url_path から browser までは、項目 (type) に当たる列 1 つだけを取り出してまとめる。lcp から ttfb までは、選んだ指標 (metric) の列 1 つだけを読む。URL に cohort があれば、同じ表を読む副問い合わせ (clickhouse.ts 196 行) も足される。URL の絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない
+    note: url_path と page_title は、項目 (type) に当たる列 1 つだけを取り出してまとめる (device / browser のときは、フレーム q_get_performance_metrics_session)。lcp から ttfb までは、選んだ指標 (metric) の列 1 つだけを読む。URL に cohort があれば、同じ表を読む副問い合わせ (clickhouse.ts 196 行) も足される。URL の絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない
   - op: read
     status: interpretation
     resource:
@@ -5488,3 +7842,441 @@ callstack:
       line: 721
     - file: src/lib/db.ts
       line: 27
+- id: performance_metrics_table_session
+  layer: component
+  kind: component
+  name: PerformanceMetricsTable (Performance.tsx の中の部品。type が device / browser)
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+    line: 269
+  caller: performance
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 244
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 253
+    note: 環境のパネルの 2 つのタブ (device・browser) から、type だけを変えて描く。どれもタブの中身 (TabPanel) で、コードには描く条件が無い。タブを選ぶまで中身を描くかどうかは UI ライブラリ (Tabs / TabPanel) の動きで、リポジトリからは読めない。フレーム performance_metrics_table (path・title) と同じ関数だが、device / browser は SESSION_COLUMNS に入る列なので、PostgreSQL では session を結合して読む (getPerformanceMetrics.ts 42 行)。届く表が違うので、別のフレームにした
+  summary:
+    status: interpretation
+    value: 端末とブラウザごとの表。部品の中身はフレーム performance_metrics_table と同じ (usePerformanceMetricsQuery で、選んだ指標の、項目の値ごとの百分位と件数を読み、選んだ百分位の値が 0 より大きい行を、上位 20 行まで ListTable に出す)
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 282
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 290
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 291
+  parameters:
+  - name: params (websiteId / startDate / endDate / unit / metric / type)
+    value: Performance の期間と選んだ指標に、表ごとの type (device / browser) を足したもの
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 245
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 254
+- id: use_performance_metrics_session
+  layer: component
+  kind: hook
+  name: usePerformanceMetricsQuery (useAnalyticsQuery('performance/metrics'))
+  source:
+    file: src/components/hooks/queries/usePerformanceMetricsQuery.ts
+    line: 6
+  caller: performance_metrics_table_session
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/performance/Performance.tsx
+      line: 282
+  summary:
+    status: interpretation
+    value: フレーム use_performance_metrics と同じフック。項目 (type) に device / browser を付けて GET /websites/<websiteId>/performance/metrics を呼ぶ
+    evidence:
+    - file: src/components/hooks/queries/usePerformanceMetricsQuery.ts
+      line: 12
+    - file: src/components/hooks/queries/useAnalyticsQuery.ts
+      line: 27
+- id: api_performance_metrics_session
+  layer: api_route
+  kind: route_handler
+  name: GET /api/websites/[websiteId]/performance/metrics
+  source:
+    file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+    line: 8
+  caller: use_performance_metrics_session
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/components/hooks/queries/usePerformanceMetricsQuery.ts
+      line: 12
+    - file: src/components/hooks/queries/useAnalyticsQuery.ts
+      line: 27
+    - file: src/components/hooks/queries/useAnalyticsQuery.ts
+      line: 28
+    - file: src/lib/api-url.ts
+      line: 44
+    note: フレーム api_performance_metrics と同じ受け口を、type が device / browser で呼ぶ。enabled (websiteId があること) は、この画面ではいつも成り立つ
+  summary:
+    status: interpretation
+    value: フレーム api_performance_metrics と同じ受け口。type を列の名前 (device は device、browser は browser) に直して getPerformanceMetrics を呼ぶ。parseRequest・canViewWebsiteSection・getQueryFilters の経路は、フレーム q_parse_request、q_can_view_website_section、q_get_query_filters と同じ。入力の検査と、列の対応・行の上限のルール (type が device のときは上限なし) は、フレーム api_performance_metrics に書いた
+    evidence:
+    - file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+      line: 18
+    - file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+      line: 20
+    - file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+      line: 24
+    - file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+      line: 25
+- id: q_get_performance_metrics_session
+  layer: query
+  kind: function
+  name: getPerformanceMetrics (src/queries/sql/performance/getPerformanceMetrics.ts)
+  source:
+    file: src/queries/sql/performance/getPerformanceMetrics.ts
+    line: 16
+  caller: api_performance_metrics_session
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+      line: 20
+    note: 列が device / browser のときの呼び出し。設定 (CLICKHOUSE_URL) と業務のルール (event_type 5 だけを数える、百分位の計算) は、フレーム q_get_performance_metrics に書いた
+  summary:
+    status: interpretation
+    value: website_event から、期間の中の性能の計測 (event_type 5) を読み、端末 (device) かブラウザ (browser) の値ごとに、選んだ指標の百分位と件数を返す。PostgreSQL 用 (Prisma の生 SQL) と ClickHouse 用の実装があり、設定でどちらかが動く。PostgreSQL では、device / browser が SESSION_COLUMNS に入る列なので、いつも session を結合して、その列を session から取り出す。ClickHouse では website_event がその列を持つので結合しない。URL の絞り込みに cohort・プロパティがあれば、それぞれの読み取りが足される
+    evidence:
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 25
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 40
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 42
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 55
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 77
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 87
+    - file: src/lib/constants.ts
+      line: 60
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website_event
+    detail: from website_event (端末・ブラウザの値ごとの百分位と件数)
+    evidence:
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 49
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 53
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 56
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 57
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 58
+    - file: prisma/schema.prisma
+      line: 160
+    - file: prisma/schema.prisma
+      line: 183
+    fields:
+    - name: lcp
+      use:
+      - read
+    - name: inp
+      use:
+      - read
+    - name: cls
+      use:
+      - read
+    - name: fcp
+      use:
+      - read
+    - name: ttfb
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    note: lcp から ttfb までは、選んだ指標 (metric) の列 1 つだけを読む。まとめる列 (device / browser) は session から取り出す。URL に cohort があれば、同じ表を読む副問い合わせ (prisma.ts 224 行) も足される。URL の絞り込み (列・cohort・プロパティ) で足される条件の列は、parseFilters が実行時に組み立てるので、書いていない
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session
+    detail: parseFilters の joinSessionQuery (inner join session)
+    evidence:
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 42
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 48
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 55
+    - file: src/lib/prisma.ts
+      line: 317
+    - file: src/lib/prisma.ts
+      line: 318
+    - file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+      line: 18
+    - file: src/lib/constants.ts
+      line: 60
+    - file: prisma/schema.prisma
+      line: 84
+    fields:
+    - name: device
+      use:
+      - read
+    - name: browser
+      use:
+      - read
+    - name: session_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    note: 項目 (type) が device / browser で、SESSION_COLUMNS に入る列なので、joinSession を付けていつも session を結合し、その 1 列を取り出してまとめる。URL に cohort があるときも、副問い合わせで session を読む (prisma.ts 226 行)。絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない
+  - op: read
+    status: interpretation
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: event_data
+    detail: 'イベントのプロパティの絞り込み: website_event.event_id in (select website_event_id from event_data …)'
+    evidence:
+    - file: src/lib/request.ts
+      line: 124
+    - file: src/lib/prisma.ts
+      line: 574
+    - file: src/lib/prisma.ts
+      line: 576
+    - file: src/lib/prisma.ts
+      line: 579
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 25
+    fields:
+    - name: website_event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    note: URL のクエリに epf があるときだけ。useFilterParameters は epf を、パスが /events で終わる画面でだけ付けるので、この画面からは届かないように見える。値を比べる列は、プロパティの型で決まるので書いていない
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session_data
+    detail: 'セッションのプロパティの絞り込み: exists (select 1 from session_data …)'
+    evidence:
+    - file: src/lib/request.ts
+      line: 125
+    - file: src/lib/prisma.ts
+      line: 313
+    - file: src/lib/prisma.ts
+      line: 702
+    - file: src/lib/prisma.ts
+      line: 705
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 24
+    fields:
+    - name: website_id
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    note: URL にセッションのプロパティの絞り込み (spf) があるとき、または選んだ segment が持つときだけ。値を比べる列は、プロパティの型で決まるので書いていない
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event
+    detail: from website_event (端末・ブラウザの値ごとの百分位と件数)
+    evidence:
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 82
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 83
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 87
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 89
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 90
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 91
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 93
+    - file: src/app/api/websites/[websiteId]/performance/metrics/route.ts
+      line: 18
+    - file: db/clickhouse/schema.sql
+      line: 2
+    - file: db/clickhouse/schema.sql
+      line: 19
+    - file: db/clickhouse/schema.sql
+      line: 38
+    fields:
+    - name: device
+      use:
+      - read
+    - name: browser
+      use:
+      - read
+    - name: lcp
+      use:
+      - read
+    - name: inp
+      use:
+      - read
+    - name: cls
+      use:
+      - read
+    - name: fcp
+      use:
+      - read
+    - name: ttfb
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    note: ClickHouse の website_event は、セッションの列 (device・browser) も持つので、session を結合しない。device / browser は、項目 (type) に当たる列 1 つだけを取り出してまとめる。lcp から ttfb までは、選んだ指標 (metric) の列 1 つだけを読む。URL に cohort があれば、同じ表を読む副問い合わせ (clickhouse.ts 196 行) も足される。URL の絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない
+  - op: read
+    status: interpretation
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: event_data
+    detail: 'イベントのプロパティの絞り込み: website_event.event_id in (select event_id from event_data …)'
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 538
+    - file: src/lib/clickhouse.ts
+      line: 540
+    - file: src/lib/clickhouse.ts
+      line: 543
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 25
+    fields:
+    - name: event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    note: URL のクエリに epf があるときだけ。useFilterParameters は epf を、パスが /events で終わる画面でだけ付けるので、この画面からは届かないように見える。値を比べる列は、プロパティの型で決まるので書いていない
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: session_data
+    detail: 'セッションのプロパティの絞り込み: (website_id, session_id) in (select … from session_data final)'
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 661
+    - file: src/lib/clickhouse.ts
+      line: 663
+    - file: src/lib/clickhouse.ts
+      line: 665
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: data_key
+      use:
+      - filter
+    note: URL にセッションのプロパティの絞り込み (spf) があるとき、または選んだ segment が持つときだけ。値を比べる列は、プロパティの型で決まるので書いていない
+- id: ext_prisma_performance_metrics_session
+  layer: external
+  kind: library
+  name: Prisma Client $queryRawUnsafe (rawQuery)
+  source:
+    file: src/lib/prisma.ts
+    line: 746
+  caller: q_get_performance_metrics_session
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されておらず、DATABASE_URL が postgres のとき
+    evidence:
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 26
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 45
+    - file: src/lib/prisma.ts
+      line: 746
+    - file: src/lib/db.ts
+      line: 37
+    note: 設定 DATABASE_REPLICA_URL の効き方は、フレーム ext_prisma_performance_metrics に書いた
+- id: ext_clickhouse_performance_metrics_session
+  layer: external
+  kind: library
+  name: ClickHouse client (@clickhouse/client) query
+  source:
+    file: src/lib/clickhouse.ts
+    line: 721
+  caller: q_get_performance_metrics_session
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されているとき
+    evidence:
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 27
+    - file: src/queries/sql/performance/getPerformanceMetrics.ts
+      line: 79
+    - file: src/lib/clickhouse.ts
+      line: 721

@@ -14,11 +14,11 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-opus-5-5"
-  analyzed_at: "2026-11-17T15:29:22Z"
+  analyzed_at: "2026-11-17T22:17:53Z"
   reviewed:
     by: "claude-opus-5-5 (fresh context)"
     at: "2026-11-17T15:28:07Z"
-    findings_open: 1
+    findings_open: 0
 summary:
   status: interpretation
   value: "設定の画面で、ログイン中のユーザーが持つサイトの一覧を出す画面。サーバー側の page は、params の teamId (この URL には [teamId] の段が無いので、いつも undefined) を WebsitesSettingsPage に渡すだけで、本体はブラウザ側で動く。WebsitesDataTable が、ログイン中のユーザーを useLoginQuery から得て (ストアに無いときだけ POST /api/auth/verify で user と所属の team を読む)、GET /api/users/[userId]/websites でそのユーザーのサイトの一覧 (website、持ち主の user、share) を、URL のクエリの検索語・並べ替え・ページで読む。一覧にサイトがあれば、GET /api/websites/charts で直近 7 日の訪問者数の小さなグラフを読む (website_event。CLICKHOUSE_URL があれば ClickHouse の website_event_stats_hourly)。各行の名前の横に、サイトのドメインのアイコンを、ブラウザが他社のサービス (既定は icons.duckduckgo.com) から読む (PRIVATE_MODE なら読まない)。名前は /websites/<id> へ、編集ボタンは /websites/<id>/settings へ移る。認証を飛ばす GET /api/config のほかは、どの API も最初にログインの確認 (user。REDIS_URL があれば Redis の auth:*) を行う。書き込みは無い"
@@ -34,7 +34,7 @@ summary:
     - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 85 }
     - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
     - { file: src/app/api/websites/charts/route.ts, line: 37 }
-notes: "(1) 枠 ((main) と settings の layout、そこから描かれる App など) の処理は辿っていない。ただし、(main) の枠の App が、ログイン中のユーザーとアプリの設定 (config) をストアに得てから children を描く (App.tsx:43、:54、:81) ことは、この画面のフックの条件を決めるのに使った: useLoginQuery の POST /api/auth/verify (enabled: !user) と、useConfig の GET /api/config (config が無いとき) は、この入口からは条件が成り立たないように見えるが、消さずに conditional で書き、note に理由を書いた。(2) 同じ関数は、入口からコードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に 1 回だけ書いた。WebsitesDataTable では useLoginQuery (17 行目) が最初なので、parseRequest → checkAuth → getUser は POST /api/auth/verify の下に書いた。ほかの受け口 (users/[userId]/websites の GET、config の GET、websites/charts の GET) の summary には、経路はフレーム q_parse_request と同じ、と書いた。(3) useUserWebsitesQuery の URL は引数で 3 通りに分かれる (teamId があれば /teams/<teamId>/websites、無くて userId があれば /users/<userId>/websites、どちらも無ければ /me/websites)。この画面では、teamId は URL に段が無いのでいつも undefined、userId はログイン中のユーザーの id (枠がユーザーを得てから描く) なので、いつも /users/<userId>/websites になる。ほかの 2 つはフレームにせず、ほかの入口の結果 (layout_l.main_g) と同じ扱いにした。(4) Favicon は、WebsitesDataTable の renderLink の中に書いてあり、それを WebsitesTable の名前の列が行ごとに呼ぶ。JSX を書いてあるファイルの段 (WebsitesDataTable) を呼び出し元にし、行があるときだけの conditional にした。(5) 権限の確認の関数 canViewBatchWebsites は DB を読むので、段にして guards をそこに書いた。GET /api/users/[userId]/websites の本人の確認は関数になっていないので、ほかの入口の結果と同じく、value にコードの式を肯定の形 (auth.user.id === userId) で書いた。この画面では userId がログイン中のユーザーの id なので、いつも通る。(6) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は辿っていない。ブラウザはログインのトークンを付ける (useApi.ts:28)。(7) 設定: BASE_PATH は、API を呼ぶフックごとに書いた (どの API の URL にも前に付く。api-url.ts:43、:44)。API_URL は、/auth と /config 以外の API を呼ぶフックに書いた (/auth/verify と /config には効かない。api-url.ts:6、:39)。DATABASE_URL は書いていない。(8) WebsiteSparkline (グラフの絵)、DateDistance、LinkButton、SortableLabel、SectionHeader、DataGrid (一覧の枠。検索とページ送りは、同じ画面の URL のクエリを書き換えるだけ)、useNavigation (URL の組み立て)、useMessages (翻訳) は、見た目だけか、データに届かない部品なので、フレームにしていない。(9) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(10) レビューの指摘 5 件 (medium 1、low 4) のうち 4 件を直した: GET /api/users/[userId]/websites の呼び出しを interpretation にした。BASE_PATH を useUserWebsitesQuery と useWebsiteListChartsQuery にも書いた。入口の summary の、ログインの確認の言い方を直した。直さなかった 1 件 (low: useUserWebsitesQuery の、ほかの 2 つの行き先 /teams/<teamId>/websites と /me/websites をフレームにしていない) の理由: POST /api/auth/verify と GET /api/config は、コードに別の呼び出しとして書いてあり、ストアの状態という実行時の条件で動くので残した。これに対し、2 つの行き先は同じ 1 つの呼び出しの引数の選び方で、teamId はこの page の置き場に [teamId] の段が無いため構造上いつも undefined。/me/websites は、枠がユーザーを得てから描くため届かない。ほかの入口の結果 (layout_l.main_g、admin.users.userId_d) と同じく、note に書くだけにした"
+notes: "(1) 枠 ((main) と settings の layout、そこから描かれる App など) の処理は辿っていない。ただし、(main) の枠の App が、ログイン中のユーザーとアプリの設定 (config) をストアに得てから children を描く (App.tsx:43、:54、:81) ことは、この画面のフックの条件を決めるのに使った: useLoginQuery の POST /api/auth/verify (enabled: !user) と、useConfig の GET /api/config (config が無いとき) は、この入口からは条件が成り立たないように見えるが、消さずに conditional で書き、note に理由を書いた。(2) 同じ関数は、入口からコードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に 1 回だけ書いた。WebsitesDataTable では useLoginQuery (17 行目) が最初なので、parseRequest → checkAuth → getUser は POST /api/auth/verify の下に書いた。ほかの受け口 (users/[userId]/websites の GET、config の GET、websites/charts の GET) の summary には、経路はフレーム q_parse_request と同じ、と書いた。(3) useUserWebsitesQuery の URL は引数で 3 通りに分かれる (teamId があれば /teams/<teamId>/websites、無くて userId があれば /users/<userId>/websites、どちらも無ければ /me/websites)。この画面では、teamId は URL に段が無いのでいつも undefined、userId はログイン中のユーザーの id (枠がユーザーを得てから描く) なので、いつも /users/<userId>/websites になる。context.md の決まり (候補が有限で全部読めるなら、それぞれフレームにする) と、成り立たないように見える呼び出しも conditional で書く決まりのとおり、ほかの 2 つ (GET /api/teams/[teamId]/websites と GET /api/me/websites) も conditional のフレームにし、成り立たないように見える理由を note に書いた (websites / boards.boardId_d.edit の結果の書き方)。コードの順で teams の候補が先なので、canViewTeam → getTeamUser と、pagedQuery のライブラリの呼び出し (ext_prisma_paged_website) は teams の下に書いた。GET /api/me/websites は、呼び先がすべてほかの呼び出し元の下に書いてあり終端になるので、parseRequest → checkAuth を、読み書きを持つ段まで書き直した (id に _rw が付くフレーム)。(4) Favicon は、WebsitesDataTable の renderLink の中に書いてあり、それを WebsitesTable の名前の列が行ごとに呼ぶ。JSX を書いてあるファイルの段 (WebsitesDataTable) を呼び出し元にし、行があるときだけの conditional にした。(5) 権限の確認の関数 canViewBatchWebsites は DB を読むので、段にして guards をそこに書いた。GET /api/users/[userId]/websites の本人の確認は関数になっていないので、ほかの入口の結果と同じく、value にコードの式を肯定の形 (auth.user.id === userId) で書いた。この画面では userId がログイン中のユーザーの id なので、いつも通る。(6) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は辿っていない。ブラウザはログインのトークンを付ける (useApi.ts:28)。(7) 設定: BASE_PATH は、API を呼ぶフックごとに書いた (どの API の URL にも前に付く。api-url.ts:43、:44)。API_URL は、/auth と /config 以外の API を呼ぶフックに書いた (/auth/verify と /config には効かない。api-url.ts:6、:39)。DATABASE_URL は書いていない。(8) WebsiteSparkline (グラフの絵)、DateDistance、LinkButton、SortableLabel、SectionHeader、DataGrid (一覧の枠。検索とページ送りは、同じ画面の URL のクエリを書き換えるだけ)、useNavigation (URL の組み立て)、useMessages (翻訳) は、見た目だけか、データに届かない部品なので、フレームにしていない。(9) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(10) レビューの指摘 5 件 (medium 1、low 4) は、すべて直した: GET /api/users/[userId]/websites の呼び出しを interpretation にした。BASE_PATH を useUserWebsitesQuery と useWebsiteListChartsQuery にも書いた。入口の summary の、ログインの確認の言い方を直した。useUserWebsitesQuery のほかの 2 つの行き先 (GET /api/teams/[teamId]/websites と GET /api/me/websites) を conditional のフレームにした ((3) を見よ)"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: page
@@ -470,6 +470,236 @@ callstack:
           - { file: next.config.ts, line: 14 }
           - { file: next.config.ts, line: 215 }
 
+  - id: api_team_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/websites"
+    source: { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 8 }
+    caller: use_user_websites_query
+    call:
+      status: interpretation
+      when: conditional
+      condition: "teamId があるとき (チームの URL の下で開いたとき)"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 18 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 19 }
+        - { file: "src/app/(main)/settings/websites/page.tsx", line: 5 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "URL は引数 (teamId / userId の有無) で切り替わる。この page の置き場 (settings/websites) には [teamId] の段が無いので teamId はいつも undefined で、この入口からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた"
+    summary:
+      status: interpretation
+      value: "クエリをスキーマで検査して認証し (parseRequest の経路はフレーム q_parse_request と同じ)、canViewTeam で見てよいかを確かめ (だめなら 401)、getQueryFilters (websiteId を渡さないので、DB を読まない) で条件を作り、getTeamWebsites でチームのサイトの一覧を返す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 9 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 15 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 21 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 22 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 25 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 27 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 14 }
+      - name: "page / pageSize / search / orderBy / sortDescending"
+        value: "URL のクエリ。スキーマ (pagingParams / searchParams / sortingParams) で検査する"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 10 }
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 11 }
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 12 }
+
+  - id: q_can_view_team
+    layer: query
+    kind: function
+    name: "canViewTeam (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 6 }
+    caller: api_team_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 5 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 21 }
+    summary:
+      status: interpretation
+      value: "ユーザーが無ければ拒み、管理者なら許す。そうでなければ getTeamUser でそのチームのメンバーかを確かめる"
+      evidence:
+        - { file: src/permissions/team.ts, line: 7 }
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+    guards:
+      - kind: ownership
+        value: "canViewTeam"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 15 }
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 21 }
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 22 }
+        note: "そのチームのメンバー (getTeamUser で team_user がある) なら許す。管理者 (user.isAdmin) は、メンバーかを見ずに通る。満たさなければ、呼び出し元の route が 401 を返す"
+
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_team
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき (管理者なら、手前で許して返す)"
+      evidence:
+        - { file: src/permissions/team.ts, line: 4 }
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+    summary:
+      status: interpretation
+      value: "teamId と userId で、削除されていないチームの team_user を 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: src/queries/prisma/teamUser.ts, line: 22 }
+          - { file: src/queries/prisma/teamUser.ts, line: 23 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーションの条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_get_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+
+  - id: q_get_team_websites
+    layer: query
+    kind: function
+    name: "getTeamWebsites → getWebsites / attachShareIdToWebsites (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 168 }
+    caller: api_team_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 6 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 27 }
+    summary:
+      status: interpretation
+      value: "teamId のサイトを、作成者 (createUser の id / username) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させて、ページ単位で読む (pagedQuery で件数も数える)。並べ替えは name / domain / createdAt だけを通す。見つかったサイトがあれば、その share を読んで slug を付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 9 }
+        - { file: src/queries/prisma/website.ts, line: 102 }
+        - { file: src/queries/prisma/website.ts, line: 108 }
+        - { file: src/queries/prisma/website.ts, line: 114 }
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/queries/prisma/website.ts, line: 119 }
+        - { file: src/queries/prisma/website.ts, line: 172 }
+        - { file: src/queries/prisma/website.ts, line: 175 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.pagedQuery('website', …) の findMany と count (where teamId, deletedAt null, 検索語)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: created_by, use: [filter] }
+          - { name: name, use: [filter] }
+          - { name: domain, use: [filter] }
+          - { name: created_at, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 117 }
+          - { file: src/queries/prisma/website.ts, line: 172 }
+          - { file: src/queries/prisma/website.ts, line: 114 }
+          - { file: src/queries/prisma/website.ts, line: 110 }
+          - { file: src/queries/prisma/website.ts, line: 112 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 104 }
+          - { file: prisma/schema.prisma, line: 105 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "name / domain は検索語と並べ替え、created_at は並べ替え (URL の orderBy が createdAt のとき) に使う。created_by は、作成者 (user) との結合に使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { createUser: { select id, username } }"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 175 }
+          - { file: src/queries/prisma/website.ts, line: 177 }
+          - { file: src/queries/prisma/website.ts, line: 178 }
+          - { file: prisma/schema.prisma, line: 114 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "Website.createUser (User) のリレーションの読み込み。テーブル名は、コードに直接は出ない"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findMany (where entityId in サイトの id, distinct entityId, orderBy createdAt desc)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 334 }
+          - { file: src/queries/prisma/website.ts, line: 336 }
+          - { file: src/queries/prisma/website.ts, line: 338 }
+          - { file: src/queries/prisma/website.ts, line: 340 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "サイトが 1 件以上あるときだけ"
+
+  - id: ext_prisma_paged_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.findMany / count (pagedQuery) と share.findMany"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_team_websites
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+      note: "pagedQuery は、引数のモデル名 (ここでは website) で client[model] を呼ぶ。最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行 (count と share.findMany。share.findMany はサイトが 1 件以上あるときだけ) は evidence に入れた。getUserWebsites (フレーム q_get_user_websites) も、同じ getWebsites → pagedQuery と attachShareIdToWebsites を通るので、ライブラリの呼び出しは、useUserWebsitesQuery の URL の候補の最初 (teams) の下のここに 1 回だけ書いた"
+
   - id: api_user_websites_get
     layer: api_route
     kind: route_handler
@@ -537,7 +767,7 @@ callstack:
       note: "includeTeams があると別の関数 (getAllUserWebsitesIncludingTeamAccess) へ分かれるが、この画面のフックは includeTeams を渡さない (useUserWebsitesQuery.ts:23、usePagedQuery.ts:24) ので、この入口ではいつもこちら"
     summary:
       status: interpretation
-      value: "userId のサイトを、持ち主 (user の username / id) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させて、既定では name の順に、ページ単位で読む (pagedQuery で件数も数える)。見つかったサイトがあれば、その share を読んで slug を付ける"
+      value: "userId のサイトを、持ち主 (user の username / id) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させて、既定では name の順に、ページ単位で読む (pagedQuery で件数も数える)。見つかったサイトがあれば、その share を読んで slug を付ける。ライブラリの呼び出し (pagedQuery の findMany / count と share.findMany) は、フレーム ext_prisma_paged_website と同じ"
       evidence:
         - { file: src/queries/prisma/website.ts, line: 102 }
         - { file: src/queries/prisma/website.ts, line: 108 }
@@ -604,21 +834,89 @@ callstack:
           - { file: prisma/schema.prisma, line: 412 }
         note: "サイトが 1 件以上あるときだけ"
 
-  - id: ext_prisma_paged_website
-    layer: external
-    kind: library
-    name: "Prisma Client website.findMany / count (pagedQuery) と share.findMany"
-    source: { file: src/lib/prisma.ts, line: 761 }
-    caller: q_get_user_websites
+  - id: api_me_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/me/websites"
+    source: { file: src/app/api/me/websites/route.ts, line: 7 }
+    caller: use_user_websites_query
+    call:
+      status: interpretation
+      when: conditional
+      condition: "teamId も userId も無いとき (ログイン中のユーザーがまだ得られていないとき)"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 22 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 18 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "URL は引数 (teamId / userId の有無) で切り替わる。この画面は (main) の枠の App が、ユーザーを得てから描く (App.tsx:54) ので userId がいつもあり、この入口からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた"
+    summary:
+      status: interpretation
+      value: "クエリをスキーマ (pagingParams / sortingParams。searchParams は無いので、検索語は捨てられる) で検査して認証し (parseRequest)、getQueryFilters (DB を読まない) で条件を作り、includeTeams が無ければ getUserWebsites (経路はフレーム q_get_user_websites と同じ) でログイン中のユーザーのサイトの一覧を返す。このフックは includeTeams を渡さないので、getAllUserWebsitesIncludingTeamAccess へは分かれない"
+      evidence:
+        - { file: src/app/api/me/websites/route.ts, line: 8 }
+        - { file: src/app/api/me/websites/route.ts, line: 14 }
+        - { file: src/app/api/me/websites/route.ts, line: 20 }
+        - { file: src/app/api/me/websites/route.ts, line: 22 }
+        - { file: src/app/api/me/websites/route.ts, line: 26 }
+    parameters:
+      - name: "page / pageSize / orderBy / sortDescending"
+        value: "URL のクエリ。スキーマ (pagingParams / sortingParams) で検査する"
+        status: fact
+        evidence:
+          - { file: src/app/api/me/websites/route.ts, line: 9 }
+          - { file: src/app/api/me/websites/route.ts, line: 10 }
+
+  - id: q_parse_request_me_rw
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_me_websites_get
     call:
       status: fact
       when: always
       evidence:
-        - { file: src/queries/prisma/website.ts, line: 117 }
-        - { file: src/lib/prisma.ts, line: 761 }
-        - { file: src/lib/prisma.ts, line: 775 }
-        - { file: src/queries/prisma/website.ts, line: 334 }
-      note: "pagedQuery は、引数のモデル名 (ここでは website) で client[model] を呼ぶ。最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行 (count と share.findMany) は evidence に入れた。share.findMany は、サイトが 1 件以上あるときだけ"
+        - { file: src/app/api/me/websites/route.ts, line: 2 }
+        - { file: src/app/api/me/websites/route.ts, line: 14 }
+    summary:
+      status: interpretation
+      value: "呼び出し元 (GET /api/me/websites) の呼び先がすべてほかの呼び出し元の下に書いてあり終端になるので、いちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_parse_request と同じ"
+      evidence:
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+
+  - id: q_check_auth_me_rw
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request_me_rw
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+    summary:
+      status: interpretation
+      value: "Bearer トークンからユーザーを得る。書き直したもの。全体の経路 (確認・設定・ルール、getUser) はフレーム q_check_auth と同じ"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 102 }
+    io:
+      - op: get
+        status: interpretation
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。キーは、トークンから取り出した authKey の値 (auth.ts:91)。auth:<ランダム> の形は、トークンを作る側の saveAuth (auth.ts:150) から読み取った"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 91 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ"
 
   # ---------------------------------------------------------------- ドメインのアイコン (名前の列)
   - id: favicon

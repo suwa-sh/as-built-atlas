@@ -7,24 +7,28 @@ findings:
   - kind: classification_mismatch
     severity: low
     where: callstack/performance_metrics_table
+    resolved: true
     claim: "PerformanceMetricsTable を 4 つの呼び出し (path / title / device / browser) で 1 つのフレームにまとめているが、プロファイルの context.md は「同じ関数でも、引数で読み書き先が変わるものは、届く先ごとに書く」と決めている。PostgreSQL では、type が device / browser のときだけ session を結合して読み (getPerformanceMetrics.ts 42 行の joinSession)、path / title のときは website_event だけを読むので、引数で届く表が変わる。I/O と note に違いを書いているので、触れるデータの漏れは無い"
     evidence: { file: src/queries/sql/performance/getPerformanceMetrics.ts, line: 42 }
     suggestion: "届く表で分けて、path / title (website_event だけ) と device / browser (session も読む) の 2 つのフレームにする"
   - kind: missing_frame
     severity: low
     where: callstack/website_controls
+    resolved: true
     claim: "WebsiteControls は allowDownload のときに ExportButton を描き (WebsiteControls.tsx:42)、ExportButton は GET /websites/<id>/export を呼ぶ (ExportButton.tsx:20) が、この画面が allowDownload を渡さないという理由で summary で触れるだけで、フレームにしていない。この画面から条件が成り立たないように見える呼び出しも、省かずに conditional のフレームにする決まり (analysis-conventions.md の木の書き方) と合わない。この画面では動かない枝なので low にした"
     evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 42 }
     suggestion: "ExportButton から export の受け口とその先の読み取りまでを、website_controls の下に conditional のフレームとして足し、この画面が allowDownload を渡さないこと (PerformancePage.tsx 14 行) を note に書く"
   - kind: missing_frame
     severity: low
     where: callstack/filter_edit_form
+    resolved: true
     claim: "FilterEditForm は、パスが /events で終わるときにイベントのプロパティのタブで PropertyFilters (source: event) を描き (FilterEditForm.tsx:166)、usePropertyFieldsQuery は GET /websites/<id>/event-data/fields に届く (usePropertyFieldsQuery.ts:26。session のときとは別の受け口) が、summary で触れるだけでフレームにしていない。成り立たないように見える呼び出しも conditional のフレームにする決まりと合わない。この画面では動かない枝なので low にした"
     evidence: { file: src/components/input/FilterEditForm.tsx, line: 166 }
     suggestion: "PropertyFilters (source: event) から event-data/fields の受け口と、その先の問い合わせまでを、filter_edit_form の下に conditional のフレームとして足し、この画面のパスでは描かれない理由を note に書く"
   - kind: missing_frame
     severity: low
     where: callstack/api_values
+    resolved: true
     claim: "GET values は、type が segment / cohort のとき getWebsiteSegments を呼ぶ (values/route.ts:49) が、この画面の列に segment / cohort が無いという理由で summary で触れるだけで、フレームにしていない。入口から深さ優先で辿ると、getWebsiteSegments に最初に着くのはこの受け口なので、決まりどおりなら q_get_website_segments はここに conditional で置き、GET segments の側で「経路は同じ」と書く形になる"
     evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 49 }
     suggestion: "getWebsiteSegments のフレームを api_values の下に conditional で置き (届かないように見える理由を note に書く)、api_segments_get の summary で同じ経路を指す"

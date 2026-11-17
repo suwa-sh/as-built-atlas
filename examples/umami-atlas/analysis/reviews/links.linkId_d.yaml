@@ -10,34 +10,40 @@ findings:
     claim: "when が conditional (共有画面の設定で allowFilter が false でない) だが、この入口では条件がいつも成り立つ。useShare は ShareContext (既定値 null。ShareProvider は src/app/share の下だけ) を読むので share は null で、allowShareFilter(undefined) は true、allowFilter の既定値も true。同じ結果の中で、showActions (use_config の call) は同じ理由で always にしていて、扱いがそろっていない"
     evidence: { file: "src/app/(main)/links/[linkId]/LinkControls.tsx", line: 24 }
     suggestion: "when を always にし、いつも成り立つと判断した理由 (この入口は共有画面の枠の外で、share が null) を note に書く。link_controls の rules (allowFilter の分かれ道) も、この入口では効かないことを書き添える"
+    resolved: true
   - kind: classification_mismatch
     severity: low
     where: callstack/filter_bar/call
     claim: "when が conditional (共有画面の設定で allowFilter が false でない) だが、website_filter_button と同じ理由で、この入口では showFilter がいつも true になる"
     evidence: { file: "src/app/(main)/links/[linkId]/LinkControls.tsx", line: 34 }
     suggestion: "when を always にし、理由を note に書く (絞り込みが 1 つも無ければ何も描かないことは、いまの summary のままでよい)"
+    resolved: true
   - kind: evidence_mismatch
     severity: low
     where: summary
     claim: "入口の概要の「REDIS_URL があれば Redis の website:* に読み書きする (CLOUD_MODE では account:* も読む)」は、結果の notes (5)(a) の読み (link の id では website の行が当たらない) と合わない。fetchAccount は website が見つかったときだけ呼ばれ (request.ts:103)、website:* への set も DB から読めたときだけ (redis.ts:91)。この入口では、どちらも起きないと読める"
     evidence: { file: "src/lib/request.ts", line: 103 }
     suggestion: "概要を「website:* を読む (link の id では行が当たらないので、書き込みと account:* の読み取りは起きないと読める)」のように直し、q_fetch_account の call と ext_redis_website_set の call の note に、この入口では条件が成り立たないように見える理由を書く"
+    resolved: true
   - kind: missing_item
     severity: low
     where: callstack/q_get_values/io/1
     claim: "getValues が取り出して検索の条件にも使う列 (select ${column}。FILTER_COLUMNS[type]) が、3 つの読み取り (io/0、io/1、io/2) のどれの fields にも無い。note は「実行時に決まる」としているが、type の候補は useFields の列に限られ、コードから読める。q_session_metrics と q_pageview_expanded_metrics は、同じ形 (type で決まる列) を fields に書いていて、扱いがそろっていない"
     evidence: { file: "src/queries/sql/getValues.ts", line: 72 }
     suggestion: "この画面が渡す type に当たる列を read / filter で足す。session (io/0) には browser / os / device / country / region / city / distinct_id、website_event (io/1、io/2) には url_path / url_query / page_title / referrer_domain / hostname / tag / event_name / utm の 5 つ (ClickHouse はセッションの列も)"
+    resolved: true
   - kind: missing_frame
     severity: low
     where: callstack/website_chart/summary
     claim: "useWebsiteAnnotationsQuery (WebsiteChart.tsx:35) と、その先の GET /api/websites/[websiteId]/annotations を段にしていない。分析の skill は、この入口からは条件が成り立たないように見える呼び出しも、消さずに conditional で書き、理由を note に書くと決めている。同じ結果の中で、getEventExpandedMetrics と fetchAccount はその書き方にしている"
     evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx", line: 35 }
     suggestion: "フックを always、受け口を conditional (showAnnotations を渡されたとき) で足し、この画面は渡さないことを note に書く。足さないなら、skill の決まりと違う扱いにした理由を、結果の notes (4) に書く"
+    resolved: true
   - kind: missing_frame
     severity: low
     where: callstack/api_metrics/summary
     claim: "type が event のときの getEventMetrics (metrics/route.ts:64) を、「この画面の表が event を渡さない」として段にしていない。条件が成り立たないように見える呼び出しを消さずに conditional で書く決まりと合わない。同じ扱いが、GET values の getWebsiteSegments (values/route.ts:49)、LinkControls の ExportButton (LinkControls.tsx:31。GET /websites/<id>/export を呼ぶ)、FilterEditForm の SegmentFilters / PropertyFilters (FilterEditForm.tsx:147 から) にもある"
     evidence: { file: "src/app/api/websites/[websiteId]/metrics/route.ts", line: 64 }
     suggestion: "conditional の段として足し、この入口では届かない理由を note に書く。足さないなら、決まりと違う扱いにした理由を notes (4) に書く (続きを書くかどうかは、人が決める)"
+    resolved: true
 notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読まれた)。high と medium の指摘は無い。入口に固有の段 (page、getLink、LinkPage、LinkProvider、useLinkQuery、GET /api/links/[linkId]、canViewLink、getTeamUser、LinkHeader、useConfig、GET /api/config、LinkControls、LinkMetricsBar、LinkPanels、WorldMap、Favicon、ExpandedViewModal から拡大表示の受け口まで、FilterBar からセグメントの保存まで) は、根拠の行をすべてコードと突き合わせ、呼び出しの関係・条件・列・権限の確認・設定が合っていることを確かめた。同じ処理の置き場 (getLink は page の下、parseRequest と checkAuth と getTeamUser は GET /api/links/[linkId] の下、canViewWebsite から getEntity までは GET values の下、useConfig は LinkHeader の下) は、コードの順の深さ優先と合う。書き直した段 (末尾が _rw) は、読み書きを持つ最初の段で止まっていて、確認・設定・ルールを繰り返していない。共通の段からは、checkAuth、getUser、getQueryFilters、fetchWebsite、getValues、getSessionMetrics、getPageviewMetrics (referrer の列だけに絞った扱い)、getPageviewExpandedMetrics、getEventExpandedMetrics、stats と pageviews の受け口を抜き出して確かめた。getSessionDataProperties / getSessionDataValues / getWebsiteStats / getPageviewStats / getSessionStats / getChannelMetrics / getChannelExpandedMetrics / getSessionExpandedMetrics / getWebsiteDateRange の SQL の列は、確かめていない。綴りは、ほかの入口の結果と比べた: 設定の名前 (API_URL、CLICKHOUSE_URL、CLOUD_MODE、DATABASE_REPLICA_URL、FAVICON_URL、LINKS_URL、PRIVATE_MODE、REDIS_URL) は同じ。guards の値は、多い側の綴り (user.isAdmin、canViewLink、canViewWebsite、canUpdateWebsite、PERMISSIONS.websiteUpdate、共有トークンの確認は関数の名前) と同じで、ほかの入口の少数に別の綴り (canViewWebsite を kind: other、shareTokenIncludesWebsite、shareToken?.websiteId === websiteId) が残っている。links の /links/${linkId}/edit に、別の綴りは無い。指摘にしなかったこと: (1) GET /api/config の下の Response.json を external にしていること。プロファイルの external の例 (ORM、DB クライアントなど) には当たらないが、終端の決まりを満たすための扱いで、理由が結果の notes (6) にある。(2) Tabs の中の MetricsTable を always にしていること (UI ライブラリの動きで、リポジトリからは読めない。note がある)。(3) getWebsite の下の share の読み取りは、website が見つかったときだけで、この入口では起きないと読める (io の note に「サイトが見つかったときだけ」とある)。"

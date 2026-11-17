@@ -18,11 +18,11 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.0
   model: claude-opus-5-5
-  analyzed_at: '2026-11-17T15:31:09Z'
+  analyzed_at: '2026-11-17T22:01:20Z'
   reviewed:
     by: claude-opus-5-5 (fresh context)
     at: '2026-11-17T15:30:05Z'
-    findings_open: 1
+    findings_open: 0
 summary:
   status: interpretation
   value: ログイン中のユーザー個人のダッシュボード (種類が dashboard で、id がユーザーの id の board 1 件) を編集する画面。GET /api/dashboard で board を読み (無ければ空の行 1 つ・列 1 つで始める)、行と列を足す・消す・入れ替える・大きさを変える、列に部品を置く、といった編集を画面の中で行い、保存のボタンで POST /api/dashboard を呼んで board を更新する (無ければ作る)。保存の前に、サーバーが、Funnel / Goal の部品が指す保存済みのレポートが正しいかを確かめる (report を読む)。名前は「Dashboard」に固定で、説明は空。列の部品は、対象 (サイト / ピクセル / リンク) を 1 件読んで (GET /api/websites/[websiteId]・/api/pixels/[pixelId]・/api/links/[linkId]) 読めるときだけ、登録簿の集計の部品 (定義は 16 種類、対象ごとの違いを含めて 18 の部品) のどれかを描く (部品の先の集計は辿っていない)。部品を選ぶ小窓では、対象の選択欄の一覧 (本人のサイト・ピクセル・リンク) と、Goal / Funnel の部品の保存済みのゴール・ファネル (GET /api/websites/[websiteId]/goals・funnels) を読む。最初の部品の対象の絞り込みと期間の部品 (WebsiteControls など) も描く (辿っていない)。URL にチーム (/teams/<id>) があれば、編集させずに /dashboard/edit へ移す。保存か取り消しで /dashboard へ移る。各 API の認証は、ログイントークンから user を読む (Redis のセッションを使うときは auth:* も読む)
@@ -53,7 +53,7 @@ summary:
     line: 178
   - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
     line: 15
-notes: '指示書 0.4.0 とプロファイル 0.4.0 で分析した。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。(2) 登録簿 (boardComponentRegistry) の部品 18 (定義は 17 種類。TextBlock はデータを読まないので除き、WebsiteMetricsBar は対象ごとに 3 つ) は、どれが描かれるかが保存されたボードの設定で決まり、どれもサイト・ピクセル・リンクの画面の集計の部品を流用したものなので、候補ごとにフレームを書き、それぞれ、集計のフックを呼ぶところまで読んで unknown (not_analyzed) で止めた。同じ理由で、BoardControls が描く WebsiteControls / PixelControls / LinkControls (絞り込みと期間の共通の部品) も not_analyzed で止めた。続きを分析するかは、人が決める。(3) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser と getBoard は GET /api/dashboard の下、canViewSharedWebsite → canViewWebsite → getEntity (getWebsite / getLink / getPixel) と getTeamUser は、列の対象を読む GET /api/websites/[websiteId] の下、canViewPixel / canViewLink は GET /api/pixels/[pixelId]・/api/links/[linkId] の下、canViewWebsiteSection と getReports は GET …/goals の下、canViewTeam は GET /api/teams/[teamId]/pixels の下 (部品の選択の小窓の中で、PixelSelect が LinkSelect・WebsiteSelect より前に書いてある)。(4) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。external の段までは書かず、確認・設定・ルールも繰り返していない)。(5) 保存の POST /api/dashboard は、ボタンのある DashboardEditHeader の下に書いた (POST を呼ぶ関数は DashboardProvider が BoardContext で渡している)。(6) この画面ではチームの URL が転送されるので teamId がいつも無い。チームの一覧の受け口 (teams/[teamId]/pixels・links・websites) は、指示書のとおり消さずに conditional で書き、成り立たないように見える理由を note に書いた。逆に、本人の一覧の受け口 (pixels・links・users/[userId]/websites) は always にした。POST /api/auth/verify・GET /api/me/websites・getAllUserWebsitesIncludingTeamAccess も、boards.boardId_d.edit の結果と同じく、成り立たないように見える conditional として書いた。(7) 共通の部分 (認証、サイト・ピクセル・リンクの読み取りと権限、選択欄) のフレームは、同じコミットを分析した boards.boardId_d.edit と websites.websiteId_d.funnels の結果に綴りと書き方をそろえた (根拠の行は主要な所を対象のコードで確かめ直した)。(8) 権限の確認の value は、このリポジトリの決まりのとおり、確認する関数の名前か、関数になっていない確認はコードの式を肯定の形 (board.userId === auth.user.id、existing.userId === userId) で書いた。POST /api/dashboard は、POST /api/boards/[boardId] と違い、ボードが参照するサイト等を本人が見られるか (canViewBoardEntities) を確かめない (summary に書いた)。(9) API の URL を変える設定 API_URL は、API を呼ぶフックとコンポーネントの settings に書いた。DB の接続先の環境変数は書いていない。(10) テストとの対応は、作業定義で選ばれていないので分析していない。 (11) レビューの指摘は 10 件 (high 0、medium 7、low 3)。medium の 7 件 (管理者の確認 user.isAdmin を role として 5 か所に足した、GET /api/pixels・/api/links の call を interpretation にした) と、low のうち 2 件 (DashboardProvider に API_URL を足した、部品の数え方を直した) を直した。直さなかった low の 1 件: API の URL の前に付く BASE_PATH を API を呼ぶ段の settings に書くこと。boards.boardId_d.edit と枠の結果は書いておらず、admin の結果は書いていて、リポジトリの中でそろっていない。ここは同じ部品を多く共有する boards.boardId_d.edit に合わせた (どちらにそろえるかは、人が決める)。high が無いので、もう一度のレビューはしていない。'
+notes: '指示書 0.4.0 とプロファイル 0.4.0 で分析した。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。(2) 登録簿 (boardComponentRegistry) の部品 18 (定義は 17 種類。TextBlock はデータを読まないので除き、WebsiteMetricsBar は対象ごとに 3 つ) は、どれが描かれるかが保存されたボードの設定で決まり、どれもサイト・ピクセル・リンクの画面の集計の部品を流用したものなので、候補ごとにフレームを書き、それぞれ、集計のフックを呼ぶところまで読んで unknown (not_analyzed) で止めた。同じ理由で、BoardControls が描く WebsiteControls / PixelControls / LinkControls (絞り込みと期間の共通の部品) も not_analyzed で止めた。続きを分析するかは、人が決める。(3) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser と getBoard は GET /api/dashboard の下、canViewSharedWebsite → canViewWebsite → getEntity (getWebsite / getLink / getPixel) と getTeamUser は、列の対象を読む GET /api/websites/[websiteId] の下、canViewPixel / canViewLink は GET /api/pixels/[pixelId]・/api/links/[linkId] の下、canViewWebsiteSection と getReports は GET …/goals の下、canViewTeam は GET /api/teams/[teamId]/pixels の下 (部品の選択の小窓の中で、PixelSelect が LinkSelect・WebsiteSelect より前に書いてある)。(4) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。external の段までは書かず、確認・設定・ルールも繰り返していない)。(5) 保存の POST /api/dashboard は、ボタンのある DashboardEditHeader の下に書いた (POST を呼ぶ関数は DashboardProvider が BoardContext で渡している)。(6) この画面ではチームの URL が転送されるので teamId がいつも無い。チームの一覧の受け口 (teams/[teamId]/pixels・links・websites) は、指示書のとおり消さずに conditional で書き、成り立たないように見える理由を note に書いた。逆に、本人の一覧の受け口 (pixels・links・users/[userId]/websites) は always にした。POST /api/auth/verify・GET /api/me/websites・getAllUserWebsitesIncludingTeamAccess も、boards.boardId_d.edit の結果と同じく、成り立たないように見える conditional として書いた。(7) 共通の部分 (認証、サイト・ピクセル・リンクの読み取りと権限、選択欄) のフレームは、同じコミットを分析した boards.boardId_d.edit と websites.websiteId_d.funnels の結果に綴りと書き方をそろえた (根拠の行は主要な所を対象のコードで確かめ直した)。(8) 権限の確認の value は、このリポジトリの決まりのとおり、確認する関数の名前か、関数になっていない確認はコードの式を肯定の形 (board.userId === auth.user.id、existing.userId === userId) で書いた。POST /api/dashboard は、POST /api/boards/[boardId] と違い、ボードが参照するサイト等を本人が見られるか (canViewBoardEntities) を確かめない (summary に書いた)。(9) API の URL を変える設定 API_URL は、API を呼ぶフックとコンポーネントの settings に書いた。API の URL の前に付く BASE_PATH は、analysis-conventions.md の決まりのとおり、最初に API を呼ぶ useDashboardQuery (dashboard の結果と同じ段) に 1 回だけ書いた。DB の接続先の環境変数は書いていない。(10) テストとの対応は、作業定義で選ばれていないので分析していない。 (11) レビューの指摘は 10 件 (high 0、medium 7、low 3)。medium の 7 件 (管理者の確認 user.isAdmin を role として 5 か所に足した、GET /api/pixels・/api/links の call を interpretation にした) と、low のうち 2 件 (DashboardProvider に API_URL を足した、部品の数え方を直した) を直した。残りの low の 1 件 (API の URL の前に付く BASE_PATH が無い) も、あとで直した。指摘はフックごとに足すよう勧めていたが、analysis-conventions.md の「BASE_PATH と API_URL は、その入口で最初に API を呼ぶフレームに 1 回だけ書く」に従い、useDashboardQuery に 1 回だけ足した。high が無いので、もう一度のレビューはしていない。'
 callstack:
 - id: page
   layer: page
@@ -309,6 +309,21 @@ callstack:
       line: 14
     - file: next.config.ts
       line: 215
+  - name: BASE_PATH
+    kind: env
+    effect: API の URL の前に付く (API_URL が無いとき、basePath + /api。API_URL が相対のときはその前、絶対の URL のときは付かない)。/auth/verify を含め、この入口のすべての API の呼び出しに効く
+    status: fact
+    evidence:
+    - file: next.config.ts
+      line: 15
+    - file: next.config.ts
+      line: 216
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 43
+    - file: src/lib/api-url.ts
+      line: 44
 - id: api_dashboard_get
   layer: api_route
   kind: route_handler
