@@ -72,6 +72,11 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
    - `rules`: この段にある業務のルール。`kind` は `calculation` (計算) / `validation` (入力や状態の検証) / `decision` (処理を分ける判定)。`value` に内容を 1 文で書き (`unknown` でなければ必ず書く)、式や条件の行を根拠にする。業務の意味を持つものだけを書く (null の確認、型の変換、表示の整形、入力が空でないことだけの確認は書かない)。設定で分かれる処理は、`settings` だけに書く (`rules` に重ねない)。ルールが、段になっていない補助の関数にあるときは、それを呼ぶ段に書く
    - `tests`: `analysis/work-definition.yaml` の `analysis.tests` が `true` のときだけ。この段 (`source` の関数やスクリプト) を直接呼ぶテストを範囲の中で探し、`name` と `kind` (`unit` / `integration` / `e2e`) を書く。根拠は、テストの行。見つからなければ書かない。このとき、`analyzer.tests: true` を書く
    - 上の 5 つ (`links` / `guards` / `settings` / `rules` / `tests`) と `fields` は、見て無ければ書かない (空の並びを書かない)
+   - **名前と値は、入口をまたいで同じ綴りになるように書く** (集計が、同じ綴りのものを 1 つにまとめる)
+     - `guards[].value`、`settings[].name`、`links[].target`、`fields[].name`、`tests[].name` には、コードに書いてある文字 (識別子、式、文字列の値。行き先の URL やルートの名前、全部の列を表す `*` も、これに当たる) だけを書く。説明の文や、かっこ書きの補足を混ぜない (補足は `note` に書く)。例: `value: "user.isAdmin"` (「user.isAdmin (role が admin のユーザー)」とは書かない)
+     - 同じものがコードの中で 2 通りに書かれているとき (例: `user.isAdmin` と `user.role === ROLES.admin`) は、定義の側の書き方 (値を決めている場所の式や定数の名前) にそろえる
+     - 同じもの (同じ設定、同じ確認の関数、同じ列) が、ほかの入口の結果 (`analysis/results/` のほかのファイル) に既に書かれていれば、その綴りに合わせる。名前で探して確かめる
+     - 分析リポジトリの `analysis-conventions.md` が、そろえる書き方を決めていれば、それに従う
    - 次の層の呼び出しを見つけたら、新しいフレームを足して `caller` で指す。`role: boundary` の層 (外部ライブラリ・SDK・CLI) に達したらそこで閉じる
 5. 辿れないところは **unknown + reason** で明示する (`context.md` の典型例に従う)。推測で埋めない
    - `not_analyzed` (手順がそこまで届いていない) で止めるときは、`note` に「どこまで読んだか」と「なぜ止めたか」を書く (続きを分析するかを、人が決められるように)。打ち切ってよい範囲を、分析リポジトリの `analysis-conventions.md` やプロファイルの `context.md` が決めていれば、それに従う
