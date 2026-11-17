@@ -139,3 +139,27 @@ def test_a_leaf_with_business_rules_is_allowed(profile, result):
     assert any("decide" in f and "終端" in f for f in validate_analysis_result(r, profile))
     leaf["rules"] = [{"kind": "decision", "value": "1 つでも失敗があれば 1 で終わる", "status": "fact", "evidence": [{"file": "scripts/housekeeping.sh", "line": 1}]}]
     assert validate_analysis_result(r, profile) == []
+
+
+def test_a_resolved_finding_may_point_at_a_removed_frame(result):
+    """「このフレームは要らない」という指摘に従ってフレームを消すと、指摘の指す先が無くなる。直した指摘なら、検査に通す。"""
+    from abatlas.validate import validate_review
+
+    finding = {"kind": "evidence_mismatch", "severity": "high", "where": "callstack/removed_frame/summary", "claim": "この画面では動かない"}
+    review = {"format_version": 1, "entry_id": result["entry"]["id"], "reviewed_at": "2026-11-04T12:00:00+09:00", "machine_check": "ok", "findings": [finding]}
+    assert any("removed_frame" in f for f in validate_review(review, result))
+    finding["resolved"] = True
+    assert validate_review(review, result) == []
+
+
+def test_the_open_findings_count_must_match_the_review(result):
+    """結果に記録した「直っていない指摘の数」は、レビューのファイルから数えた値と合う (画面と集計が、結果の値を使う)。"""
+    from abatlas.validate import validate_review
+
+    r = copy.deepcopy(result)
+    finding = {"kind": "evidence_mismatch", "severity": "low", "where": "summary", "claim": "根拠の行が足りない"}
+    review = {"format_version": 1, "entry_id": r["entry"]["id"], "reviewed_at": "2026-11-04T12:00:00+09:00", "machine_check": "ok", "findings": [finding]}
+    r["analyzer"]["reviewed"] = {"by": "x", "at": "2026-11-04T12:00:00+09:00", "findings_open": 0}
+    assert any("findings_open" in f for f in validate_review(review, r))
+    finding["resolved"] = True
+    assert validate_review(review, r) == []

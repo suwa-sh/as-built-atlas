@@ -196,18 +196,23 @@ def validate_work_definition(work: dict) -> list[str]:
 
 
 def validate_review(review: dict, result: dict | None = None) -> list[str]:
-    """レビュー結果の機械チェック。result を渡すと entry_id の一致と where の場所の実在を見る。"""
+    """レビュー結果の機械チェック。result を渡すと entry_id の一致、結果に記録した「直っていない指摘の数」との一致、where の場所の実在を見る (直した指摘と、フレームの漏れの指摘は、指す先が無くてよい)。"""
     findings = [f"schema: {e}" for e in schema_errors("review", review)]
     if findings or result is None:
         return findings
     if review["entry_id"] != result["entry"]["id"]:
         findings.append(f"review: entry_id '{review['entry_id']}' が結果の '{result['entry']['id']}' と違う")
+    open_count = sum(1 for f in review["findings"] if not f.get("resolved"))
+    recorded = (result["analyzer"].get("reviewed") or {}).get("findings_open")
+    if recorded is not None and recorded != open_count:
+        findings.append(f"review: 結果の analyzer.reviewed.findings_open ({recorded}) が、レビューの直っていない指摘の数 ({open_count}) と違う (直した指摘に resolved: true を書くか、結果の数を直す)")
     frame_ids = {f["id"] for f in result["callstack"]}
     for i, f in enumerate(review["findings"]):
         w = f["where"]
         if w.startswith("callstack/"):
             fid = w.split("/")[1]
-            if fid not in frame_ids and f["kind"] != "missing_frame":
+            # 直した指摘 (resolved) は、指す先のフレームが無くてもよい (「このフレームは要らない」という指摘に従って消すと、指す先が無くなる)
+            if fid not in frame_ids and f["kind"] != "missing_frame" and not f.get("resolved"):
                 findings.append(f"review: findings/{i}: where '{w}' のフレーム '{fid}' が結果に無い")
     return findings
 

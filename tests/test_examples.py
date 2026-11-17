@@ -411,3 +411,19 @@ def test_data_links_pair_writers_with_other_readers(built: Path):
     with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
         rows = con.execute("select kind, resource_path, writer_count, reader_count from mart.mart_data_links").fetchall()
     assert {(k, p): (w, r) for k, p, w, r in rows} == expected and expected
+
+
+def test_a_quote_far_down_a_seed_does_not_break_the_build(tmp_path: Path):
+    """二重引用符を含む値が、CSV の後ろの行にだけあっても、集計が通る (引用符の自動判定に任せると、先頭のほうの行だけで決めて失敗する)。"""
+    shutil.copytree(TARGET, tmp_path / "kotori-books")
+    shutil.copytree(ATLAS, tmp_path / "kotori-books-atlas")
+    repo = tmp_path / "kotori-books-atlas"
+    init_repo(repo, "batch-kestra", targets="claude-code")
+    last = sorted((repo / ANALYSIS_DIR / "results").glob("*.yaml"))[-1]
+    doc = yaml.safe_load(last.read_text(encoding="utf-8"))
+    doc["callstack"][-1].setdefault("call", {})["note"] = 'ここだけ "引用符" と、改行\nと , を含む'
+    last.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    build_repo(repo)
+    with duckdb.connect(str(duckdb_path(repo)), read_only=True) as con:
+        (n,) = con.execute("""select count(*) from seed.claims where note like '%"引用符"%'""").fetchone()
+    assert n == 1
