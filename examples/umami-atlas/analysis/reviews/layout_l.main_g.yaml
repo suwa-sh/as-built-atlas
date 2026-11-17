@@ -1,19 +1,35 @@
 format_version: 1
-entry_id: layout_l.main_g
-reviewed_at: "2026-11-13T03:30:00+09:00"
-reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+entry_id: "layout_l.main_g"
+reviewed_at: "2026-11-17T10:22:39Z"
+reviewer: "claude-fable-5-2 (fresh context)"
 machine_check: ok
 findings:
   - kind: evidence_mismatch
     severity: low
-    where: callstack/q_parse_request/summary
-    claim: "summary の『URL と JSON 本文を読み』を支える行が evidence に無い。evidence の request.ts:27、:51、:52 (前後 5 行) はスキーマの検査と checkAuth の呼び出しだけで、URL と本文を読むのは request.ts:21 と :23"
-    evidence: { file: src/lib/request.ts, line: 23 }
-    suggestion: "q_parse_request の summary の evidence に src/lib/request.ts:21 と :23 を加える"
-  - kind: avoidable_unknown
+    where: "summary"
+    claim: "「ユーザーと設定値が無い・チームが読めないあいだは、何も描かない」とあるが、読み込み中 (isLoading、config が無い、チームの読み込み中) は Loading を描く。何も描かない (null) のは、ログインの確認が失敗したとき、ユーザーが無いとき、チームの読み込みが失敗したときだけ。"
+    evidence: { file: "src/app/(main)/App.tsx", line: 43 }
+    suggestion: "「読み込み中は Loading を出し、ログインの確認の失敗・ユーザー無し・チームの読み込みの失敗のときは何も描かない」と書き分ける。"
+    resolved: true
+  - kind: evidence_mismatch
     severity: low
-    where: notes
-    claim: "notes (9) は /boards/create で呼ぶ GET /api/boards/c の応答を『コードからは確かめていない』としているが、schema.prisma:382 で board.id は @db.Uuid。getBoard (board.ts:13) には getWebsite (website.ts:81) のような uuid の検査が無いので、uuid でない c での findUnique は DB 側でエラーになると読める"
-    evidence: { file: prisma/schema.prisma, line: 382 }
-    suggestion: "notes (9) と use_board_query の summary に、board.id が uuid 型で、getBoard に uuid の検査が無いため c での読み取りはエラーで終わる (選択欄に名前が出ない) と書き、schema.prisma:382 を根拠に加える"
-notes: "機械チェック (validate result) は OK。全フレームの call / summary / parameters / io の根拠行を開いて確かめ、行番号はすべて実在して主張を支えている (上の 2 件を除く)。テーブル名は schema.prisma の @@map (user:37、website:130、team:249、team_user:265、link:358、pixel:378、board:398、share:412、two_factor_auth:492、two_factor_backup_code:504、two_factor_otp_used:515、two_factor_rate_limit:526、app_setting:533) と一致。upsert を create と update の 2 件に分けているのも context.md どおり。同じ処理の置き場も決まりどおりと確かめた。parseRequest は 2fa/setup/confirm/route.ts:18 (2fa/setup/initiate、2fa/status、auth/verify より先)、getUser は initiate/route.ts:33 (src/lib/auth.ts:94 より先)、getTeamUser は permissions/board.ts:178 (link:34、pixel:34、team:15、website:35 より先)、canViewTeam は teams/[teamId]/boards/route.ts:21 (links、pixels、route.ts、websites より先)、getWebsite / getLink / getPixel / getBoard は各 route の 1 件の GET の下。終端になる getEntity / canViewLink / canViewPixel / canViewTeam の下の書き直し (q_*_rw) も、呼び出しの行が最も早い 1 本になっている。辿り漏れは無い。SideNav / MobileNav / WebsiteNav / SettingsNav / AdminNav / useWebsiteNavItems / MobileMenuButton はデータの API を呼ばない。TeamsButton と UserButton は useLoginQuery のストアのユーザーを使うだけ。useLocale は public/intl の静的な JSON を httpGet するだけ。TwoFactorSuccessModal は API を呼ばない。GET /api/config (skipAuth で環境変数を返すだけ。isRelationalOnly も環境変数を見るだけ) をフレームにしないのは、データに届かない経路なので許容した。気になった点 (指摘にはしない): 一覧の pagedQuery の external を、website ではチームの一覧、link / pixel / board では自分の一覧の下に書いている。分析は route のファイルのパスの順で決めたが、合流先の getWebsites を呼ぶ行で比べると getUserWebsites (website.ts:150) が getTeamWebsites (website.ts:169) より先になる。決まりが『同じ外部呼び出しを別の呼び出し元のフレームから呼ぶとき』の比べ方を明記していないので、どちらでも誤りではないが、分析者によって木が変わり得る"
+    where: "callstack/app_shell/links/26"
+    claim: "SettingsNav と AdminNav のリンク (links/26 から links/34) の note は「websiteId が無いとき、SideNav と MobileNav が描く」とするが、websiteId が無いことを条件にするのは SideNav だけ。MobileNav は、URL に /settings (または /admin) を含めば、websiteId があっても WebsiteNav と並べて描く (例: /websites/<id>/settings、/admin/websites/<id>)。"
+    evidence: { file: "src/app/(main)/MobileNav.tsx", line: 65 }
+    suggestion: "note を「SideNav は websiteId が無いときだけ。MobileNav は URL に /settings (/admin) を含めばいつも」に直す (根拠に MobileNav.tsx の 63 行から 65 行と SideNav.tsx の 112 行から 117 行を足す)。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: "callstack/app_shell/settings/0"
+    claim: "CLOUD_MODE の effect に、UserButton の分が無い (結果の notes は、UserButton の設定を app_shell に書いたとしている)。cloudMode が真だと、メニューにドキュメントとサポートが出て、管理者用の /admin が出なくなり、/settings・/logout が CLOUD_URL 付きのページごとの移動になる。"
+    evidence: { file: "src/components/input/UserButton.tsx", line: 81 }
+    suggestion: "effect に UserButton のメニューの出し分けと移動先の切り替えを足し、根拠に UserButton.tsx の 42 行、50 行、81 行、89 行、95 行を足す。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: "callstack/app_shell/settings/1"
+    claim: "CLOUD_URL の effect は「ログイン画面への移動先の前に付く」だけだが、UserButton の getUrl も、クラウドモードのとき /settings・/settings/support・/logout の前に cloudUrl を付ける (同じフレームの links/38 には書いてある)。"
+    evidence: { file: "src/components/input/UserButton.tsx", line: 50 }
+    suggestion: "effect に「UserButton の設定・サポート・ログアウトの移動先の前にも付く」を足し、根拠に UserButton.tsx の 50 行を足す。"
+    resolved: true
+notes: "(1) 約 100 のフレームの call / summary / parameters / io / links / guards / settings / rules を、根拠の行を開いて確かめた。上の 4 件のほかに、根拠が主張を支えていない箇所、状態や理由の取り違え、データの当てはめ違い、辿り漏れは見つからなかった。links の entry_id は、すべて analysis/entry-list.yaml にある。(2) 指摘にしなかった判断の分かれる点: (a) q_record_failed_attempt の when は conditional。コードの照合の失敗を業務の分かれ道とみる読み方で、結果の notes に理由がある。on_failure とも読めるが、例外の処理や後片付けではなく、締め出しの回数を数える業務の処理なので、指摘にしなかった。(b) GET /api/config (useConfig) をフレームにしていない。環境変数を返すだけで、データにもライブラリにも届かず、終端の決まりを満たせないため。結果の notes に理由があり、設定は settings に拾われているので、辿り漏れに数えなかった。(c) update_notice と api_telemetry の external_api は、サーバーではなくブラウザからの送信。context.md の external_api は「サーバーから他社のサービスを呼ぶ HTTP」だが、ブラウザからの外部への送信の当てはめは決まっていない。note に呼ぶ側が書いてあるので、指摘にしなかった。当てはめを決めるなら、analysis-conventions.md に書くとよい。(d) checkVersion (src/store/version.ts) はフレームにせず、update_notice の io と external フレームの source で表している。ブラウザ側の store の関数に当たる層がプロファイルに無いので、指摘にしなかった。(3) app_shell のメニューのリンク (links/3 から links/7) の note は、SideNav がこれらを出す条件 (websiteId が無く、URL に /settings も /admin も含まない) を書いていない。表現の不足で、行き先は合っている。"

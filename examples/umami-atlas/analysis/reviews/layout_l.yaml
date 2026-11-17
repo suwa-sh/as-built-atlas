@@ -1,19 +1,28 @@
 format_version: 1
 entry_id: layout_l
-reviewed_at: "2026-11-13T04:00:00+09:00"
-reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+reviewed_at: "2026-11-17T10:09:37Z"
+reviewer: "claude-fable-5-2 (fresh context)"
 machine_check: ok
 findings:
   - kind: evidence_mismatch
     severity: low
     where: summary
-    claim: "入口の summary にある『TanStack Query のクライアント (再試行なし、60 秒は新しいとみなす)』と『エラーを画面に出し、ブラウザの console に書くだけ』を支える行が、入口の summary の evidence に無い。evidence の Providers.tsx:35 (前後 5 行は 30〜40 行) は Providers の重ね方だけで、QueryClient の設定は Providers.tsx:10〜15、console.error は ErrorBoundary.tsx:8 にある"
-    evidence: { file: src/app/Providers.tsx, line: 13 }
-    suggestion: "入口の summary の evidence に src/app/Providers.tsx:13 と src/components/common/ErrorBoundary.tsx:8 を加える (providers フレームの evidence には既にある)"
+    claim: "入口の summary は、プロトコルの既定を『localhost なら http、それ以外は https』と書くが、getDefaultProtocol は host が localhost のほか 127.0.0.1 と [::1] で始まるときも http にする。この判定の行 (get-base-url.ts:14) が evidence に無い (evidence の :23 と :33 の前後 5 行には入らない)"
+    evidence: { file: src/lib/get-base-url.ts, line: 14 }
+    suggestion: "summary に 127.0.0.1 と [::1] も http になることを足し、src/lib/get-base-url.ts:14 を evidence に加える"
+    resolved: true
   - kind: evidence_mismatch
     severity: low
     where: summary
-    claim: "入口の summary は基準 URL を決めるヘッダーを『x-forwarded-host / host / x-forwarded-proto』としているが、getBaseUrl は x-forwarded-protocol も見て、どちらも無ければ host が localhost / 127.0.0.1 / [::1] のとき http、それ以外は https にする。列挙が欠けている"
-    evidence: { file: src/lib/get-base-url.ts, line: 32 }
-    suggestion: "入口の summary に x-forwarded-protocol と、プロトコルの既定 (localhost なら http、それ以外は https) を足し、src/lib/get-base-url.ts:32 と :14 を evidence に加える"
-notes: "機械チェック (validate result) は OK。全フレーム (layout / ext_next_headers / providers / ext_next_intl) の call と summary の根拠行を開いて確かめ、上の 2 件を除き行番号は実在して主張を支えている。DISABLE_UI のときの空の html (layout.tsx:17〜22)、head の meta robots noindex,nofollow (layout.tsx:37)、Suspense の中の Providers (layout.tsx:40〜41)、generateMetadata の headers() と metadataBase とタイトルの書式 (layout.tsx:49〜55) は記述どおり。external の source は、headers() を呼ぶ行 (layout.tsx:49) と NextIntlClientProvider を描く行 (Providers.tsx:29) で、context.md の決まりどおり。状態 (call は fact、summary は interpretation) も妥当。データの当てはめ: useLocale の httpGet (useLocale.ts:23) が読む /intl/messages/<言語>.json は public/intl/messages にある同じリポジトリの静的ファイルで、src/app の下に当たる route は無いことを確かめた。サーバーのデータでも他社のサービスでもないので I/O に書かない扱いは、(main) の枠のレビューと同じく許容した。localStorage の読み書き (store/app.ts:15、useLocale.ts:33) を I/O に書かないのも context.md どおり。辿り漏れは無い。ZenProvider / RouterProvider / QueryClientProvider / ErrorBoundary はどれも API を呼ばず、children の中身を辿らないのも決まりどおり。気になった点 (指摘にはしない): 既定の言語は localStorage の次に環境変数 defaultLocale (store/app.ts:15) で決まるが、summary や notes には触れていない。MessagesProvider は html の lang に言語の全体 (例 ja-JP) を、useLocale は先頭部分 (例 ja) を設定しており (Providers.tsx:25、useLocale.ts:49)、どちらが残るかは effect の順による"
+    claim: "入口の summary の『環境変数 DEFAULT_LOCALE、en-US の順』『<BASE_PATH>/intl/messages/...』を支える行が、summary の evidence に一部足りない。コードが読むのは process.env.defaultLocale と process.env.basePath で、環境変数の名前に結び付ける行 (next.config.ts:15、:21) と、既定値 en-US の定義 (constants.ts:25) が無い (evidence の constants.ts:16 の前後 5 行には入らない)"
+    evidence: { file: src/lib/constants.ts, line: 25 }
+    suggestion: "summary の evidence に next.config.ts:15、next.config.ts:21、src/lib/constants.ts:25 を加える (providers の settings の evidence には既にある)"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/providers/rules/0
+    claim: "ルールの『localStorage の umami.locale に保存する』のうち、キーの名前 umami.locale を定義する行 (constants.ts:3 の LOCALE_CONFIG) と、setItem が localStorage に書くことを示す行 (storage.ts:3) が evidence に無い。evidence の useLocale.ts:33 は setItem(LOCALE_CONFIG, value) を呼ぶ行だけ"
+    evidence: { file: src/lib/constants.ts, line: 3 }
+    suggestion: "evidence に src/lib/constants.ts:3 と src/lib/storage.ts:3 を加える"
+    resolved: true
+notes: "機械チェック (validate result) は OK で、プロファイルは作業定義の profile.dir から読めている。analysis-conventions.md に、このリポジトリで合意済みの決まりは書かれていなかった。4 つのフレーム (layout / providers / ext_next_intl / ext_next_headers) の call、summary、parameters、settings、rules の根拠の行をすべて開いて確かめ、上の 3 件 (どれも根拠の行の一部不足) を除き、行は実在して主張を支えている。状態 (call と DISABLE_UI は fact、summary と、next.config.ts の写しを経る BASE_PATH / DEFAULT_LOCALE は interpretation) は妥当。providers の call の when: conditional (設定 DISABLE_UI による切り替えで、親が子を描くかどうかを決める) と、2 つの external の when: always は、分析の skill の基準に合う。external の source は、ライブラリを実際に呼ぶ・描く行 (layout.tsx:49、Providers.tsx:29) で、context.md の決まりどおり。I/O は無く、localStorage の読み書きを I/O に書かないのも context.md どおり。権限の確認、ほかの入口へのつながりは、layout.tsx と Providers.tsx に無いことを確かめた。analyzer.tests が無いので tests は見ていない。指摘にしなかったが伝えておくこと: (1) useLocale の httpGet (useLocale.ts:23) が読む <basePath>/intl/messages/<言語>.json は、public/intl/messages に実在する静的ファイルで、src/app の下に当たる route は無い。context.md のデータの当てはめは『サーバーから他社のサービスを呼ぶ HTTP』と『route ファイルが scope に無い (別のサービスの API)』しか決めておらず、ブラウザから同じサーバーの静的ファイルを読む場合の扱いが書かれていない。分析の側は I/O にもフレームにも書かない扱いにして notes に理由を書いている。この扱いでよいかは、人が決めて analysis-conventions.md に書くとよい。(2) context.md は、データに届かない枠を『入口のフレームから、最後に頼るライブラリを external フレームとして 1 つ書いて閉じる』としているが、この結果は Providers の段をはさみ、external を 2 つ (next-intl と next/headers) 書いている。経路の漏れではなく、主張もコードと合うので指摘にしなかった。(3) html の lang は、MessagesProvider が言語の全体 (Providers.tsx:25)、useLocale が先頭の部分だけ (useLocale.ts:49) を設定している。providers の summary は『html の dir と lang を設定し』とだけ書いており、誤りではない"

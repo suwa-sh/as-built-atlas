@@ -11,17 +11,17 @@ target:
   scope: .
   commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
 analyzer:
-  profile: { id: ui-nextjs, version: "0.3.0" }
-  skill_version: "0.3.0"
-  model: "claude-opus-5-5"
-  analyzed_at: "2026-11-13T03:09:03+09:00"
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T10:10:25Z"
   reviewed:
-    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
-    at: "2026-11-13T03:15:00+09:00"
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T10:09:37Z"
     findings_open: 0
 summary:
   status: interpretation
-  value: "すべての画面を包むいちばん外側の枠 (app 直下の layout)。データの読み書きも外部への送信もしない。環境変数 DISABLE_UI があれば空の html と body だけを返し、画面を何も描かない。そうでなければ html の head にアイコンと manifest と meta (検索エンジンに載せない noindex,nofollow など) を置き、body の Suspense の中で Providers を描いて、包まれる画面 (children) をその中に置く。Providers はブラウザ側で動き、UI ライブラリの設定、ルーター、翻訳 (next-intl)、TanStack Query のクライアント (再試行なし、60 秒は新しいとみなす)、エラーの受け止め (画面にエラーを出し、ブラウザの console に書くだけ) を順に重ねる。翻訳の文言は en-US を同梱し、それ以外の言語は同じサーバーの静的ファイル /intl/messages/<言語>.json をブラウザから読む。generateMetadata は、要求のヘッダーからサイトの基準 URL を決め (host は x-forwarded-host か host、プロトコルは x-forwarded-proto か x-forwarded-protocol。どちらも無ければ localhost なら http、それ以外は https)、タイトルの書式 (%s | Umami) を決める"
+  value: "すべての画面を包むいちばん外側の枠 (app 直下の layout)。データの読み書きも外部への送信もしない。環境変数 DISABLE_UI があれば空の html と body だけを返し、画面を何も描かない。そうでなければ html の head にアイコンと manifest と meta (検索エンジンに載せない noindex,nofollow など) を置き、body の Suspense の中で Providers を描いて、包まれる画面 (children) をその中に置く。Providers はブラウザ側で動き、UI ライブラリの設定、ルーター、翻訳 (next-intl)、TanStack Query のクライアント (再試行なし、60 秒は新しいとみなす)、エラーの受け止め (画面にエラーを出し、ブラウザの console に書くだけ) を順に重ねる。翻訳の文言は en-US を同梱し、それ以外の言語は同じサーバーの静的ファイル <BASE_PATH>/intl/messages/<言語>.json をブラウザから読む。最初の言語は、ブラウザに保存した値、環境変数 DEFAULT_LOCALE、en-US の順で決まり、URL に ?locale= があればその言語に切り替える。generateMetadata は、要求のヘッダーからサイトの基準 URL を決め (host は x-forwarded-host か host、プロトコルは x-forwarded-proto か x-forwarded-protocol。どちらも無ければ、host が localhost / 127.0.0.1 / [::1] で始まるなら http、それ以外は https。host が無いか URL にできなければ https://umami.is)、タイトルの書式 (%s | Umami) を決める"
   evidence:
     - { file: src/app/layout.tsx, line: 17 }
     - { file: src/app/layout.tsx, line: 37 }
@@ -31,11 +31,20 @@ summary:
     - { file: src/app/Providers.tsx, line: 15 }
     - { file: src/app/Providers.tsx, line: 35 }
     - { file: src/components/common/ErrorBoundary.tsx, line: 8 }
+    - { file: src/components/hooks/useLocale.ts, line: 7 }
     - { file: src/components/hooks/useLocale.ts, line: 23 }
+    - { file: src/components/hooks/useLocale.ts, line: 55 }
+    - { file: src/store/app.ts, line: 15 }
+    - { file: next.config.ts, line: 15 }
+    - { file: next.config.ts, line: 21 }
+    - { file: src/lib/constants.ts, line: 25 }
+    - { file: src/lib/get-base-url.ts, line: 14 }
     - { file: src/lib/get-base-url.ts, line: 23 }
+    - { file: src/lib/get-base-url.ts, line: 27 }
     - { file: src/lib/get-base-url.ts, line: 32 }
     - { file: src/lib/get-base-url.ts, line: 33 }
-notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる画面) と、内側の layout ((main) など) は別の入口なので辿らない。(2) データに届かない枠なので、context.md の決まり (データに届かない画面・枠は、最後に頼るライブラリを external フレームにして閉じる) に従い、翻訳のライブラリ next-intl と、要求のヘッダーを読む next/headers を external にした。I/O は無し。(3) 翻訳の文言の読み込み: useLocale は、同梱していない言語 (en-US 以外) のとき httpGet (src/lib/fetch.ts の fetch) で basePath + /intl/messages/<言語>.json を読む。これは public/intl にある同じリポジトリの静的ファイルで、サーバーのデータでも他社のサービスでもないので、翻訳のライブラリの一部として扱い I/O に書かなかった ((main) の枠の分析と同じ扱い)。(4) 言語・テーマ・時間帯・期間の選択は localStorage から読み (src/store/app.ts:15)、言語を変えると localStorage に書く (useLocale.ts:33)。ブラウザの中の保存なので I/O に書かない。(5) ErrorBoundary の onError は console.error に書くだけで、外へ送らない。(6) generateMetadata が読むのは要求のヘッダーだけで、ヘッダーが無いか URL にできなければ HOMEPAGE_URL を基準にする。(7) フレームにしなかったもの: ZenProvider / RouterProvider (UI ライブラリ @umami/react-zen の部品)、QueryClientProvider (TanStack Query のクライアントを配るだけで、ここでは問い合わせをしない)、ErrorBoundary と useMessages (翻訳の文言を引くだけ)、getBaseUrl (ヘッダーから URL を組み立てるだけ)、フォント (next/font/google はビルド時に取り込む) と CSS の import。(8) レビューの指摘 2 件 (どちらも low) を直した: 入口の summary の根拠に、TanStack Query の設定 (Providers.tsx:13 / :15) と console への書き出し (ErrorBoundary.tsx:8) の行を足した。基準 URL を決めるヘッダーに x-forwarded-protocol と、ヘッダーが無いときの既定 (localhost なら http、それ以外は https) を書き足し、根拠に get-base-url.ts:23 / :32 / :33 を足した"
+    - { file: src/lib/constants.ts, line: 16 }
+notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる画面) と、内側の layout ((main) など) は別の入口なので辿らない。(2) データに届かない枠なので、context.md の決まり (データに届かない画面・枠は、最後に頼るライブラリを external フレームにして閉じる) に従い、翻訳のライブラリ next-intl と、要求のヘッダーを読む next/headers を external にした。I/O は無し。(3) 翻訳の文言の読み込み: useLocale は、同梱していない言語 (en-US 以外) のとき httpGet (src/lib/fetch.ts:44 → :24 の fetch) で <basePath>/intl/messages/<言語>.json を読む。これは public/intl/messages にある同じリポジトリの静的ファイルで、当たる route ファイルは無く、他社のサービスでもない。context.md のデータの当てはめにどれも当たらないので、翻訳の小道具として扱い、フレームにも I/O にも書かなかった。(4) 言語・テーマ・時間帯・期間の選択は localStorage から読み (src/store/app.ts:15)、言語を変えると localStorage に書く (useLocale.ts:33)。ブラウザの中の保存なので I/O に書かない。(5) ErrorBoundary の onError は console.error に書くだけで、外へ送らない。(6) フレームにしなかったもの: ZenProvider / RouterProvider (UI ライブラリ @umami/react-zen の部品)、QueryClientProvider (TanStack Query のクライアントを配るだけで、ここでは問い合わせをしない)、ErrorBoundary と useMessages (翻訳の文言を引くだけ)、useLocale (翻訳の小道具)、getBaseUrl (ヘッダーから URL を組み立てるだけ)、フォント (next/font/google) と CSS の import。(7) 木の順: 入口から、コードに書いてある順に辿ると、Providers (layout.tsx:41) → next-intl (Providers.tsx:29) → next/headers (layout.tsx:49)。同じ処理が複数の呼び出し元から呼ばれる箇所は無い。(8) 設定: DISABLE_UI は layout が直接読む。BASE_PATH と DEFAULT_LOCALE は、next.config.ts が process.env.basePath / process.env.defaultLocale に写した値を、段にしていない useLocale と src/store/app.ts が読むので、その結果で動きが変わる Providers の段に、環境変数の名前で書いた。(9) 業務のルール: getBaseUrl の基準 URL の組み立て (ヘッダーの優先順、既定のプロトコル) と、TanStack Query の既定値は、業務の意味を持たない技術的な組み立てと見て rules に書かなかった (入口の summary には書いた)。言語の切り替え (?locale=) は、表示の言語を分ける判定として Providers の rules に書いた。(10) 権限の確認 (guards) と、ほかの入口へのつながり (links) は、この枠には無い。作業定義に analysis.tests が無いので、tests は書いていない。(11) レビューの指摘 3 件 (どれも low、根拠の行の不足) を直した: 入口の summary に、http になる host (127.0.0.1 と [::1]) を足し、根拠に get-base-url.ts:14、next.config.ts:15 / :21、constants.ts:25 を足した。言語の切り替えのルールの根拠に、constants.ts:3 と storage.ts:3 を足した"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: layout
@@ -58,19 +67,21 @@ callstack:
         - { file: src/app/layout.tsx, line: 54 }
         - { file: src/lib/get-base-url.ts, line: 22 }
         - { file: src/lib/get-base-url.ts, line: 27 }
-
-  - id: ext_next_headers
-    layer: external
-    kind: library
-    name: "next/headers headers()"
-    source: { file: src/app/layout.tsx, line: 49 }
-    caller: layout
-    call:
-      status: fact
-      evidence:
-        - { file: src/app/layout.tsx, line: 3 }
-        - { file: src/app/layout.tsx, line: 49 }
-      note: "generateMetadata が要求のヘッダーを読むために呼ぶ。読んだヘッダーは getBaseUrl に渡す"
+    parameters:
+      - name: children
+        value: "包まれる側の入口 (画面と、内側の layout)。中身は辿らない"
+        status: fact
+        evidence:
+          - { file: src/app/layout.tsx, line: 16 }
+          - { file: src/app/layout.tsx, line: 41 }
+    settings:
+      - name: DISABLE_UI
+        kind: env
+        effect: "値があれば、空の html と body だけを返し、Providers も画面 (children) も描かない"
+        status: fact
+        evidence:
+          - { file: src/app/layout.tsx, line: 17 }
+          - { file: src/app/layout.tsx, line: 20 }
 
   - id: providers
     layer: component
@@ -80,16 +91,20 @@ callstack:
     caller: layout
     call:
       status: fact
+      when: conditional
+      condition: "環境変数 DISABLE_UI に値が無いとき (値があれば、手前で空の html を返す)"
       evidence:
         - { file: src/app/layout.tsx, line: 6 }
+        - { file: src/app/layout.tsx, line: 17 }
         - { file: src/app/layout.tsx, line: 41 }
     summary:
       status: interpretation
-      value: "ブラウザ側で動く ('use client')。ZenProvider → RouterProvider → MessagesProvider → QueryClientProvider → ErrorBoundary の順に重ねて children を包む。MessagesProvider は useLocale で今の言語と文言を得て、html の dir と lang を設定し、NextIntlClientProvider に渡す。useLocale は、同梱していない言語なら同じサーバーの静的ファイル /intl/messages/<言語>.json を読み、URL に ?locale= があればその言語に切り替える。QueryClient は再試行なし、画面に戻ったときの読み直しなし、60 秒は新しいとみなす設定。ErrorBoundary はエラーを画面に出して console.error に書くだけ。データは読まない"
+      value: "ブラウザ側で動く ('use client')。ZenProvider → RouterProvider → MessagesProvider → QueryClientProvider → ErrorBoundary の順に重ねて children を包む。MessagesProvider は useLocale で今の言語と文言を得て、html の dir と lang を設定し、NextIntlClientProvider に渡す。useLocale は、同梱していない言語なら同じサーバーの静的ファイル <basePath>/intl/messages/<言語>.json を読み、URL に ?locale= があればその言語に切り替えて localStorage に保存する。QueryClient は再試行なし、画面に戻ったときの読み直しなし、60 秒は新しいとみなす設定。ErrorBoundary はエラーを画面に出して console.error に書くだけ。データは読まない"
       evidence:
         - { file: src/app/Providers.tsx, line: 1 }
         - { file: src/app/Providers.tsx, line: 10 }
         - { file: src/app/Providers.tsx, line: 13 }
+        - { file: src/app/Providers.tsx, line: 14 }
         - { file: src/app/Providers.tsx, line: 15 }
         - { file: src/app/Providers.tsx, line: 21 }
         - { file: src/app/Providers.tsx, line: 24 }
@@ -97,10 +112,45 @@ callstack:
         - { file: src/app/Providers.tsx, line: 41 }
         - { file: src/components/hooks/useLocale.ts, line: 7 }
         - { file: src/components/hooks/useLocale.ts, line: 23 }
+        - { file: src/components/hooks/useLocale.ts, line: 33 }
         - { file: src/components/hooks/useLocale.ts, line: 43 }
         - { file: src/components/hooks/useLocale.ts, line: 55 }
         - { file: src/components/common/ErrorBoundary.tsx, line: 8 }
         - { file: src/components/common/ErrorBoundary.tsx, line: 34 }
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "同梱していない言語の文言を読む静的ファイルの URL の前に付く (<BASE_PATH>/intl/messages/<言語>.json)。無ければ何も付かない"
+        status: interpretation
+        evidence:
+          - { file: src/components/hooks/useLocale.ts, line: 23 }
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+        note: "コードが読むのは process.env.basePath。next.config.ts が環境変数 BASE_PATH の値を env.basePath に写している。読むのは段にしていない useLocale なので、この段に書いた"
+      - name: DEFAULT_LOCALE
+        kind: env
+        effect: "ブラウザに保存した言語が無いときの最初の言語になる (無ければ en-US)。en-US 以外なら、その言語の文言の静的ファイルを読みに行く"
+        status: interpretation
+        evidence:
+          - { file: src/store/app.ts, line: 15 }
+          - { file: next.config.ts, line: 21 }
+          - { file: next.config.ts, line: 221 }
+          - { file: src/components/hooks/useLocale.ts, line: 43 }
+          - { file: src/lib/constants.ts, line: 25 }
+        note: "コードが読むのは process.env.defaultLocale。next.config.ts が環境変数 DEFAULT_LOCALE の値を env.defaultLocale に写している。読むのは段にしていない src/store/app.ts (useLocale が useApp で引く) なので、この段に書いた"
+    rules:
+      - kind: decision
+        value: "URL の検索パラメータ locale に値があれば、表示の言語をその値に切り替えて、ブラウザ (localStorage の umami.locale) に保存する"
+        status: interpretation
+        evidence:
+          - { file: src/components/hooks/useLocale.ts, line: 55 }
+          - { file: src/components/hooks/useLocale.ts, line: 57 }
+          - { file: src/components/hooks/useLocale.ts, line: 58 }
+          - { file: src/components/hooks/useLocale.ts, line: 33 }
+          - { file: src/components/hooks/useLocale.ts, line: 36 }
+          - { file: src/lib/constants.ts, line: 3 }
+          - { file: src/lib/storage.ts, line: 3 }
+        note: "ルールがあるのは、段にしていないフック useLocale (MessagesProvider が Providers.tsx:21 で呼ぶ)"
 
   - id: ext_next_intl
     layer: external
@@ -110,7 +160,23 @@ callstack:
     caller: providers
     call:
       status: fact
+      when: always
       evidence:
         - { file: src/app/Providers.tsx, line: 4 }
         - { file: src/app/Providers.tsx, line: 29 }
-      note: "MessagesProvider が今の言語の文言を渡す。翻訳のほかに、UI ライブラリ (ZenProvider / RouterProvider) と TanStack Query (QueryClientProvider) も重ねるが、どれもデータに届かないのでフレームにしなかった"
+        - { file: src/app/Providers.tsx, line: 39 }
+      note: "Providers が描く MessagesProvider (同じファイル) が、今の言語とその文言を渡して必ず描く。翻訳のほかに、UI ライブラリ (ZenProvider / RouterProvider) と TanStack Query (QueryClientProvider) も重ねるが、どれもデータに届かないのでフレームにしなかった"
+
+  - id: ext_next_headers
+    layer: external
+    kind: library
+    name: "next/headers headers()"
+    source: { file: src/app/layout.tsx, line: 49 }
+    caller: layout
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/layout.tsx, line: 3 }
+        - { file: src/app/layout.tsx, line: 49 }
+      note: "layout ファイルの generateMetadata が、要求のヘッダーを読むために必ず呼ぶ (DISABLE_UI の分かれ道の外にある)。読んだヘッダーは getBaseUrl に渡す"

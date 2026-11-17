@@ -1,13 +1,21 @@
 format_version: 1
 entry_id: layout_l.main_g.admin
-reviewed_at: "2026-11-13T03:18:00+09:00"
-reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+reviewed_at: "2026-11-17T10:10:38Z"
+reviewer: "claude-fable-5-2 (fresh context)"
 machine_check: ok
 findings:
   - kind: status_mismatch
+    severity: medium
+    where: callstack/q_check_auth/io/0
+    claim: "Redis の読み取りを fact とし、キーの形を auth:* と書いているが、読む行 (auth.ts:102) のキーは、トークンから取り出した authKey の値 (auth.ts:91) で、auth: の形はこの行には書かれていない。auth:* は、別の関数 saveAuth (auth.ts:150 / :160) がトークンに入れる値から読み取ったもの"
+    evidence: { file: src/lib/auth.ts, line: 102 }
+    suggestion: "この I/O の status を interpretation にする (同じ結果の team_user の読み取りと同じ扱い)。note に、キーの形は saveAuth が作るトークンから読み取ったことを書く"
+    resolved: true
+  - kind: evidence_mismatch
     severity: low
-    where: callstack/use_login_query/summary
-    claim: "『ふつうはストアにユーザーがあり、リクエストは出ない』と推測の言い方で書き、notes (2) でも『実行しての確認はしていない interpretation』としているが、コードから決まる。(main)/layout.tsx:8 で App が必ずこの枠を包み、App.tsx:54 はストアのユーザー (useLoginQuery と同じ useApp のセレクター) が無ければ null を返して children を描かない。ストアのユーザーを消す setUser(null) は (main) の外の LogoutPage.tsx:20 だけ。よって AdminLayout が描かれる時点で user は必ずあり、enabled: !user が偽なので、この入口から POST /api/auth/verify は出ない"
-    evidence: { file: "src/app/(main)/App.tsx", line: 54 }
-    suggestion: "use_login_query の summary と notes (2) を『この枠が描かれるときは必ずストアにユーザーがあるので、この入口からはリクエストが出ない (App.tsx:54、(main)/layout.tsx:8、useLoginQuery.ts:19)』と言い切り、api_verify 以下のフレームの note に『この入口からは実際には呼ばれない経路』と添える"
-notes: "機械チェック (validate result) は OK。全フレームの call / summary / parameters / io の根拠行を開いて確かめ、行番号はすべて実在して主張を支えている。layout.tsx (cloudMode で null、AdminLayout を描く、metadata のタイトル書式)、AdminLayout.tsx ('use client'、useLoginQuery、isAdmin と cloudMode の判定、PageBody)、PageBody.tsx (幅 1320px、margin 0 auto)、useLoginQuery.ts (queryKey login、post /auth/verify、enabled !user)、api-url.ts (/auth は basePath + /api)、useApi.ts:28 と client.ts:4 (Bearer に localStorage のトークン)、verify/route.ts、request.ts (URL と本文の読み取り、checkAuth)、auth.ts (2FA 仮トークンの拒否、userId / Redis authKey の経路、パスワード指紋、isAdmin)、api-key.ts:15 (/api/auth は API キー拒否)、user.ts (findUnique、deletedAt null、includePassword)、team.ts (team.findMany、members.some)、redis.ts:37、next.config.ts:16 と :217、SideNav.tsx:117、MobileNav.tsx:64 をすべて確認した。テーブル名は schema.prisma の @@map (user:37、team:249、team_user:265) と dbms (postgresql:8) に一致。Redis の key_pattern auth:* は saveAuth (auth.ts:150) の組み立てと合い、context.md の kvs の当てはめどおり。team_user をリレーションの条件として interpretation にしているのは、(main) の枠の結果とレビューでも同じ扱いなので指摘にしない。辿り漏れは無い (parseShareToken はヘッダーのトークンを解くだけ、json はレスポンスを作るだけ、PageBody の useMessages は文言を引くだけで、どれもデータに届かない)。気になった点 (指摘にはしない): ext_prisma_team の call の evidence にある verify/route.ts:12 は getAllUserTeams を呼ぶ行で、Prisma を呼ぶ行ではない (team.ts:93 があるので主張は支えられている)"
+    where: callstack/api_verify/parameters/0
+    claim: "トークンの出どころを localStorage と書いているが、根拠の行 (useApi.ts:28、client.ts:5) は getClientAuthToken と getItem(AUTH_TOKEN) の呼び出しまでで、localStorage を読む行 (storage.ts:9) が根拠に無い"
+    evidence: { file: src/lib/storage.ts, line: 9 }
+    suggestion: "evidence に src/lib/storage.ts の 9 行目を足す (use_login_query の summary の同じ記述にも足す)"
+    resolved: true
+notes: "機械チェック (validate result) は OK で、プロファイルは作業定義の profile.dir から読めている。analysis-conventions.md には、このリポジトリだけの決まりは書かれていない (見出しと例のコメントだけ)。すべてのフレームの call / summary / parameters / io / guards / settings / rules の根拠の行を開いて確かめ、上の 2 件のほかは、行が実在して主張を支えていた。確かめた主なもの: layout.tsx (cloudMode で null、AdminLayout、metadata)、AdminLayout.tsx (use client、useLoginQuery、isAdmin と cloudMode の判定、PageBody)、useLoginQuery.ts (post /auth/verify、enabled は !user)、api-url.ts (/auth は API_URL を使わず basePath + /api)、verify/route.ts、request.ts、auth.ts、api-key.ts、redis.ts、user.ts、team.ts、schema.prisma の @map と @@map、next.config.ts の env。notes (2) の「setUser(null) は LogoutPage.tsx:20 にしか無い」も、検索して確かめた。指摘にしなかったこと: (1) POST /api/auth/verify の呼び出しを conditional のままにし、この枠からは呼ばれないと note に書く扱いは、指示書に「条件が成り立たないと読める呼び出し」の決まりが無いので、当てはめ違いにしていない。(2) Redis の読み取りの fields が * なのは、値をまるごと取り出す (redis.ts:37 / :40) ので、決まりのとおり。(3) フレームにしていない PageBody、useApi、getApiUrl、parseShareToken、parseSecureToken、json は、見た目の部品か、データに届かない小道具なので、辿り漏れにしていない。API キーの枝 (checkApiKeyAuth) は、/api/auth が受け付けないパス (api-key.ts:15) で getApiKeyByHash の手前で null を返すので、api_key の読み書きが無いことも漏れにしていない。(4) 1 件目の指摘は境目の判断。context.md は「キーの名前がコードから読めれば fact」としており、auth: の形は auth.ts:150 に書いてある。読む行のキーがトークンの値で、形が別の関数からの読み取りになる点を重く見て指摘にした。fact のままにするかは、分析の側で決めてよい"

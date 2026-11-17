@@ -1,19 +1,28 @@
 format_version: 1
 entry_id: settings.teams.teamId_d
-reviewed_at: "2026-11-13T12:00:00+09:00"
-reviewer: "abatlas-review-entry (claude-opus-5-5, フレッシュ文脈。プロファイル ui-nextjs 0.3.0 での再分析の結果を対象)"
+reviewed_at: "2026-11-17T10:18:16Z"
+reviewer: "claude-fable-5-2 (fresh context)"
 machine_check: ok
 findings:
   - kind: evidence_mismatch
     severity: low
-    where: summary
-    claim: "入口の summary は「チーム名・チーム ID・招待コードを出す」と、招待コードを誰にでも出すように書いているが、TeamSettings は showAccessCode={canEdit} を渡し (TeamSettings.tsx:40)、TeamEditForm は showAccessCode のときだけ招待コードの欄を描く (TeamEditForm.tsx:55)。編集できない (オーナー・マネージャー・管理者でない) メンバーには招待コードは出ない"
-    evidence: { file: "src/app/(main)/teams/[teamId]/TeamEditForm.tsx", line: 55 }
-    suggestion: "「チーム名とチーム ID を出し、編集できる人 (オーナー・マネージャー・管理者) にだけ招待コードも出す」のように条件を書き分け、evidence に TeamEditForm.tsx:55 を足す"
-  - kind: missing_frame
+    where: callstack/q_get_user_rw/io/0
+    claim: "列 (password / created_at / two_factor_required / deleted_at) を書いているが、根拠は findUnique の行と @@map の行だけで、条件と select の行 (user.ts:36-44) と列名の対応の行 (schema.prisma:13-22) が無い。主張そのものはコードと合っている"
+    evidence: { file: src/queries/prisma/user.ts, line: 36 }
+    suggestion: "フレーム q_get_user の同じ I/O と同じ根拠の行 (user.ts:36 / 38 / 53、schema.prisma:13) を足す"
+    resolved: true
+  - kind: evidence_mismatch
     severity: low
-    where: callstack/team_member_edit_form
-    claim: "TeamMemberEditButton (TeamMemberEditButton.tsx:7) と TeamMemberEditForm (TeamMemberEditForm.tsx:13) は別ファイルの別コンポーネントだが、source を TeamMemberEditForm.tsx にした 1 つのフレームにまとめている。プロファイルはフレームをファイル単位にし、照合 (evaluate) もティアと source.file で行うので、TeamMembersTable.tsx:42 が描く TeamMemberEditButton.tsx のフレームが結果に現れない。同じ形の TeamLeaveButton → TeamLeaveForm と TeamManage → TeamDeleteForm は別フレームにしており、扱いがそろっていない (notes (g) で意図して残したと書いてあるが、0.2.0 のレビューと同じ指摘を残す)"
-    evidence: { file: "src/app/(main)/teams/[teamId]/TeamMemberEditButton.tsx", line: 31 }
-    suggestion: "team_members_table の下に TeamMemberEditButton のフレーム (source TeamMemberEditButton.tsx:7、call は TeamMembersTable.tsx:42) を足し、team_member_edit_form の caller をそれにして call の evidence を TeamMemberEditButton.tsx:31 にする"
-notes: "プロファイル 0.3.0 で再分析した結果のレビュー。機械チェック (validate result) は OK。high と medium の指摘は無い。確かめたこと: (1) 0.2.0 のレビューの指摘は直っている。api_team_users_get の parameters は page / pageSize / maxResults / search になり、根拠の schema.ts:73 / :87 と合う。parseRequest は GET のとき z.object の結果で query を置き換え (request.ts:35)、orderBy / sortDescending は戻されない (request.ts:40 の正規表現に当たらない) ので、getQueryFilters (request.ts:186) を経ても orderBy は undefined で、pagedQuery (prisma.ts:765) は並びを上書きせず createdAt の昇順 (users/route.ts:44) になる。team_settings と team_leave_button の summary には useLoginQuery の経路の一文が入った。ext_prisma_update_team の call の evidence は team.ts:151 だけになった。2FA まわりのフレームは 0.3.0 の決まり (枠を経由してだけ動くものは書かない) で外れ、それに関する指摘は対象が無くなった。(2) 0.3.0 の決まり: 祖先の (main) の layout と settings の layout、App、2 段階認証の小窓、更新のお知らせ、利用状況の送信のフレームと I/O は無い。画面の側でも呼ぶ useLoginQuery (TeamSettings.tsx:16、TeamLeaveButton.tsx:10) と useTeamQuery (TeamProvider.tsx:10) は残っている。画面の側の部品 (DataGrid、PageHeader、Panel、ConfirmationForm、TypeConfirmationForm、DialogButton、ActionForm、useTeam) に API を呼ぶフックが無いことも確かめた。TeamsMemberAddButton と TeamTwoFactorSettings は isAdmin (pathname に /admin を含む。TeamSettings.tsx:20) のときだけ描かれ、この URL では描かれない。(3) 同じ処理の置き場 (呼び出し行のファイルのパスの文字コード順): parseRequest は auth/verify/route.ts:6 の下 ('a' < 't')、getUser は checkAuth の auth.ts:94 の下、getTeamUser は users/[userId]/route.ts:50 の下 (src/app < src/permissions、同ファイルで最小の行)、canViewTeam / canUpdateTeam は teams/[teamId]/route.ts の下 ('r' < 'u')、useLoginQuery は TeamLeaveButton.tsx:10 の下 ('T' < '[')、メンバーの DELETE は TeamLeaveForm.tsx:18 の下 ('T' < '[')。URL の違う useUpdateQuery / useDeleteQuery は別に書いてあり決まりと合う。書き直しは呼び出し元が終端になる箇所 (TeamProvider の下は本来の経路、canViewTeam / canUpdateTeam / canDeleteTeam / canDeleteTeamUser の下の getTeamUser、TeamMemberRemoveButton の下の useDeleteQuery → DELETE → parseRequest → checkAuth) だけで、各段で最も早い呼び出しを選び、I/O を持つフレームで止めている。(4) 根拠の行: 各 route (teams/[teamId]、users、users/[userId]、auth/verify)、permissions/team.ts、teamUser.ts、team.ts、user.ts、auth.ts、request.ts、redis.ts (:37 / :57)、prisma.ts (:761 / :775 / :844)、schema.prisma の @@map (37 / 249 / 265 / 358 / 378 / 398 / 412) と :8 (postgresql) を開き、主張を支えることを確かめた。(5) deleteTeam のクラウドモードの枝を I/O に書かない判断: settings の layout は process.env.cloudMode のとき null を返し (settings/layout.tsx:5)、next.config.ts:16 で cloudMode は CLOUD_MODE から作られるので、deleteTeam の process.env.CLOUD_MODE (team.ts:164) と同じ条件。この画面からその枝に届かないという根拠は成り立つ。(6) /teams の呼び出しを interpretation にしている点は、環境変数 apiUrl で向き先が変わる (api-url.ts:39) ことに根拠があり、/auth/verify を fact にしている点も api-url.ts:6 の APP_ROUTE_PATTERNS と合うので、状態の取り違えとはしない"
+    where: callstack/api_team_users_get/parameters/0
+    claim: "「orderBy / sortDescending はスキーマに無いので捨てられる」の根拠に、検査済みの値で query を置き換える行と、戻す鍵を限る行 (request.ts:35-45) が無い。挙げてある行だけでは、捨てられることを確かめられない。主張そのものはコードと合っている"
+    evidence: { file: src/lib/request.ts, line: 35 }
+    suggestion: "根拠に src/lib/request.ts:35 と 38-44 の代表行を足す (捨てられる部分は読み取りなので、note に分けてもよい)"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_delete_team/io/9/fields
+    claim: "Redis のキーの削除 (link:* と、次の pixel:*) に fields が無く、その I/O の note にも理由が無い (理由は結果のいちばん上の notes にしか無い)。同じ結果の Redis の読み取り (q_check_auth の auth:*) には name が * の fields を書いていて、扱いがそろっていない"
+    evidence: { file: src/queries/prisma/team.ts, line: 185 }
+    suggestion: "行の削除と同じく name が * で use が write の fields を書くか、書かない理由を io/9 と io/10 の note に書く"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。全フレームの source と根拠の行を対象のコードで開いて確かめ、上の 3 件のほかは主張を支えていた。指摘にしなかったこと: [1] deleteTeam のクラウドモードの枝 (team の update、link / pixel の updateMany。team.ts:193-211) は I/O に書かれていない。設定の枠 (src/app/(main)/settings/layout.tsx:5) が process.env.cloudMode で何も描かず、その値は next.config.ts:16 と 217 で CLOUD_MODE から作られるので、この画面からは届かないという判断は、コードで確かめられた。ただし、枠は別の入口で、画面の側はビルド時の値、サーバーの側は実行時の値を見る。この枝の I/O を「設定で切り替わる読み書き」として書くかどうかは、人が決めてよい。[2] 同じ関数を 1 回だけ書く置き場 (parseRequest は GET /api/teams/[teamId] の下、getTeamUser は canViewTeam の下、useLoginQuery は TeamSettings の下、メンバーの DELETE は TeamLeaveForm の下) と、終端を避けるための書き直し (id が _rw で終わるフレーム) は、context.md の決まりのとおりだった。[3] URL に /admin を含むときだけ描く TeamsMemberAddButton と TeamTwoFactorSettings (TeamSettings.tsx:45, 49) をフレームにしていないのは、この画面の URL では条件が成り立たないためで、辿り漏れに数えていない。[4] getApiUrl は BASE_PATH (next.config.ts:15) も読むが、URL の前置きを変えるだけなので、settings の書き漏れに数えていない。[5] 入口の一覧に settings.teams があり、links の entry_id は合っている"

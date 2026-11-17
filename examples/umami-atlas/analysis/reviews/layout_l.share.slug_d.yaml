@@ -1,25 +1,28 @@
 format_version: 1
 entry_id: layout_l.share.slug_d
-reviewed_at: "2026-11-13T04:00:00+09:00"
-reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+reviewed_at: "2026-11-17T10:13:29Z"
+reviewer: "claude-fable-5-2 (fresh context)"
 machine_check: ok
 findings:
   - kind: evidence_mismatch
     severity: low
-    where: callstack/q_get_board/io/0
-    claim: "note の条件『共有の種類が board のとき』が足りない。board の持ち主が user のとき、canViewWebsite (permissions/website.ts:24) が getEntity を呼び、getEntity は board に載った website の id ごとに getBoard も呼ぶ (entity.ts:9)。この経路でも board 表を読む"
-    evidence: { file: src/lib/entity.ts, line: 9 }
-    suggestion: "note を『共有の種類が board のとき (share.entityId で 1 回)。board の持ち主が user で持ち主が管理者でないときは、canViewWebsite の getEntity からも website の id ごとに読む』と改める"
+    resolved: true
+    where: callstack/use_share_token_query/summary
+    claim: "summary はヘッダーの名前を x-umami-share-token と x-umami-share-context と書いているが、根拠の useApi.ts:22 / :24 にあるのは定数名 (SHARE_TOKEN_HEADER / SHARE_CONTEXT_HEADER) だけで、値を定義する行が根拠に無い"
+    evidence: { file: src/lib/constants.ts, line: 11 }
+    suggestion: "evidence に src/lib/constants.ts の 11 行目と 12 行目 (ヘッダー名の定義) を足す"
   - kind: evidence_mismatch
     severity: low
-    where: callstack/q_get_link/io/0
-    claim: "note の条件が足りない。board の持ち主が user のとき、canViewLink が link の id ごとに getLink を呼び (permissions/link.ts:23)、canViewWebsite の getEntity も website の id ごとに getLink を呼ぶ (entity.ts:7)。note は『共有の種類が link のとき、または board の持ち主が team のとき』だけを書いている"
-    evidence: { file: src/permissions/link.ts, line: 23 }
-    suggestion: "note に『board の持ち主が user で持ち主が管理者でないとき (canViewLink と canViewWebsite の getEntity から)』を足す"
+    resolved: true
+    where: callstack/api_share_get/summary
+    claim: "summary は共有トークンを「JWT、type share」と書いているが、根拠の route.ts:178 にあるのは createToken と定数名 SHARE_TOKEN_TYPE だけで、値 'share' の定義の行と、jsonwebtoken で署名する行が根拠に無い"
+    evidence: { file: src/lib/constants.ts, line: 13 }
+    suggestion: "evidence に src/lib/constants.ts の 13 行目 (SHARE_TOKEN_TYPE) と src/lib/jwt.ts の 5 行目 (jwt.sign) を足す"
   - kind: evidence_mismatch
     severity: low
-    where: callstack/q_get_pixel/io/0
-    claim: "note の条件が足りない。board の持ち主が user のとき、canViewWebsite の getEntity が website の id ごとに getPixel を呼ぶ (entity.ts:8)。この経路の読み取りは q_get_pixel_rw にも書かれていない (q_get_pixel_rw は canViewPixel からの経路だけ)"
-    evidence: { file: src/lib/entity.ts, line: 8 }
-    suggestion: "note に『board の持ち主が user で持ち主が管理者でないとき (canViewPixel と canViewWebsite の getEntity から)』を足す"
-notes: "機械チェック (validate result) は OK。全フレームの call / summary / parameters / io の根拠行を開いて確かめ、行番号はすべて実在して主張を支えている。layout.tsx (サーバーの async layout、params の slug、ShareProvider で包む)、ShareProvider.tsx ('use client'、getSharePath の段の取り方、isShareReady、allowedSections と shouldRedirect、router.replace、unmount で setShareData(null, null)、Loading と null の条件)、useShareTokenQuery.ts (queryKey、get /share/<slug>、setShareData の条件)、useApi.ts (Bearer と共有ヘッダー、httpGet)、api-url.ts (apiUrl / basePath + /api)、route.ts の GET と補助関数すべて (認証の import が無いこと、getAccountId の teamUser.findFirst、getWhiteLabel の redis.enabled と client.get、getTeamUserIds の findMany、isOwnedByTeam、filterBoardEntityIdsForShare の team / user の分岐と Auth の組み立て、shareType ごとの分岐と 404、createToken)、redis.ts:37 (client.get と JSON.parse)、jwt.ts:5、crypto.ts:57、share.ts / board.ts / pixel.ts / link.ts / user.ts / teamUser.ts / website.ts (uuid の検査、findUnique、attachShareIdToWebsite の share.findFirst) と permissions の canViewWebsite / canViewPixel / canViewLink、entity.ts を確認した。テーブル名は schema.prisma の @@map (user:37、website:130、team_user:265、link:358、pixel:378、board:398、share:412) と dbms (postgresql) に一致。kvs の key_pattern white-label:* は context.md の当てはめどおり。同じ処理の置き場 (getWebsite / getPixel / getLink / getBoard は route.ts、getTeamUser は permissions/link.ts:34) と、終端を避ける書き直し (canViewPixel は pixel.ts:23 の getPixel、getEntity は entity.ts:6 の getWebsite) は、context.md の『同じ処理が何度も呼ばれるとき』の順の決まりと合う。api/share/<slug> に当たる route は [slug] だけ (api/share/route.ts は段が無く、id/[shareId] は段が 2 つ) で辿り漏れは無い。フックから route への call を interpretation にしているのは、このリポジトリの他の結果 (admin の枠、website の画面) でも同じ扱いでレビューでも指摘していないので、揃えて指摘にしない。気になった点 (指摘にはしない): ext_prisma_route は route.ts:21 (findFirst) と :69 (findMany) の 2 つの呼び出し行を、ext_prisma_website は website.ts:77 と :304 を 1 つの external フレームにまとめている。I/O はどちらも書かれ、照合はティアとファイルで行うので影響は無い"
+    resolved: true
+    where: callstack/api_share_get/rules/2
+    claim: "ルールは役割の値を team-owner と書いているが、根拠の route.ts:24 にあるのは定数名 ROLES.teamOwner だけで、値を定義する行が根拠に無い (同じフレームの io/1 の detail も同じ)"
+    evidence: { file: src/lib/constants.ts, line: 178 }
+    suggestion: "evidence に src/lib/constants.ts の 178 行目 (teamOwner の定義) を足す"
+notes: "機械チェック (validate result) は OK で、プロファイルも作業定義の profile.dir から読めている。analysis-conventions.md に、このリポジトリだけの決まりは書かれていない。全フレームの call / summary / parameters / io / links / settings / rules の根拠の行を開いて確かめた。上の 3 件 (定数の値の定義の行が足りない) を除き、行は実在して主張を支えている。テーブル名と列名は schema.prisma の @@map と @map に一致する (user、website、team、team_user、link、pixel、board、share)。同じ処理の置き場 (getWebsite / getPixel / getLink / getBoard は GET の下、getTeamUser は canViewWebsite の下) と、終端を避ける書き直し (getEntity の下の getWebsite、canViewPixel の下の getPixel、canViewLink の下の getLink) は、context.md の「同じ処理が何度も呼ばれるとき」の決まりに合う。辿り漏れは無い (getBoardEntityIds は I/O を持たず、createToken はデータに触れない)。権限の確認 (guards) が 1 件も無いのは実態どおり (route.ts は依頼した人の認証も権限も確かめず、canView 系の結果は id を絞るだけで処理を止めない)。指摘にしなかった点: (1) フックから route への call (callstack/api_share_get/call) は interpretation。URL の文字列 (/share/${slug}) はそのまま読め、当たる route も 1 つだが、接頭辞 /api は環境変数 API_URL が無いときの既定で決まるので、読み取りとして扱うのは妥当と判断した。context.md の「URL がそのまま読め、route が 1 つに決まる → fact」を厳密に当てるなら fact にもできる。どちらに揃えるかは人が決めてよい。(2) links の 13 件は fact。行き先は式 (ShareProvider.tsx:79) と一覧 (ALL_SECTION_IDS) の組み合わせで読めるので、そのままにした。(3) ext_share_find_first の when は always (website が見つからないときの早い return を打ち切りとみなす)。io の note は「website が見つかったときだけ」と書いていて、conditional とも読めるが、違いは always と conditional の間だけなので指摘にしない。(4) api_share_get の summary は、board が見つからないときの 404 (route.ts:149) に触れていない。"

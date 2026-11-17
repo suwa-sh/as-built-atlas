@@ -1,19 +1,28 @@
 format_version: 1
 entry_id: layout_l.main_g.websites.websiteId_d
-reviewed_at: "2026-11-13T04:00:00+09:00"
-reviewer: "Claude Code (claude-opus-5-5) / abatlas-review-entry フレッシュ文脈レビュー"
+reviewed_at: "2026-11-17T10:14:56Z"
+reviewer: "claude-fable-5-2 (fresh context)"
 machine_check: ok
 findings:
-  - kind: evidence_mismatch
+  - kind: status_mismatch
     severity: medium
-    where: callstack/q_can_view_website/summary
-    claim: "summary の『作成者が本人なら許す』は根拠と合わない。website.ts:30-31 が比べるのは entity.userId (持ち主の列 user_id) で、website には作成者の列 createdBy (created_by、schema.prisma:105) が別にある。チームのサイトは作成者でも userId が空なので、この比較ではなくチームのメンバー確認に進む"
-    evidence: { file: src/permissions/website.ts, line: 31 }
-    suggestion: "q_can_view_website の summary を『持ち主 (userId) が本人なら許す』に直し、根拠に schema.prisma:103 (userId) を加える"
-  - kind: missing_frame
+    where: callstack/api_website_get/call
+    claim: "call が interpretation だが、URL の形はフックに文字列でそのまま書いてあり (get(`/websites/${websiteId}`))、接頭辞 /api を付ける場所も読めて (api-url.ts:44)、当たる route ファイルは src/app/api/websites/[websiteId]/route.ts の 1 つに決まる。context.md の決まりでは、この場合は fact"
+    evidence: { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 12 }
+    suggestion: "call.status を fact に直す (API_URL で呼び先が変わることは、use_website_query の settings と call の note に書いてあるので、そのままでよい)"
+    resolved: true
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/api_active/call
+    claim: "call が interpretation だが、URL の形はフックに文字列でそのまま書いてあり (get(`/websites/${websiteId}/active`))、接頭辞 /api を付ける場所も読めて (api-url.ts:44)、当たる route ファイルは src/app/api/websites/[websiteId]/active/route.ts の 1 つに決まる。context.md の決まりでは、この場合は fact"
+    evidence: { file: src/components/hooks/queries/useActiveUsersQuery.ts, line: 8 }
+    suggestion: "call.status を fact に直す (API_URL で呼び先が変わることは、use_active_users の settings と call の note に書いてあるので、そのままでよい)"
+    resolved: true
+  - kind: missing_item
     severity: low
-    where: callstack/website_header/io/0
-    claim: "icons.duckduckgo.com への画像の読み込みは Favicon コンポーネント (Favicon.tsx:9) が img を描いて起こすが、Favicon のフレームが無く、I/O が呼び出し元の WebsiteHeader に付いている。Favicon は useConfig の privateMode と faviconUrl で送信の有無と送り先を決めており、外部への送信に至る経路上のコンポーネントにあたる"
-    evidence: { file: src/components/common/Favicon.tsx, line: 21 }
-    suggestion: "Favicon (src/components/common/Favicon.tsx:9、caller は website_header、call の根拠は WebsiteHeader.tsx:30) をフレームにして、external_api の I/O をそちらへ移す"
-notes: "機械チェック (validate result) は OK。全フレームの call / summary / parameters / io の根拠行を開いて確かめた。上の 2 件以外は、行番号が実在して主張を支えている。テーブル名は schema.prisma の @@map と一致している (user:37、website:130、website_event:183、team:249、team_user:265、link:358、pixel:378、board:398、share:412)。ClickHouse の website_event は db/clickhouse/schema.sql:2 にある。PostgreSQL と ClickHouse の両方を I/O に書いているのは context.md どおり。runQuery の分岐 (db.ts:27、:38)、REDIS_URL による Redis の有効化 (redis.ts:106)、FAVICON_URL と PRIVATE_MODE (api/config/route.ts:16、:19) も note の記述と一致する。同じ処理の置き場も決まりどおり。getWebsite は layout.tsx:15 の下に置いている (src/app/(main) の '(' が src/app/api より先)。parseRequest は active/route.ts:10、getUser は auth.ts:94、canViewWebsite は share.ts:59 の下。canViewSharedWebsite の下の書き直し (q_*_rw) も、website.ts:24、entity.ts:6 という最も早い呼び出しの 1 本になっている。ブラウザは useApi.ts:28 でログイントークンを付け、共有トークンのヘッダーは store に share があるときだけ付く (useApi.ts:23)。このため、共有トークンと API キーの経路を書かない判断は妥当。気になった点 (指摘にはしない): ext_prisma_get_website は website.findUnique (website.ts:77) と share.findFirst (website.ts:304) という 2 つの呼び出し行を 1 つの external フレームにまとめている。照合はティアと source.file で行うので影響は無い"
+    where: callstack/q_check_auth/rules
+    claim: "checkAuth が呼ぶ補助の関数 parseShareToken (auth.ts:88 から呼ぶ。フレームになっていない) に、共有トークンのヘッダーの中身は type が share のものだけを受け付ける (同じ鍵で署名したほかのトークンを共有トークンとして使わせない) という検証があるが、q_check_auth の rules に無い。同じ種類の partial-auth の検証は書いてある"
+    evidence: { file: src/lib/auth.ts, line: 174 }
+    suggestion: "q_check_auth の rules に、validation として「共有トークンのヘッダーは、type が share のトークンだけを共有トークンとして受け付ける」を足す (根拠は auth.ts:174、constants.ts:13)"
+    resolved: true
+notes: "機械チェック (validate result) は OK で、プロファイルは作業定義の profile.dir から読まれた。全フレームの call / summary / parameters / io / links / guards / settings / rules の根拠の行を開いて確かめ、上の 3 件のほかは、行が実在して主張を支えていた。前の版のレビューの 2 件 (canViewWebsite の summary の「作成者」、Favicon のフレーム) は、いまの結果では直っている。確かめて、指摘にしなかった点: (1) テーブル名と列名は schema.prisma の @@map / @map と合う (user:37、website:130、website_event:183、team:249、team_user:265、link:358、pixel:378、board:398、share:412)。ClickHouse の website_event は db/clickhouse/schema.sql:2。(2) 同じ処理の置き場は、コードの順の深さ優先で合っている (getWebsite は layout.tsx:15 の下、parseRequest と checkAuth は route.ts:22 の下、canViewWebsite は share.ts:82 の下)。canViewWebsiteSection の下の書き直し (q_*_rw) は、いちばん早い呼び出しの 1 本で、I/O を持つ段で終わっている。(3) when の当てはめは、分析の skill の基準と合う (早い return だけの手前は always、WebsiteProvider が子を描くかを決める WebsiteHeader と、/settings で描かない Favicon / ActiveUsers は conditional、runQuery の切り替えは conditional)。(4) リンクの行き先の entry_id (websites.websiteId_d、websites.websiteId_d.settings、websites.websiteId_d.realtime) は、入口の一覧にある。(5) API キーの経路 (auth.ts:74-76) を書かない判断は、ブラウザが付けるトークンが localStorage のログイントークン (useApi.ts:28、client.ts:4-5) であることから読める範囲で、結果の notes に理由がある。(6) GET /api/config をフレームにしない判断は、受け口が skipAuth で checkAuth を通らず (config/route.ts:8、request.ts:51)、環境変数を返すだけなので、データに至る経路の上に無いという context.md の基準に合う。(7) prisma.ts:743 の SET search_path ($executeRawUnsafe) は、ext_prisma_active (prisma.ts:746) とは別の行のライブラリの呼び出しだが、データの読み書きではなく、q_active の settings (DATABASE_URL) に書いてあるので、辿り漏れには数えなかった。(8) Favicon の external_api は、サーバーからではなくブラウザが img で読む呼び出し。context.md の当てはめ (サーバーから他社のサービスを呼ぶ HTTP) とは少し違うが、外部への送信として detail と note に経路が書いてあるので、指摘にしなかった"

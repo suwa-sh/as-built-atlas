@@ -11,13 +11,13 @@ target:
   scope: .
   commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
 analyzer:
-  profile: { id: ui-nextjs, version: "0.3.0" }
-  skill_version: "0.3.0"
-  model: "claude-opus-5-5"
-  analyzed_at: "2026-11-13T03:11:47+09:00"
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T10:07:24Z"
   reviewed:
-    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
-    at: "2026-11-13T03:14:00+09:00"
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T10:08:24Z"
     findings_open: 0
 summary:
   status: interpretation
@@ -34,7 +34,7 @@ summary:
     - { file: next.config.ts, line: 217 }
     - { file: "src/app/(main)/SideNav.tsx", line: 115 }
     - { file: "src/app/(main)/MobileNav.tsx", line: 65 }
-notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる設定の画面) と、外側の layout ((main) とルート) は別の入口なので辿らない。(2) データに届かない枠なので、context.md の決まり (データに届かない画面・枠は、最後に頼るライブラリを external フレームにして閉じる) に従い、見た目の部品を出す UI ライブラリ @umami/react-zen の Column を external にした。I/O は無し。(3) フレームにしなかったもの: PageBody (見た目だけの部品。error / isLoading を受けると警告や読み込み中を出すが、この枠は渡さないので children を列に入れるだけ。中で useMessages を呼ぶが、翻訳の文言を引くだけ)。(4) 設定のメニュー SettingsNav は src/app/(main)/settings/ に置かれているが、この layout からは描かれない。描くのは (main) の枠の SideNav (SideNav.tsx:115) と MobileNav (MobileNav.tsx:65) で、どちらもリンクを並べるだけなので (main) の枠の分析で扱っている。(5) cloudMode は next.config の env (next.config.ts:16 / :217) でビルド時に埋め込まれる値で、実行時の /api/config の cloudMode (CLOUD_MODE を読む) とは別の経路。この枠は API を呼ばない。(6) レビューの指摘 1 件 (low) を直した: SettingsLayout の summary の「中央に寄せる」の根拠に PageBody.tsx:42 (margin: 0 auto) を足した"
+notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる設定の画面) と、外側の layout ((main) とルート) は別の入口なので辿らない。(2) データに届かない枠なので、context.md の決まり (データに届かない画面・枠は、最後に頼るライブラリを external フレームにして閉じる) に従い、見た目の部品を出す UI ライブラリ @umami/react-zen の Column を external にした。I/O は無し。(3) フレームにしなかったもの: PageBody (見た目だけの部品。error / isLoading を受けると警告や読み込み中を出すが、この枠は渡さないので children を列に入れるだけ。中で useMessages を呼ぶが、翻訳の文言を引くだけ)。(4) 設定のメニュー SettingsNav は src/app/(main)/settings/ に置かれているが、この layout からは描かれない。描くのは (main) の枠の SideNav (SideNav.tsx:115) と MobileNav (MobileNav.tsx:65)。(5) cloudMode は next.config の env (next.config.ts:16 / :217) でビルド時に埋め込まれる値で、実行時の /api/config の cloudMode (CLOUD_MODE を読む) とは別の経路。この枠は API を呼ばない。設定の名前は、実行する環境で設定する名前 CLOUD_MODE で書いた。(6) cloudMode による分かれ道は、権限の確認 (guards) ではなく設定 (settings) に書いた。利用者の権限ではなく、環境の設定で決まるため。設定で分かれる処理なので rules には重ねていない。(7) 同じ処理が複数の呼び出し元から呼ばれる箇所は無い (Column は SettingsLayout.tsx:8 と PageBody.tsx:35 で使われるが、ライブラリを呼ぶ行が違い、PageBody はフレームにしていない)。(8) links (ほかの入口へのつながり)、guards、rules、I/O の列は、この枠には無い。tests は作業定義で選ばれていないので見ていない"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: layout
@@ -53,6 +53,22 @@ callstack:
         - { file: "src/app/(main)/settings/layout.tsx", line: 12 }
         - { file: "src/app/(main)/settings/layout.tsx", line: 14 }
         - { file: "src/app/(main)/settings/layout.tsx", line: 15 }
+    parameters:
+      - name: children
+        value: "包まれる設定の画面 (内側の入口)。中身は辿らない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/layout.tsx", line: 4 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "値があると、この枠は null を返し、包まれる設定の画面を含めて何も描かない。空なら SettingsLayout で画面を包んで描く"
+        status: interpretation
+        evidence:
+          - { file: "src/app/(main)/settings/layout.tsx", line: 5 }
+          - { file: next.config.ts, line: 16 }
+          - { file: next.config.ts, line: 217 }
+        note: "next.config.ts が環境変数 CLOUD_MODE を読み (16 行)、env の cloudMode に入れる (217 行)。layout は process.env.cloudMode で読む。ビルド時に埋め込まれる値"
 
   - id: settings_layout
     layer: component
@@ -62,8 +78,11 @@ callstack:
     caller: layout
     call:
       status: fact
+      when: conditional
+      condition: "設定 CLOUD_MODE (process.env.cloudMode) が空のとき"
       evidence:
         - { file: "src/app/(main)/settings/layout.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/layout.tsx", line: 5 }
         - { file: "src/app/(main)/settings/layout.tsx", line: 9 }
     summary:
       status: interpretation
@@ -75,6 +94,12 @@ callstack:
         - { file: src/components/common/PageBody.tsx, line: 6 }
         - { file: src/components/common/PageBody.tsx, line: 35 }
         - { file: src/components/common/PageBody.tsx, line: 42 }
+    parameters:
+      - name: children
+        value: "ReactNode。layout から受け取った、包まれる画面"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/SettingsLayout.tsx", line: 6 }
 
   - id: ext_react_zen_column
     layer: external
@@ -84,6 +109,7 @@ callstack:
     caller: settings_layout
     call:
       status: fact
+      when: always
       evidence:
         - { file: "src/app/(main)/settings/SettingsLayout.tsx", line: 2 }
         - { file: "src/app/(main)/settings/SettingsLayout.tsx", line: 8 }

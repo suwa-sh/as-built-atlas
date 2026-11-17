@@ -11,17 +11,17 @@ target:
   scope: .
   commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
 analyzer:
-  profile: { id: ui-nextjs, version: "0.3.0" }
-  skill_version: "0.3.0"
-  model: "claude-opus-5-5"
-  analyzed_at: "2026-11-13T03:15:02+09:00"
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T10:11:32Z"
   reviewed:
-    by: "abatlas-review-entry (fresh subagent, claude-opus-5-5)"
-    at: "2026-11-13T03:18:00+09:00"
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T10:10:38Z"
     findings_open: 0
 summary:
   status: interpretation
-  value: "管理の画面 (/admin の下) を包む枠。ビルド時の環境変数 cloudMode (next.config の env に CLOUD_MODE を入れたもの) があれば null を返し、包まれる画面を含めて何も描かない。そうでなければ AdminLayout がブラウザ側で useLoginQuery からログイン中のユーザーを取り、管理者 (isAdmin。サーバーが role が admin のときに付ける) でなければ何も描かない。管理者なら包まれる画面 (children) を、幅を 1320px までに抑える PageBody の中に置くだけ。useLoginQuery はストアにユーザーが無いときだけ POST /api/auth/verify を呼び、トークンを検査して user (と Redis があれば auth:* のセッション) を読み、所属チーム (team と team_user) を読む。ただし外側の (main) の枠の App はストアにユーザーがあるときだけ children を描き、ストアのユーザーを消すのは (main) の外のログアウト画面だけなので、この枠が描かれる時点ではストアに必ずユーザーがある。だからこの入口からはこのリクエストは出ず、ストアのユーザーを使うだけと読める (経路はコードにあるので書いておく)。metadata でタイトルの書式 (%s | Admin | Umami、既定は Admin | Umami) を決める。管理のメニュー (AdminNav) はこの枠ではなく、外側の (main) の枠の SideNav / MobileNav が描く"
+  value: "管理の画面 (/admin の下) を包む枠。環境変数 CLOUD_MODE (next.config の env が process.env.cloudMode として埋め込む) が設定されていれば null を返し、包まれる画面を含めて何も描かない。設定されていなければ AdminLayout がブラウザ側で useLoginQuery からログイン中のユーザーを取り、管理者 (user.isAdmin。サーバーが role が admin のときに付ける) でなければ何も描かない。管理者なら、包まれる画面 (children) を、幅を 1320px までに抑える PageBody の中に置くだけ。useLoginQuery は、ストアにユーザーが無いときだけ POST /api/auth/verify を呼ぶ。その先では、トークンを検査して user (Redis が有効でトークンが authKey を持つときは auth:* のセッションも) を読み、所属チーム (team と team_user) を読む。ただし、外側の (main) の枠の App はストアにユーザーがあるときだけ children を描くので、この枠が描かれる時点ではストアにユーザーがあり、この枠からこのリクエストは出ないと読める (経路はコードにあるので書いている)。metadata でタイトルの書式 (%s | Admin | Umami、既定は Admin | Umami) を決める。ほかの入口へのつながり (遷移や小窓) は無い"
   evidence:
     - { file: "src/app/(main)/admin/layout.tsx", line: 5 }
     - { file: "src/app/(main)/admin/layout.tsx", line: 9 }
@@ -29,6 +29,7 @@ summary:
     - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 7 }
     - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 9 }
     - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 13 }
+    - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
     - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
     - { file: src/lib/auth.ts, line: 137 }
     - { file: "src/app/(main)/App.tsx", line: 54 }
@@ -36,9 +37,7 @@ summary:
     - { file: src/components/common/PageBody.tsx, line: 6 }
     - { file: next.config.ts, line: 16 }
     - { file: next.config.ts, line: 217 }
-    - { file: "src/app/(main)/SideNav.tsx", line: 117 }
-    - { file: "src/app/(main)/MobileNav.tsx", line: 64 }
-notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる管理の画面) と、外側の layout ((main) とルート) は別の入口なので辿らない。(2) useLoginQuery は AdminLayout 自身が呼ぶフックなので、context.md の決まり (同じフックを内側の部品も自分で呼ぶときは内側にも書く。省くのは枠を経由してだけ動くもの) に従って POST /api/auth/verify の先まで書いた。下の (6) で API キーの経路を省いたのは、共有の関数 (checkAuth) の中の、この入口からは通らない枝だからで、部品が自分で呼ぶフックとは扱いが違う。(main) の枠の結果にも同じ経路があるが、それは別の入口なので、この入口の中では重複にならない。リクエストが出るのは enabled: !user (ストアにユーザーが無い) のときだけ (fact)。外側の App はストアにユーザーがあるときだけ children を描き (App.tsx:54 / :81)、ストアのユーザーを消す setUser(null) は (main) の外のログアウト画面 (LogoutPage.tsx:20) にしか無い (他の setUser はログインの画面と useLoginQuery 自身で、どれもユーザーを入れる側) ので、この入口からはリクエストは出ないとコードから読める (実行しての確認はしていない)。react-query のキャッシュの鍵 ['login'] も App と同じ。(3) フレームにしなかったもの: PageBody (見た目だけの部品。error / isLoading を受けると警告や読み込み中を出すが、この枠は渡さないので children を列に入れるだけ。中で useMessages を呼ぶが、翻訳の文言を引くだけ)。(4) 管理のメニュー AdminNav は src/app/(main)/admin/ に置かれているが、この layout からは描かれない。描くのは (main) の枠の SideNav (SideNav.tsx:117) と MobileNav (MobileNav.tsx:64) で、リンクを並べるだけなので (main) の枠の分析で扱っている。(5) cloudMode は next.config の env (next.config.ts:16 / :217) でビルド時に埋め込まれる値。layout.tsx (サーバー側) と AdminLayout (ブラウザ側) の両方で確かめている。(6) ブラウザが付けるトークンは localStorage のログイントークン (src/lib/client.ts:4) で、しかも /api/auth は API キーを拒否するパス (api-key.ts:15) なので、checkAuth の API キーの経路 (api_key の読み書き) は書いていない。共有トークン (parseShareToken) はヘッダーの署名付きトークンを解くだけでデータを読まないので、フレームにしていない。(7) レビューの指摘 1 件 (low) を直した: 「ふつうはリクエストは出ない」を、ストアのユーザーを消すのが (main) の外のログアウト画面だけであることを根拠に「この入口からは出ない」と言い切る書き方に直し、POST /api/auth/verify の call の note にも添えた。あわせて、レビューの所見を受けて ext_prisma_team の根拠から Prisma を呼ばない行 (verify/route.ts:12) を外した"
+notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる管理の画面) と、外側の layout ((main) とルート) は別の入口なので辿らない。(2) POST /api/auth/verify の呼び出しは conditional (ストアにユーザーが無いとき。useLoginQuery.ts:19) にした。外側の App はストアにユーザーがあるときだけ children を描き (App.tsx:54 / :81)、ストアのユーザーを消す setUser(null) は (main) の外のログアウト画面 (LogoutPage.tsx:20) にしか無いので、この枠からはリクエストは出ないと読める (実行しての確認はしていない)。指示書には「条件がいつも成り立つ呼び出しは always」の決まりはあるが、「条件が成り立たないと読める呼び出し」の決まりは無いので、経路を消さずに conditional のまま書き、call と I/O の note に添えた。(3) フレームにしなかったもの: PageBody (見た目だけの部品。error / isLoading を受けると警告や読み込み中を出すが、この枠は渡さない。中で useMessages を呼ぶが、翻訳の文言を引くだけ)、useApi と getApiUrl (URL とヘッダーを組み立てる小道具)、parseShareToken (ヘッダーの署名付きトークンを解くだけで、データを読まない)。(4) checkAuth の API キーの枝 (auth.ts:74 → checkApiKeyAuth) は、同じファイルの関数なので q_check_auth の段に含めた。/api/auth は API キーを受け付けないパス (api-key.ts:15) で、getApiKeyByHash より前の auth.ts:35 で null を返すので、api_key の読み書きは書いていない (rules に検証として書いた)。(5) getUser は checkAuth の中で 2 か所 (auth.ts:94 と :105) から呼ばれるが、同じ関数で届く先も同じなので、フレームは 1 つ。call の条件に両方を書いた。(6) 設定の名前は、実行する環境で設定する名前 (CLOUD_MODE / BASE_PATH / REDIS_URL) で書いた。ブラウザ側のコードが読むのは、next.config の env が埋め込んだ process.env.cloudMode / basePath。API_URL は、/auth で始まる URL には使われない (api-url.ts:6 / :39) ので、書いていない。(7) 権限の確認は 2 つ。管理者かどうか (AdminLayout.tsx:9) はブラウザ側で行う表示の確認。ログイン済みかどうかは checkAuth が決め (auth.ts:122)、parseRequest が 401 にする (request.ts:54)。確認を決めている段 (q_check_auth) に 1 回だけ書いた。(8) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(9) レビューの指摘 2 件 (medium 1、low 1) は、どちらも直した: Redis の読み取りを interpretation にし (キーの形 auth:* は、読む行ではなく saveAuth から読み取ったもの)、トークンの出どころの根拠に localStorage を読む行 (storage.ts:9) を足した"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: layout
@@ -57,6 +56,16 @@ callstack:
         - { file: "src/app/(main)/admin/layout.tsx", line: 12 }
         - { file: "src/app/(main)/admin/layout.tsx", line: 14 }
         - { file: "src/app/(main)/admin/layout.tsx", line: 15 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると null を返し、AdminLayout も包まれる画面も描かない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/layout.tsx", line: 5 }
+          - { file: next.config.ts, line: 16 }
+          - { file: next.config.ts, line: 217 }
+        note: "コードが読むのは process.env.cloudMode。next.config の env が、環境変数 CLOUD_MODE の値を入れる"
 
   - id: admin_layout
     layer: component
@@ -66,9 +75,12 @@ callstack:
     caller: layout
     call:
       status: fact
+      when: conditional
+      condition: "環境変数 CLOUD_MODE が設定されていないとき"
       evidence:
-        - { file: "src/app/(main)/admin/layout.tsx", line: 2 }
         - { file: "src/app/(main)/admin/layout.tsx", line: 9 }
+        - { file: "src/app/(main)/admin/layout.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/layout.tsx", line: 2 }
     summary:
       status: interpretation
       value: "ブラウザ側で動く ('use client')。useLoginQuery からユーザーを取り、user.isAdmin が偽か process.env.cloudMode があれば null を返す (管理者でなければ管理の画面を描かない)。そうでなければ children を PageBody の中に描く。PageBody は幅を 1320px までに抑えて中央に寄せる見た目の部品"
@@ -80,9 +92,25 @@ callstack:
         - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 13 }
         - { file: src/components/common/PageBody.tsx, line: 6 }
         - { file: src/components/common/PageBody.tsx, line: 40 }
-        - { file: src/components/common/PageBody.tsx, line: 42 }
+    guards:
+      - kind: role
+        value: "user.isAdmin (サーバーが、role が admin のユーザーに付ける)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 9 }
+          - { file: src/lib/auth.ts, line: 137 }
+        note: "ブラウザ側で行う表示の確認。満たさなければ null を返し、包まれる画面を描かない"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると null を返し、包まれる画面を描かない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 9 }
+          - { file: next.config.ts, line: 217 }
+        note: "コードが読むのは process.env.cloudMode。layout.tsx でも同じ設定を確かめている"
 
-  # ---- ログインの確認
+  # ---- ログイン中のユーザー
   - id: use_login_query
     layer: component
     kind: hook
@@ -91,23 +119,35 @@ callstack:
     caller: admin_layout
     call:
       status: fact
+      when: always
       evidence:
-        - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 4 }
         - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 7 }
+        - { file: "src/app/(main)/admin/AdminLayout.tsx", line: 4 }
     summary:
       status: interpretation
-      value: "ストアのユーザーを返す。ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は apiUrl の設定に関わらず basePath + /api に向く。この枠は外側の (main) の App がストアにユーザーがあるときだけ描き、ユーザーを消すのは (main) の外のログアウト画面だけなので、この入口からはリクエストは出ない (経路はコードにあるので下に書く)"
+      value: "ストアのユーザーを返す。ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。URL は useApi の post が getApiUrl で組み立てる。/auth で始まる URL は、API_URL の設定に関わらず basePath + /api に向く。ヘッダーには、localStorage のログイントークンを Bearer で付ける"
       evidence:
         - { file: src/components/hooks/queries/useLoginQuery.ts, line: 8 }
         - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
         - { file: src/components/hooks/queries/useLoginQuery.ts, line: 15 }
         - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/lib/client.ts, line: 5 }
+        - { file: src/lib/storage.ts, line: 9 }
         - { file: src/components/hooks/useApi.ts, line: 49 }
         - { file: src/lib/api-url.ts, line: 6 }
         - { file: src/lib/api-url.ts, line: 44 }
-        - { file: "src/app/(main)/App.tsx", line: 54 }
-        - { file: "src/app/(main)/App.tsx", line: 81 }
-        - { file: src/app/logout/LogoutPage.tsx, line: 20 }
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (basePath + /api + /auth/verify)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.basePath)。next.config の env が、環境変数 BASE_PATH の値を入れる"
 
   - id: api_verify
     layer: api_route
@@ -117,13 +157,16 @@ callstack:
     caller: use_login_query
     call:
       status: fact
+      when: conditional
+      condition: "ストアにユーザーが無いとき (enabled: !user)"
       evidence:
         - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
         - { file: src/lib/api-url.ts, line: 44 }
-      note: "呼ばれるのはストアにユーザーが無いときだけ (useLoginQuery.ts:19)。この入口では外側の App がユーザーを得てから描くので、実際には呼ばれない経路と読める (App.tsx:54)"
+      note: "この枠は、外側の (main) の App がストアにユーザーがあるときだけ描く (App.tsx:54 / :81) ので、この枠からは呼ばれない経路と読める"
     summary:
       status: interpretation
-      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できればユーザー (checkAuth が isAdmin を付けたもの) と所属チームを返す"
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401 を返す。できれば、所属チームを読み、ユーザー (checkAuth が isAdmin を付けたもの) にチームを足して返す"
       evidence:
         - { file: src/app/api/auth/verify/route.ts, line: 6 }
         - { file: src/app/api/auth/verify/route.ts, line: 9 }
@@ -135,7 +178,8 @@ callstack:
         status: fact
         evidence:
           - { file: src/components/hooks/useApi.ts, line: 28 }
-          - { file: src/lib/client.ts, line: 4 }
+          - { file: src/lib/client.ts, line: 5 }
+          - { file: src/lib/storage.ts, line: 9 }
 
   - id: q_parse_request
     layer: query
@@ -145,11 +189,12 @@ callstack:
     caller: api_verify
     call:
       status: fact
+      when: always
       evidence:
         - { file: src/app/api/auth/verify/route.ts, line: 6 }
     summary:
       status: interpretation
-      value: "URL と JSON 本文を読み、スキーマも skipAuth も無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す"
+      value: "URL と JSON の本文を読む。この受け口はスキーマも skipAuth も渡さないので、入力の検証はせず、checkAuth で認証する。認証できなければ unauthorized (401) のエラーを返す"
       evidence:
         - { file: src/lib/request.ts, line: 21 }
         - { file: src/lib/request.ts, line: 23 }
@@ -165,42 +210,86 @@ callstack:
     caller: q_parse_request
     call:
       status: fact
+      when: always
       evidence:
         - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、この受け口はスキーマも options も渡さない (verify/route.ts:6) ので、条件はいつも成り立つ"
     summary:
       status: interpretation
-      value: "署名付きトークンを解き、2FA の仮トークンなら拒否する。userId があれば user を読み、authKey があれば (Redis が有効なとき) Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。ユーザーがいればパスワードを消し、role が admin なら isAdmin を付ける (AdminLayout はこの isAdmin で描くかを決める)。API キー (umami_ で始まるトークン) の経路は、ブラウザが付けるのがログイントークンで、/api/auth は API キーを拒否するパスなので、ここでは働かない"
+      value: "Bearer トークンを取り出す。API キーが有効で、トークンが umami_ で始まれば、API キーとして確かめる (/api/auth は API キーを受け付けないパスなので、この受け口では null になる)。そうでなければ署名付きトークンを解き、2FA の仮トークンなら拒否する。トークンに userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ、ユーザーを無効にする。ユーザーも共有トークンも無ければ null (認証の失敗)。ユーザーがいればパスワードを消し、role が admin なら isAdmin を付ける (AdminLayout はこの isAdmin で描くかを決める)"
       evidence:
+        - { file: src/lib/auth.ts, line: 72 }
         - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 35 }
         - { file: src/lib/auth.ts, line: 78 }
         - { file: src/lib/auth.ts, line: 83 }
         - { file: src/lib/auth.ts, line: 94 }
         - { file: src/lib/auth.ts, line: 98 }
         - { file: src/lib/auth.ts, line: 101 }
         - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
         - { file: src/lib/auth.ts, line: 137 }
-        - { file: src/lib/api-key.ts, line: 15 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/app/api/auth/verify/route.ts, line: 8 }
+        note: "トークンからユーザーが得られず、共有トークンも無ければ null を返す。parseRequest が 401 のエラーにし、受け口がそれを返す"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていて、トークンに userId が無く authKey があるときだけ、Redis からセッションを読む"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、API キー (umami_ で始まるトークン) での認証の枝を通らない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+    rules:
+      - kind: validation
+        value: "API キーは、アカウントの資格情報や管理の状態を扱うパス (/api/auth など) では認証に使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 35 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 15 }
+      - kind: validation
+        value: "2FA のログインの途中で出す仮のトークン (type が partial-auth) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+      - kind: validation
+        value: "トークンやセッションが持つパスワードの指紋 (pwd) が、今のパスワードのハッシュと違えば、無効にする (指紋を持たない古いトークンは通す)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーが無く共有トークンだけのときは、共有の文脈を示すヘッダー (x-umami-share-context) が無ければ認証しない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 129 }
     io:
       - op: get
-        status: fact
+        status: interpretation
         resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
-        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        detail: "redis.client.get(authKey)。キーは、トークンから取り出した authKey の値 (auth.ts:91)。auth:<ランダム> の形は、トークンを作る側の saveAuth (auth.ts:150 / :160) から読み取った"
+        fields:
+          - { name: "*", use: [read] }
         evidence:
           - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 91 }
           - { file: src/lib/auth.ts, line: 150 }
-        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ。この入口からは届かない (外側の App がユーザーを得てから描くので enabled: !user が偽。経路はコードにあるので書いている)"
-
-  - id: ext_redis_get
-    layer: external
-    kind: library
-    name: "redis (node-redis クライアント) get"
-    source: { file: src/lib/redis.ts, line: 37 }
-    caller: q_check_auth
-    call:
-      status: fact
-      evidence:
-        - { file: src/lib/auth.ts, line: 102 }
-        - { file: src/lib/redis.ts, line: 37 }
+          - { file: src/lib/auth.ts, line: 160 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ。値はまるごと取り出す (redis.ts:37 / :40)。この枠からは届かないと読める (外側の App がユーザーを得てから描くので、enabled: !user が偽)"
 
   - id: q_get_user
     layer: query
@@ -210,27 +299,58 @@ callstack:
     caller: q_check_auth
     call:
       status: fact
+      when: conditional
+      condition: "トークンに userId があるとき。または、Redis から読んだセッションに userId があるとき"
       evidence:
         - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 93 }
         - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 104 }
     summary:
       status: interpretation
-      value: "findUser を通して、id で削除されていない user を 1 件読む (パスワードの列は includePassword のときだけ。checkAuth は付けて呼ぶ)。role も読むので、checkAuth が isAdmin を決められる"
+      value: "同じファイルの findUser を通して、id で、削除されていない user を 1 件読む。パスワードの列は includePassword のときだけ取り出す (checkAuth は付けて呼ぶ)。role も読むので、checkAuth が isAdmin を決められる"
       evidence:
         - { file: src/queries/prisma/user.ts, line: 50 }
         - { file: src/queries/prisma/user.ts, line: 32 }
         - { file: src/queries/prisma/user.ts, line: 36 }
-        - { file: src/queries/prisma/user.ts, line: 42 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+    parameters:
+      - name: userId
+        value: "トークンの userId、または Redis のセッションの userId"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 94 }
+          - { file: src/lib/auth.ts, line: 105 }
+      - name: options.includePassword
+        value: "true (パスワードの指紋を確かめるため)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 94 }
     io:
       - op: read
         status: fact
         resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
-        detail: "prisma.client.user.findUnique (where id, deletedAt null)"
+        detail: "prisma.client.user.findUnique (where: id と deletedAt null。select: id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
         evidence:
           - { file: src/queries/prisma/user.ts, line: 32 }
-          - { file: prisma/schema.prisma, line: 37 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
           - { file: prisma/schema.prisma, line: 8 }
-        note: "この入口からは届かない (外側の App がユーザーを得てから描くので enabled: !user が偽。経路はコードにあるので書いている)"
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "列の名前は schema.prisma の @map のとおり。この枠からは届かないと読める (外側の App がユーザーを得てから描くので、enabled: !user が偽)"
 
   - id: ext_prisma_user
     layer: external
@@ -240,10 +360,28 @@ callstack:
     caller: q_get_user
     call:
       status: fact
+      when: always
       evidence:
-        - { file: src/queries/prisma/user.ts, line: 50 }
         - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 50 }
 
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "checkAuth が呼ぶのは、リポジトリが自前で包んだ get (redis.ts:34)。その中の this.client.get がライブラリの呼び出し"
+
+  # ---- 所属チーム
   - id: q_team
     layer: query
     kind: function
@@ -252,9 +390,11 @@ callstack:
     caller: api_verify
     call:
       status: fact
+      when: always
       evidence:
-        - { file: src/app/api/auth/verify/route.ts, line: 3 }
         - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 3 }
+      note: "手前にあるのは、認証の失敗で打ち切る経路だけ (verify/route.ts:8)"
     summary:
       status: interpretation
       value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む"
@@ -262,24 +402,49 @@ callstack:
         - { file: src/queries/prisma/team.ts, line: 93 }
         - { file: src/queries/prisma/team.ts, line: 95 }
         - { file: src/queries/prisma/team.ts, line: 97 }
-        - { file: src/queries/prisma/team.ts, line: 101 }
+        - { file: src/queries/prisma/team.ts, line: 100 }
+    parameters:
+      - name: userId
+        value: "認証したユーザーの id (auth.user.id)"
+        status: fact
+        evidence:
+          - { file: src/app/api/auth/verify/route.ts, line: 12 }
     io:
       - op: read
         status: fact
         resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
-        detail: "prisma.client.team.findMany (deletedAt null, members.some userId)"
+        detail: "prisma.client.team.findMany (where: deletedAt null と members.some { userId }。select: id / name / logoUrl)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: name, use: [read] }
+          - { name: logo_url, use: [read] }
+          - { name: deleted_at, use: [filter] }
         evidence:
           - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: src/queries/prisma/team.ts, line: 95 }
+          - { file: src/queries/prisma/team.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 236 }
+          - { file: prisma/schema.prisma, line: 240 }
           - { file: prisma/schema.prisma, line: 249 }
-        note: "この入口からは届かない (外側の App がユーザーを得てから描くので enabled: !user が偽。経路はコードにあるので書いている)"
+        note: "team_id は、取り出す列で、team_user との関連をたどる条件にも使う (schema.prisma:260)。この枠からは届かないと読める (外側の App がユーザーを得てから描くので、enabled: !user が偽)"
       - op: read
         status: interpretation
         resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
-        detail: "リレーションの条件 members.some { userId }"
+        detail: "関連をたどる条件 members.some { userId }"
+        fields:
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
         evidence:
           - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: src/queries/prisma/team.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 243 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 260 }
           - { file: prisma/schema.prisma, line: 265 }
-        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない。この入口からは届かない (外側の App がユーザーを得てから描くので enabled: !user が偽。経路はコードにあるので書いている)"
+        note: "Team.members (TeamUser) の関連の条件として読まれる。テーブルの名前は、コードに直接は出ない (schema.prisma の関連と @@map から読んだ)。この枠からは届かないと読める (外側の App がユーザーを得てから描くので、enabled: !user が偽)"
 
   - id: ext_prisma_team
     layer: external
@@ -289,5 +454,6 @@ callstack:
     caller: q_team
     call:
       status: fact
+      when: always
       evidence:
         - { file: src/queries/prisma/team.ts, line: 93 }
