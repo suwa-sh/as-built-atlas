@@ -30,7 +30,7 @@ description: 分析対象リポジトリの「入口」(ジョブ・エンドポ
 1. プロファイルを読む: `profile.yaml` (層、`extractors[]` の候補と `hint`、`hierarchy.derivation`) と `context.md` (入口の判別の節)
 2. 対象を調べる: `target.clone_path/target.scope` の中で、プロファイルの `extractors[].hint` に従って、入口を定義している場所・形式・必須項目を確かめる。`rg` / `find` / 実ファイルの先頭を読む程度にとどめ、全ファイルを読まない
    - コードの構文で探すときは、`<abatlas> code-search analysis/work-definition.yaml --language <言語> --files <glob> --pattern '<コードの形>'` を使う (一致した場所を出すだけで、一覧は変えない)
-3. `analysis/entry-list.yaml` を作る (無ければ)。`format_version: 1`、`target` は `analysis/work-definition.yaml` と同じ、`profile.id` と `profile.version` は `profile.yaml` から、`entries: []`
+3. `analysis/entry-list.yaml` を作る (無ければ)。既にあるときは、作り直さずに見直す: `profile.version` を、いまの `profile.yaml` の版に合わせる。版が上がっていたら、プロファイルの決まりを読み直し、抽出器の設定と、読んで足した入口 (`listed`) を、いまの決まりで見直す。`format_version: 1`、`target` は `analysis/work-definition.yaml` と同じ、`profile.id` と `profile.version` は `profile.yaml` から、`entries: []`
 4. `extractors[]` を書く。プロファイルの既定パラメータを出発点に、このリポジトリに合わせて埋める。各抽出器に `rationale` (なぜこの設定か) を 1〜2 文で書く
    - 構文を読む抽出器 (`abatlas-extract ast`) を使うときは、取れない定義に一致する規則を `params.unresolved` にも書く (例: 定義の配列の中の、名前だけの要素・展開・関数の呼び出し)
 5. 試す: `<abatlas> enumerate analysis/entry-list.yaml --dry-run` (プロファイルは、作業定義の `profile.dir` から自動で読まれる。読んだ場所が出力の最初に出る。「自動で読めない」と出たら、`profile.dir` を直す)
@@ -45,6 +45,7 @@ description: 分析対象リポジトリの「入口」(ジョブ・エンドポ
    - ファイルのパス (`source.file`、抽出器の `files`、`code-search` の `--files`) は、すべて、作業定義の `target.scope` からの相対で書く (`clone_path` からではない。例: scope が `ui` なら、`ui/src/a.ts` ではなく `src/a.ts`)
    - 入口にするか迷うもの (データの読み書きに至るかを、数段先まで読まないと決められないもの) は、足す。承認のときに、人が外せる。迷ったことを `reason` に書く
    - 読んでも入口の数や名前が決まらないもの (実行時の値で決まる定義など) は、足さない。報告に、場所と理由を書く
+   - 既にある `listed` の入口を直すとき: `reason`、`name`、`attributes`、`source` の行だけを変えても、人の承認は引き継がれる。`path`、層、`source.file` を変えると、列挙が `candidate` に戻す (人が承認し直す)。承認済みの入口は、誤りを直すとき以外は、指す先を変えない
    - `listed` は、`extractors[]` の最後に書く。抽出器が出した入口を、`listed` に重ねて書かない (同じ id で、指す先か行が違うと、列挙が止まる)
    - `listed` が出す入口の層は、抽出器の `layer` で決まる (入口ごとには書けない)。入口の層が 2 つ以上あるプロファイルでは、層ごとに別の名前の `listed` を作り (例: `agent-listed-page`、`agent-listed-layout`)、その層の入口だけを書く
 7. 本番の列挙: `--dry-run` を外して実行する。`entries[]` に `status: candidate` で候補が書かれる

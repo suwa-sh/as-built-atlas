@@ -22,25 +22,28 @@ description: 分析結果 YAML (results/ 配下の 1 ファイル) を、分析�
 3. 主張を 1 つずつ検査する。対象は `summary`、各フレームの `call` / `summary` / `parameters[]` / `io[]`
    - **根拠の実在**: `evidence` の file:line を開き、その行 (前後 5 行) が主張を支えているか。支えていなければ `evidence_mismatch`
    - **状態の妥当性**: コードにそのまま書いてあるのに `interpretation`、読み取りなのに `fact` になっていないか → `status_mismatch`
-   - **不明の妥当性**: `unknown` の `reason` が実態と合うか (環境変数で決まるのに `dynamic_dispatch` など) → `reason_mismatch`。逆に、読めば分かるのに `unknown` → `avoidable_unknown`
+   - **不明の妥当性**: `unknown` の `reason` が実態と合うか (環境変数で決まるのに `dynamic_dispatch` など) → `reason_mismatch`。逆に、読めば分かるのに `unknown` → `avoidable_unknown`。ただし、理由が `not_analyzed` (打ち切り) の主張は、読めば分かることが前提なので、それだけでは `avoidable_unknown` にしない。`note` に「どこまで読んだか」と「なぜ止めたか」が無いときだけ、low で指摘する (続きを分析するかは、人が決める)。打ち切りを、`analysis-conventions.md` かプロファイルの `context.md` が禁じているときは、`avoidable_unknown` として指摘する
    - **データの当てはめ**: `resource.kind` と `levels` が `context.md` の当てはめ方と合うか → `resource_mismatch`
-   - **辿り漏れ**: フレームの `source` を読み、次の層の呼び出しがあるのにフレームが無い → `missing_frame`
+   - **辿り漏れ**: フレームの `source` を読み、次の層の呼び出しがあるのにフレームが無い → `missing_frame`。プロファイルの `context.md` が「フレームにしない」と決めているもの (見た目だけの部品、同じ処理の 2 回目以降など) は、漏れに数えない
 4. `analysis/reviews/<file>` に書く (形式は `<oss>/schema/review.schema.json`):
 
 ```yaml
 format_version: 1
 entry_id: <id>
-reviewed_at: "<ISO 8601>"
-reviewer: "<誰が / 何が>"
+reviewed_at: "<ISO 8601。書き終えた時点の実際の時刻。date -u +%Y-%m-%dT%H:%M:%SZ で取る>"
+reviewer: "<レビューしたモデルの名前と、fresh context であること。例: claude-xxx (fresh context)>"
 machine_check: ok | ng
 findings:
   - kind: evidence_mismatch | status_mismatch | reason_mismatch | avoidable_unknown | resource_mismatch | missing_frame | machine_check
     severity: high | medium | low
-    where: callstack/<frame id>/io/0      # YAML 内の場所
+    where: callstack/<frame id>/io/0      # YAML 内の場所。ほかの形: summary (入口の概要)、callstack/<frame id>/call、callstack/<frame id>/summary、callstack/<frame id>/parameters/0
     claim: "<何が問題か 1 文>"
     evidence: { file: <対象の file>, line: <行> }
     suggestion: "<直し方 1 文>"
+notes: "<指摘にしなかったが、伝えておくこと (任意)>"
 ```
+
+   - `resolved` は書かない (分析の側が、直した指摘に書く)
 
    - **文字列は必ず二重引用符で囲む** (`claim` / `suggestion` / `notes`)。コロン・角括弧・`#` を含む文章を裸で書くと YAML として読めなくなる
    - 機械チェックの NG を写すときは `kind: machine_check`
@@ -51,7 +54,7 @@ findings:
 
 - high: 根拠が主張を支えていない / 辿り漏れでコールスタックが途中で切れている / 読めば分かるのに unknown
 - medium: 状態 (fact / interpretation) の取り違え / データの段の当てはめ違い / reason の種類違い
-- low: 表現、note の不足
+- low: 表現、note の不足。主張は合っているが、根拠の行が一部だけ足りない (例: 数値の定義の行が無い)
 
 ## 禁止
 
