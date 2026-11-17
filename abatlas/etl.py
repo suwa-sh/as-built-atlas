@@ -11,6 +11,13 @@
   claims.csv      すべての主張 (品質 mart 用: 状態・理由・根拠件数)
   evidence.csv    主張ごとの根拠 (file:line)
   entry_within.csv  入口を包む入口 (entry-list の entries[].within。ord = 外側からの順)
+  io_fields.csv   I/O が触る列 (使い方ごとに use_read / use_write / use_filter。set_to = 書く値)
+  links.csv       フレームから、ほかの入口へのつながり (target_entry_id = 入口の一覧と突き合わせた結果。無ければ空)
+  guards.csv      フレームで行う権限の確認
+  settings.csv    フレームの動きを変える設定
+  rules.csv       フレームにある業務のルール
+  tests.csv       フレームを通るテスト
+  data_dictionary.csv  データの辞書 (列ごとの区分。sensitive = 個人情報の流れに出す区分か)
 """
 
 from __future__ import annotations
@@ -20,8 +27,8 @@ import sys
 from pathlib import Path
 
 from . import file_name_collisions, result_file_name
-from .schemas import load_yaml, schema_errors, resource_kinds
-from .validate import within_problems
+from .schemas import load_yaml, schema_errors, resource_kinds, vocab
+from .validate import field_problems, tests_flag_problems, within_problems
 
 LEVEL_COLUMNS = ["host", "dbms", "database", "schema", "table", "instance", "namespace", "key_pattern",
                  "broker", "topic", "directory", "file", "account", "bucket", "prefix", "object", "path"]
@@ -43,9 +50,43 @@ def _row_claim(claims: list, evid: list, entry_id: str, where: str, claim: dict 
         evid.append({"entry_id": entry_id, "claim_path": where, "file": e["file"], "line": e["line"]})
 
 
-def build_rows(entry_list: dict, results: list[dict], profile: dict | None = None) -> dict[str, list[dict]]:
-    """profile を渡すと、結果ごとに「今のプロファイルの版と違う版で分析したか」(profile_stale) を付ける。"""
+ASPECTS_SINCE = (0, 4)  # 分析 skill がこの版から、呼び出しの条件・列・つながり・権限の確認・設定・業務のルールを書く
+
+
+def _has_aspects(skill_version: str) -> bool:
+    """分析 skill の版が、足した観点を分析する版か。読めない版 (見本の 0.0.0-fixture など) は、数字の部分だけで比べる。"""
+    nums = []
+    for part in skill_version.split(".")[:2]:
+        digits = "".join(ch for ch in part if ch.isdigit())
+        nums.append(int(digits) if digits else 0)
+    return tuple(nums + [0] * (2 - len(nums))) >= ASPECTS_SINCE
+
+
+def _link_target(link: dict, by_id: dict, by_path: dict) -> str:
+    """つながりの行き先を、入口の一覧と突き合わせる。entry_id があればそれ (一覧に無ければ空)。無ければ target が id か階層パスと一致する入口。"""
+    if "entry_id" in link:
+        return link["entry_id"] if link["entry_id"] in by_id else ""
+    t = link["target"]
+    return t if t in by_id else by_path.get(t, "")
+
+
+# フレームが持つ主張の並び (名前 → その行に写す項目)
+FRAME_LISTS = {
+    "guards": ["kind", "value"],
+    "settings": ["name", "kind", "effect"],
+    "rules": ["kind", "value"],
+    "tests": ["name", "kind"],
+}
+
+
+def build_rows(entry_list: dict, results: list[dict], profile: dict | None = None, dictionary: dict | None = None) -> dict[str, list[dict]]:
+    """profile を渡すと、結果ごとに「今のプロファイルの版と違う版で分析したか」(profile_stale) を付ける。dictionary はデータの辞書 (無ければ空の表)。"""
     rows = {k: [] for k in COLUMNS}
+    categories = vocab("data-categories")["categories"]
+    for d in sorted((dictionary or {}).get("fields", []), key=lambda x: (x["resource"], x["field"])):
+        cat = d.get("category", "")
+        rows["data_dictionary"].append({"resource_path": d["resource"], "field": d["field"], "category": cat, "category_label": categories.get(cat, {}).get("label", ""),
+                                        "sensitive": str(bool(categories.get(cat, {}).get("sensitive"))).lower(), "status": d["status"], "note": d.get("note", "")})
     for e in sorted(entry_list.get("entries", []), key=lambda x: x["id"]):
         for ord_, w in enumerate(e.get("within", []), 1):
             rows["entry_within"].append({"entry_id": e["id"], "ord": ord_, "within_entry_id": w})
@@ -56,6 +97,9 @@ def build_rows(entry_list: dict, results: list[dict], profile: dict | None = Non
             "depth": len([p for p in e["path"].split("/") if p]),
         })
     kinds = resource_kinds()
+    by_id = {e["id"]: e for e in entry_list.get("entries", [])}
+    by_path = {e["path"]: e["id"] for e in entry_list.get("entries", [])}
+    boundary = {t["id"] for t in (profile or {}).get("layers", []) if t.get("role") == "boundary"}
     for r in sorted(results, key=lambda x: x["entry"]["id"]):
         eid = r["entry"]["id"]
         an = r["analyzer"]
@@ -71,6 +115,7 @@ def build_rows(entry_list: dict, results: list[dict], profile: dict | None = Non
             "run_by": (an.get("run") or {}).get("by", ""),
             "summary_status": r["summary"]["status"], "summary": r["summary"].get("value", ""),
             "frame_count": len(r["callstack"]),
+            "tests_analyzed": str(bool(an.get("tests"))).lower(), "aspects_analyzed": str(_has_aspects(an["skill_version"])).lower(),
         })
         _row_claim(rows["claims"], rows["evidence"], eid, "summary", r["summary"])
         for seq, f in enumerate(r["callstack"]):
@@ -83,7 +128,19 @@ def build_rows(entry_list: dict, results: list[dict], profile: dict | None = Non
                 "call_status": (f.get("call") or {}).get("status", ""), "call_reason": (f.get("call") or {}).get("reason", ""),
                 "summary_status": (f.get("summary") or {}).get("status", ""), "summary": (f.get("summary") or {}).get("value", ""),
                 "summary_reason": (f.get("summary") or {}).get("reason", ""),
+                "call_when": (f.get("call") or {}).get("when", ""), "call_condition": (f.get("call") or {}).get("condition", ""),
+                # 外との境の層か (リポジトリに定義が無い処理)。プロファイルを渡さなければ、判定しない (空)
+                "boundary": "" if profile is None else str(f["layer"] in boundary).lower(),
             })
+            for i, ln in enumerate(f.get("links", [])):
+                rows["links"].append({"entry_id": eid, "frame_id": fid, "idx": i, "kind": ln["kind"], "target": ln["target"],
+                                      "target_entry_id": _link_target(ln, by_id, by_path), "status": ln["status"], "reason": ln.get("reason", ""), "note": ln.get("note", "")})
+                _row_claim(rows["claims"], rows["evidence"], eid, f"{w}/links/{i}", ln)
+            for name, keys in FRAME_LISTS.items():
+                for i, c in enumerate(f.get(name, [])):
+                    rows[name].append({"entry_id": eid, "frame_id": fid, "idx": i, **{k: c.get(k, "") for k in keys},
+                                       "status": c["status"], "reason": c.get("reason", ""), "note": c.get("note", "")})
+                    _row_claim(rows["claims"], rows["evidence"], eid, f"{w}/{name}/{i}", c)
             _row_claim(rows["claims"], rows["evidence"], eid, f"{w}/call", f.get("call"))
             _row_claim(rows["claims"], rows["evidence"], eid, f"{w}/summary", f.get("summary"))
             for i, p in enumerate(f.get("parameters", [])):
@@ -106,6 +163,10 @@ def build_rows(entry_list: dict, results: list[dict], profile: dict | None = Non
                 row["resource_path"] = "/" + kind + ("/" + "/".join(known) if known else "")
                 row.update({"detail": io.get("detail", ""), "status": io["status"], "reason": io.get("reason", ""), "note": io.get("note", "")})
                 rows["io"].append(row)
+                for j, fl in enumerate(io.get("fields", [])):
+                    rows["io_fields"].append({"entry_id": eid, "frame_id": fid, "io_idx": i, "idx": j, "name": fl["name"],
+                                              **{"use_" + u: str(u in fl["use"]).lower() for u in ("read", "write", "filter")},
+                                              "set_to": fl.get("set_to", ""), "resource_path": row["resource_path"], "kind": kind, "io_status": io["status"]})
                 _row_claim(rows["claims"], rows["evidence"], eid, f"{w}/io/{i}", io)
     return rows
 
@@ -113,15 +174,23 @@ def build_rows(entry_list: dict, results: list[dict], profile: dict | None = Non
 COLUMNS = {
     "entries": ["entry_id", "path", "name", "layer", "status", "extractor", "source_file", "source_line", "depth"],
     "results": ["entry_id", "path", "layer", "target_repo", "target_commit", "target_scope", "profile_id", "profile_version", "profile_stale", "skill_version", "model",
-                "analyzed_at", "analyst", "reviewed_findings_open", "run_cost_usd", "run_duration_s", "run_by", "summary_status", "summary", "frame_count"],
+                "analyzed_at", "analyst", "reviewed_findings_open", "run_cost_usd", "run_duration_s", "run_by", "summary_status", "summary", "frame_count",
+                "tests_analyzed", "aspects_analyzed"],
     "frames": ["entry_id", "frame_id", "seq", "layer", "kind", "name", "source_file", "source_line", "caller_id", "call_status", "call_reason",
-               "summary_status", "summary", "summary_reason"],
+               "summary_status", "summary", "summary_reason", "call_when", "call_condition", "boundary"],
     "io": ["entry_id", "frame_id", "idx", "op", "op_letter", "op_rank", "op_direction", "kind", "kind_label", *["lv_" + c for c in LEVEL_COLUMNS],
            "resource_path", "detail", "status", "reason", "note"],
     "parameters": ["entry_id", "frame_id", "idx", "name", "value", "status", "reason"],
     "claims": ["entry_id", "claim_path", "status", "reason", "evidence_count", "note"],
     "evidence": ["entry_id", "claim_path", "file", "line"],
     "entry_within": ["entry_id", "ord", "within_entry_id"],
+    "io_fields": ["entry_id", "frame_id", "io_idx", "idx", "name", "use_read", "use_write", "use_filter", "set_to", "resource_path", "kind", "io_status"],
+    "links": ["entry_id", "frame_id", "idx", "kind", "target", "target_entry_id", "status", "reason", "note"],
+    "guards": ["entry_id", "frame_id", "idx", "kind", "value", "status", "reason", "note"],
+    "settings": ["entry_id", "frame_id", "idx", "name", "kind", "effect", "status", "reason", "note"],
+    "rules": ["entry_id", "frame_id", "idx", "kind", "value", "status", "reason", "note"],
+    "tests": ["entry_id", "frame_id", "idx", "name", "kind", "status", "reason", "note"],
+    "data_dictionary": ["resource_path", "field", "category", "category_label", "sensitive", "status", "note"],
 }
 
 
@@ -144,6 +213,7 @@ def _op_errors(result: dict) -> list[str]:
     kinds = resource_kinds()
     out = []
     for f in result.get("callstack", []):
+        out.extend(f"callstack/{f['id']}/{p}" for p in tests_flag_problems(result, f))
         for i, io in enumerate(f.get("io", [])):
             kind = io["resource"]["kind"]
             ops = [o["id"] for o in kinds.get(kind, {}).get("ops", [])]
@@ -151,6 +221,7 @@ def _op_errors(result: dict) -> list[str]:
                 out.append(f"callstack/{f['id']}/io/{i}: データの種類 '{kind}' が語彙に無い")
             elif io["op"] not in ops:
                 out.append(f"callstack/{f['id']}/io/{i}: 操作 '{io['op']}' は {kind} では使えない (使えるのは {ops})")
+            out.extend(f"callstack/{f['id']}/io/{i}/{p}" for p in field_problems(io))
     return out
 
 
@@ -161,6 +232,10 @@ def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None) -> 
     (古い一覧のまま集計して、欠けた・誤った関係を画面に出さないため)。
     """
     entry_list = load_yaml(analysis_repo / "entry-list.yaml")
+    from .dictionary import FILE as DICT_FILE, dictionary_problems  # 循環を避けるため、ここで読む (dictionary は build_rows を使う)
+
+    dictionary = load_yaml(analysis_repo / DICT_FILE) if (analysis_repo / DICT_FILE).is_file() else None
+    dict_problems = dictionary_problems(dictionary) if dictionary is not None else []
     problems = [f"entry-list.yaml: {e}" for e in schema_errors("entry-list", entry_list)]
     if not problems:
         ids = [e["id"] for e in entry_list["entries"]]
@@ -173,7 +248,8 @@ def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None) -> 
     for p in sorted((analysis_repo / "results").glob("*.yaml")):
         r = load_yaml(p)
         errs = schema_errors("analysis-result", r)
-        errs += _op_errors(r)
+        if not errs:  # 形式に合わない結果は、項目が欠けていることがあるので、意味の検査にかけない
+            errs = _op_errors(r)
         if errs:
             problems.extend(f"{p.name}: {e}" for e in errs)
             continue
@@ -187,9 +263,10 @@ def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None) -> 
         results.append(r)
     for name, group in sorted(file_name_collisions({e["id"] for e in entry_list.get("entries", [])}).items()):
         problems.append(f"entry-list.yaml: id {group} は同じ結果ファイル名 '{name}' になる (片方の結果しか置けない)")
+    problems.extend(dict_problems)
     if problems:
         raise SystemExit("etl: 入力が schema に違反しているので書かない:\n  " + "\n  ".join(problems[:20]))
-    rows = build_rows(entry_list, results, profile)
+    rows = build_rows(entry_list, results, profile, dictionary)
     write_seeds(rows, out_dir)
     counts = {k: len(v) for k, v in rows.items()}
     stale = sorted(r["entry_id"] for r in rows["results"] if r["profile_stale"] == "true")

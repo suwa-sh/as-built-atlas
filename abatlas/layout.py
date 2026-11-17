@@ -35,7 +35,7 @@ DEFAULT_TARGETS = "claude-code,codex,cursor,grok,copilot,antigravity"
 
 # .abatlas/ に複製する参照物 (エージェントが読むもの。実行環境は含めない)
 OSS_REFERENCE_ITEMS = ["schema", "profiles", "tests/fixtures", "docs/architecture", "README.md", "LICENSE"]
-OSS_SKILLS = ["abatlas-discover-entries", "abatlas-analyze-entry", "abatlas-review-entry", "mid-harness"]
+OSS_SKILLS = ["abatlas-discover-entries", "abatlas-analyze-entry", "abatlas-review-entry", "abatlas-classify-data", "mid-harness"]
 HOOK_SCRIPT = "scripts/agent-hooks/pre-tool-policy.sh"
 COMPOSE_FILE = "compose.yaml"
 # 複製元 (イメージの中の /opt/abatlas、または開発中の checkout) に揃っていなければならないもの

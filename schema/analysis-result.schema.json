@@ -31,7 +31,8 @@
           "type": "string"
         },
         "path": {
-          "type": "string", "pattern": "^/[^/]+(/[^/]+)*$"
+          "type": "string",
+          "pattern": "^/[^/]+(/[^/]+)*$"
         },
         "name": {
           "type": "string"
@@ -125,6 +126,10 @@
               "description": "書いた主体 (runner の名前など)"
             }
           }
+        },
+        "tests": {
+          "type": "boolean",
+          "description": "テストとの対応 (callstack[].tests) を分析したか。作業定義の analysis.tests が true のときに、分析 skill が true を書く。無い・false の結果では、tests が空でも「テストが無い」とは言えない"
         }
       }
     },
@@ -356,6 +361,266 @@
           "items": {
             "$ref": "#/$defs/io"
           }
+        },
+        "links": {
+          "type": "array",
+          "description": "この段から、ほかの入口へのつながり (画面の遷移、ジョブや処理の起動、小窓で重ねる画面)。同じリポジトリの中の関数呼び出しは caller で表し、ここには書かない。外部の API の呼び出しは io (external_api) に書く",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/claim_base"
+              },
+              {
+                "required": [
+                  "kind",
+                  "target"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "navigate",
+                      "trigger",
+                      "overlay"
+                    ],
+                    "description": "navigate = 画面の遷移、trigger = 別の入口 (ジョブ、フロー、処理) の起動、overlay = いまの画面に重ねて開く画面"
+                  },
+                  "target": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "行き先。コードに書いてあるとおりに書く (ルートの名前、URL の形、フローの id など)"
+                  },
+                  "entry_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "行き先が入口の一覧のどれかを特定できたときの、入口の id。特定できなければ書かない (集計が target と突き合わせる)"
+                  },
+                  "status": true,
+                  "evidence": true,
+                  "reason": true,
+                  "note": true
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "guards": {
+          "type": "array",
+          "description": "この段で行う、権限の確認 (満たさなければ先へ進めない確認)。役割・権限・持ち主の確認は、unknown でなければ value を必ず書く",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/claim_base"
+              },
+              {
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "authentication",
+                      "role",
+                      "permission",
+                      "ownership",
+                      "other"
+                    ],
+                    "description": "authentication = ログイン済みか、role = 役割、permission = 権限 (操作の許可)、ownership = 持ち主・所属か、other = そのほか"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "求める値 (役割や権限の名前、持ち主の条件)。コードに書いてあるとおりに書く"
+                  },
+                  "status": true,
+                  "evidence": true,
+                  "reason": true,
+                  "note": true
+                },
+                "additionalProperties": false
+              },
+              {
+                "if": {
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "fact",
+                        "interpretation"
+                      ]
+                    },
+                    "kind": {
+                      "enum": [
+                        "role",
+                        "permission",
+                        "ownership"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "settings": {
+          "type": "array",
+          "description": "この段の動きを変える設定 (環境変数、機能の切り替え、設定ファイルの値)。unknown でなければ、effect を必ず書く",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/claim_base"
+              },
+              {
+                "required": [
+                  "name",
+                  "kind"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "設定の名前 (環境変数の名前、切り替えのキー)"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "env",
+                      "feature_flag",
+                      "config_file",
+                      "remote",
+                      "other"
+                    ],
+                    "description": "設定の種類。env = 環境変数、feature_flag = 機能の切り替え、config_file = 設定ファイルの値、remote = 実行時に外から取る設定"
+                  },
+                  "effect": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "この設定で、動きがどう変わるか"
+                  },
+                  "status": true,
+                  "evidence": true,
+                  "reason": true,
+                  "note": true
+                },
+                "additionalProperties": false
+              },
+              {
+                "if": {
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "fact",
+                        "interpretation"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "effect"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "rules": {
+          "type": "array",
+          "description": "この段にある業務のルール (計算式、入力の検証、判定の条件)。根拠は、式や条件の行。unknown でなければ、value を必ず書く",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/claim_base"
+              },
+              {
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "calculation",
+                      "validation",
+                      "decision"
+                    ],
+                    "description": "calculation = 計算、validation = 入力や状態の検証、decision = 処理を分ける判定"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ルールの内容 (1 文)。unknown のときは省く"
+                  },
+                  "status": true,
+                  "evidence": true,
+                  "reason": true,
+                  "note": true
+                },
+                "additionalProperties": false
+              },
+              {
+                "if": {
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "fact",
+                        "interpretation"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "tests": {
+          "type": "array",
+          "description": "この段 (関数やスクリプト) を直接呼ぶテスト。根拠は、テストの行。作業定義の analysis.tests が true のときだけ書く",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/claim_base"
+              },
+              {
+                "required": [
+                  "name",
+                  "kind"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "テストの名前 (関数名、ケース名)"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "unit",
+                      "integration",
+                      "e2e"
+                    ],
+                    "description": "unit = 単体、integration = 結合、e2e = 画面や入口を通す"
+                  },
+                  "status": true,
+                  "evidence": true,
+                  "reason": true,
+                  "note": true
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
         }
       }
     },
@@ -399,6 +664,45 @@
               "type": "string",
               "description": "列・キー・メソッドなど、段より細かい情報"
             },
+            "fields": {
+              "type": "array",
+              "minItems": 1,
+              "description": "この読み書きが触る列 (RDB の列、KVS やファイルの中の項目、外部 API の項目)。分からなければ書かない。全部の列を触るときは name に * を書く",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "use"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "列の名前。データの側の名前で書く (ORM の属性名ではなく、分かるなら実際の列名)。全部の列は *"
+                  },
+                  "use": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "read",
+                        "write",
+                        "filter"
+                      ]
+                    },
+                    "description": "使い方。read = 値を読む、write = 値を書く、filter = 絞り込み・結合・並べ替えの条件に使う"
+                  },
+                  "set_to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "書く値が決まっているときの値 (状態の列に書く値など)。use に write があるときだけ書ける"
+                  }
+                }
+              }
+            },
             "status": true,
             "evidence": true,
             "reason": true,
@@ -409,19 +713,84 @@
       ]
     },
     "call_claim": {
-      "description": "呼び出しが成立していることの主張 (項目は claim_base のものだけ)",
+      "description": "呼び出しが成立していることの主張。when は、その呼び出しがいつ起きるか",
       "allOf": [
         {
           "$ref": "#/$defs/claim_base"
         },
         {
           "properties": {
+            "when": {
+              "type": "string",
+              "enum": [
+                "always",
+                "conditional",
+                "on_failure"
+              ],
+              "description": "always = 呼び出し元が動けば必ず呼ぶ、conditional = 条件を満たすときだけ呼ぶ、on_failure = 呼び出し元の処理が失敗したときだけ呼ぶ (例外の処理、失敗の通知、後片付け、やり直し)。無いときは、分析していない"
+            },
+            "condition": {
+              "type": "string",
+              "minLength": 1,
+              "description": "conditional と on_failure のときの条件 (1 文)。always のときは書かない"
+            },
             "status": true,
             "evidence": true,
             "reason": true,
             "note": true
           },
           "additionalProperties": false
+        },
+        {
+          "if": {
+            "required": [
+              "when"
+            ],
+            "properties": {
+              "when": {
+                "enum": [
+                  "conditional",
+                  "on_failure"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "condition"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "when"
+            ],
+            "properties": {
+              "when": {
+                "const": "always"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "condition"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "condition"
+            ]
+          },
+          "then": {
+            "required": [
+              "when"
+            ]
+          }
         }
       ]
     }

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suwa-sh/as-built-atlas/schema/data-dictionary.schema.json",
+  "title": "データの辞書 (analysis/data-dictionary.yaml)",
+  "description": "分析結果に出てきた列 (データと、その中の列) ごとの区分。区分は分析結果には書かず、ここに 1 回だけ書く (同じ列の区分が、入口ごとにぶれないように)。abatlas dictionary が、分析結果に出てきた列を candidate として足す。エージェントが区分の案を書き、人が status を approved にする。集計は、approved の行だけを使う。",
+  "type": "object",
+  "required": ["format_version", "fields"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": 1 },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["resource", "field", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "resource": { "type": "string", "pattern": "^/[^/]+(/.+)?$", "description": "データを 1 本のパスにしたもの (/ + データの種類 + 分かっている段の値。例: /rdb/db.internal/postgresql/shop/public/customers)。集計表の resource_path と同じ" },
+          "field": { "type": "string", "minLength": 1, "description": "列の名前 (分析結果の io[].fields[].name と同じ綴り)" },
+          "category": { "type": "string", "minLength": 1, "description": "区分。schema/vocab/data-categories.yaml の key。無いときは、まだ区分していない" },
+          "status": { "type": "string", "enum": ["candidate", "approved"], "description": "candidate = 案 (集計に使わない)、approved = 人が確かめた" },
+          "note": { "type": "string", "minLength": 1, "description": "区分の理由や、迷った点" }
+        }
+      }
+    }
+  }
+}

@@ -20,6 +20,7 @@ SCHEMA_FILES = {
     "profile": "profile.schema.json",
     "work-definition": "work-definition.schema.json",
     "review": "review.schema.json",
+    "data-dictionary": "data-dictionary.schema.json",
 }
 
 

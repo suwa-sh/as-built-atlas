@@ -40,7 +40,19 @@ callstack:
     caller: flow
     call:
       status: fact
+      when: always
       evidence: [{ file: flows/daily/housekeeping.yaml, line: 57 }]
+    settings:
+      - name: KEEP_DAYS
+        kind: env
+        effect: 何日より古いファイルを消すか
+        status: fact
+        evidence: [{ file: scripts/housekeeping.sh, line: 1 }]
+    rules:
+      - kind: decision
+        value: 1 つでも失敗した掃除があれば、全体を失敗にする
+        status: interpretation
+        evidence: [{ file: scripts/housekeeping.sh, line: 1 }]
     summary:
       status: interpretation
       value: housekeeping.d/ のスクリプトを名前順に実行し、RESULT 行を集めて exit code を決める
@@ -59,7 +71,14 @@ callstack:
     caller: flow
     call:
       status: fact
+      when: on_failure
+      condition: 掃除のスクリプトが 0 以外で終わったとき
       evidence: [{ file: flows/daily/housekeeping.yaml, line: 62 }]
+    links:
+      - kind: trigger
+        target: daily.report
+        status: fact
+        evidence: [{ file: flows/lib/notify.yaml, line: 1 }]
   - id: notify_py
     layer: program
     kind: script
@@ -90,4 +109,7 @@ callstack:
         status: unknown
         reason: not_traceable_in_repo
         resource: { kind: rdb, levels: { database: ops_logs, table: job_runs } }
+        fields:
+          - { name: status, use: [write], set_to: done }
+          - { name: finished_at, use: [write] }
         note: 接続先 host は環境変数 DB_URL で、リポジトリに値が無い

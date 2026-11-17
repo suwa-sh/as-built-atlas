@@ -39,6 +39,25 @@ def _resolve_scope(work_or_target: dict, base: Path) -> Path | None:
     return scope
 
 
+def tests_flag_problems(result: dict, frame: dict) -> list[str]:
+    """テスト (tests) は、analyzer.tests が true の結果だけが持てる。ETL も同じ検査をする (印が無いと、テストの表から黙って消えるため)。"""
+    if frame.get("tests") and not result["analyzer"].get("tests"):
+        return ["tests: analyzer.tests が true でないのに、テストが書かれている (作業定義の analysis.tests が true のときだけ分析する)"]
+    return []
+
+
+def field_problems(io: dict) -> list[str]:
+    """I/O の列 (fields) の検査: 同じ列を 2 回書かない。set_to は、use に write があるときだけ。ETL も同じ検査をする (列の表の行が重ならないように)。"""
+    out = []
+    names = [fl["name"] for fl in io.get("fields", [])]
+    for n in sorted({n for n in names if names.count(n) > 1}):
+        out.append(f"fields: 列 '{n}' が 2 回書かれている (使い方は use にまとめる)")
+    for fl in io.get("fields", []):
+        if "set_to" in fl and "write" not in fl["use"]:
+            out.append(f"fields/{fl['name']}: set_to は、use に write があるときだけ書ける")
+    return out
+
+
 def kind_ops(kinds: dict, kind: str) -> list[str]:
     """種類ごとに使える操作の id (語彙の並び順)。"""
     return [o["id"] for o in kinds.get(kind, {}).get("ops", [])]
@@ -252,6 +271,9 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
     - caller の参照が解決し、全フレームが入口から到達でき、循環が無い
     - 葉のフレームは boundary 層か、I/O を持つか、unknown の主張を持つ
     - unknown の reason が語彙にあるか。データの種類・段の名前・操作 (op) が語彙にあり、層が io を宣言していればその種類に含まれるか
+    - つながり・権限の確認・設定・業務のルール・テスト (フレームの links / guards / settings / rules / tests) の主張も、同じ検査を通す
+    - I/O の列 (fields) は、同じ名前を 2 回書かない。set_to は、use に write があるときだけ
+    - テスト (tests) は、analyzer.tests が true の結果だけが持てる
     - 根拠のファイルが scope 内に実在し、行番号が行数を超えないか (scope_dir を渡したときだけ)
 
     層の順序 (連鎖の向き) は検査しない: program → shell のような逆向きの呼び出しは実在する。
@@ -340,6 +362,12 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
             check_claim(f"{w}/summary", f["summary"])
         for i, p in enumerate(f.get("parameters", [])):
             check_claim(f"{w}/parameters/{i}", p)
+        for name in ("links", "guards", "settings", "rules", "tests"):
+            for i, c in enumerate(f.get(name, [])):
+                check_claim(f"{w}/{name}/{i}", c)
+        if f.get("caller") is None and (f.get("call") or {}).get("when"):
+            findings.append(f"{w}/call: 入口のフレームは呼び出し元が無いので、when を書けない")
+        findings.extend(f"{w}/{p}" for p in tests_flag_problems(result, f))
         layer_io = layers.get(f["layer"], {}).get("io") if layers else None
         for i, io in enumerate(f.get("io", [])):
             iw = f"{w}/io/{i}"
@@ -355,6 +383,7 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
                 ops = kind_ops(kinds, kind)
                 if io["op"] not in ops:
                     findings.append(f"{iw}: 操作 '{io['op']}' は {kind} では使えない (使えるのは {ops})")
+            findings.extend(f"{iw}/{p}" for p in field_problems(io))
             if layer_io is not None and kind not in layer_io:
                 findings.append(f"{iw}: 層 '{f['layer']}' は io に '{kind}' を宣言していない (プロファイルの layers[].io: {layer_io})")
 

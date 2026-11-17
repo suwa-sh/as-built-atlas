@@ -165,6 +165,10 @@ def main(argv=None) -> int:
     mg.add_argument("repo")
     mg.add_argument("--dry-run", action="store_true", help="書き換えずに、書き換わるファイルと、書き換えられないファイルを出す")
 
+    dc = sub.add_parser("dictionary", help="分析結果に出てきた列を、データの辞書 (analysis/data-dictionary.yaml) に candidate で足す (区分は決めない)")
+    dc.add_argument("repo")
+    dc.add_argument("--dry-run", action="store_true", help="書かずに、数だけ出す")
+
     t = sub.add_parser("etl", help="entry-list と results/*.yaml を seed CSV に分解する")
     t.add_argument("analysis_repo")
     t.add_argument("--out", required=True)
@@ -275,6 +279,12 @@ def main(argv=None) -> int:
             lines, rc = migrate_repo(Path(a.repo), a.dry_run)
             print("\n".join(lines))
             return rc
+        if a.cmd == "dictionary":
+            from .dictionary import update_dictionary
+
+            rep = update_dictionary(Path(a.repo), a.dry_run)
+            print("dictionary: " + ", ".join(f"{k}={v}" for k, v in rep.items()))
+            return 0
         if a.cmd == "etl":
             counts = run_etl(Path(a.analysis_repo), Path(a.out))
             print("etl: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
