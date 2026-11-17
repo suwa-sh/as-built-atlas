@@ -389,3 +389,25 @@ def test_unreached_files_are_the_ones_no_result_mentions(built: Path):
     assert unreached == set(files) - mentioned
     assert "README.md" in unreached and "scripts/run_job.sh" not in unreached
     assert target_files(None) == [] and target_files(built / "no-such-dir") == [], "対象が読めなければ、空 (集計は止めない)"
+
+
+def test_data_links_pair_writers_with_other_readers(built: Path):
+    """データを介したつながり: 書く入口と読む入口が別にあるデータ。YAML から数え直して突き合わせる。"""
+    out_ops = {(k, o["id"]) for k, v in vocab("resource-kinds")["kinds"].items() for o in v["ops"] if o["direction"] == "out"}
+    writers: dict[tuple, set[str]] = {}
+    readers: dict[tuple, set[str]] = {}
+    for p in RESULTS.glob("*.yaml"):
+        d = yaml.safe_load(p.read_text(encoding="utf-8"))
+        for f in d["callstack"]:
+            for io in f.get("io", []):
+                kind = io["resource"]["kind"]
+                if kind == "external_api":
+                    continue
+                levels = io["resource"].get("levels", {})
+                path = "/" + "/".join([kind] + [levels[lv] for lv in vocab("resource-kinds")["kinds"][kind]["levels"] if lv in levels])
+                (writers if (kind, io["op"]) in out_ops else readers).setdefault((kind, path), set()).add(d["entry"]["id"])
+    expected = {k: (len(writers[k]), len(readers[k])) for k in writers.keys() & readers.keys()
+                if any(w != r for w in writers[k] for r in readers[k])}
+    with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
+        rows = con.execute("select kind, resource_path, writer_count, reader_count from mart.mart_data_links").fetchall()
+    assert {(k, p): (w, r) for k, p, w, r in rows} == expected and expected
