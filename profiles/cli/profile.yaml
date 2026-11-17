@@ -1,0 +1,52 @@
+# プロファイル: コマンドラインの道具 (コマンド → 処理 → データや外部とのやり取り → 外部のコマンド・ライブラリ)
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: cli
+version: "0.1.0"
+label: "Command-line tool (command → logic → adapter → {datastore})"
+
+# 層は、役割で分ける (言語や、フォルダの名前では分けない)。対象のフォルダと層の対応は、分析リポジトリの analysis-conventions.md に書く
+layers:
+  - id: command
+    tier: interface
+    label: command (executable、subcommand)
+    role: entry
+    stack: [bash, sh, Python, Go, Node.js]
+    invokes_next: "コマンドの本体。起動用の薄いスクリプト (本体を exec するだけ) は、入口のフレームにまとめる。引数を解釈して、処理 (logic) を選んで呼ぶ"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]   # 小さなスクリプトは、入口のファイルで直接読み書きする
+  - id: logic
+    tier: core
+    label: logic (procedure、business rule)
+    stack: [bash functions, modules]
+    invokes_next: "ほかの処理 (logic) と、データや外部とのやり取りを受け持つコード (adapter) の呼び出し。source したファイルの関数、import したモジュール、別のスクリプトの起動を含む"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]   # やり取りを分けていない作りでは、ここで直接読み書きする
+  - id: adapter
+    tier: edge
+    label: adapter (repository、gateway、client wrapper)
+    stack: [repository, gateway, client wrapper]
+    invokes_next: "外部のコマンド (psql、ssh、curl、aws など)、ライブラリ、SDK の呼び出し (ここから先は boundary)"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+  - id: external
+    tier: edge
+    label: external command / library (boundary)
+    role: boundary
+    stack: [psql, ssh, curl, jq, SDK]
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+
+hierarchy:
+  level_labels: [group+, command]   # 最後の段が、起動できる操作 (コマンド、サブコマンド、モード)。それより前は、まとまり (部品、パッケージ。サブコマンドに分けたときは、実行ファイルの名前も)
+  derivation: "実行ファイルの置き場を '/' で区切って段にする。`bin` のような、置き場を表すだけのフォルダは落とす。拡張子は落とす。サブコマンドやモードは、実行ファイルの名前の下の段にする (例: /tool/user/add。このとき、実行ファイルの名前は、まとまりの段になる)"
+
+extractors:
+  - name: executables
+    run: abatlas-extract glob
+    layer: command
+    hint: "実行ファイルの置き場に合わせる (`bin/*`、`*/bin/*.sh`、`cmd/*/main.go`、`scripts/*.sh` など)。テスト用・開発用のスクリプトを入口にしたくなければ exclude に足す。サブコマンドがコードの中で定義されている (argparse の add_parser、cobra の Command、case 文) ときは、この抽出器では取れないので、ast の抽出器を足すか、読んで listed で足す (context.md)"
+    params:
+      files: ["bin/*", "*/bin/*"]
+      segments:
+        drop_last: false
+        drop: ["bin"]
+        replace:
+          - { pattern: "\\.(sh|bash|py|js|ts|rb|pl)$", with: "" }
+      line_match: "^[^#\\s]"

@@ -39,7 +39,7 @@ machine_check: ok | ng
 findings:
   - kind: evidence_mismatch | status_mismatch | reason_mismatch | avoidable_unknown | resource_mismatch | classification_mismatch | missing_frame | missing_item | machine_check
     severity: high | medium | low
-    where: callstack/<frame id>/io/0      # YAML 内の場所。ほかの形: summary (入口の概要)、callstack/<frame id>/call、callstack/<frame id>/summary、callstack/<frame id>/parameters/0、callstack/<frame id>/links/0 (guards / settings / rules / tests も同じ形)、callstack/<frame id>/io/0/fields
+    where: callstack/<frame id>/io/0      # YAML 内の場所。項目が無い、という指摘 (書き漏れ) は、それが入るはずの親を指す (例: フレームに io が 1 つも無いなら callstack/<frame id>)。ほかの形: summary (入口の概要)、callstack/<frame id>/call、callstack/<frame id>/summary、callstack/<frame id>/parameters/0、callstack/<frame id>/links/0 (guards / settings / rules / tests も同じ形)、callstack/<frame id>/io/0/fields
     claim: "<何が問題か 1 文>"
     evidence: { file: <対象の file>, line: <行> }
     suggestion: "<直し方 1 文>"

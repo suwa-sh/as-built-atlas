@@ -269,7 +269,7 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
     - schema (claim の status と evidence / reason の組み合わせを含む)
     - 入口フレーム (caller: null) がちょうど 1 つで、entry.layer と同じ層、かつ role: entry
     - caller の参照が解決し、全フレームが入口から到達でき、循環が無い
-    - 葉のフレームは boundary 層か、I/O を持つか、unknown の主張を持つ
+    - 葉のフレームは boundary 層か、I/O か業務のルールを持つか、unknown の主張を持つ
     - unknown の reason が語彙にあるか。データの種類・段の名前・操作 (op) が語彙にあり、層が io を宣言していればその種類に含まれるか
     - つながり・権限の確認・設定・業務のルール・テスト (フレームの links / guards / settings / rules / tests) の主張も、同じ検査を通す
     - I/O の列 (fields) は、同じ名前を 2 回書かない。set_to は、use に write があるときだけ
@@ -401,14 +401,14 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
             if f["id"] in callers:
                 continue
             layer = layers.get(f["layer"], {})
-            if layer.get("role") == "boundary" or f.get("io"):
-                continue
+            if layer.get("role") == "boundary" or f.get("io") or f.get("rules"):
+                continue  # 業務のルールを持つフレームは、読み書きも外部の呼び出しも無くても終端になれる (純粋な判定や計算の関数)
             unknown_leaf = any((f.get(k) or {}).get("status") == "unknown" for k in ("call", "summary")) or any(
                 p.get("status") == "unknown" for p in f.get("parameters", [])
             )
             if not unknown_leaf:
                 findings.append(
-                    f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
+                    f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も業務のルールも unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
                 )
     return findings
 

@@ -128,3 +128,14 @@ def test_old_field_names_are_rejected(profile, result):
     p["layers"][0]["zone"] = "x"
     assert validate_profile(p)
     assert any("origin" in x for x in check_declaration("m", {"tier": "core", "view": "stat", "level": "path", "keys": {"value": "n"}}, {"n"}))
+
+
+def test_a_leaf_with_business_rules_is_allowed(profile, result):
+    """読み書きも外部の呼び出しもしない、判定や計算だけの関数は、業務のルールを書けば終端になれる。"""
+    r = copy.deepcopy(result)
+    leaf = {"id": "decide", "layer": "program", "kind": "function", "name": "decide_exit_code", "source": {"file": "scripts/housekeeping.sh", "line": 1},
+            "caller": "run_sh", "call": {"status": "fact", "when": "always", "evidence": [{"file": "scripts/housekeeping.sh", "line": 1}]}}
+    r["callstack"].append(leaf)
+    assert any("decide" in f and "終端" in f for f in validate_analysis_result(r, profile))
+    leaf["rules"] = [{"kind": "decision", "value": "1 つでも失敗があれば 1 で終わる", "status": "fact", "evidence": [{"file": "scripts/housekeeping.sh", "line": 1}]}]
+    assert validate_analysis_result(r, profile) == []
