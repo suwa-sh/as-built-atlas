@@ -334,13 +334,14 @@ callstack:
     evidence:
     - {file: 'src/app/api/websites/[websiteId]/funnels/route.ts', line: 15}
   guards:
-  - kind: permission
-    value: "ログインユーザーがいないとき: shareToken がそのサイトを含み、shareToken.parameters の区画 (この受け口では funnels) が true (区画の指定が 1 つも無ければ許す)"
+  - kind: other
+    value: "canViewWebsiteSection"
     status: fact
     evidence:
     - {file: src/permissions/share.ts, line: 64}
     - {file: src/permissions/share.ts, line: 73}
     - {file: src/permissions/share.ts, line: 77}
+    note: "ログインユーザーがいないとき: shareToken がそのサイトを含み、shareToken.parameters の区画 (この受け口では funnels) が true (区画の指定が 1 つも無ければ許す)"
   summary:
     status: interpretation
     value: "ログインユーザーがいれば canViewWebsite に任せる。共有トークンだけのときは、トークンがそのサイトを含み、区画 (funnels や events など) が許されているかを、トークンの中身だけで決める (データは読まない)。満たさなければ、受け口が 401 を返す。stats・event-data/properties・event-data/values・values の受け口と canViewReport も同じ関数を呼ぶ"
@@ -365,26 +366,29 @@ callstack:
     - {file: src/permissions/share.ts, line: 59}
   guards:
   - kind: role
-    value: "user.isAdmin (role が admin) なら許す"
+    value: "user.isAdmin"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 9}
     - {file: src/lib/auth.ts, line: 137}
+    note: "user.isAdmin (role が admin) なら許す"
   - kind: other
-    value: "shareToken がその id (websiteId / pixelId / linkId) を含めば許す"
+    value: "canViewWebsite"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 13}
     - {file: src/permissions/website.ts, line: 14}
     - {file: src/permissions/website.ts, line: 21}
+    note: "shareToken がその id (websiteId / pixelId / linkId) を含めば許す"
   - kind: ownership
-    value: "持ち主がユーザーなら user.id === entity.userId。チームの持ち物 (entity.teamId) なら、そのチームの team_user に本人がいる"
+    value: "canViewWebsite"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 26}
     - {file: src/permissions/website.ts, line: 31}
     - {file: src/permissions/website.ts, line: 35}
     - {file: src/permissions/website.ts, line: 37}
+    note: "持ち主がユーザーなら user.id === entity.userId。チームの持ち物 (entity.teamId) なら、そのチームの team_user に本人がいる"
   summary:
     status: interpretation
     value: "管理者か、共有トークンがサイトを含めば許す。そうでなければ getEntity で id に当たるもの (website / link / pixel / board) を読み、持ち主が本人なら許す。チームの持ち物なら、getTeamUser で team_user に本人がいるかを見る。canViewSharedWebsite と canViewSharedWebsiteFilters も同じ関数を呼ぶ"
@@ -873,11 +877,12 @@ callstack:
     - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 18}
   guards:
   - kind: other
-    value: "ログインユーザーがいないとき: shareToken がそのサイトを含む"
+    value: "canViewSharedWebsite"
     status: fact
     evidence:
     - {file: src/permissions/share.ts, line: 85}
     - {file: src/permissions/share.ts, line: 44}
+    note: "ログインユーザーがいないとき: shareToken がそのサイトを含む"
   summary:
     status: interpretation
     value: "ログインユーザーがいれば canViewWebsite に任せる。共有トークンだけのときは、トークンがそのサイトを含むかだけで決める (データは読まない)。満たさなければ、受け口が 401 を返す"
@@ -1149,10 +1154,11 @@ callstack:
     - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 20}
   guards:
   - kind: other
-    value: "ログインユーザーがいないとき: shareToken がそのサイトを含み、shareToken.parameters.allowFilter が false でない"
+    value: "canViewSharedWebsiteFilters"
     status: fact
     evidence:
     - {file: src/permissions/share.ts, line: 98}
+    note: "ログインユーザーがいないとき: shareToken がそのサイトを含み、shareToken.parameters.allowFilter が false でない"
   summary:
     status: interpretation
     value: "ログインユーザーがいれば canViewWebsite に任せる。共有トークンだけのときは、トークンがそのサイトを含み、絞り込みを禁じていないかで決める (データは読まない)。満たさなければ、受け口が 401 を返す"
@@ -1394,30 +1400,27 @@ callstack:
     evidence:
     - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 61}
   guards:
-  - kind: authentication
-    status: fact
-    evidence:
-    - {file: src/permissions/website.ts, line: 133}
-    - {file: src/permissions/website.ts, line: 134}
-    note: "ログインユーザーがいなければ (共有トークンだけなら) 拒む"
   - kind: role
-    value: "user.isAdmin (role が admin) なら許す"
+    value: "user.isAdmin"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 137}
+    note: "user.isAdmin (role が admin) なら許す。この確認の前に、ログインユーザーがいなければ (共有トークンだけなら) 拒む"
   - kind: ownership
-    value: "サイトの持ち主がユーザーなら user.id === website.userId"
+    value: "canUpdateWebsite"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 147}
     - {file: src/permissions/website.ts, line: 148}
+    note: "サイトの持ち主がユーザーなら user.id === website.userId"
   - kind: permission
-    value: "チームのサイトなら、team_user の role が website:update (PERMISSIONS.websiteUpdate) を持つ"
+    value: "PERMISSIONS.websiteUpdate"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 152}
     - {file: src/permissions/website.ts, line: 154}
     - {file: src/lib/constants.ts, line: 194}
+    note: "チームのサイトなら、team_user の role が website:update (PERMISSIONS.websiteUpdate) を持つ"
   summary:
     status: interpretation
     value: "ログインユーザーでなければ拒み、管理者なら許す。getWebsite でサイトを読み、持ち主が本人なら許す。チームのサイトなら、getTeamUser で本人の役割を読み、サイトの更新の権限があるかで決める。満たさなければ、受け口が 401 を返す。getTeamUser も呼ぶ。経路はフレーム q_get_team_user と同じ。POST …/funnels と canUpdateReport も同じ関数を呼ぶ"
@@ -2743,15 +2746,17 @@ callstack:
     - {file: 'src/app/api/websites/[websiteId]/funnels/[funnelId]/stats/route.ts', line: 18}
   guards:
   - kind: role
-    value: "auth.user.isAdmin (role が admin) なら許す"
+    value: "user.isAdmin"
     status: fact
     evidence:
     - {file: src/permissions/report.ts, line: 32}
+    note: "auth.user.isAdmin (role が admin) なら許す"
   - kind: ownership
-    value: "auth.user.id === report.userId (report の作成者) なら許す"
+    value: "canViewReport"
     status: fact
     evidence:
     - {file: src/permissions/report.ts, line: 36}
+    note: "auth.user.id === report.userId (report の作成者) なら許す"
   summary:
     status: interpretation
     value: "管理者か、report の作成者なら許す。そうでなければ report の種類から区画を決め (funnel → funnels)、canViewWebsiteSection に任せる。区画が無い種類のときだけ canViewWebsite を直接呼ぶが、funnel は区画を持つので、この画面では通らない。満たさなければ、受け口が 401 を返す。GET …/funnels/[funnelId] も同じ関数を呼ぶ"
@@ -3200,22 +3205,18 @@ callstack:
     evidence:
     - {file: 'src/app/api/websites/[websiteId]/funnels/[funnelId]/route.ts', line: 48}
   guards:
-  - kind: authentication
-    status: fact
-    evidence:
-    - {file: src/permissions/report.ts, line: 66}
-    - {file: src/permissions/report.ts, line: 67}
-    note: "ログインユーザーがいなければ (共有トークンだけなら) 拒む"
   - kind: role
-    value: "auth.user.isAdmin (role が admin) なら許す"
+    value: "user.isAdmin"
     status: fact
     evidence:
     - {file: src/permissions/report.ts, line: 70}
+    note: "auth.user.isAdmin (role が admin) なら許す。この確認の前に、ログインユーザーがいなければ (共有トークンだけなら) 拒む"
   - kind: ownership
-    value: "auth.user.id === report.userId (report の作成者) なら許す"
+    value: "canDeleteReport"
     status: fact
     evidence:
     - {file: src/permissions/report.ts, line: 74}
+    note: "auth.user.id === report.userId (report の作成者) なら許す"
   summary:
     status: interpretation
     value: "ログインユーザーでなければ拒む。管理者か、report の作成者なら許す。そうでなければ canDeleteWebsite に任せる。満たさなければ、受け口が 401 を返す"
@@ -3237,30 +3238,27 @@ callstack:
     evidence:
     - {file: src/permissions/report.ts, line: 78}
   guards:
-  - kind: authentication
-    status: fact
-    evidence:
-    - {file: src/permissions/website.ts, line: 161}
-    - {file: src/permissions/website.ts, line: 162}
-    note: "ログインユーザーがいなければ拒む"
   - kind: role
-    value: "user.isAdmin (role が admin) なら許す"
+    value: "user.isAdmin"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 165}
+    note: "user.isAdmin (role が admin) なら許す。この確認の前に、ログインユーザーがいなければ拒む"
   - kind: ownership
-    value: "サイトの持ち主がユーザーなら user.id === website.userId"
+    value: "canDeleteWebsite"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 175}
     - {file: src/permissions/website.ts, line: 176}
+    note: "サイトの持ち主がユーザーなら user.id === website.userId"
   - kind: permission
-    value: "チームのサイトなら、team_user の role が website:delete (PERMISSIONS.websiteDelete) を持つ"
+    value: "PERMISSIONS.websiteDelete"
     status: fact
     evidence:
     - {file: src/permissions/website.ts, line: 180}
     - {file: src/permissions/website.ts, line: 182}
     - {file: src/lib/constants.ts, line: 195}
+    note: "チームのサイトなら、team_user の role が website:delete (PERMISSIONS.websiteDelete) を持つ"
   summary:
     status: interpretation
     value: "getWebsite でサイトを読み、持ち主が本人なら許す。チームのサイトなら、getTeamUser で本人の役割を読み、サイトの削除の権限があるかで決める。getTeamUser も呼ぶ。経路はフレーム q_get_team_user と同じ"
@@ -3583,22 +3581,18 @@ callstack:
     evidence:
     - {file: 'src/app/api/websites/[websiteId]/funnels/[funnelId]/route.ts', line: 29}
   guards:
-  - kind: authentication
-    status: fact
-    evidence:
-    - {file: src/permissions/report.ts, line: 50}
-    - {file: src/permissions/report.ts, line: 51}
-    note: "ログインユーザーがいなければ (共有トークンだけなら) 拒む"
   - kind: role
-    value: "auth.user.isAdmin (role が admin) なら許す"
+    value: "user.isAdmin"
     status: fact
     evidence:
     - {file: src/permissions/report.ts, line: 54}
+    note: "auth.user.isAdmin (role が admin) なら許す。この確認の前に、ログインユーザーがいなければ (共有トークンだけなら) 拒む"
   - kind: ownership
-    value: "auth.user.id === report.userId (report の作成者) なら許す"
+    value: "canUpdateReport"
     status: fact
     evidence:
     - {file: src/permissions/report.ts, line: 58}
+    note: "auth.user.id === report.userId (report の作成者) なら許す"
   summary:
     status: interpretation
     value: "ログインユーザーでなければ拒む。管理者か、report の作成者なら許す。そうでなければ canUpdateWebsite に任せる。満たさなければ、受け口が 401 を返す"

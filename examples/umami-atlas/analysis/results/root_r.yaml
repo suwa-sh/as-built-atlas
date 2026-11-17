@@ -1,0 +1,97 @@
+format_version: 1
+entry:
+  id: root_r
+  path: /(root)
+  name: "(root)"
+  layer: page
+  source: { file: src/app/page.tsx, line: 7 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:17:46Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T15:17:14Z"
+    findings_open: 0
+notes: "(1) データに届かない画面なので、プロファイルの決まりのとおり、入口のフレームから、最後に頼るライブラリ (next/navigation のルーター) を external のフレームとして 1 つ書いて閉じた。I/O は無い。(2) router.replace は if (page.tsx:14) と else (page.tsx:16) の 2 行にあるが、どちらか一方が必ず動くので、external のフレームは 1 つにまとめ (source は先に出てくる :14)、call は always にした。行ごとに conditional のフレームを 2 つ書いても終端の決まりは満たせるが、行き先の違いは links が持つので、小さい木にした。(3) 前回のチームを localStorage (umami.last-team) から読む処理は、ブラウザの中の保存なので、context.md の決まりのとおり I/O に書かず、summary に書いた。値を書くのは、枠 (src/app/(main)/App.tsx:30) で、この入口では辿らない。(4) links の 1 件目の target は、コードの文字列のとおり /teams/${lastTeam}/websites にした (boards.create の結果がチームの接頭辞を note に回しているのは、renderUrl が付け足す接頭辞だから。ここでは文字列そのものに含まれる)。next.config の rewrites が /teams/:teamId/:path* を /:path* へ回すので、入口は websites。(5) 書かなかったもの: settings (BASE_PATH は、ルーターが URL の前に付けるだけで、行き先の入口も動きも変えない。boards.create と同じ扱い)、guards (確認は無い。ログインの確認は枠の側)、rules (前回のチームの有無による分かれ道は、ブラウザの保存による移動先の選び分けで、業務のデータによる判定ではなく、links の 2 件と note で表している)。(6) 作業定義に analysis.tests が無いので、tests は書いていない。(7) レビューの指摘は low が 1 件 (入口の summary の根拠に、localStorage を読む行 storage.ts:9 が無い) で、根拠を足して直した"
+summary:
+  status: interpretation
+  value: "アプリの最上位の URL (/) の画面。ブラウザ側で動き、何も描かない (null を返す)。描画の後に、前回選んだチームの id をブラウザの localStorage (umami.last-team) から読み、あればそのチームのウェブサイトの一覧 (/teams/<lastTeam>/websites) へ、無ければウェブサイトの一覧 (/websites) へ router.replace で転送するだけ。データを読まない・書かない"
+  evidence:
+    - { file: src/app/page.tsx, line: 1 }
+    - { file: src/app/page.tsx, line: 11 }
+    - { file: src/app/page.tsx, line: 13 }
+    - { file: src/app/page.tsx, line: 14 }
+    - { file: src/app/page.tsx, line: 16 }
+    - { file: src/app/page.tsx, line: 20 }
+    - { file: src/lib/constants.ts, line: 9 }
+    - { file: src/lib/storage.ts, line: 9 }
+callstack:
+  - id: page
+    layer: page
+    kind: page
+    name: "RootPage (src/app/page.tsx)"
+    source: { file: src/app/page.tsx, line: 7 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。next/navigation の useRouter を取り、useEffect の中で getItem(LAST_TEAM_CONFIG) により localStorage の umami.last-team を読む (JSON として解く)。値があれば /teams/${lastTeam}/websites へ、無ければ /websites へ router.replace で移る。画面には何も描かない (null を返す)。URL のパラメータは無い。localStorage の値は、枠の App がチームの URL を開いたときに書き、チームの URL でなければ消す"
+      evidence:
+        - { file: src/app/page.tsx, line: 1 }
+        - { file: src/app/page.tsx, line: 8 }
+        - { file: src/app/page.tsx, line: 10 }
+        - { file: src/app/page.tsx, line: 11 }
+        - { file: src/app/page.tsx, line: 13 }
+        - { file: src/app/page.tsx, line: 20 }
+        - { file: src/lib/storage.ts, line: 7 }
+        - { file: src/lib/storage.ts, line: 9 }
+        - { file: src/lib/constants.ts, line: 9 }
+        - { file: "src/app/(main)/App.tsx", line: 30 }
+        - { file: "src/app/(main)/App.tsx", line: 32 }
+    links:
+      - kind: navigate
+        target: "/teams/${lastTeam}/websites"
+        entry_id: websites
+        status: fact
+        evidence:
+          - { file: src/app/page.tsx, line: 13 }
+          - { file: src/app/page.tsx, line: 14 }
+          - { file: next.config.ts, line: 253 }
+          - { file: next.config.ts, line: 254 }
+        note: "localStorage に前回のチーム (umami.last-team) があるとき。next.config の rewrites が /teams/:teamId/:path* を /:path* へ回すので、/websites の画面が開く"
+      - kind: navigate
+        target: "/websites"
+        entry_id: websites
+        status: fact
+        evidence:
+          - { file: src/app/page.tsx, line: 13 }
+          - { file: src/app/page.tsx, line: 16 }
+        note: "localStorage に前回のチームが無いとき"
+
+  - id: ext_router_replace
+    layer: external
+    kind: library
+    name: "next/navigation (useRouter の router.replace)"
+    source: { file: src/app/page.tsx, line: 14 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/page.tsx, line: 2 }
+        - { file: src/app/page.tsx, line: 8 }
+        - { file: src/app/page.tsx, line: 14 }
+        - { file: src/app/page.tsx, line: 16 }
+      note: "useEffect の中の if (page.tsx:14) と else (page.tsx:16) の両方で router.replace を呼ぶので、どちらか一方が必ず動く。行き先の違いは、page のフレームの links に書いた"
+    summary:
+      status: interpretation
+      value: "Next.js のルーター。いまの履歴の項目を置き換えて、渡された URL (/teams/${lastTeam}/websites か /websites) の画面へ移る。データには触れない"
+      evidence:
+        - { file: src/app/page.tsx, line: 14 }
+        - { file: src/app/page.tsx, line: 16 }

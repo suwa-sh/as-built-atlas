@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: websites.websiteId_d.modal_s.replays.sessionId_d
+reviewed_at: "2026-11-17T16:05:17Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_can_update_website/guards/2
+    claim: "PERMISSIONS.websiteUpdate の確認は website.ts 154 行に hasPermission(teamUser.role, PERMISSIONS.websiteUpdate) とそのまま書いてあるのに interpretation になっている。同じ結果の canDeleteWebsite の PERMISSIONS.websiteDelete (website.ts 182 行、同じ書き方) は fact で、食い違っている"
+    evidence: { file: src/permissions/website.ts, line: 154 }
+    suggestion: "status を fact にする (値は定数の名前で、根拠の行に直接書いてある)"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/api_session_get/rules/0
+    claim: "distinct ID の決め方のルールに、session_link に結び付きが 1 つも無いときはセッション自身の distinct_id (data.distinctId) を候補に使う、という分かれ道が書かれていない。いまの value は session_link の結び付きだけで決まるように読める"
+    evidence: { file: "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts", line: 35 }
+    suggestion: "value に「session_link に結び付きが無ければ、セッションの distinct_id を候補にする」を足し、evidence に route.ts 35〜39 行を足す"
+    resolved: true
+notes: "次は指摘にしなかった。(1) canDeleteWebsite の guards は、この GET では止めずに canDelete を返すだけだが、ほかの入口の結果 (sessions/[sessionId] の小窓、replays/[replayId]、events) も同じ綴り・同じ置き方で書いており、note にも止めないことが書いてあるので、そろっている。(2) checkAuth の CLOUD_MODE は、この入口では通らない API キーの枝にだけ効くが、replays/[replayId] の結果も同じ effect で書いており、そろっている。(3) restoreReplayEventFragments と getReplayViewport (src/lib/replay.ts) は import を持たない純粋な関数で、データに届かないので、フレームが無いのは漏れではない。(4) 書き直したフレーム (_rw1 / _rw2 / _rw3) は、入口から辿る順と終端の決まりに合っており、確認・設定・ルールを繰り返していない。(5) 根拠の file:line は、すべて対象のファイルで確かめ、主張を支えていた。q_can_delete_website の summary の根拠 route.ts 78 行は DELETE の受け口の行だが、「セッションを消してよいかの確認に使う」ことの根拠として読めるので、指摘にしなかった"

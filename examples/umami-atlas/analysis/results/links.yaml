@@ -1,0 +1,2000 @@
+format_version: 1
+entry:
+  id: links
+  path: /links
+  name: links
+  layer: page
+  source: { file: "src/app/(main)/links/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:29:22Z"
+  reviewed: { by: "claude-opus-5-5 (fresh context)", at: "2026-11-17T15:28:30Z", findings_open: 0 }
+summary:
+  status: interpretation
+  value: "短縮リンク (link) の一覧の画面。サーバー側の page は LinksPage を描くだけで、本体はブラウザ側で動く。個人の URL (/links) では GET /api/links で自分のリンク (link。削除済みを除く) を、チームの URL (/teams/<teamId>/links) では GET /api/teams/[teamId]/links でそのチームのリンクを、検索 (name / url / slug)・並べ替え (name / slug / url / createdAt)・ページ送りを付けて読み、名前・短縮 URL・転送先の URL・直近 7 日の訪問者数の小さなグラフ・作成日時の表にする。グラフは、一覧にリンクがあれば GET /api/links/charts で読む (website_event。CLICKHOUSE_URL があれば ClickHouse の website_event_stats_hourly)。追加・編集・削除の操作を出すかどうかは画面が決める: 個人の URL では、ログイン中のユーザー (useLoginQuery。ストアに無いときだけ POST /api/auth/verify で user と所属の team を読む) の役割が view-only でないとき。チームの URL では、GET /api/teams/[teamId]/users で読んだメンバー (team_user と user) に自分がいて、役割が team-view-only でないとき。追加ボタンは小窓を開き、名前・転送先の URL・slug (初期値は 9 文字のランダムな文字。CLOUD_MODE では隠し項目) を POST /api/links で送って link を作る (website:create の権限が要る。チームの URL では、そのチームでの権限も要る)。行の名前から /links/[linkId] へ、編集ボタンから /links/[linkId]/edit へ移る。削除ボタンは確認の小窓を開き、DELETE /api/links/[linkId] で link の行を消す (管理者・持ち主・チームで website:delete を持つメンバー)。各 API は、ログイントークンから user を読んで認証する (Redis のセッションを使うときは auth:* も読む)。表示する短縮 URL の前半は LINKS_URL で替わる"
+  evidence:
+    - { file: "src/app/(main)/links/page.tsx", line: 5 }
+    - { file: "src/app/(main)/links/LinksPage.tsx", line: 12 }
+    - { file: "src/app/(main)/links/LinksPage.tsx", line: 15 }
+    - { file: "src/app/(main)/links/LinksPage.tsx", line: 17 }
+    - { file: "src/app/(main)/links/LinksPage.tsx", line: 27 }
+    - { file: "src/app/(main)/links/LinksPage.tsx", line: 30 }
+    - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+    - { file: "src/app/(main)/links/LinksTable.tsx", line: 21 }
+    - { file: "src/app/(main)/links/LinksTable.tsx", line: 29 }
+    - { file: "src/app/(main)/links/LinksTable.tsx", line: 82 }
+    - { file: "src/app/(main)/links/LinksTable.tsx", line: 83 }
+    - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 37 }
+    - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 17 }
+    - { file: src/app/api/links/route.ts, line: 24 }
+    - { file: src/app/api/links/route.ts, line: 62 }
+    - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 27 }
+    - { file: src/app/api/links/charts/route.ts, line: 42 }
+    - { file: "src/app/api/links/[linkId]/route.ts", line: 74 }
+    - { file: next.config.ts, line: 253 }
+notes: "[1] 画面を包む枠 ((main) の layout と、そこから描かれる部品) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。[2] 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser は POST /api/auth/verify (LinksPage.tsx:12 の useLoginQuery が最初に着く) の下。canViewTeam → getTeamUser は GET /api/teams/[teamId]/users (LinksPage.tsx:15) の下。canViewLink → getLink は GET /api/links/[linkId] (LinksPage.tsx:27 の追加ボタン → LinkEditForm.tsx:47 の useLinkQuery。:30 の一覧より前) の下。[3] この画面からは条件が成り立たないように見える呼び出しも、指示書のとおり、消さずに conditional で書いた: 追加の小窓の LinkEditForm は linkId を受け取らない (LinkAddButton.tsx:11) ので、useLinkQuery の enabled: !!linkId が成り立たず、GET /api/links/[linkId] は呼ばれないように見える。深さ優先の順では、canViewLink と getLink が、この呼ばれないように見える受け口の下に置かれる (pixels の結果の usePixelQuery と同じ扱い)。canViewLink は、GET /api/links/charts から実際に呼ばれる。[4] 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段まで書き直した (id が _rw で終わるフレーム。external の段は書いていない。確認・設定・ルールは繰り返していない): canCreateTeamWebsite の下の getTeamUser、canDeleteLink の下の getLink。[5] 段にしなかったもの: canCreateWebsite (src/permissions/website.ts:120。データを読まず、段にすると終端の決まりを満たせないので、確認は、それを呼ぶ受け口 POST /api/links に書いた)、getQueryFilters (websiteId を渡さないので、データを読まない)、useConfig → GET /api/config (skipAuth で環境変数を返すだけで、データにもライブラリにも届かない。pixels と links.linkId_d.edit の結果と同じ扱い。設定 CLOUD_MODE / LINKS_URL は、それを使う LinkEditForm と LinksTable に書いた)、LinkEditButton (リンクだけ。行き先は LinksTable の links に書いた)、DataGrid (検索とページ送りは、同じ画面の URL のクエリを書き換えるだけ。表示の切り替えの localStorage は I/O に書いていない)、WebsiteSparkline (受け取った値を描くだけ)。[6] 操作を出すかどうか (showActions) は、画面の出し分けで、先へ進むのを止める確認ではないので、guards ではなく LinksPage の rules (decision) に書いた。サーバー側の確認は、受け口と権限の関数の guards に書いた。[7] URL のクエリの page / search / orderBy / sortDescending は、usePagedQuery がどの一覧の読み取りにも付けるので、チームの URL では、リンクの一覧の検索語とページが、メンバーの読み取り (GET /api/teams/[teamId]/users) にも付く。検索語が自分の username に合わないときや、2 ページ目以降では、メンバーの結果に自分が入らず、操作が出なくなると読める (実行しての確認はしていない)。use_team_members_query の summary に書いた。レビューの補足では、メンバーの読み取りは既定の 20 件で切られるので、1 ページ目でも、作成順で 21 人目以降のメンバーには操作が出ないと読める。[15] レビューの指摘は low 1 件で、直した (use_link_query の settings に API_URL と BASE_PATH を足した)。レビューが指摘にしなかったこと: POST /api/links は slug の一意の制約に当たったときの扱いが無く、500 になると読める (編集の受け口は 400 にする)。DB の制約なので rules には書いていない。[8] 表の短縮 URL の列 (LINKS_URL か origin + /q の下の slug) と転送先の URL の列は、外部へのリンクで、分析の対象の入口ではないので、links に書いていない。[9] checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。DATABASE_URL は、どの段にも同じように効く接続先なので、settings に書いていない。[10] 画面から API を呼ぶ URL は、環境変数 API_URL があると (/auth と /config 以外は) その URL に向く。既定では同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL と BASE_PATH は、API を呼ぶフックの settings に書いた (pixels の結果と同じ)。[11] 確認の値は、analysis-conventions.md の綴りにした (役割は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前、ログイン済みは checkAuth の 1 か所だけ)。[12] テストとの対応は、作業定義の analysis.tests が無いので、分析していない (src/app/api/links/route.test.ts があることだけ見た。中は読んでいない)。[13] 個人の一覧 (getUserLinks) は削除済み (deletedAt) を除くが、チームの一覧 (getTeamLinks) は除かない。どちらもコードのとおりに書いた。[14] LinksTable は useNavigation の websiteId を LinkDeleteButton に渡すが、LinkDeleteButton は使わない (受け取る引数から外している)。この画面の URL には /websites/ が無いので、値も undefined。"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "links (src/app/(main)/links/page.tsx)"
+    source: { file: "src/app/(main)/links/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page。LinksPage を描くだけで、引数もデータの読み取りも無い。ページの題名 (Links) を metadata で出す"
+      evidence:
+        - { file: "src/app/(main)/links/page.tsx", line: 5 }
+        - { file: "src/app/(main)/links/page.tsx", line: 8 }
+
+  - id: links_page
+    layer: component
+    kind: component
+    name: "LinksPage"
+    source: { file: "src/app/(main)/links/LinksPage.tsx", line: 11 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/page.tsx", line: 2 }
+        - { file: "src/app/(main)/links/page.tsx", line: 5 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。ログイン中のユーザー (useLoginQuery) と、URL から取り出した teamId (useNavigation。/teams/<teamId>/... の形のとき)、チームのメンバー (useTeamMembersQuery) から、追加・編集・削除の操作を出すかどうか (showActions) を決める。見出しに追加ボタン (LinkAddButton。showActions のときだけ) を、その下に一覧 (LinksDataTable) を描く"
+      evidence:
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 1 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 12 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 14 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 15 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 17 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 27 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 30 }
+        - { file: src/components/hooks/useNavigation.ts, line: 9 }
+        - { file: next.config.ts, line: 253 }
+    parameters:
+      - name: teamId
+        value: "URL のパスの /teams/<teamId> の部分 (useNavigation が正規表現で取り出す)。チームの URL (/teams/<teamId>/links) は、next.config.ts の書き換えで、この画面に届く。個人の URL (/links) では undefined"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinksPage.tsx", line: 14 }
+          - { file: src/components/hooks/useNavigation.ts, line: 9 }
+          - { file: next.config.ts, line: 253 }
+          - { file: next.config.ts, line: 254 }
+    rules:
+      - kind: decision
+        value: "追加・編集・削除の操作を出すのは、チームの URL では、読めたメンバーの中に自分がいて、その役割が ROLES.teamViewOnly でないとき。個人の URL では、自分の役割が ROLES.viewOnly でないとき"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinksPage.tsx", line: 17 }
+          - { file: "src/app/(main)/links/LinksPage.tsx", line: 18 }
+          - { file: "src/app/(main)/links/LinksPage.tsx", line: 19 }
+          - { file: "src/app/(main)/links/LinksPage.tsx", line: 21 }
+          - { file: src/lib/constants.ts, line: 177 }
+          - { file: src/lib/constants.ts, line: 181 }
+        note: "画面の出し分けで、サーバー側の確認ではない (サーバー側の確認は、受け口と権限の関数の guards にある)。管理者でも、チームのメンバーでなければ、チームの URL では操作が出ない"
+
+  # ---- ログイン中のユーザー
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: links_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 7 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 12 }
+    summary:
+      status: interpretation
+      value: "ストアのユーザーを返す。ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は API_URL の設定に関わらず basePath + /api に向く"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (basePath + /api + /auth/verify)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      when: conditional
+      condition: "ストアにログイン中のユーザーが無いとき (enabled: !user)"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できれば getAllUserTeams で所属チームを読み、ユーザーと所属チームを返す"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 4 }
+
+  # ---- 認証 (この画面のどの API も最初に parseRequest を呼ぶ。入口から辿る順で最初に着くここに 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 1 }
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "URL のクエリと JSON の本文を読み、スキーマがあれば検査する (GET はクエリ、それ以外は本文。合わなければ 400)。skipAuth が無いので checkAuth を呼び、認証できなければ 401 のエラーを返す。この画面のほかの API (teams/[teamId]/users の GET、links の GET / POST、links/[linkId] の GET / DELETE、teams/[teamId]/links の GET、links/charts の GET) も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた"
+      evidence:
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 33 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、この画面でフレームにした API は skipAuth を渡さず、error はスキーマの検査で落ちたとき (入力の誤りによる打ち切り) だけ"
+    summary:
+      status: interpretation
+      value: "Bearer トークンを解き、userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。2FA の仮トークンは拒む。ユーザーも共有トークンも無ければ null を返す。API キーの経路は、ブラウザがログイントークンを付けるので、この画面からは使わない"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/auth.ts, line: 124 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+        note: "ユーザーを得られなければ (共有トークンも無ければ) null を返し、呼び出し元の parseRequest が 401 にする"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていると、トークンに userId が無く authKey があるとき、Redis のセッション (auth:*) からユーザーを引く"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+        note: "この画面のブラウザはログイントークンを付ける (src/lib/client.ts:4) ので、API キーの経路は辿っていない"
+    rules:
+      - kind: validation
+        value: "2FA のパスワード段階だけを通った仮トークン (PARTIAL_AUTH_TOKEN_TYPE) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+          - { file: src/lib/auth.ts, line: 85 }
+      - kind: validation
+        value: "トークン (またはセッション) にパスワードの指紋があり、今のパスワードのハッシュと合わなければ、そのユーザーを無効にする (パスワードを変える前のトークンを拒む)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "共有トークンは、type が共有用のものだけを受け付ける。利用者がいなくて共有トークンだけのときは、共有画面からの印のヘッダー (SHARE_CONTEXT_HEADER) が無ければ受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 128 }
+          - { file: src/lib/auth.ts, line: 129 }
+          - { file: src/lib/auth.ts, line: 174 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser / findUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき、または Redis のセッションに userId があったとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 22 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "id で削除されていない user を 1 件読む。checkAuth は includePassword: true で呼ぶので、パスワードの列も読む (パスワードの指紋の照合のため)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: src/lib/auth.ts, line: 94 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  - id: q_team_verify
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 3 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+        - { file: src/queries/prisma/team.ts, line: 100 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId。select id / name / logoUrl)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: name, use: [read] }
+          - { name: logo_url, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: src/queries/prisma/team.ts, line: 95 }
+          - { file: src/queries/prisma/team.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 236 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: src/queries/prisma/team.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team_verify
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_team_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+
+  # ---- チームのメンバー (操作を出すかどうかの判定に使う)
+  - id: use_team_members_query
+    layer: component
+    kind: hook
+    name: "useTeamMembersQuery (usePagedQuery)"
+    source: { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 5 }
+    caller: links_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 7 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 15 }
+    summary:
+      status: interpretation
+      value: "teamId があるとき GET /teams/<teamId>/users を、URL のクエリの page / search / orderBy / sortDescending を付けて呼ぶ (orderBy / sortDescending は API のスキーマに無いので捨てられる)。teams:members の更新印で読み直す。URL のクエリは、同じ画面のリンクの一覧と共有なので、一覧の検索語とページが、メンバーの読み取りにも付く (検索語が自分の username に合わないときや、2 ページ目以降では、結果に自分が入らず、操作が出なくなると読める)"
+      evidence:
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 14 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 19 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_team_users_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/users"
+    source: { file: "src/app/api/teams/[teamId]/users/route.ts", line: 8 }
+    caller: use_team_members_query
+    call:
+      status: fact
+      when: conditional
+      condition: "チームの URL (/teams/<teamId>/links) で開いたとき (enabled: !!teamId)"
+      evidence:
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 14 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "ページングと検索の引数を検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、canViewTeam でメンバーか管理者かを確かめ (だめなら 401)、getQueryFilters で引数を整え (websiteId が無いのでデータは読まない)、getTeamUsers で、削除されていないユーザーの team_user を、ユーザーの id と username を含めて作成順に読む"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 14 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 22 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 26 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 28 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 20 }
+      - name: page / pageSize / maxResults / search
+        value: "URL のクエリ (pagingParams と searchParams のスキーマ)。フックが付ける orderBy / sortDescending はスキーマに無いので捨てられ、並びは常に作成順 (createdAt の昇順)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 10 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 11 }
+          - { file: src/lib/schema.ts, line: 73 }
+          - { file: src/lib/schema.ts, line: 87 }
+          - { file: src/lib/request.ts, line: 35 }
+          - { file: src/lib/request.ts, line: 40 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 44 }
+        note: "parseRequest は、GET のクエリを検査済みの値で置き換え (request.ts:35)、戻すのは数字で終わる鍵などだけ (request.ts:40) なので、orderBy / sortDescending は残らない"
+
+  - id: q_can_view_team
+    layer: query
+    kind: function
+    name: "canViewTeam (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 6 }
+    caller: api_team_users_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 5 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 22 }
+    summary:
+      status: interpretation
+      value: "ユーザーが無ければ拒み、管理者なら許す。そうでなければ getTeamUser でそのチームのメンバーかを確かめる。GET /api/teams/[teamId]/links も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/permissions/team.ts, line: 7 }
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 21 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 11 }
+        note: "管理者なら、チームのメンバーかを見ずに許す"
+      - kind: ownership
+        value: "canViewTeam"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 15 }
+        note: "そのチームのメンバー (getTeamUser で team_user がある) なら許す。満たさなければ、呼び出し元の route が 401 を返す"
+
+  # getTeamUser の経路はここに 1 回だけ書く (入口から辿る順で最初に着く permissions/team.ts:15)
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_team
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき (管理者なら、手前で許して返す)"
+      evidence:
+        - { file: src/permissions/team.ts, line: 4 }
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+    summary:
+      status: interpretation
+      value: "teamId と userId で、削除されていないチームの team_user を 1 件読む。canCreateTeamWebsite、canViewLink、canDeleteLink も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: src/queries/prisma/teamUser.ts, line: 22 }
+          - { file: src/queries/prisma/teamUser.ts, line: 23 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーションの条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_get_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+
+  - id: q_get_team_users
+    layer: query
+    kind: function
+    name: "getTeamUsers (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 29 }
+    caller: api_team_users_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 6 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 28 }
+    summary:
+      status: interpretation
+      value: "受け取った条件に username の部分一致の検索を足し、prisma.pagedQuery('teamUser') でページ分を findMany し、件数を count で数える"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 37 }
+        - { file: src/queries/prisma/teamUser.ts, line: 40 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "client['teamUser'].findMany (where teamId, user.deletedAt null。orderBy createdAt。take / skip) と count"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 41 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 31 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 45 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 257 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "条件と並びの列は、呼び出し元 (route) が渡す。user_id は user との結合に使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { user: { select: id, username } } と、条件 user.deletedAt null、検索 user.username contains"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read, filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 33 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 39 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 40 }
+          - { file: src/queries/prisma/teamUser.ts, line: 37 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 14 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "TeamUser.user のリレーションとして読まれる。テーブル名はコードに直接は出ない。username の絞り込みは、検索の語があるときだけ"
+
+  - id: ext_prisma_get_team_users
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findMany / count (pagedQuery の中)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_team_users
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 40 }
+        - { file: src/queries/prisma/teamUser.ts, line: 41 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "リポジトリの pagedQuery がライブラリを包んでいるので、その中の findMany の行を source にした"
+
+  # ---- リンクの追加 (小窓)
+  - id: link_add_button
+    layer: component
+    kind: component
+    name: "LinkAddButton"
+    source: { file: "src/app/(main)/links/LinkAddButton.tsx", line: 6 }
+    caller: links_page
+    call:
+      status: fact
+      when: conditional
+      condition: "操作を出すと決めたとき (showActions。個人の URL では役割が view-only でない、チームの URL ではメンバーで役割が team-view-only でない)"
+      evidence:
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 9 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 27 }
+    summary:
+      status: interpretation
+      value: "追加ボタンと、押すと開く小窓 (DialogButton)。小窓に LinkEditForm を、teamId だけを渡して描く (linkId は渡さない)"
+      evidence:
+        - { file: "src/app/(main)/links/LinkAddButton.tsx", line: 10 }
+        - { file: "src/app/(main)/links/LinkAddButton.tsx", line: 11 }
+
+  - id: link_edit_form
+    layer: component
+    kind: component
+    name: "LinkEditForm"
+    source: { file: "src/app/(main)/links/LinkEditForm.tsx", line: 24 }
+    caller: link_add_button
+    call:
+      status: fact
+      when: conditional
+      condition: "追加ボタンを押して小窓を開いたとき"
+      evidence:
+        - { file: "src/app/(main)/links/LinkAddButton.tsx", line: 4 }
+        - { file: "src/app/(main)/links/LinkAddButton.tsx", line: 11 }
+        - { file: src/components/input/DialogButton.tsx, line: 62 }
+        - { file: src/components/input/DialogButton.tsx, line: 85 }
+    summary:
+      status: interpretation
+      value: "リンクの名前・転送先の URL・slug を入れるフォーム。slug の初期値は、開いたときに作る 9 文字のランダムな文字 (作り直しのボタンで替える)。この画面では linkId を受け取らないので、送信で useUpdateQuery の POST /links (作成) を、フォームの値に teamId を足して呼ぶ。成功したら links (と link:<linkId>。linkId が無いので link:undefined) の更新印を付けて一覧を読み直させ、小窓を閉じる。useLinkQuery も呼ぶが、linkId が無いので読みに行かない。useConfig の設定値 (GET /config。環境変数を返すだけで、データを読まないので、フレームにしていない) で、slug の欄の出し方と、表示する短縮 URL の前半を決める"
+      evidence:
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 22 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 36 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 37 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 40 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 43 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 47 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 48 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 51 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 54 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 55 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 57 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 77 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 119 }
+    parameters:
+      - name: teamId
+        value: "LinksPage が URL から取り出した teamId (個人の URL では undefined)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinkAddButton.tsx", line: 11 }
+          - { file: "src/app/(main)/links/LinksPage.tsx", line: 27 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定すると (GET /config の cloudMode が真になり)、slug の入力欄と、slug を作り直すボタンを出さず、slug を隠し項目にする"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 44 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 96 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 102 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 107 }
+          - { file: src/app/api/config/route.ts, line: 15 }
+      - name: LINKS_URL
+        kind: env
+        effect: "設定すると (GET /config の linksUrl)、画面に出す短縮 URL の前半が、その値になる。無ければ、ブラウザの origin + /q"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 45 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 46 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 132 }
+          - { file: src/app/api/config/route.ts, line: 17 }
+          - { file: src/lib/constants.ts, line: 22 }
+    rules:
+      - kind: validation
+        value: "転送先の URL は、URL として解釈できる文字列であること (new URL が失敗する文字列は、不正な URL として送信させない)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 62 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 63 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 91 }
+          - { file: src/lib/url.ts, line: 42 }
+          - { file: src/lib/url.ts, line: 44 }
+      - kind: calculation
+        value: "slug の初期値は、画面が作る 9 文字のランダムな文字 (作り直しのボタンを押すたびに、新しい値に替わる)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 22 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 48 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 77 }
+          - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 119 }
+        note: "CLOUD_MODE でないときは、利用者が slug を書き換えられる"
+
+  - id: use_update_query
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/links')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: link_edit_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 16 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 36 }
+    summary:
+      status: interpretation
+      value: "受け取った path に、フォームの値と追加の値 (この画面では id と teamId。id は linkId が無いので undefined) を合わせて POST する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 37 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 39 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 40 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_links_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/links"
+    source: { file: src/app/api/links/route.ts, line: 29 }
+    caller: use_update_query
+    call:
+      status: fact
+      when: conditional
+      condition: "フォームの保存ボタンを押して送信したとき"
+      evidence:
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 37 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 51 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "path は linkId ? `/links/${linkId}` : '/links'。この画面は linkId を渡さないので、後者に決まる"
+    summary:
+      status: interpretation
+      value: "本文を検査し、parseRequest で認証する (経路はフレーム q_parse_request と同じ)。teamId があれば canCreateTeamWebsite でそのチームで作れるかを、そのうえで canCreateWebsite (データを読まないので、フレームにしていない) で自分の役割が作れるかを確かめ、だめなら 401。id が無ければ UUID を作り、teamId が無ければ userId を自分にして、createLink で link を作る"
+      evidence:
+        - { file: src/app/api/links/route.ts, line: 30 }
+        - { file: src/app/api/links/route.ts, line: 38 }
+        - { file: src/app/api/links/route.ts, line: 46 }
+        - { file: src/app/api/links/route.ts, line: 47 }
+        - { file: src/app/api/links/route.ts, line: 51 }
+        - { file: src/app/api/links/route.ts, line: 59 }
+        - { file: src/app/api/links/route.ts, line: 62 }
+        - { file: src/permissions/website.ts, line: 120 }
+    parameters:
+      - name: name / url / slug / teamId / id
+        value: "JSON の本文。name / url / slug はフォームの値、teamId と id はフックが足す (この画面では id は undefined)"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/route.ts, line: 31 }
+          - { file: src/app/api/links/route.ts, line: 32 }
+          - { file: src/app/api/links/route.ts, line: 33 }
+          - { file: src/app/api/links/route.ts, line: 34 }
+          - { file: src/app/api/links/route.ts, line: 35 }
+          - { file: src/app/api/links/route.ts, line: 44 }
+          - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 125 }
+          - { file: src/app/api/links/route.ts, line: 46 }
+        note: "確かめるのは canCreateWebsite (src/permissions/website.ts:120。データを読まないので段にしていない)。管理者なら、役割の権限を見ずに許す"
+      - kind: permission
+        value: "PERMISSIONS.websiteCreate"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 129 }
+          - { file: src/app/api/links/route.ts, line: 46 }
+          - { file: src/app/api/links/route.ts, line: 47 }
+          - { file: src/lib/constants.ts, line: 193 }
+          - { file: src/lib/auth.ts, line: 164 }
+        note: "canCreateWebsite が、ユーザー自身の役割 (user.role) が website:create を持つかを確かめる。teamId があるときも、チームでの確認 (canCreateTeamWebsite) に加えて、これも満たす必要がある。満たさなければ 401"
+    rules:
+      - kind: validation
+        value: "name は 100 文字まで、url は 500 文字まで、slug は 8 文字以上 100 文字まで (どれも必須)。id は、あれば UUID"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/route.ts, line: 31 }
+          - { file: src/app/api/links/route.ts, line: 32 }
+          - { file: src/app/api/links/route.ts, line: 33 }
+          - { file: src/app/api/links/route.ts, line: 35 }
+      - kind: decision
+        value: "teamId があればチームの持ち物として作り (userId を入れない)、無ければ自分 (ログイン中のユーザー) の持ち物として作る"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/route.ts, line: 55 }
+          - { file: src/app/api/links/route.ts, line: 58 }
+          - { file: src/app/api/links/route.ts, line: 59 }
+
+  - id: q_can_create_team_website
+    layer: query
+    kind: function
+    name: "canCreateTeamWebsite (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 76 }
+    caller: api_links_post
+    call:
+      status: fact
+      when: conditional
+      condition: "本文に teamId があるとき (チームの URL で開いた追加の小窓から送ったとき)"
+      evidence:
+        - { file: src/app/api/links/route.ts, line: 6 }
+        - { file: src/app/api/links/route.ts, line: 46 }
+    summary:
+      status: interpretation
+      value: "ユーザーが無ければ拒み、管理者なら許す。そうでなければ getTeamUser で team_user を読み、その役割が website:create の権限を持つかを hasPermission (定数の表を見るだけ) で確かめる"
+      evidence:
+        - { file: src/permissions/team.ts, line: 77 }
+        - { file: src/permissions/team.ts, line: 81 }
+        - { file: src/permissions/team.ts, line: 85 }
+        - { file: src/permissions/team.ts, line: 87 }
+        - { file: src/lib/auth.ts, line: 164 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 81 }
+        note: "管理者なら、チームのメンバーかを見ずに許す"
+      - kind: ownership
+        value: "canCreateTeamWebsite"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 85 }
+          - { file: src/permissions/team.ts, line: 87 }
+        note: "そのチームのメンバー (getTeamUser が行を返す) であること。満たさなければ、呼び出し元の route が 401 を返す"
+      - kind: permission
+        value: "PERMISSIONS.websiteCreate"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 87 }
+          - { file: src/lib/constants.ts, line: 193 }
+        note: "チームでの役割 (teamUser.role) が website:create を持つこと"
+
+  - id: q_get_team_user_create_rw
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_create_team_website
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき"
+      evidence:
+        - { file: src/permissions/team.ts, line: 81 }
+        - { file: src/permissions/team.ts, line: 85 }
+    summary:
+      status: interpretation
+      value: "teamId と userId で team_user を 1 件読む。呼び出し元 (canCreateTeamWebsite) が終端にならないよう、いちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_get_team_user と同じ"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: src/queries/prisma/teamUser.ts, line: 22 }
+          - { file: src/queries/prisma/teamUser.ts, line: 23 }
+          - { file: prisma/schema.prisma, line: 265 }
+
+  - id: q_create_link
+    layer: query
+    kind: function
+    name: "createLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 63 }
+    caller: api_links_post
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/links/route.ts, line: 7 }
+        - { file: src/app/api/links/route.ts, line: 62 }
+    summary:
+      status: interpretation
+      value: "受け取った値で link を 1 件作る。書く値は、受け口が組み立てる id / name / url / slug / teamId (と、teamId が無いときの userId)"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 64 }
+        - { file: src/app/api/links/route.ts, line: 50 }
+    io:
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.create (data: id / name / url / slug / teamId / userId)"
+        fields:
+          - { name: link_id, use: [write] }
+          - { name: name, use: [write] }
+          - { name: url, use: [write] }
+          - { name: slug, use: [write] }
+          - { name: team_id, use: [write] }
+          - { name: user_id, use: [write] }
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 64 }
+          - { file: src/app/api/links/route.ts, line: 51 }
+          - { file: src/app/api/links/route.ts, line: 52 }
+          - { file: src/app/api/links/route.ts, line: 53 }
+          - { file: src/app/api/links/route.ts, line: 54 }
+          - { file: src/app/api/links/route.ts, line: 55 }
+          - { file: src/app/api/links/route.ts, line: 59 }
+          - { file: prisma/schema.prisma, line: 341 }
+          - { file: prisma/schema.prisma, line: 345 }
+          - { file: prisma/schema.prisma, line: 346 }
+          - { file: prisma/schema.prisma, line: 358 }
+        note: "列の名前は、呼び出し元 (route) の行で読んだ。user_id を書くのは、teamId が無いときだけ"
+
+  - id: ext_prisma_create_link
+    layer: external
+    kind: library
+    name: "Prisma Client link.create"
+    source: { file: src/queries/prisma/link.ts, line: 64 }
+    caller: q_create_link
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 64 }
+
+  # ---- 追加の小窓の useLinkQuery (この画面では linkId が無いので、読みに行かないように見える)
+  - id: use_link_query
+    layer: component
+    kind: hook
+    name: "useLinkQuery"
+    source: { file: src/components/hooks/queries/useLinkQuery.ts, line: 4 }
+    caller: link_edit_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 15 }
+        - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 47 }
+    summary:
+      status: interpretation
+      value: "linkId があるとき GET /links/<linkId> を呼ぶ。この画面の追加の小窓は linkId を渡さないので、呼ばない"
+      evidence:
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 6 }
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 13 }
+        - { file: "src/app/(main)/links/LinkAddButton.tsx", line: 11 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_link_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/links/[linkId]"
+    source: { file: "src/app/api/links/[linkId]/route.ts", line: 7 }
+    caller: use_link_query
+    call:
+      status: fact
+      when: conditional
+      condition: "LinkEditForm が linkId を受け取っているとき (enabled: !!linkId)"
+      evidence:
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useLinkQuery.ts, line: 13 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "この画面の LinkAddButton は LinkEditForm に linkId を渡さない (LinkAddButton.tsx:11) ので、この入口からは条件が成り立たないように見える。消さずに書いた"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewLink で見てよいかを確かめ (だめなら 401)、getLink でリンクを読んで返す (getLink も呼ぶ。経路はフレーム q_get_link と同じ)"
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 8 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 16 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 17 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 20 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 22 }
+    parameters:
+      - name: linkId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/links/[linkId]/route.ts", line: 14 }
+
+  - id: q_can_view_link
+    layer: query
+    kind: function
+    name: "canViewLink (src/permissions/link.ts)"
+    source: { file: src/permissions/link.ts, line: 6 }
+    caller: api_link_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 4 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 16 }
+    summary:
+      status: interpretation
+      value: "管理者なら許す。共有トークンがそのリンクを指していれば (linkId / websiteId / linkIds のどれか) 許す。ログインのユーザーが無ければ拒む。getLink でリンクを読み、無ければ拒む。持ち主がユーザーなら本人かを、チームの持ち物なら getTeamUser でそのチームのメンバーかを確かめる (getTeamUser の経路はフレーム q_get_team_user と同じ)。GET /api/links/charts も同じ関数を、一覧のリンクごとに呼ぶ (この画面で実際に動くのは、そちら)。入口から辿る順で最初に着く、ここに 1 回だけ書いた"
+      evidence:
+        - { file: src/permissions/link.ts, line: 7 }
+        - { file: src/permissions/link.ts, line: 11 }
+        - { file: src/permissions/link.ts, line: 19 }
+        - { file: src/permissions/link.ts, line: 23 }
+        - { file: src/permissions/link.ts, line: 25 }
+        - { file: src/permissions/link.ts, line: 29 }
+        - { file: src/permissions/link.ts, line: 30 }
+        - { file: src/permissions/link.ts, line: 33 }
+        - { file: src/permissions/link.ts, line: 34 }
+        - { file: src/permissions/link.ts, line: 36 }
+        - { file: src/app/api/links/charts/route.ts, line: 38 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/link.ts, line: 7 }
+        note: "管理者なら、ほかの確認をせずに許す"
+      - kind: ownership
+        value: "canViewLink"
+        status: fact
+        evidence:
+          - { file: src/permissions/link.ts, line: 12 }
+          - { file: src/permissions/link.ts, line: 13 }
+          - { file: src/permissions/link.ts, line: 14 }
+          - { file: src/permissions/link.ts, line: 30 }
+          - { file: src/permissions/link.ts, line: 34 }
+          - { file: src/permissions/link.ts, line: 36 }
+        note: "共有トークンがそのリンクを指す (shareToken.linkId / websiteId / linkIds)、link.userId が本人 (user.id === link.userId)、link.teamId のチームのメンバー (getTeamUser が行を返す) のどれか。満たさなければ、GET /api/links/[linkId] は 401 を返し、GET /api/links/charts は、そのリンクを対象から除く"
+
+  # getLink の経路はここに 1 回だけ書く (入口から辿る順で最初に着く permissions/link.ts:23)
+  - id: q_get_link
+    layer: query
+    kind: function
+    name: "getLink / findLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 12 }
+    caller: q_can_view_link
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でなく、共有トークンがそのリンクを指していないとき (どちらかなら、手前で許して返す)"
+      evidence:
+        - { file: src/permissions/link.ts, line: 4 }
+        - { file: src/permissions/link.ts, line: 7 }
+        - { file: src/permissions/link.ts, line: 11 }
+        - { file: src/permissions/link.ts, line: 23 }
+    summary:
+      status: interpretation
+      value: "id で link を 1 件読む (deletedAt の条件は付けない)。GET /api/links/[linkId] と canDeleteLink も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 9 }
+        - { file: src/queries/prisma/link.ts, line: 13 }
+        - { file: src/queries/prisma/link.ts, line: 15 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: link_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 9 }
+          - { file: src/queries/prisma/link.ts, line: 15 }
+          - { file: prisma/schema.prisma, line: 341 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  - id: ext_prisma_get_link
+    layer: external
+    kind: library
+    name: "Prisma Client link.findUnique"
+    source: { file: src/queries/prisma/link.ts, line: 9 }
+    caller: q_get_link
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 13 }
+        - { file: src/queries/prisma/link.ts, line: 9 }
+
+  # ---- 一覧
+  - id: links_data_table
+    layer: component
+    kind: component
+    name: "LinksDataTable"
+    source: { file: "src/app/(main)/links/LinksDataTable.tsx", line: 5 }
+    caller: links_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 3 }
+        - { file: "src/app/(main)/links/LinksPage.tsx", line: 30 }
+    summary:
+      status: interpretation
+      value: "URL から teamId を取り出し、useLinksQuery でリンクの一覧を読んで、DataGrid (検索の欄とページ送り。同じ画面の URL のクエリを書き換えるだけ) の中に LinksTable を描く"
+      evidence:
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 6 }
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 7 }
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 10 }
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 11 }
+        - { file: src/components/common/DataGrid.tsx, line: 82 }
+        - { file: src/components/common/DataGrid.tsx, line: 99 }
+
+  - id: use_links_query
+    layer: component
+    kind: hook
+    name: "useLinksQuery (usePagedQuery)"
+    source: { file: src/components/hooks/queries/useLinksQuery.ts, line: 6 }
+    caller: links_data_table
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 2 }
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 7 }
+    summary:
+      status: interpretation
+      value: "teamId があれば GET /teams/<teamId>/links を、無ければ GET /links を、URL のクエリの page / search / orderBy / sortDescending を付けて呼ぶ。links の更新印 (追加・削除のあとに付く) で読み直す"
+      evidence:
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_links_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/links"
+    source: { file: src/app/api/links/route.ts, line: 9 }
+    caller: use_links_query
+    call:
+      status: interpretation
+      when: conditional
+      condition: "個人の URL (/links) で開いたとき (teamId が無い)"
+      evidence:
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "URL は三項演算子で、引数 teamId で切り替わる (無いときはこちら)"
+    summary:
+      status: interpretation
+      value: "ページング・検索・並べ替えの引数を検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、getQueryFilters で引数を整え (websiteId が無いのでデータは読まない)、getUserLinks で、ログイン中のユーザーが持ち主の、削除されていないリンクを読んで返す。認証のほかに権限の確認は無い (自分の持ち物だけを読む)"
+      evidence:
+        - { file: src/app/api/links/route.ts, line: 16 }
+        - { file: src/app/api/links/route.ts, line: 22 }
+        - { file: src/app/api/links/route.ts, line: 24 }
+        - { file: src/app/api/links/route.ts, line: 26 }
+        - { file: src/lib/request.ts, line: 129 }
+    parameters:
+      - name: page / pageSize / maxResults / search / orderBy / sortDescending
+        value: "URL のクエリ (pagingParams・searchParams・sortingParams のスキーマ)"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/route.ts, line: 11 }
+          - { file: src/app/api/links/route.ts, line: 12 }
+          - { file: src/app/api/links/route.ts, line: 13 }
+          - { file: src/lib/schema.ts, line: 73 }
+          - { file: src/lib/schema.ts, line: 87 }
+          - { file: src/lib/schema.ts, line: 93 }
+
+  - id: q_get_user_links
+    layer: query
+    kind: function
+    name: "getUserLinks / getLinks (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 40 }
+    caller: api_links_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/links/route.ts, line: 7 }
+        - { file: src/app/api/links/route.ts, line: 24 }
+    summary:
+      status: interpretation
+      value: "userId が一致し、削除されていない (deletedAt が null の) link を読む。getLinks が、並べ替えの列を name / slug / url / createdAt だけに絞り (ほかの列の指定は捨てる)、name か url か slug の部分一致の検索を足して、prisma.pagedQuery('link') でページ分を findMany し、件数を count で数える"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 41 }
+        - { file: src/queries/prisma/link.ts, line: 44 }
+        - { file: src/queries/prisma/link.ts, line: 45 }
+        - { file: src/queries/prisma/link.ts, line: 6 }
+        - { file: src/queries/prisma/link.ts, line: 24 }
+        - { file: src/queries/prisma/link.ts, line: 30 }
+        - { file: src/queries/prisma/link.ts, line: 37 }
+        - { file: src/lib/sort.ts, line: 11 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+    rules:
+      - kind: validation
+        value: "並べ替えに使える列は name / slug / url / createdAt だけ。ほかの列が指定されたら、並べ替えをしない"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 6 }
+          - { file: src/queries/prisma/link.ts, line: 24 }
+          - { file: src/lib/sort.ts, line: 11 }
+          - { file: src/lib/sort.ts, line: 15 }
+      - kind: decision
+        value: "個人の一覧では、削除済み (deletedAt がある) のリンクを出さない"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 45 }
+        note: "チームの一覧 (getTeamLinks) には、この条件が無い"
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "client['link'].findMany (where userId, deletedAt null と、検索の語があれば name / url / slug の contains。orderBy は name / slug / url / createdAt のどれか。take / skip) と count"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+          - { name: name, use: [filter] }
+          - { name: url, use: [filter] }
+          - { name: slug, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 37 }
+          - { file: src/queries/prisma/link.ts, line: 44 }
+          - { file: src/queries/prisma/link.ts, line: 45 }
+          - { file: src/queries/prisma/link.ts, line: 31 }
+          - { file: src/queries/prisma/link.ts, line: 32 }
+          - { file: src/queries/prisma/link.ts, line: 33 }
+          - { file: src/queries/prisma/link.ts, line: 6 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 768 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 342 }
+          - { file: prisma/schema.prisma, line: 343 }
+          - { file: prisma/schema.prisma, line: 344 }
+          - { file: prisma/schema.prisma, line: 345 }
+          - { file: prisma/schema.prisma, line: 347 }
+          - { file: prisma/schema.prisma, line: 349 }
+          - { file: prisma/schema.prisma, line: 358 }
+        note: "name / url / slug の絞り込みは、検索の語があるときだけ。name / slug / url / created_at は、並べ替えに指定されたときにも使う"
+
+  - id: ext_prisma_paged_links
+    layer: external
+    kind: library
+    name: "Prisma Client link.findMany / count (pagedQuery の中)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_user_links
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 37 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "リポジトリの pagedQuery がライブラリを包んでいるので、その中の findMany の行を source にした。メンバーの読み取り (ext_prisma_get_team_users) と同じ行だが、読むモデルが違う (link) ので、別に書いた"
+
+  - id: api_team_links_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/links"
+    source: { file: "src/app/api/teams/[teamId]/links/route.ts", line: 8 }
+    caller: use_links_query
+    call:
+      status: interpretation
+      when: conditional
+      condition: "チームの URL (/teams/<teamId>/links) で開いたとき (teamId がある)"
+      evidence:
+        - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "URL は三項演算子で、引数 teamId で切り替わる (あるときはこちら)"
+    summary:
+      status: interpretation
+      value: "ページング・検索・並べ替えの引数を検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、canViewTeam でメンバーか管理者かを確かめ (だめなら 401。経路はフレーム q_can_view_team と同じ)、getQueryFilters で引数を整え (データは読まない)、getTeamLinks で、そのチームのリンクを読んで返す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 15 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 21 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 22 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 25 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 27 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 14 }
+      - name: page / pageSize / maxResults / search / orderBy / sortDescending
+        value: "URL のクエリ (pagingParams・searchParams・sortingParams のスキーマ)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 10 }
+          - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 11 }
+          - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 12 }
+
+  - id: q_get_team_links
+    layer: query
+    kind: function
+    name: "getTeamLinks / getLinks (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 52 }
+    caller: api_team_links_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 6 }
+        - { file: "src/app/api/teams/[teamId]/links/route.ts", line: 27 }
+    summary:
+      status: interpretation
+      value: "teamId が一致する link を読む (deletedAt の条件は付けない)。検索・並べ替え・ページングは getUserLinks と同じ getLinks が行う (並べ替えの列の決まりは、フレーム q_get_user_links に書いた)。その先のライブラリの呼び出しは、フレーム ext_prisma_paged_links と同じ"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 53 }
+        - { file: src/queries/prisma/link.ts, line: 56 }
+        - { file: src/queries/prisma/link.ts, line: 37 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "client['link'].findMany (where teamId と、検索の語があれば name / url / slug の contains。orderBy は name / slug / url / createdAt のどれか。take / skip) と count"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: name, use: [filter] }
+          - { name: url, use: [filter] }
+          - { name: slug, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 37 }
+          - { file: src/queries/prisma/link.ts, line: 56 }
+          - { file: src/queries/prisma/link.ts, line: 31 }
+          - { file: src/queries/prisma/link.ts, line: 32 }
+          - { file: src/queries/prisma/link.ts, line: 33 }
+          - { file: src/queries/prisma/link.ts, line: 6 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 768 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 342 }
+          - { file: prisma/schema.prisma, line: 343 }
+          - { file: prisma/schema.prisma, line: 344 }
+          - { file: prisma/schema.prisma, line: 346 }
+          - { file: prisma/schema.prisma, line: 347 }
+          - { file: prisma/schema.prisma, line: 358 }
+        note: "name / url / slug の絞り込みは、検索の語があるときだけ。name / slug / url / created_at は、並べ替えに指定されたときにも使う"
+
+  # ---- 表
+  - id: links_table
+    layer: component
+    kind: component
+    name: "LinksTable"
+    source: { file: "src/app/(main)/links/LinksTable.tsx", line: 16 }
+    caller: links_data_table
+    call:
+      status: fact
+      when: conditional
+      condition: "リンクの一覧が読めたとき (DataGrid は、data があるときだけ子を描く)"
+      evidence:
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 3 }
+        - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 11 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+        - { file: src/components/common/DataGrid.tsx, line: 149 }
+    summary:
+      status: interpretation
+      value: "リンクの一覧を、名前 (リンクの画面へのリンク)・短縮 URL (外部リンク)・転送先の URL (外部リンク)・訪問者数の小さなグラフ (useLinkListChartsQuery で読んだ値を WebsiteSparkline が描く)・作成日時の表にする。操作を出すとき (showActions) は、行ごとに編集ボタン (LinkEditButton。編集の画面へのリンクだけ) と削除ボタン (LinkDeleteButton) を描く。短縮 URL の前半は useSlug が、useConfig の設定値 (GET /config。フレームにしていない) から決める"
+      evidence:
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 19 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 20 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 21 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 29 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 38 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 48 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 60 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 77 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 82 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 83 }
+        - { file: "src/app/(main)/websites/WebsiteSparkline.tsx", line: 6 }
+    parameters:
+      - name: showActions
+        value: "LinksPage が決めた、操作を出すかどうか"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinksDataTable.tsx", line: 11 }
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 16 }
+    links:
+      - kind: navigate
+        target: "/links/${id}"
+        entry_id: links.linkId_d
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 29 }
+          - { file: src/components/hooks/useNavigation.ts, line: 34 }
+        note: "行の名前のリンク。renderUrl は、いまの URL のクエリを引き継ぎ、チームの URL で開いたときは、前に /teams/<teamId> を付ける"
+      - kind: navigate
+        target: "/links/${linkId}/edit"
+        entry_id: links.linkId_d.edit
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinkEditButton.tsx", line: 12 }
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 77 }
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 82 }
+          - { file: src/components/hooks/useNavigation.ts, line: 34 }
+        note: "行の編集ボタン (LinkEditButton)。操作を出すとき (showActions) だけ描く。renderUrl に false を渡すので、いまの URL のクエリは引き継がない。チームの URL で開いたときは、前に /teams/<teamId> を付ける"
+    settings:
+      - name: LINKS_URL
+        kind: env
+        effect: "設定すると (GET /config の linksUrl)、画面に出す短縮 URL の前半が、その値になる。無ければ、ブラウザの origin + /q"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 19 }
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 38 }
+          - { file: src/components/hooks/useSlug.ts, line: 6 }
+          - { file: src/components/hooks/useSlug.ts, line: 9 }
+          - { file: src/components/hooks/useSlug.ts, line: 12 }
+          - { file: src/app/api/config/route.ts, line: 17 }
+          - { file: src/lib/constants.ts, line: 22 }
+
+  # ---- 訪問者数の小さなグラフ
+  - id: use_link_list_charts_query
+    layer: component
+    kind: hook
+    name: "useLinkListChartsQuery (useListChartsQuery)"
+    source: { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 36 }
+    caller: links_table
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 8 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 21 }
+    summary:
+      status: interpretation
+      value: "一覧のリンクの id (重複を除いて並べたもの) とタイムゾーンを付けて GET /links/charts を呼ぶ。id が 1 件も無ければ呼ばない。結果は 5 分のあいだ新しいものとして扱う。期間 (startAt / endAt) は送らない"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 37 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 23 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 24 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 25 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 28 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_links_charts_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/links/charts"
+    source: { file: src/app/api/links/charts/route.ts, line: 21 }
+    caller: use_link_list_charts_query
+    call:
+      status: fact
+      when: conditional
+      condition: "一覧にリンクが 1 件以上あるとき (enabled: ids.length > 0)"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 23 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 37 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "ids (カンマ区切り) と期間とタイムゾーンを検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、期間を決め、ids の 1 件ごとに canViewLink で見てよいかを確かめて (経路はフレーム q_can_view_link と同じ)、見てよいリンクだけを getWebsiteListCharts に、イベントの種類をリンクのイベント (EVENT_TYPE.linkEvent) にして渡す"
+      evidence:
+        - { file: src/app/api/links/charts/route.ts, line: 22 }
+        - { file: src/app/api/links/charts/route.ts, line: 28 }
+        - { file: src/app/api/links/charts/route.ts, line: 29 }
+        - { file: src/app/api/links/charts/route.ts, line: 38 }
+        - { file: src/app/api/links/charts/route.ts, line: 42 }
+        - { file: src/app/api/links/charts/route.ts, line: 46 }
+        - { file: src/lib/constants.ts, line: 122 }
+    parameters:
+      - name: ids / startAt / endAt / timezone
+        value: "URL のクエリ。この画面のフックが送るのは ids と timezone だけ"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/charts/route.ts, line: 12 }
+          - { file: src/app/api/links/charts/route.ts, line: 16 }
+          - { file: src/app/api/links/charts/route.ts, line: 17 }
+          - { file: src/app/api/links/charts/route.ts, line: 18 }
+          - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 24 }
+          - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 25 }
+    rules:
+      - kind: validation
+        value: "ids は、1 件以上 20 件までの UUID"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/charts/route.ts, line: 14 }
+          - { file: src/app/api/links/charts/route.ts, line: 15 }
+      - kind: calculation
+        value: "期間は、startAt と endAt の両方があればその値、無ければ、タイムゾーン (無ければ UTC) での直近 7 日"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/charts/route.ts, line: 28 }
+          - { file: src/app/api/links/charts/route.ts, line: 29 }
+          - { file: src/app/api/links/charts/route.ts, line: 30 }
+          - { file: src/app/api/links/charts/route.ts, line: 31 }
+          - { file: src/app/api/links/charts/route.ts, line: 34 }
+      - kind: decision
+        value: "見てよくないリンク (canViewLink が偽) は、エラーにせず、対象から黙って除く"
+        status: fact
+        evidence:
+          - { file: src/app/api/links/charts/route.ts, line: 38 }
+          - { file: src/app/api/links/charts/route.ts, line: 40 }
+
+  - id: q_get_website_list_charts
+    layer: query
+    kind: function
+    name: "getWebsiteListCharts (src/queries/sql/getWebsiteListCharts.ts)"
+    source: { file: src/queries/sql/getWebsiteListCharts.ts, line: 23 }
+    caller: api_links_charts_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/links/charts/route.ts, line: 9 }
+        - { file: src/app/api/links/charts/route.ts, line: 42 }
+    summary:
+      status: interpretation
+      value: "リンクごとに (website_id の列にリンクの id が入っている行を対象に)、期間の中の訪問者数 (セッションの数) を 12 時間ごとに数え、リンクごとの合計も出す。見てよいリンクが 1 件も無ければ、問い合わせずに空を返す。PostgreSQL 用 (website_event) と ClickHouse 用 (website_event_stats_hourly) の SQL を両方持ち、runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 37 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 41 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 43 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 48 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 89 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+        - { file: src/lib/db.ts, line: 27 }
+    settings:
+      - name: CLICKHOUSE_URL
+        kind: env
+        effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+        status: fact
+        evidence:
+          - { file: src/lib/db.ts, line: 27 }
+          - { file: src/lib/db.ts, line: 32 }
+          - { file: src/lib/db.ts, line: 38 }
+    rules:
+      - kind: calculation
+        value: "訪問者数は、12 時間ごと (BUCKET_HOURS) の、重複を除いたセッションの数。この画面では、イベントの種類がリンクのイベント (EVENT_TYPE.linkEvent) の行だけを数える。リンクごとの合計は、期間全体で重複を除いた数 (12 時間ごとの数の足し算ではない)"
+        status: fact
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 10 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 65 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 89 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 100 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 118 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 138 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 188 }
+          - { file: src/app/api/links/charts/route.ts, line: 46 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website_event } }
+        detail: "select website_id, 12 時間ごとの区切り, count(distinct session_id) from website_event where website_id = any(…) and event_type = … and created_at between …"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: session_id, use: [read] }
+          - { name: created_at, use: [read, filter] }
+          - { name: event_type, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 95 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 92 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 94 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 96 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 65 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 71 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 98 }
+          - { file: prisma/schema.prisma, line: 183 }
+        note: "CLICKHOUSE_URL が設定されていないとき。website_id の条件には、リンクの id を渡す"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: clickhouse, table: website_event_stats_hourly } }
+        detail: "select website_id, 12 時間ごとの区切り, uniq(session_id) from website_event_stats_hourly where website_id in … and event_type = … and created_at between …"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: session_id, use: [read] }
+          - { name: created_at, use: [read, filter] }
+          - { name: event_type, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 134 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 131 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 135 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 118 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 120 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 137 }
+          - { file: db/clickhouse/schema.sql, line: 113 }
+        note: "CLICKHOUSE_URL が設定されているとき。時間ごとの集計表を読む。website_id の条件には、リンクの id を渡す"
+
+  - id: ext_charts_pg
+    layer: external
+    kind: library
+    name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+    source: { file: src/lib/prisma.ts, line: 746 }
+    caller: q_get_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 43 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 84 }
+        - { file: src/lib/db.ts, line: 38 }
+        - { file: src/lib/prisma.ts, line: 746 }
+    settings:
+      - name: DATABASE_REPLICA_URL
+        kind: env
+        effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+        status: fact
+        evidence:
+          - { file: src/lib/prisma.ts, line: 738 }
+
+  - id: ext_charts_ch
+    layer: external
+    kind: library
+    name: "ClickHouse client (@clickhouse/client) query"
+    source: { file: src/lib/clickhouse.ts, line: 721 }
+    caller: q_get_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 48 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 128 }
+        - { file: src/lib/db.ts, line: 32 }
+        - { file: src/lib/clickhouse.ts, line: 721 }
+
+  # ---- リンクの削除 (確認の小窓)
+  - id: link_delete_button
+    layer: component
+    kind: component
+    name: "LinkDeleteButton"
+    source: { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 6 }
+    caller: links_table
+    call:
+      status: fact
+      when: conditional
+      condition: "操作を出すと決めたとき (showActions)。行ごとに描く"
+      evidence:
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 9 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 77 }
+        - { file: "src/app/(main)/links/LinksTable.tsx", line: 83 }
+    summary:
+      status: interpretation
+      value: "削除ボタンと、押すと開く確認の小窓 (リンクの名前を出す)。確認すると useDeleteQuery の DELETE /links/<linkId> を呼び、成功したら links の更新印を付けて一覧を読み直させ、小窓を閉じる"
+      evidence:
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 17 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 21 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 23 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 25 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 34 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 40 }
+    parameters:
+      - name: linkId / name
+        value: "一覧の行のリンクの id と名前 (websiteId も渡されるが、受け取る側は使わない)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 79 }
+          - { file: "src/app/(main)/links/LinksTable.tsx", line: 83 }
+          - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 7 }
+          - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 8 }
+
+  - id: use_delete_query
+    layer: component
+    kind: hook
+    name: "useDeleteQuery('/links/<linkId>')"
+    source: { file: src/components/hooks/queries/useDeleteQuery.ts, line: 4 }
+    caller: link_delete_button
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 2 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 17 }
+    summary:
+      status: interpretation
+      value: "受け取った path を DELETE する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 6 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_link_delete
+    layer: api_route
+    kind: route_handler
+    name: "DELETE /api/links/[linkId]"
+    source: { file: "src/app/api/links/[linkId]/route.ts", line: 58 }
+    caller: use_delete_query
+    call:
+      status: fact
+      when: conditional
+      condition: "確認の小窓で削除を確定したとき"
+      evidence:
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 17 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 21 }
+        - { file: "src/app/(main)/links/LinkDeleteButton.tsx", line: 40 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/components/hooks/useApi.ts, line: 63 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canDeleteLink で消してよいかを確かめ (だめなら 401)、deleteLink で link の行を消す (deletedAt を立てるのではなく、行を消す)"
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 62 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 70 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 71 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 74 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 76 }
+    parameters:
+      - name: linkId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/links/[linkId]/route.ts", line: 68 }
+
+  - id: q_can_delete_link
+    layer: query
+    kind: function
+    name: "canDeleteLink (src/permissions/link.ts)"
+    source: { file: src/permissions/link.ts, line: 70 }
+    caller: api_link_delete
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 4 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 70 }
+    summary:
+      status: interpretation
+      value: "ユーザーが無ければ拒み、管理者なら許す。getLink でリンクを読み、無ければ拒む。持ち主がユーザーなら本人かを、チームの持ち物なら getTeamUser で team_user を読み (経路はフレーム q_get_team_user と同じ)、その役割が website:delete の権限を持つかを hasPermission (定数の表を見るだけ) で確かめる"
+      evidence:
+        - { file: src/permissions/link.ts, line: 71 }
+        - { file: src/permissions/link.ts, line: 75 }
+        - { file: src/permissions/link.ts, line: 79 }
+        - { file: src/permissions/link.ts, line: 81 }
+        - { file: src/permissions/link.ts, line: 85 }
+        - { file: src/permissions/link.ts, line: 86 }
+        - { file: src/permissions/link.ts, line: 89 }
+        - { file: src/permissions/link.ts, line: 90 }
+        - { file: src/permissions/link.ts, line: 92 }
+        - { file: src/lib/auth.ts, line: 164 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/link.ts, line: 75 }
+        note: "管理者なら、ほかの確認をせずに許す"
+      - kind: ownership
+        value: "canDeleteLink"
+        status: fact
+        evidence:
+          - { file: src/permissions/link.ts, line: 86 }
+          - { file: src/permissions/link.ts, line: 90 }
+        note: "link.userId が本人 (user.id === link.userId) か、link.teamId のチームのメンバー (getTeamUser が行を返す)。満たさなければ、呼び出し元の route が 401 を返す"
+      - kind: permission
+        value: "PERMISSIONS.websiteDelete"
+        status: fact
+        evidence:
+          - { file: src/permissions/link.ts, line: 92 }
+          - { file: src/lib/constants.ts, line: 195 }
+        note: "チームの持ち物のリンクのとき、チームでの役割が website:delete を持つこと"
+
+  - id: q_get_link_delete_rw
+    layer: query
+    kind: function
+    name: "getLink / findLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 12 }
+    caller: q_can_delete_link
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき"
+      evidence:
+        - { file: src/permissions/link.ts, line: 75 }
+        - { file: src/permissions/link.ts, line: 79 }
+    summary:
+      status: interpretation
+      value: "id で link を 1 件読む。呼び出し元 (canDeleteLink) が終端にならないよう、いちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_get_link と同じ"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: link_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 9 }
+          - { file: src/queries/prisma/link.ts, line: 15 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  - id: q_delete_link
+    layer: query
+    kind: function
+    name: "deleteLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 71 }
+    caller: api_link_delete
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 5 }
+        - { file: "src/app/api/links/[linkId]/route.ts", line: 74 }
+    summary:
+      status: interpretation
+      value: "id で link の行を 1 件消す。このリンクの共有 (share) や、Redis のキャッシュには触れない"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 72 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.delete (where id)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: link_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 72 }
+          - { file: prisma/schema.prisma, line: 341 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  - id: ext_prisma_delete_link
+    layer: external
+    kind: library
+    name: "Prisma Client link.delete"
+    source: { file: src/queries/prisma/link.ts, line: 72 }
+    caller: q_delete_link
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 72 }

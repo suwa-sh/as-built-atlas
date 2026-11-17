@@ -1,0 +1,1953 @@
+format_version: 1
+entry:
+  id: share.slug_d.path_o
+  path: /share/[slug]/[[...path]]
+  name: "[[...path]]"
+  layer: page
+  source: { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 3 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:28:35Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T15:28:07Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "共有リンクの画面 (/share/<slug> と /share/<slug>/<節>)。サーバー側の page は SharePage を描くだけで、画面の本体はブラウザ側で動く。共有のデータ (共有の種類、対象の id、parameters、white label) は、包む枠 (共有の layout) が context に入れたものを読む。共有の種類が board / pixel / link で対象の id があれば、操作のボタンを出さずに、その画面 (BoardViewPage / PixelPage / LinkPage) と、white label があればそのロゴの帯 (ShareFooter) を描く。それ以外 (website の共有) では、URL の節が空か、parameters でその節が true のときだけ描き、そうでなければ /share/<slug> へ移す。描くときは、許された節だけのメニュー (ShareNav)、サイトの読み込み (WebsiteProvider。GET /api/websites/[websiteId])、見出し (WebsiteHeader。サイトの名前、favicon、GET /api/websites/[websiteId]/active で今いる訪問者数)、節に当たる画面 (概要・events・sessions・realtime・performance・compare・breakdown・goals・funnels・journeys・retention・utm・revenue・attribution。無い節は概要) を描く。API はブラウザの store の共有トークンをヘッダーに付けて呼び、受け口はログインしていなくても共有トークンで通す (サイトの読み込みの受け口は、共有トークンにそのサイトの id が含まれるかだけを見る。訪問者数の受け口 /active は、それに加えて、節の指定があれば overview か realtime が許されているかを見る)。データの書き込みは無い。埋め込む 17 の画面 (BoardViewPage など) の中は辿っていない (unknown、not_analyzed。同じ部品を、それぞれの画面の入口で分析している)"
+  evidence:
+    - { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 4 }
+    - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 71 }
+    - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 89 }
+    - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 91 }
+    - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 102 }
+    - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+    - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 134 }
+    - { file: src/components/hooks/useApi.ts, line: 22 }
+    - { file: src/lib/auth.ts, line: 127 }
+notes: "(1) 入口は page のフレーム 1 つ。包む枠 (ルートの layout と、共有の layout の ShareProvider。共有のデータを GET /api/share/[slug] で読み、共有トークンを store に入れる処理) は、枠の入口 layout_l と layout_l.share.slug_d の結果にあるので、辿っていない。この画面は、枠が入れた ShareContext を useShare で読むだけ。(2) いちばん大きな選択: SharePage が埋め込む 17 の画面 (BoardViewPage、PixelPage、LinkPage と、サイトの 14 の節の画面 WebsitePage / EventsPage / SessionsPage / RealtimePage / PerformancePage / ComparePage / BreakdownPage / GoalsPage / FunnelsPage / JourneysPage / RetentionPage / UTMPage / RevenuePage / AttributionPage) は、呼び出しと条件まで書き、中は辿っていない (summary を unknown、not_analyzed にした)。どれも (main) の下の画面の本体と同じ部品で、それぞれの入口 (boards.boardId_d、pixels.pixelId_d、links.linkId_d、websites.websiteId_d とその節の入口) が分析する。1 つの結果に全部を写すと数万行になり、同じ処理を 1 回だけ書く決まりで木を組み直す必要もあるため、止めた。続きを分析するかは、人が決める。共有の画面ならではの違いは、この結果の中で辿ったサイトの読み込みと見出しの経路 (共有トークンでの認証、canViewSharedWebsite、canViewWebsiteSection) に出ている。(3) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた。SharePage の中では、board / pixel / link の画面 (SharePage.tsx:93-97) が最初だが、中を辿っていないので、parseRequest → checkAuth → getUser、canViewSharedWebsite → canViewWebsite → getEntity → getWebsite / getLink / getPixel / getBoard、getTeamUser は、次に着く WebsiteProvider → GET /api/websites/[websiteId] の下に書いた。getWebsite は、route.ts:34 より先に canViewWebsite の getEntity (entity.ts:6) で着くので、その下に書いた。ShareBranding は ShareFooter (SharePage.tsx:110) の下が先。ShareNav は SharePage.tsx:126 (メニューのボタンの中) と :131 で描くが、先の 126 の下に 1 回だけ書いた。(4) 終端を満たすための書き直し: ShareNav の下に ShareBranding (share_branding_rw)、canViewWebsiteSection の下に canViewWebsite → getEntity → getWebsite (q_*_rw)。読み書きを持つ最初の段まで書き、確認・設定・ルールは繰り返していない。(5) フレームにしなかったもの: useShare (context を読むだけ)、useTheme / getShareTheme (色の設定だけ)、MobileMenuButton / PageBody / Grid / Column / Row (見た目だけ)、LanguageButton (翻訳の JSON は同じサーバーの静的なファイルなので、決まりどおり書かない) と PreferencesButton (TimezoneSetting / DateRangeSetting。ブラウザの中の保存だけ)、ThemeButton、useApi (URL とヘッダーを組み立てるだけ。API_URL と BASE_PATH の設定は、使う 2 つのフックに書いた)、useConfig と GET /api/config (環境変数を返すだけ。Favicon の summary で触れた)、useMessages、useNavigation、buildPath。(6) ブラウザの中の保存 (localStorage の share:navCollapsed、言語・タイムゾーン・既定の期間) は、決まりどおり I/O に書いていない。(7) ShareBranding のロゴの画像 (white label の logoUrl) は、ブラウザが他社のサービスから画像を読む処理として external_api の読み書きにしたが、URL が Redis に保存された値で決まるので unknown (dynamic_dispatch) にした。ロゴ全体の外部リンク (white label の domainName、既定は https://umami.is) は、利用者が押したときの外部サイトへの移動で、入口でも読み書きでもないので書いていない。(8) 権限の確認: SharePage の isAllowed (URL の節が空か、parameters で true) は、満たさなければ描かずに先頭へ移すので、guards (other) に書いた。ShareNav の節の絞り込みは、メニューに出す項目を決めるだけなので rules に書いた。canViewWebsite の中の getEntity は、この入口では websiteId が共有トークンに含まれるので届かないように見えるが、決まりどおり消さずに conditional で書いた。(9) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は書いていない。ブラウザのフックが付けるのはログインのトークン (useApi.ts:28) と共有トークンと読んだため。CLOUD_MODE の設定だけ q_check_auth に書いた。(10) BASE_PATH は、レビューの指摘 (low) に従い、同じ 2 つのフックを書いた layout_l.main_g.websites.websiteId_d にそろえて、use_website_query と use_active_users の settings に書いた (layout_l.share.slug_d は書いていないので、入口をまたいだ扱いは analysis-conventions.md で決める必要がある)。DATABASE_URL は、分析リポジトリの決まりどおり書いていない。(11) 名前と値の綴りは、layout_l.main_g.websites.websiteId_d と layout_l.share.slug_d の結果に合わせた (guards の canViewSharedWebsite / canViewWebsite / canViewWebsiteSection / user.isAdmin、settings の API_URL / CLOUD_MODE / REDIS_URL / CLICKHOUSE_URL / DATABASE_REPLICA_URL / PRIVATE_MODE / FAVICON_URL、links の /share/${slug}/<節>)。(12) 節の画面の call は、PAGE_COMPONENTS の表で URL の節から選ぶので interpretation にした (候補は表の 14 で、すべて読める)。"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "[[...path]] (src/app/share/[slug]/[[...path]]/page.tsx)"
+    source: { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 3 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page ('use client' 無し)。SharePage を描くだけで、自分ではデータを読まない。URL の params も受け取らない (節は SharePage がブラウザ側で URL から読む)"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 1 }
+        - { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 3 }
+        - { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 4 }
+
+  # ---------------------------------------------------------------- ブラウザ側
+  - id: share_page
+    layer: component
+    kind: component
+    name: "SharePage (src/app/share/[slug]/[[...path]]/SharePage.tsx)"
+    source: { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 62 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 1 }
+        - { file: "src/app/share/[slug]/[[...path]]/page.tsx", line: 4 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。useShare で枠の ShareContext から共有のデータ (slug、websiteId、boardId、pixelId、linkId、parameters、shareType) を読む。URL の 3 番目の段 (ドメイン名らしく . を含めば 4 番目) を節とみなす。parameters の theme で画面の色の設定を変え、メニューを畳むかを localStorage (share:navCollapsed) に覚える (どちらもサーバーのデータではない)。board / pixel / link の共有なら、その画面と ShareFooter を描いて終わる。それ以外は、節が許されていれば、ShareNav (狭い画面ではメニューのボタンの中、広い画面では左の列。同じ部品を 2 か所で描く)、WebsiteProvider の中に WebsiteHeader と節の画面を描く。節の画面は PAGE_COMPONENTS で選び、当たらなければ概要 (WebsitePage)"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 1 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 50 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 63 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 71 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 80 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 106 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 126 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 131 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 134 }
+        - { file: src/components/hooks/context/useShare.ts, line: 5 }
+    guards:
+      - kind: other
+        value: "isAllowed"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 88 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 89 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 101 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 102 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 115 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 116 }
+        note: "pageKey === '' || parameters[pageKey] === true。URL の節が空か、共有の parameters でその節が true のときだけ、サイトの画面を描く。通らなければ /share/<slug> へ移し、何も描かない。ブラウザの中の確認で、API の受け口でも canViewWebsiteSection などが確かめる"
+    rules:
+      - kind: decision
+        value: "共有の種類が board / pixel / link で対象の id があれば、サイトの画面ではなく、その画面 (BoardViewPage / PixelPage / LinkPage) を、操作のボタンを出さずに描く"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 91 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 92 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 94 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 96 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 106 }
+      - kind: decision
+        value: "website の共有では、URL の節の名前で出す画面を選び (PAGE_COMPONENTS)、当たる画面が無ければ概要 (WebsitePage) を出す"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 32 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+    links:
+      - kind: navigate
+        target: "/share/${slug}"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 100 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 102 }
+        note: "URL の節が許されていないとき、router.replace で共有の先頭へ移す"
+
+  - id: share_footer
+    layer: component
+    kind: component
+    name: "ShareFooter (src/app/share/[slug]/[[...path]]/ShareFooter.tsx)"
+    source: { file: "src/app/share/[slug]/[[...path]]/ShareFooter.tsx", line: 6 }
+    caller: share_page
+    call:
+      status: fact
+      when: conditional
+      condition: "共有の種類が board / pixel / link で、対象の id があるとき (その画面の下に描く)"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 29 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 106 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 110 }
+    summary:
+      status: interpretation
+      value: "共有のデータに white label が無ければ何も描かない。あれば、右下に ShareBranding (小さいロゴと名前) を描く"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/ShareFooter.tsx", line: 7 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareFooter.tsx", line: 9 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareFooter.tsx", line: 21 }
+
+  - id: share_branding
+    layer: component
+    kind: component
+    name: "ShareBranding (src/app/share/[slug]/[[...path]]/ShareBranding.tsx)"
+    source: { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 9 }
+    caller: share_footer
+    call:
+      status: fact
+      when: conditional
+      condition: "共有のデータに white label があるとき"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/ShareFooter.tsx", line: 4 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareFooter.tsx", line: 9 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareFooter.tsx", line: 21 }
+    summary:
+      status: interpretation
+      value: "white label の名前 (無ければ umami) とロゴを出し、全体を white label の domainName (無ければ https://umami.is) への外部リンクにする。white label に logoUrl があれば、ブラウザがその URL の画像を読む。無ければ同梱の Logo の絵を出す"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 10 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 11 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 12 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 13 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 17 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 20 }
+    io:
+      - op: call
+        status: unknown
+        reason: dynamic_dispatch
+        resource: { kind: external_api }
+        detail: "img の src に white label の logoUrl を入れ、ブラウザが画像を読む"
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 13 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 20 }
+        note: "white label に logoUrl があるときだけ。URL は、共有の受け口が Redis の white-label:<持ち主の id> から読んで返す値で、コードからはホストが読めない"
+
+  - id: share_nav
+    layer: component
+    kind: component
+    name: "ShareNav (src/app/share/[slug]/[[...path]]/ShareNav.tsx)"
+    source: { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 22 }
+    caller: share_page
+    call:
+      status: fact
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が許されているとき (狭い画面ではメニューのボタンを押して開いたとき、広い画面ではいつも)"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 30 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 106 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 115 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 126 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 131 }
+      note: "SharePage は同じ ShareNav を 2 か所で描く (126 はメニューのボタンの中、131 は左の列)。入口から辿る順で最初の 126 の下に 1 回だけ書いた"
+    summary:
+      status: interpretation
+      value: "左のメニュー。traffic / behavior / growth の 3 つの区分の 14 の節のうち、共有の parameters で true のものだけを、/share/<slug>/<節> へのリンクとして出す。いまの URL のクエリを引き継ぐが、event / compare / theme / view / unit / excludeBounce は落とし、allowFilter が false の共有では絞り込みのパラメータも落とす。畳んでいなければ ShareBranding を出す (経路はフレーム share_branding と同じ。終端にならないよう、下にもう一度書いた)。下に、言語 (LanguageButton) と表示の設定 (PreferencesButton。タイムゾーンと既定の期間) のボタンと、共有に theme の指定が無いときは色のボタンを出す (どれもブラウザの中の保存と翻訳のファイルだけで、サーバーのデータを読まない)"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 31 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 35 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 38 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 45 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 53 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 129 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 158 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 223 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 224 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 225 }
+        - { file: "src/app/(main)/settings/preferences/DateRangeSetting.tsx", line: 13 }
+        - { file: "src/app/(main)/settings/preferences/TimezoneSetting.tsx", line: 11 }
+    rules:
+      - kind: decision
+        value: "メニューには、共有の parameters で true になっている節だけを出す (中身が無い区分は出さない)"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 129 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 132 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 134 }
+      - kind: decision
+        value: "共有の parameters の allowFilter が false なら、メニューの行き先に、絞り込みの URL パラメータ (FILTER_COLUMNS の列と cohort / excludeBounce / match / segment) を引き継がない"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 35 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 41 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 42 }
+          - { file: src/lib/share.ts, line: 4 }
+          - { file: src/lib/share.ts, line: 7 }
+          - { file: src/lib/share.ts, line: 19 }
+    links:
+      - kind: navigate
+        target: "/share/${slug}"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 58 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+        note: "メニューの項目の行き先は renderPath (`/share/${slug}${path}` に、いまの URL のクエリを付ける)。共有の parameters でその節が true のときだけ出る (以下の 13 件も同じ)。overview の行き先は、節の段が無い /share/<slug>"
+      - kind: navigate
+        target: "/share/${slug}/events"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 59 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/sessions"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 64 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/realtime"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 70 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/performance"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/compare"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 82 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/breakdown"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 88 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/goals"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 96 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/funnels"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 97 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/journeys"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 102 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/retention"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 108 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/utm"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 116 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/revenue"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 117 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+      - kind: navigate
+        target: "/share/${slug}/attribution"
+        entry_id: share.slug_d.path_o
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 122 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 178 }
+
+  - id: share_branding_rw
+    layer: component
+    kind: component
+    name: "ShareBranding (src/app/share/[slug]/[[...path]]/ShareBranding.tsx。ShareNav から)"
+    source: { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 9 }
+    caller: share_nav
+    call:
+      status: fact
+      when: conditional
+      condition: "メニューを畳んでいないとき"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 20 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 158 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう、もう一度書いたもの (フレーム share_branding と同じ部品)。white label があれば、その名前とロゴを出す。無ければ umami の名前と同梱のロゴ"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 11 }
+        - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 19 }
+    io:
+      - op: call
+        status: unknown
+        reason: dynamic_dispatch
+        resource: { kind: external_api }
+        detail: "img の src に white label の logoUrl を入れ、ブラウザが画像を読む"
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 13 }
+          - { file: "src/app/share/[slug]/[[...path]]/ShareBranding.tsx", line: 20 }
+        note: "white label に logoUrl があるときだけ。URL は Redis の white-label:<持ち主の id> の値で、コードからはホストが読めない"
+
+  # ---- サイトの読み込み (website の共有のとき)
+  - id: website_provider
+    layer: component
+    kind: component
+    name: "WebsiteProvider"
+    source: { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 9 }
+    caller: share_page
+    call:
+      status: fact
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が許されているとき"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 23 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 106 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 115 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 134 }
+    summary:
+      status: interpretation
+      value: "共有のデータの websiteId で useWebsiteQuery を呼んでサイトを読み、読み込み中は Loading、無ければ何も描かず、あれば WebsiteContext に入れて子 (見出しと節の画面) を描く"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 16 }
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 18 }
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 22 }
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 26 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+
+  - id: use_website_query
+    layer: component
+    kind: hook
+    name: "useWebsiteQuery"
+    source: { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 6 }
+    caller: website_provider
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 4 }
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 16 }
+    summary:
+      status: interpretation
+      value: "websiteId があるとき GET /websites/<websiteId> を呼ぶ。useApi が URL の前に接頭辞 (既定は basePath + /api) を付け、ログインのトークン (Bearer) と、store に共有があるので共有トークンのヘッダー (x-umami-share-token) と共有の画面の印 (x-umami-share-context) を付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 13 }
+        - { file: src/components/hooks/useApi.ts, line: 22 }
+        - { file: src/components/hooks/useApi.ts, line: 24 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/lib/constants.ts, line: 11 }
+        - { file: src/lib/constants.ts, line: 12 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_website_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/websites/[websiteId]"
+    source: { file: "src/app/api/websites/[websiteId]/route.ts", line: 18 }
+    caller: use_website_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useWebsiteQuery.ts, line: 13 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (API_URL 無し) では basePath + /api/websites/<websiteId>。enabled: !!websiteId は、website の共有では共有のデータに websiteId があるので、この入口ではいつも成り立つと読んで always にした"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (だめならエラーを返す)、canViewSharedWebsite で見てよいかを確かめ (だめなら 401)、getWebsite でサイトを読んで返す。getWebsite (route.ts:34) も呼ぶ。経路はフレーム q_get_website と同じ"
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 22 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 30 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 34 }
+    parameters:
+      - name: "websiteId"
+        value: "URL の段 [websiteId]"
+        status: fact
+        evidence:
+          - { file: "src/app/api/websites/[websiteId]/route.ts", line: 28 }
+
+  # ---- 認証 (この入口の 2 つの API が最初に呼ぶ。先に着くこの受け口の下に 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_website_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 5 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 22 }
+    summary:
+      status: interpretation
+      value: "URL と JSON 本文を読み (スキーマがあれば検査する。この入口の 2 つの受け口は渡さない)、skipAuth が無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 27 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、この入口の 2 つの受け口は skipAuth もスキーマも渡さない (route.ts:22、active/route.ts:10) ので、条件はいつも成り立つ"
+    summary:
+      status: interpretation
+      value: "Bearer のトークンを解く。トークンに userId があれば getUser で user を読み、無くて Redis が有効で authKey があれば Redis からセッションを読んでから getUser で user を読む (auth.ts:105 でも getUser を呼ぶ。経路はフレーム q_get_user と同じ)。共有トークンのヘッダーも解く。この入口では、ブラウザは共有トークンをいつも付けるので、ログインしていない人も共有トークンで通る (user は null、authType は share)。ユーザーも共有トークンも無ければ null (認証できない)"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 88 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 145 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/auth.ts, line: 124 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+        note: "有効なユーザーも共有トークンも無ければ null を返し、parseRequest が unauthorized にする。共有トークンがあれば、ログインしていなくても通る"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "あれば、API キーでの認証を受け付けない (無ければ、umami_ で始まるトークンを API キーとして確かめる)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-key.ts, line: 41 }
+          - { file: src/lib/auth.ts, line: 74 }
+      - name: REDIS_URL
+        kind: env
+        effect: "あれば、トークンに userId が無く authKey があるとき、Redis のセッションからユーザーを引く"
+        status: fact
+        evidence:
+          - { file: src/lib/redis.ts, line: 106 }
+          - { file: src/lib/auth.ts, line: 101 }
+    rules:
+      - kind: validation
+        value: "2FA の途中で出す仮のトークン (type が partial-auth) は、ログイン済みとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+          - { file: src/lib/auth.ts, line: 85 }
+      - kind: validation
+        value: "トークン (または Redis のセッション) にパスワードの指紋 (pwd) があり、今のパスワードのハッシュと合わなければ、そのログインを無効にする"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーがいなくて共有トークンだけのときは、共有の画面からの呼び出しの印 (x-umami-share-context のヘッダー) が無ければ受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 129 }
+          - { file: src/lib/constants.ts, line: 12 }
+      - kind: validation
+        value: "共有トークンのヘッダーは、type が share のトークンだけを共有トークンとして受け付ける (同じ鍵で署名したほかのトークンを使わせない)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 88 }
+          - { file: src/lib/auth.ts, line: 174 }
+          - { file: src/lib/constants.ts, line: 13 }
+        note: "checkAuth が呼ぶ補助の関数 parseShareToken (フレームにしていない) の中の検証"
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: userId, use: [read] }
+          - { name: pwd, use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 104 }
+          - { file: src/lib/auth.ts, line: 108 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、authKey が入っているときだけ"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser / findUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が入っているとき (共有の画面をログインした人が開いたとき。無くて Redis のセッションに userId があるときは、auth.ts:105 で同じ関数を呼ぶ)"
+      evidence:
+        - { file: src/lib/auth.ts, line: 22 }
+        - { file: src/lib/auth.ts, line: 93 }
+        - { file: src/lib/auth.ts, line: 94 }
+    summary:
+      status: interpretation
+      value: "user を id で 1 件読む (削除済みは除く。checkAuth からはパスワードも含めて読む)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: src/queries/prisma/user.ts, line: 50 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: src/lib/auth.ts, line: 94 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "password は、includePassword: true で呼ばれたとき (checkAuth) だけ読む"
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  # ---- 権限の確認 (canViewWebsite は、先に着く canViewSharedWebsite の下に 1 回だけ書く)
+  - id: q_can_view_shared_website
+    layer: query
+    kind: function
+    name: "canViewSharedWebsite (src/permissions/share.ts)"
+    source: { file: src/permissions/share.ts, line: 80 }
+    caller: api_website_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 7 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 30 }
+      note: "手前にあるのは、認証できないときの早い return だけ (route.ts:24)"
+    summary:
+      status: interpretation
+      value: "ログインしたユーザーがいれば canViewWebsite に任せる。いなければ (共有の画面のふつうの場合)、共有トークンにこの id が含まれるかだけを見る (データは読まない)"
+      evidence:
+        - { file: src/permissions/share.ts, line: 81 }
+        - { file: src/permissions/share.ts, line: 82 }
+        - { file: src/permissions/share.ts, line: 85 }
+    guards:
+      - kind: other
+        value: "canViewSharedWebsite"
+        status: fact
+        evidence:
+          - { file: src/permissions/share.ts, line: 85 }
+          - { file: src/permissions/share.ts, line: 40 }
+          - { file: "src/app/api/websites/[websiteId]/route.ts", line: 31 }
+        note: "auth.user が無いときは、shareTokenIncludesWebsite(auth, websiteId) (共有トークンの websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じ)"
+
+  - id: q_can_view_website
+    layer: query
+    kind: function
+    name: "canViewWebsite (src/permissions/website.ts)"
+    source: { file: src/permissions/website.ts, line: 8 }
+    caller: q_can_view_shared_website
+    call:
+      status: fact
+      when: conditional
+      condition: "ログインしたユーザーがいるとき (auth.user あり。共有の画面をログインした人が開いたとき)"
+      evidence:
+        - { file: src/permissions/share.ts, line: 3 }
+        - { file: src/permissions/share.ts, line: 81 }
+        - { file: src/permissions/share.ts, line: 82 }
+    summary:
+      status: interpretation
+      value: "管理者と、共有トークンにこの id が含まれるときは、読まずに許す。そうでなければ getEntity で id に当たるもの (website / link / pixel / board のどれか) を読み、持ち主 (userId) があれば本人のときだけ許す。持ち主が無くチームのもの (teamId あり) なら、getTeamUser でメンバーかを確かめる。どれでもなければ許さない"
+      evidence:
+        - { file: src/permissions/website.ts, line: 9 }
+        - { file: src/permissions/website.ts, line: 13 }
+        - { file: src/permissions/website.ts, line: 24 }
+        - { file: src/permissions/website.ts, line: 30 }
+        - { file: src/permissions/website.ts, line: 34 }
+        - { file: src/permissions/website.ts, line: 35 }
+        - { file: src/permissions/website.ts, line: 40 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 9 }
+          - { file: src/lib/auth.ts, line: 137 }
+        note: "この 4 つの確認は、どれか 1 つを満たせば通る。管理者は、ほかの確認もデータの読み取りもせずに通る。user.isAdmin は user.role === ROLES.admin で決まる"
+      - kind: other
+        value: "canViewWebsite"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 13 }
+          - { file: src/permissions/website.ts, line: 21 }
+        note: "shareToken の websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じ"
+      - kind: ownership
+        value: "canViewWebsite"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 30 }
+          - { file: src/permissions/website.ts, line: 31 }
+        note: "対象に持ち主 (userId) があるときは、この結果だけで決まる (チームの確認へ進まない)。user.id === entity.userId"
+      - kind: ownership
+        value: "canViewWebsite"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 34 }
+          - { file: src/permissions/website.ts, line: 35 }
+          - { file: src/permissions/website.ts, line: 37 }
+        note: "getTeamUser(entity.teamId, user.id) が当たる (対象のチームのメンバー)"
+
+  - id: q_get_entity
+    layer: query
+    kind: function
+    name: "getEntity (src/lib/entity.ts)"
+    source: { file: src/lib/entity.ts, line: 4 }
+    caller: q_can_view_website
+    call:
+      status: fact
+      when: conditional
+      condition: "管理者でなく、共有トークンにこの id が含まれないとき"
+      evidence:
+        - { file: src/permissions/website.ts, line: 3 }
+        - { file: src/permissions/website.ts, line: 9 }
+        - { file: src/permissions/website.ts, line: 13 }
+        - { file: src/permissions/website.ts, line: 24 }
+      note: "この入口では、websiteId は共有のデータ (共有トークンと同じ受け口が返す) から来るので、共有トークンに含まれ、ここへは進まないように見える。消さずに conditional で書いた"
+    summary:
+      status: interpretation
+      value: "同じ id で getWebsite / getLink / getPixel / getBoard を並べて呼び、最初に見つかったものを返す"
+      evidence:
+        - { file: src/lib/entity.ts, line: 5 }
+        - { file: src/lib/entity.ts, line: 6 }
+        - { file: src/lib/entity.ts, line: 7 }
+        - { file: src/lib/entity.ts, line: 8 }
+        - { file: src/lib/entity.ts, line: 9 }
+        - { file: src/lib/entity.ts, line: 12 }
+
+  - id: q_get_website
+    layer: query
+    kind: function
+    name: "getWebsite / findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 80 }
+    caller: q_get_entity
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/entity.ts, line: 2 }
+        - { file: src/lib/entity.ts, line: 6 }
+      note: "GET /api/websites/[websiteId] の route.ts:34 からも呼ばれる。入口から辿る順で最初に着くのは、canViewSharedWebsite → canViewWebsite → getEntity (entity.ts:6) なので、ここに書いた"
+    summary:
+      status: interpretation
+      value: "id が uuid の形でなければ読まずに null。website を id で 1 件読み、見つかればその website の最新の share の slug を shareId として付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 81 }
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 91 }
+        - { file: src/queries/prisma/website.ts, line: 95 }
+        - { file: src/queries/prisma/website.ts, line: 303 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 77 }
+          - { file: src/queries/prisma/website.ts, line: 87 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "GET /api/websites/[websiteId] で、見てよいと決まった後に必ず読む (route.ts:34)。canViewWebsite の getEntity からは、ログインした人が管理者でなく、共有トークンにこの id が含まれないときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)"
+        fields:
+          - { name: slug, use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 304 }
+          - { file: src/queries/prisma/website.ts, line: 306 }
+          - { file: src/queries/prisma/website.ts, line: 309 }
+          - { file: src/queries/prisma/website.ts, line: 312 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 406 }
+          - { file: prisma/schema.prisma, line: 408 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "website が見つかったときだけ"
+
+  - id: ext_prisma_website_find
+    layer: external
+    kind: library
+    name: "Prisma Client website.findUnique"
+    source: { file: src/queries/prisma/website.ts, line: 77 }
+    caller: q_get_website
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 77 }
+      note: "手前の uuid の形の確認 (website.ts:81) は、入力の誤りによる打ち切り"
+
+  - id: ext_prisma_share_find
+    layer: external
+    kind: library
+    name: "Prisma Client share.findFirst"
+    source: { file: src/queries/prisma/website.ts, line: 304 }
+    caller: q_get_website
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 95 }
+        - { file: src/queries/prisma/website.ts, line: 304 }
+      note: "手前に、website が見つからなければ null を返す早い return (website.ts:91) があるだけなので always"
+
+  - id: q_get_link
+    layer: query
+    kind: function
+    name: "getLink / findLink (src/queries/prisma/link.ts)"
+    source: { file: src/queries/prisma/link.ts, line: 12 }
+    caller: q_get_entity
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/entity.ts, line: 2 }
+        - { file: src/lib/entity.ts, line: 7 }
+    summary:
+      status: interpretation
+      value: "link を id で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 9 }
+        - { file: src/queries/prisma/link.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "prisma.client.link.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: link_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/link.ts, line: 9 }
+          - { file: src/queries/prisma/link.ts, line: 15 }
+          - { file: prisma/schema.prisma, line: 341 }
+          - { file: prisma/schema.prisma, line: 358 }
+
+  - id: ext_prisma_get_link
+    layer: external
+    kind: library
+    name: "Prisma Client link.findUnique"
+    source: { file: src/queries/prisma/link.ts, line: 9 }
+    caller: q_get_link
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/link.ts, line: 13 }
+        - { file: src/queries/prisma/link.ts, line: 9 }
+
+  - id: q_get_pixel
+    layer: query
+    kind: function
+    name: "getPixel / findPixel (src/queries/prisma/pixel.ts)"
+    source: { file: src/queries/prisma/pixel.ts, line: 12 }
+    caller: q_get_entity
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/entity.ts, line: 2 }
+        - { file: src/lib/entity.ts, line: 8 }
+    summary:
+      status: interpretation
+      value: "pixel を id で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 9 }
+        - { file: src/queries/prisma/pixel.ts, line: 13 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "prisma.client.pixel.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: pixel_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/pixel.ts, line: 9 }
+          - { file: src/queries/prisma/pixel.ts, line: 15 }
+          - { file: prisma/schema.prisma, line: 362 }
+          - { file: prisma/schema.prisma, line: 378 }
+
+  - id: ext_prisma_get_pixel
+    layer: external
+    kind: library
+    name: "Prisma Client pixel.findUnique"
+    source: { file: src/queries/prisma/pixel.ts, line: 9 }
+    caller: q_get_pixel
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/pixel.ts, line: 13 }
+        - { file: src/queries/prisma/pixel.ts, line: 9 }
+
+  - id: q_get_board
+    layer: query
+    kind: function
+    name: "getBoard / findBoard (src/queries/prisma/board.ts)"
+    source: { file: src/queries/prisma/board.ts, line: 13 }
+    caller: q_get_entity
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/entity.ts, line: 2 }
+        - { file: src/lib/entity.ts, line: 9 }
+    summary:
+      status: interpretation
+      value: "board を id で 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 10 }
+        - { file: src/queries/prisma/board.ts, line: 14 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "prisma.client.board.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: board_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/board.ts, line: 10 }
+          - { file: src/queries/prisma/board.ts, line: 16 }
+          - { file: prisma/schema.prisma, line: 382 }
+          - { file: prisma/schema.prisma, line: 398 }
+
+  - id: ext_prisma_get_board
+    layer: external
+    kind: library
+    name: "Prisma Client board.findUnique"
+    source: { file: src/queries/prisma/board.ts, line: 10 }
+    caller: q_get_board
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/board.ts, line: 14 }
+        - { file: src/queries/prisma/board.ts, line: 10 }
+
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_website
+    call:
+      status: fact
+      when: conditional
+      condition: "読んだ対象に持ち主 (userId) が無く、チーム (teamId) があるとき"
+      evidence:
+        - { file: src/permissions/website.ts, line: 6 }
+        - { file: src/permissions/website.ts, line: 30 }
+        - { file: src/permissions/website.ts, line: 34 }
+        - { file: src/permissions/website.ts, line: 35 }
+    summary:
+      status: interpretation
+      value: "チームとユーザーの組を 1 件読む (チームが削除済みなら当たらない)"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: src/queries/prisma/teamUser.ts, line: 22 }
+          - { file: src/queries/prisma/teamUser.ts, line: 23 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "同じ findFirst の where の関連の条件 team: { deletedAt: null } (team を結合して絞る)"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "team の列は取り出さない。条件に使うだけ"
+
+  - id: ext_prisma_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+
+  # ---- 見出し
+  - id: website_header
+    layer: component
+    kind: component
+    name: "WebsiteHeader"
+    source: { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 10 }
+    caller: share_page
+    call:
+      status: fact
+      when: conditional
+      condition: "WebsiteProvider がサイトを読み終え、サイトがあるとき (読み込み中と、読めないときは、子を描かない)"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 21 }
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 136 }
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 18 }
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 22 }
+        - { file: "src/app/(main)/websites/WebsiteProvider.tsx", line: 26 }
+    summary:
+      status: interpretation
+      value: "WebsiteContext のサイトの名前と favicon を見出しに出し、ActiveUsers を描く。この入口では showActions={false} と allowLink={false} を渡すので、編集ボタンも、サイト名のリンクも出さない。URL が /settings で終わるときは何も描かない"
+      evidence:
+        - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 136 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 17 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 19 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 23 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 30 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 31 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 34 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 36 }
+    rules:
+      - kind: decision
+        value: "URL が /settings で終わる画面では、見出し (サイトの名前、favicon、訪問者数) を描かない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 19 }
+          - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 23 }
+        note: "共有の画面では、settings は節の名前に無いので、parameters に settings: true が無い限り、URL が /settings で終わる画面は描かれない (SharePage の isAllowed)"
+
+  - id: favicon
+    layer: component
+    kind: component
+    name: "Favicon"
+    source: { file: src/components/common/Favicon.tsx, line: 9 }
+    caller: website_header
+    call:
+      status: fact
+      when: conditional
+      condition: "URL が /settings で終わらないとき"
+      evidence:
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 2 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 23 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 30 }
+    summary:
+      status: interpretation
+      value: "設定値 (useConfig の faviconUrl) か既定の FAVICON_URL に、サイトのドメインのホスト名を埋めて img を描く。privateMode のときと、ホスト名が取れないときは何も描かない。useConfig は、設定値が store に無いときだけ GET /config を呼ぶ (認証を通らず、環境変数を返すだけの受け口なので、フレームにしていない)"
+      evidence:
+        - { file: src/components/common/Favicon.tsx, line: 10 }
+        - { file: src/components/common/Favicon.tsx, line: 12 }
+        - { file: src/components/common/Favicon.tsx, line: 16 }
+        - { file: src/components/common/Favicon.tsx, line: 19 }
+        - { file: src/components/common/Favicon.tsx, line: 21 }
+        - { file: src/components/hooks/useConfig.ts, line: 22 }
+        - { file: src/components/hooks/useConfig.ts, line: 28 }
+        - { file: src/app/api/config/route.ts, line: 8 }
+    settings:
+      - name: PRIVATE_MODE
+        kind: env
+        effect: "あれば、favicon を描かない (外部のサービスへ画像を取りに行かない)"
+        status: fact
+        evidence:
+          - { file: src/app/api/config/route.ts, line: 19 }
+          - { file: src/components/common/Favicon.tsx, line: 12 }
+      - name: FAVICON_URL
+        kind: env
+        effect: "あれば、favicon の取得先が、既定の icons.duckduckgo.com ではなくこの URL になる"
+        status: fact
+        evidence:
+          - { file: src/app/api/config/route.ts, line: 16 }
+          - { file: src/components/common/Favicon.tsx, line: 16 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: icons.duckduckgo.com, path: "/ip3/*.ico" } }
+        detail: "Favicon が img の src に FAVICON_URL (サイトのドメインを埋める) を入れ、ブラウザが画像を読む"
+        fields:
+          - { name: domain, use: [write] }
+        evidence:
+          - { file: src/components/common/Favicon.tsx, line: 16 }
+          - { file: src/components/common/Favicon.tsx, line: 19 }
+          - { file: src/components/common/Favicon.tsx, line: 21 }
+          - { file: src/lib/constants.ts, line: 21 }
+        note: "既定の URL のとき。FAVICON_URL で差し替えられ、PRIVATE_MODE のときと、ドメインからホスト名が取れないときは読まない。送るのは、URL に埋めるサイトのドメイン"
+
+  - id: active_users
+    layer: component
+    kind: component
+    name: "ActiveUsers"
+    source: { file: src/components/metrics/ActiveUsers.tsx, line: 6 }
+    caller: website_header
+    call:
+      status: fact
+      when: conditional
+      condition: "URL が /settings で終わらないとき"
+      evidence:
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 8 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 23 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 34 }
+    summary:
+      status: interpretation
+      value: "今いる訪問者の数を 60 秒ごと (refetchInterval の既定) に取り直して出す。0 なら何も描かない。この入口では allowLink={false} が渡るので、数をリアルタイムの画面へのリンクにしない"
+      evidence:
+        - { file: src/components/metrics/ActiveUsers.tsx, line: 9 }
+        - { file: src/components/metrics/ActiveUsers.tsx, line: 18 }
+        - { file: src/components/metrics/ActiveUsers.tsx, line: 28 }
+        - { file: src/components/metrics/ActiveUsers.tsx, line: 40 }
+        - { file: "src/app/(main)/websites/[websiteId]/WebsiteHeader.tsx", line: 34 }
+
+  - id: use_active_users
+    layer: component
+    kind: hook
+    name: "useActiveUsersQuery"
+    source: { file: src/components/hooks/queries/useActiveUsersQuery.ts, line: 4 }
+    caller: active_users
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/metrics/ActiveUsers.tsx, line: 4 }
+        - { file: src/components/metrics/ActiveUsers.tsx, line: 18 }
+    summary:
+      status: interpretation
+      value: "websiteId があるとき GET /websites/<websiteId>/active を呼ぶ (渡された refetchInterval で取り直す)。useApi が URL の接頭辞と、共有トークンのヘッダーを付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useActiveUsersQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useActiveUsersQuery.ts, line: 9 }
+        - { file: src/components/hooks/queries/useActiveUsersQuery.ts, line: 10 }
+        - { file: src/components/hooks/useApi.ts, line: 24 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_active
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/websites/[websiteId]/active"
+    source: { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 6 }
+    caller: use_active_users
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useActiveUsersQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useActiveUsersQuery.ts, line: 9 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (API_URL 無し) では basePath + /api/websites/<websiteId>/active。enabled: !!websiteId の条件は、WebsiteHeader が context のサイトの id を渡すので (WebsiteHeader.tsx:34)、この入口ではいつも成り立つ。always にした"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (だめならエラーを返す)、canViewWebsiteSection (overview / realtime) で見てよいかを確かめ (だめなら 401)、getActiveVisitors で直近 5 分の訪問者数を返す。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ"
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 10 }
+        - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 18 }
+        - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 22 }
+    parameters:
+      - name: "websiteId"
+        value: "URL の段 [websiteId]"
+        status: fact
+        evidence:
+          - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 16 }
+
+  - id: q_can_view_website_section
+    layer: query
+    kind: function
+    name: "canViewWebsiteSection (src/permissions/share.ts)"
+    source: { file: src/permissions/share.ts, line: 53 }
+    caller: api_active
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 3 }
+        - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 18 }
+      note: "手前にあるのは、認証できないときの早い return だけ (active/route.ts:12)"
+    summary:
+      status: interpretation
+      value: "ログインしたユーザーがいれば canViewWebsite に任せる。いなければ、共有トークンにこの id が含まれ、区画の指定があるなら overview か realtime が許されているかを見る (データは読まない)。そのため、overview も realtime も許していない共有では、見出しの訪問者数は 401 になり出ない。canViewWebsite も呼ぶ。経路はフレーム q_can_view_website と同じ。終端にならないよう、そのいちばん早い呼び出しの 1 本 (getEntity → getWebsite) を下にもう一度書いた"
+      evidence:
+        - { file: src/permissions/share.ts, line: 58 }
+        - { file: src/permissions/share.ts, line: 59 }
+        - { file: src/permissions/share.ts, line: 64 }
+        - { file: src/permissions/share.ts, line: 73 }
+        - { file: src/permissions/share.ts, line: 77 }
+    guards:
+      - kind: other
+        value: "canViewWebsiteSection"
+        status: fact
+        evidence:
+          - { file: src/permissions/share.ts, line: 64 }
+          - { file: src/permissions/share.ts, line: 73 }
+          - { file: src/permissions/share.ts, line: 77 }
+          - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 18 }
+          - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 19 }
+        note: "auth.user が無いときは、共有トークンがあり、shareTokenIncludesWebsite(auth, websiteId) で、区画の指定 (parameters の真偽値) があるなら ['overview', 'realtime'] のどれかが true"
+
+  - id: q_can_view_website_rw
+    layer: query
+    kind: function
+    name: "canViewWebsite (src/permissions/website.ts)"
+    source: { file: src/permissions/website.ts, line: 8 }
+    caller: q_can_view_website_section
+    call:
+      status: fact
+      when: conditional
+      condition: "ログインしたユーザーがいるとき (auth.user あり)"
+      evidence:
+        - { file: src/permissions/share.ts, line: 58 }
+        - { file: src/permissions/share.ts, line: 59 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう、もう一度書いたもの。全体の経路 (getEntity の 4 種類の読み取りと getTeamUser) と、権限の確認は、フレーム q_can_view_website"
+      evidence:
+        - { file: src/permissions/website.ts, line: 9 }
+        - { file: src/permissions/website.ts, line: 24 }
+        - { file: src/permissions/website.ts, line: 35 }
+
+  - id: q_get_entity_rw
+    layer: query
+    kind: function
+    name: "getEntity (src/lib/entity.ts)"
+    source: { file: src/lib/entity.ts, line: 4 }
+    caller: q_can_view_website_rw
+    call:
+      status: fact
+      when: conditional
+      condition: "管理者でなく、共有トークンにこの id が含まれないとき"
+      evidence:
+        - { file: src/permissions/website.ts, line: 9 }
+        - { file: src/permissions/website.ts, line: 13 }
+        - { file: src/permissions/website.ts, line: 24 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう、もう一度書いたもの。全体の経路はフレーム q_get_entity。ここでは、いちばん早い呼び出し (getWebsite) だけを下に書いた"
+      evidence:
+        - { file: src/lib/entity.ts, line: 5 }
+        - { file: src/lib/entity.ts, line: 6 }
+
+  - id: q_get_website_rw
+    layer: query
+    kind: function
+    name: "getWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 80 }
+    caller: q_get_entity_rw
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/entity.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "呼び出し元が終端にならないよう、もう一度書いたもの。id が uuid の形なら website を 1 件読み、最新の share の slug を付ける。全体の経路 (ライブラリの呼び出しまで) はフレーム q_get_website"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 81 }
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 95 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 77 }
+          - { file: src/queries/prisma/website.ts, line: 87 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 130 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+        fields:
+          - { name: slug, use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 304 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 406 }
+          - { file: prisma/schema.prisma, line: 408 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "website が見つかったときだけ"
+
+  # ---- 訪問者数
+  - id: q_active
+    layer: query
+    kind: function
+    name: "getActiveVisitors (src/queries/sql/getActiveVisitors.ts)"
+    source: { file: src/queries/sql/getActiveVisitors.ts, line: 9 }
+    caller: api_active
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 4 }
+        - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 22 }
+      note: "手前にあるのは、認証できないときと、見る権限が無いときの早い return だけ (active/route.ts:12、:18)"
+    summary:
+      status: interpretation
+      value: "直近 5 分の website_event から、異なる session_id の数を数える。PostgreSQL 用と ClickHouse 用の SQL を両方持ち、設定 (CLICKHOUSE_URL の有無) でどちらか一方が動く"
+      evidence:
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 12 }
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 20 }
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 24 }
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 43 }
+        - { file: src/lib/db.ts, line: 27 }
+        - { file: src/lib/db.ts, line: 38 }
+    settings:
+      - name: CLICKHOUSE_URL
+        kind: env
+        effect: "あれば ClickHouse 用の問い合わせが動き、無ければ PostgreSQL 用の問い合わせが動く"
+        status: fact
+        evidence:
+          - { file: src/lib/db.ts, line: 27 }
+          - { file: src/lib/db.ts, line: 32 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 12 }
+      - name: DATABASE_REPLICA_URL
+        kind: env
+        effect: "あれば、PostgreSQL 用の読み取りの生 SQL を、複製 (replica) へ送る"
+        status: fact
+        evidence:
+          - { file: src/lib/prisma.ts, line: 738 }
+          - { file: src/lib/prisma.ts, line: 55 }
+    rules:
+      - kind: calculation
+        value: "今いる訪問者数は、直近 5 分 (いまの時刻 - 5 分 以降) の website_event の、異なる session_id の数"
+        status: fact
+        evidence:
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 20 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 24 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 27 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 38 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 43 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website_event } }
+        detail: "生の SQL (prisma.rawQuery) の select count(distinct session_id) from website_event where website_id と created_at"
+        fields:
+          - { name: session_id, use: [read] }
+          - { name: website_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 24 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 25 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 26 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 27 }
+          - { file: prisma/schema.prisma, line: 183 }
+        note: "CLICKHOUSE_URL が無いとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: clickhouse, table: website_event } }
+        detail: "生の SQL (clickhouse.rawQuery) の select count(distinct session_id) from website_event where website_id と created_at"
+        fields:
+          - { name: session_id, use: [read] }
+          - { name: website_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 43 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 44 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 45 }
+          - { file: src/queries/sql/getActiveVisitors.ts, line: 46 }
+          - { file: db/clickhouse/schema.sql, line: 2 }
+        note: "CLICKHOUSE_URL があるとき"
+
+  - id: ext_prisma_active
+    layer: external
+    kind: library
+    name: "Prisma Client $queryRawUnsafe"
+    source: { file: src/lib/prisma.ts, line: 746 }
+    caller: q_active
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL が無く、DATABASE_URL の種類が postgres のとき"
+      evidence:
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 13 }
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 22 }
+        - { file: src/lib/db.ts, line: 38 }
+        - { file: src/lib/prisma.ts, line: 750 }
+        - { file: src/lib/prisma.ts, line: 746 }
+
+  - id: ext_clickhouse_active
+    layer: external
+    kind: library
+    name: "ClickHouse client (@clickhouse/client) query"
+    source: { file: src/lib/clickhouse.ts, line: 721 }
+    caller: q_active
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL があるとき"
+      evidence:
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 14 }
+        - { file: src/queries/sql/getActiveVisitors.ts, line: 40 }
+        - { file: src/lib/db.ts, line: 27 }
+        - { file: src/lib/db.ts, line: 32 }
+        - { file: src/lib/clickhouse.ts, line: 721 }
+
+  # ---------------------------------------------------------------- 埋め込む画面 (中は辿っていない)
+  - id: board_view_page
+    layer: component
+    kind: component
+    name: "BoardViewPage (src/app/(main)/boards/[boardId]/BoardViewPage.tsx)"
+    source: { file: "src/app/(main)/boards/[boardId]/BoardViewPage.tsx", line: 9 }
+    caller: share_page
+    call:
+      status: fact
+      when: conditional
+      condition: "共有の種類が board で、共有のデータに boardId があるとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 5 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 91 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 92 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 93 }
+    parameters:
+      - name: "props"
+        value: "showActions={false} を渡す (BoardViewPage の既定は true)。showControls と showEntityBadges は既定の true"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 93 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "BoardViewPage の定義 (src/app/(main)/boards/[boardId]/BoardViewPage.tsx:9) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 boards.boardId_d が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る。また、操作のボタンを出さない props を渡すので、書き込みの操作は出ないことがある"
+
+  - id: pixel_page
+    layer: component
+    kind: component
+    name: "PixelPage (src/app/(main)/pixels/[pixelId]/PixelPage.tsx)"
+    source: { file: "src/app/(main)/pixels/[pixelId]/PixelPage.tsx", line: 15 }
+    caller: share_page
+    call:
+      status: fact
+      when: conditional
+      condition: "共有の種類が pixel で、共有のデータに pixelId があるとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 7 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 91 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 94 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 95 }
+    parameters:
+      - name: "props"
+        value: "showHeaderActions={false} を渡す (PixelPage の既定は true)"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 95 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "PixelPage の定義 (src/app/(main)/pixels/[pixelId]/PixelPage.tsx:15) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 pixels.pixelId_d が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る。また、操作のボタンを出さない props を渡すので、書き込みの操作は出ないことがある"
+
+  - id: link_page
+    layer: component
+    kind: component
+    name: "LinkPage (src/app/(main)/links/[linkId]/LinkPage.tsx)"
+    source: { file: "src/app/(main)/links/[linkId]/LinkPage.tsx", line: 15 }
+    caller: share_page
+    call:
+      status: fact
+      when: conditional
+      condition: "共有の種類が link で、共有のデータに linkId があるとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 6 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 91 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 96 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 97 }
+    parameters:
+      - name: "props"
+        value: "showHeaderActions={false} を渡す (LinkPage の既定は true)"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 97 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "LinkPage の定義 (src/app/(main)/links/[linkId]/LinkPage.tsx:15) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 links.linkId_d が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る。また、操作のボタンを出さない props を渡すので、書き込みの操作は出ないことがある"
+
+  - id: website_page
+    layer: component
+    kind: component
+    name: "WebsitePage (src/app/(main)/websites/[websiteId]/WebsitePage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/WebsitePage.tsx", line: 16 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が空か overview (または PAGE_COMPONENTS に無い名前で、parameters でその名前が true) で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 22 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 33 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 34 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "WebsitePage の定義 (src/app/(main)/websites/[websiteId]/WebsitePage.tsx:16) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: events_page
+    layer: component
+    kind: component
+    name: "EventsPage (src/app/(main)/websites/[websiteId]/events/EventsPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/events/EventsPage.tsx", line: 17 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が events で、共有の parameters の events が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 18 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 35 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "EventsPage の定義 (src/app/(main)/websites/[websiteId]/events/EventsPage.tsx:17) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.events が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: sessions_page
+    layer: component
+    kind: component
+    name: "SessionsPage (src/app/(main)/websites/[websiteId]/sessions/SessionsPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/sessions/SessionsPage.tsx", line: 14 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が sessions で、共有の parameters の sessions が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 20 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 36 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "SessionsPage の定義 (src/app/(main)/websites/[websiteId]/sessions/SessionsPage.tsx:14) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.sessions が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: realtime_page
+    layer: component
+    kind: component
+    name: "RealtimePage (src/app/(main)/websites/[websiteId]/realtime/RealtimePage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/realtime/RealtimePage.tsx", line: 17 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が realtime で、共有の parameters の realtime が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 19 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 37 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "RealtimePage の定義 (src/app/(main)/websites/[websiteId]/realtime/RealtimePage.tsx:17) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.realtime が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: performance_page
+    layer: component
+    kind: component
+    name: "PerformancePage (src/app/(main)/websites/[websiteId]/(reports)/performance/PerformancePage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/performance/PerformancePage.tsx", line: 7 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が performance で、共有の parameters の performance が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 13 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 38 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "PerformancePage の定義 (src/app/(main)/websites/[websiteId]/(reports)/performance/PerformancePage.tsx:7) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.performance が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: compare_page
+    layer: component
+    kind: component
+    name: "ComparePage (src/app/(main)/websites/[websiteId]/compare/ComparePage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/compare/ComparePage.tsx", line: 9 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が compare で、共有の parameters の compare が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 17 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 39 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "ComparePage の定義 (src/app/(main)/websites/[websiteId]/compare/ComparePage.tsx:9) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.compare が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: breakdown_page
+    layer: component
+    kind: component
+    name: "BreakdownPage (src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx", line: 13 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が breakdown で、共有の parameters の breakdown が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 9 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 40 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "BreakdownPage の定義 (src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx:13) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.breakdown が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: goals_page
+    layer: component
+    kind: component
+    name: "GoalsPage (src/app/(main)/websites/[websiteId]/(reports)/goals/GoalsPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/goals/GoalsPage.tsx", line: 11 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が goals で、共有の parameters の goals が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 11 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 41 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "GoalsPage の定義 (src/app/(main)/websites/[websiteId]/(reports)/goals/GoalsPage.tsx:11) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.goals が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: funnels_page
+    layer: component
+    kind: component
+    name: "FunnelsPage (src/app/(main)/websites/[websiteId]/(reports)/funnels/FunnelsPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/funnels/FunnelsPage.tsx", line: 11 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が funnels で、共有の parameters の funnels が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 10 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 42 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "FunnelsPage の定義 (src/app/(main)/websites/[websiteId]/(reports)/funnels/FunnelsPage.tsx:11) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.funnels が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: journeys_page
+    layer: component
+    kind: component
+    name: "JourneysPage (src/app/(main)/websites/[websiteId]/(reports)/journeys/JourneysPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/journeys/JourneysPage.tsx", line: 14 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が journeys で、共有の parameters の journeys が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 12 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 43 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "JourneysPage の定義 (src/app/(main)/websites/[websiteId]/(reports)/journeys/JourneysPage.tsx:14) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.journeys が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: retention_page
+    layer: component
+    kind: component
+    name: "RetentionPage (src/app/(main)/websites/[websiteId]/(reports)/retention/RetentionPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/retention/RetentionPage.tsx", line: 8 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が retention で、共有の parameters の retention が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 14 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 44 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "RetentionPage の定義 (src/app/(main)/websites/[websiteId]/(reports)/retention/RetentionPage.tsx:8) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.retention が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: utm_page
+    layer: component
+    kind: component
+    name: "UTMPage (src/app/(main)/websites/[websiteId]/(reports)/utm/UTMPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/utm/UTMPage.tsx", line: 7 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が utm で、共有の parameters の utm が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 16 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 45 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "UTMPage の定義 (src/app/(main)/websites/[websiteId]/(reports)/utm/UTMPage.tsx:7) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.utm が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: revenue_page
+    layer: component
+    kind: component
+    name: "RevenuePage (src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenuePage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenuePage.tsx", line: 7 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が revenue で、共有の parameters の revenue が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 15 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 46 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "RevenuePage の定義 (src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenuePage.tsx:7) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.revenue が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"
+
+  - id: attribution_page
+    layer: component
+    kind: component
+    name: "AttributionPage (src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx)"
+    source: { file: "src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx", line: 10 }
+    caller: share_page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "board / pixel / link の画面を描かず、URL の節が attribution で、共有の parameters の attribution が true で、WebsiteProvider がサイトを読み終えたとき"
+      evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 8 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 47 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 119 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+      note: "SharePage は PAGE_COMPONENTS[pageKey] || WebsitePage で描く画面を選ぶ (URL の節で切り替わる)。候補はこの表の 14 の画面で、すべて読めるので、それぞれをフレームにした"
+    parameters:
+      - name: "websiteId"
+        value: "共有のデータの websiteId"
+        status: fact
+        evidence:
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 76 }
+          - { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 137 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      note: "AttributionPage の定義 (src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx:10) と、SharePage から描く行までを読み、中は辿っていない。同じ部品を、入口 websites.websiteId_d.attribution が画面の本体として分析している。止めた理由: この入口は 17 の画面を埋め込み、1 つずつ終端まで書くと、それぞれの入口の結果 (数千行) を写すことになる。写すときの違い: 共有の画面では、API をログインのトークンではなく共有トークンで呼び、受け口の確認が canViewWebsiteSection などの共有の経路 (フレーム q_check_auth、q_can_view_shared_website、q_can_view_website_section と同じ) を通る"

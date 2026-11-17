@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: websites.websiteId_d.cohorts
+reviewed_at: "2026-11-17T15:51:51Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_create_segment/io/0/fields
+    claim: "segment の作成で書かれる created_at (@default(now())) と updated_at (@updatedAt。Prisma は作成のときも値を入れる) が fields に無い。同じ結果の q_update_segment は、同じ @updatedAt を根拠に updated_at を書いており、扱いがそろっていない"
+    evidence: {file: prisma/schema.prisma, line: 312}
+    suggestion: "fields に {name: created_at, use: [write]} と {name: updated_at, use: [write]} を足し、note に、値はモデルの既定と @updatedAt で入ることを書く (ほかの入口の segment の作成も同じ書き方なので、そろえるかどうかを合わせて決める)"
+    resolved: true
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_get_team_user/io/1
+    claim: "team の読み取りは、コードに関連の条件 team: { deletedAt: null } がそのまま書いてあり、表の名前もモデルの @@map で決まる (ほかの Prisma の読み取りを fact にしたのと同じ根拠) のに interpretation になっている"
+    evidence: {file: src/queries/prisma/teamUser.ts, line: 24}
+    suggestion: "status を fact にする (note の「テーブル名はコードに直接は出ない」は、ほかのモデルの読み取りにも当てはまるので、理由にならない)。ほかの入口でも fact と interpretation が混ざっているので、どちらかにそろえる"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_get_values_rw_filter/io/0/fields
+    claim: "絞り込みの行から読む列は実行時に決まるが、この画面で選べる項目は有限 (FieldFilters が path と event を除いた useFields の項目) で、session からは browser / os / device / country / region / city / distinct_id を読み、検索の条件にも使う。その列が fields に無い"
+    evidence: {file: src/components/input/FieldFilters.tsx, line: 49}
+    suggestion: "session の読み取り (io/0) の fields に、候補の列を use: [read, filter] で足す。website_event の読み取り (io/1、io/2) にも url_query / page_title / referrer_domain / utm_source / utm_medium / utm_campaign / utm_content / utm_term / hostname / tag を同じように足す (ほかの入口の getValues も同じ書き方なので、そろえるかどうかを合わせて決める)"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/field_filters
+    claim: "FieldFilters は、絞り込みの値の候補を引く期間を、今日の終わりから 6 か月前までに決めて FilterRecord に渡すが、この業務のルールが rules に無い (同じ決め方の LookupField には calculation のルールとして書いてある)"
+    evidence: {file: src/components/input/FieldFilters.tsx, line: 44}
+    suggestion: "field_filters に rules を足す (kind: calculation、value は「値の候補を引く期間は、今日の終わりから 6 か月前まで」、evidence は FieldFilters.tsx 44・45 行)"
+    resolved: true
+notes: "指摘にしなかったこと。(1) WebsiteControls の子 4 つ (WebsiteFilterButton・WebsiteDateFilter・ExportButton・FilterBar) の unknown + not_analyzed は、note に読んだ範囲と止めた理由があり、作業の決まりも打ち切りを禁じていないので、指摘にしていない。(2) useWebsiteCohortQuery は、深さ優先の順では追加のフォーム (CohortEditForm.tsx 35 行) で先に呼ばれる (enabled が false で問い合わせはしない)。作業の決まりは「成り立たないように見える呼び出しもフレームにする」なので、追加のフォームの下に置く読み方もあるが、結果の notes (2) に理由が書いてあり、届く先のある編集のフォームの下に置いた判断は妥当と見た。(3) GET …/segments の getQueryFilters (route.ts 31 行) は websiteId なしで呼ばれ、データに届かないので、フレームにしない扱いを受け入れた。(4) ext_prisma_values と ext_prisma_values_rw_filter の DATABASE_REPLICA_URL の interpretation は、ほかの入口の大半と同じなので、指摘にしていない。(5) 画面が送る page と pageSize を受け口のスキーマが落とし、いつも最初の 20 件になる、という主張は、request.ts 30〜45 行・prisma.ts 758〜759 行・constants.ts 31 行で確かめた。(6) 根拠の行は、全フレームの call・summary・guards・settings・rules・io を対象のコードで開いて確かめ、主張を支えていない行は見つからなかった。設定・確認の値・つながりの綴りは、ほかの入口の結果とそろっている"

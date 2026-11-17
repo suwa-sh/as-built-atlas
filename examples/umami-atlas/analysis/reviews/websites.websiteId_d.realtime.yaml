@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: websites.websiteId_d.realtime
+reviewed_at: "2026-11-17T16:09:49Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    resolved: true
+    where: callstack/q_can_update_website/guards/2
+    claim: "canUpdateWebsite の権限の確認 PERMISSIONS.websiteUpdate は、コードにそのまま書いてある (hasPermission(teamUser.role, PERMISSIONS.websiteUpdate)) のに interpretation になっている。同じ結果の q_can_delete_website/guards/2 (PERMISSIONS.websiteDelete) は fact で、ほかの入口の結果でも PERMISSIONS.websiteUpdate は多くが fact"
+    evidence: { file: "src/permissions/website.ts", line: 154 }
+    suggestion: "status を fact にする"
+  - kind: status_mismatch
+    severity: low
+    resolved: true
+    where: callstack/q_can_update_website/guards/1
+    claim: "持ち主の確認 canUpdateWebsite が interpretation だが、同じ形 (user.id === website.userId) の canDeleteWebsite の ownership (q_can_delete_website/guards/1) は fact で、同じ結果の中で付け方がそろっていない"
+    evidence: { file: "src/permissions/website.ts", line: 148 }
+    suggestion: "canDeleteWebsite と同じく fact にそろえる (どちらかに寄せればよい)"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/q_realtime_activity/io/2/fields
+    claim: "getRealtimeActivity のイベントのプロパティの絞り込み (event_data) の fields に data_type が無い。絞り込みの SQL は data_key と data_type で照合し (prisma.ts:565)、同じ parseFilters を使う q_pageview_stats / q_session_stats の event_data / session_data には data_type がある。io/3 (PostgreSQL の session_data)、io/5、io/6 (ClickHouse の event_data / session_data) も同じ"
+    evidence: { file: "src/lib/prisma.ts", line: 565 }
+    suggestion: "io/2・io/3・io/5・io/6 の fields に data_type (use: filter) を足す"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/q_session_replays
+    claim: "getSessionReplays の PostgreSQL 側も parseFilters の filterQuery を使い (getSessionReplays.ts:35)、そこにはイベントのプロパティの絞り込み (event_data を読む副問い合わせ) が入るのに、PostgreSQL の event_data の読み取りが無い。ClickHouse 側 (io/6) には event_data を書いていて、両側で割れている (websites.websiteId_d.events のレビューと同じ点が、写した先でも残っている)"
+    evidence: { file: "src/queries/sql/replays/getSessionReplays.ts", line: 35 }
+    suggestion: "PostgreSQL の event_data の読み取り (website_event_id / website_id / created_at / data_key / data_type、URL にイベントのプロパティの絞り込みがあるときだけ) を io に足す"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。根拠の file:line は全件が対象のファイルの行の範囲に入っており、summary の「フレーム <id>」の参照先もすべて存在する。前回のレビューの high (canUpdateWebsite のフレームの抜け) は直っていて、q_can_update_website と q_get_website_rw3 が正しい場所にある。この画面に固有の経路 (page → RealtimePage → useRealtimeQuery → GET /api/realtime/[websiteId] → getRealtimeData → getRealtimeActivity / getPageviewStats / getSessionStats、RealtimeLog → SessionModal、WorldMap → useWebsiteMetricsQuery → GET metrics) は、根拠の行を開いて確かめ、主張と合っていた (30 分の期間と REALTIME_RANGE、10 秒ごとの読み直し、event_type = 5 の除外と 100 件の上限、国はセッションごとに 1 回だけ数えること、unit を付けずに呼ぶので getMinimumUnit で minute になり ClickHouse でも website_event から数えること、WorldMap に websiteId が渡らず metrics が呼ばれないように見えること)。入口から辿る順 (useRealtimeQuery → RealtimeLog → WorldMap、SessionProfile の中は useWebsiteSessionQuery → SessionDeleteButton → SessionActivity → SessionData → SessionReplaysDataTable) と、共有する処理の置き場も決まりと合っている。綴り (設定の名前、確認の値) はほかの入口の結果とそろっている。指摘にしなかったこと: q_parse_request と q_can_view_website_section の summary にある「この画面のほかの受け口」の一覧に、event-data/[eventId] の GET (route.ts:10 で parseRequest、:18 で canViewWebsiteSection の events) が入っていない (api_event_data_by_id の summary には書いてあるので、経路は欠けていない)。"

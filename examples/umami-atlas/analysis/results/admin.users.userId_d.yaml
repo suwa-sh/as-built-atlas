@@ -1,0 +1,1970 @@
+format_version: 1
+entry:
+  id: admin.users.userId_d
+  path: /admin/users/[userId]
+  name: "[userId]"
+  layer: page
+  source: { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T11:43:51Z"
+  reviewed:
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T11:43:07Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "管理の画面で、ユーザー 1 人を見て編集する画面。サーバー側の page は URL の userId を UserPage に渡すだけで、本体はブラウザ側で動く。開くと GET /api/users/[userId] で user を読み、見出しにユーザー名を出す。その下に 3 つのタブがある。(1) 詳細: ユーザー名・パスワード・役割 (自分自身のときは役割の欄を出さない) のフォーム。保存で POST /api/users/[userId] を呼び、user を更新する (パスワードはハッシュにし、ユーザー名と役割は管理者だけが変えられ、ユーザー名の重複は 400)。ログイン中のユーザーは useLoginQuery から得る (ストアに無いときだけ POST /api/auth/verify で user と所属の team を読む)。(2) サイト: GET /api/users/[userId]/websites でそのユーザーのサイトの一覧 (website、持ち主の user、share) を読み、一覧にサイトがあれば GET /api/websites/charts で直近 7 日の訪問者数の小さなグラフを読む (website_event。CLICKHOUSE_URL があれば ClickHouse の website_event_stats_hourly)。各行の編集ボタンは /websites/<id>/settings へ移る。(3) セキュリティ: GET /api/2fa/status (ログイン中の管理者自身の 2 段階認証の状態と、全体で必須かどうか) と GET /api/admin/users/[userId]/2fa (このユーザーが 2 段階認証を有効にしているか) を読む。スイッチで、このユーザーに 2 段階認証を必須にするかを POST /api/admin/users/[userId]/2fa で書き (user の two_factor_required)、リセットで DELETE /api/admin/users/[userId]/2fa を呼んで two_factor_auth / two_factor_backup_code / two_factor_otp_used / two_factor_rate_limit の行を消す。どの API も最初にログインの確認 (user。REDIS_URL があれば Redis の auth:*) を行う。/api/admin の 3 つの API は管理者だけが使え、CLOUD_MODE では 404 を返す"
+  evidence:
+    - { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 7 }
+    - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 10 }
+    - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 19 }
+    - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 22 }
+    - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 25 }
+    - { file: "src/app/api/users/[userId]/route.ts", line: 22 }
+    - { file: "src/app/api/users/[userId]/route.ts", line: 78 }
+    - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+    - { file: src/app/api/websites/charts/route.ts, line: 37 }
+    - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 26 }
+    - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 55 }
+    - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 77 }
+notes: "(1) 枠 (admin と (main) の layout) の処理は辿っていない。この画面は admin の枠の中で動き、枠は CLOUD_MODE のときと管理者でないときに何も描かないが、それは枠の入口の結果に書いてある。(2) 同じ関数は、入口からコードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に 1 回だけ書いた。parseRequest → checkAuth → getUser は GET /api/users/[userId] (UserProvider の useUserQuery が最初に着く) の下。updateUser は POST /api/users/[userId] の下 (POST /api/admin/users/[userId]/2fa も呼ぶ。書く列 two_factor_required は、同じ I/O の fields に足した)。useUserQuery は UserProvider の下 (UserTwoFactorSettings も呼ぶ)。(3) POST /api/admin/users/[userId]/2fa は、呼び先 (parseRequest と updateUser) がどちらもほかの呼び出し元の下に書いてあり、そのままでは終端になるので、いちばん早い呼び先の parseRequest を、読み書きを持つ最初の段 (checkAuth) までもう一度書いた (id が _rw で終わるフレーム)。書き直したフレームには、確認・設定・ルールを繰り返していない。(4) 同じ関数でも URL が違うものは別のフレームにした: useUpdateQuery は /users/<userId> と /admin/users/<userId>/2fa。(5) 権限の確認の関数 canViewUser / canUpdateUser / canEnforceTwoFactorAuthForUser (src/permissions/user.ts) は、データを読まず、ログイン中のユーザーの値を比べるだけなので、フレームにすると終端の決まりを満たせない。段にせず、確認はそれを呼ぶ受け口の guards に書いた。canEnforceTwoFactorAuthForUser の中身は user?.isAdmin だけなので、kind: role の user.isAdmin と書いた。GET /api/users/[userId]/websites の確認は関数になっていないので、ほかの入口の結果に合わせて、value にコードの式を肯定の形 (auth.user.id === userId) で書いた。(6) getUserByUsername は getUser と同じ補助の関数 findUser を通り、ライブラリを呼ぶ行 (user.ts:32) が同じなので、external のフレームは足していない (ext_prisma_user と同じ)。(7) Tabs / TabPanel の中の部品 (UserEditForm、UserWebsites、UserTwoFactorSettings) を、タブを選ぶまで描くかどうかは UI ライブラリ (@umami/react-zen) の動きで、リポジトリからは読めない。ほかの入口の結果と同じく、コードの条件だけを見て always にし、note に書いた。(8) /api/admin の 3 つの受け口は、先頭で CLOUD_MODE なら 404 を返す。設定で打ち切るので、その後ろの呼び出しを conditional にし、設定を settings に書いた (admin の枠が CLOUD_MODE で何も描かないので、この画面からは、ふつう成り立つ条件)。(9) canViewBatchWebsites は管理者なら DB を読まずに返す。この画面は管理者にだけ描かれるので、その後ろの読み取りはこの入口からは届かないように見えるが、消さずに conditional で書いて note に理由を書いた。(10) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は辿っていない。ブラウザはログインのトークンを付ける (useApi.ts:28) うえ、/api/users・/api/admin・/api/2fa・/api/auth は API キーを受け付けないパス (api-key.ts:11)。(11) 設定: API_URL は API を呼ぶフックごとに書いた。/auth で始まる URL には効かないので、useLoginQuery には書かず、ほかの入口の結果に合わせて BASE_PATH を書いた。DATABASE_URL は書いていない。(12) UserHeader (ユーザー名の見出し)、DataGrid (一覧の枠。ページ送りと検索は、同じ画面の URL のクエリを書き換えるだけ)、WebsiteSparkline、TypeConfirmationForm、ControlledDialog は、見た目だけか、データに届かない部品なので、フレームにしていない。(13) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(14) レビューの指摘 2 件 (medium 1、low 1) は、どちらも直した: DATABASE_REPLICA_URL の設定を fact にし、GET /api/users/[userId]/websites の本人の確認の value を、ほかの入口と同じ綴りにそろえた"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "[userId] (src/app/(main)/admin/users/[userId]/page.tsx)"
+    source: { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page。URL の userId を params から取り出して UserPage に渡すだけで、自分ではデータを読まない。metadata で title を User にする"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 7 }
+        - { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 11 }
+    parameters:
+      - name: userId
+        value: "URL の動的な段 [userId]"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 4 }
+
+  - id: user_page
+    layer: component
+    kind: component
+    name: "UserPage"
+    source: { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 8 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 2 }
+        - { file: "src/app/(main)/admin/users/[userId]/page.tsx", line: 7 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。UserProvider で userId のユーザーを読み込み、その中に、見出し (UserHeader。コンテキストのユーザー名を出すだけ) と UserSettings を描く"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 1 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 10 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 12 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 14 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserHeader.tsx", line: 8 }
+
+  # ---------------------------------------------------------------- ユーザーの読み込み
+  - id: user_provider
+    layer: component
+    kind: component
+    name: "UserProvider"
+    source: { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 8 }
+    caller: user_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 10 }
+    summary:
+      status: interpretation
+      value: "useUserQuery でユーザーを読み、読み込み中は Loading、読めなければ何も描かない。読めたら UserContext に入れて子 (UserHeader と UserEditForm の useUser) に渡す"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 9 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 11 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 15 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 19 }
+
+  - id: use_user_query
+    layer: component
+    kind: hook
+    name: "useUserQuery"
+    source: { file: src/components/hooks/queries/useUserQuery.ts, line: 6 }
+    caller: user_provider
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 3 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 9 }
+    summary:
+      status: interpretation
+      value: "userId があるとき GET /users/<userId> を呼ぶ。queryKey に user:<userId> の更新印を入れるので、保存のあと読み直す。UserTwoFactorSettings も同じ関数を同じ userId で呼ぶ"
+      evidence:
+        - { file: src/components/hooks/queries/useUserQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useUserQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useUserQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useUserQuery.ts, line: 13 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 40 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_user_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/users/[userId]"
+    source: { file: "src/app/api/users/[userId]/route.ts", line: 9 }
+    caller: use_user_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useUserQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useUserQuery.ts, line: 13 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "enabled: !!userId の条件が付いているが、この画面では userId が URL の段から必ず渡るので、いつも成り立つ"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し、canViewUser で見てよいか (管理者か本人か) を確かめ (だめなら 401)、getUser で userId のユーザーを読んで返す (パスワードの列は取り出さない)。getUser も呼ぶ。経路はフレーム q_get_user と同じ"
+      evidence:
+        - { file: "src/app/api/users/[userId]/route.ts", line: 10 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 18 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 19 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 22 }
+    parameters:
+      - name: userId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 16 }
+    guards:
+      - kind: ownership
+        value: "canViewUser"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 18 }
+          - { file: src/permissions/user.ts, line: 7 }
+          - { file: src/permissions/user.ts, line: 12 }
+          - { file: src/permissions/user.ts, line: 16 }
+        note: "管理者 (user.isAdmin) か、見る相手が自分 (user.id === viewedUserId) なら許す。満たさなければ 401。canViewUser はデータを読まないので段にせず、呼ぶ受け口に書いた"
+
+  # ---- 認証 (この画面のどの API も最初に parseRequest を呼ぶ。入口から辿る順で最初に着くここに 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_user_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/users/[userId]/route.ts", line: 3 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 10 }
+    summary:
+      status: interpretation
+      value: "URL のクエリと JSON の本文を読み、スキーマがあれば検査する (GET はクエリ、それ以外は本文。合わなければ 400)。skipAuth が無いので checkAuth で認証し、認証できなければ 401 のエラーを返す。この画面のほかの API (users/[userId] の POST、auth/verify の POST、users/[userId]/websites の GET、websites/charts の GET、2fa/status の GET、admin/users/[userId]/2fa の GET / POST / DELETE) も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 33 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、この画面の API は skipAuth を渡さず、error はスキーマの検査で落ちたとき (入力の誤りによる打ち切り) だけ"
+    summary:
+      status: interpretation
+      value: "Bearer トークンを取り出す。API キーが有効で、トークンが API キーの形なら API キーとして確かめる (この画面のブラウザはログインのトークンを付けるので、辿っていない)。そうでなければ署名付きトークンを解き、2FA の仮トークンなら拒否する。トークンに userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ、ユーザーを無効にする。ユーザーも共有トークンも無ければ null (認証の失敗)。ユーザーがいればパスワードを消し、role が admin なら isAdmin を付ける"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 98 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 137 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+        note: "トークンからユーザーが得られず、共有トークンも無ければ null を返す。parseRequest が 401 のエラーにし、受け口がそれを返す"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていて、トークンに userId が無く authKey があるときだけ、Redis からセッション (auth:*) を読んでユーザーを引く"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、API キーの形のトークンを API キーとして認証する枝 (checkApiKeyAuth) を通らない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+        note: "この画面のブラウザはログインのトークンを付けるので、API キーの枝は辿っていない"
+    rules:
+      - kind: validation
+        value: "2FA のログインの途中で出す仮のトークン (PARTIAL_AUTH_TOKEN_TYPE) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+      - kind: validation
+        value: "トークンやセッションが持つパスワードの指紋 (pwd) が、今のパスワードのハッシュと違えば、無効にする (指紋を持たない古いトークンは通す)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーが無く共有トークンだけのときは、共有の文脈を示すヘッダー (SHARE_CONTEXT_HEADER) が無ければ認証しない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 129 }
+    io:
+      - op: get
+        status: interpretation
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。キーは、トークンから取り出した authKey の値 (auth.ts:91)。auth:<ランダム> の形は、トークンを作る側の saveAuth (auth.ts:150) から読み取った"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 91 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき。または、Redis から読んだセッションに userId があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 22 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "同じファイルの findUser を通して、id で、削除されていない user を 1 件読む。パスワードの列は includePassword のときだけ取り出す (checkAuth は付けて呼ぶ)。GET と POST の /api/users/[userId] も、URL の userId で同じ関数を呼ぶ (includePassword は付けない)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 22 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 48 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where: id と deletedAt null。select: id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "列の名前は schema.prisma の @map のとおり。password を取り出すのは、checkAuth から呼ぶとき (includePassword) だけ"
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "checkAuth が呼ぶのは、リポジトリが自前で包んだ get (redis.ts:34)。その中の this.client.get がライブラリの呼び出し"
+
+  # ---------------------------------------------------------------- 3 つのタブ
+  - id: user_settings
+    layer: component
+    kind: component
+    name: "UserSettings"
+    source: { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 7 }
+    caller: user_page
+    call:
+      status: fact
+      when: conditional
+      condition: "UserProvider がユーザーを読み終え、ユーザーがあるとき (読み込み中と、ユーザーが無いときは描かない)"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 6 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserPage.tsx", line: 14 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 15 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserProvider.tsx", line: 19 }
+      note: "JSX に書いているのは UserPage で、UserProvider の children として渡す。描くかどうかは UserProvider が決める"
+    summary:
+      status: interpretation
+      value: "3 つのタブ (詳細 / サイト / セキュリティ) を描き、それぞれに UserEditForm、UserWebsites、UserTwoFactorSettings を置く"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 14 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 15 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 22 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 25 }
+
+  # ---- 詳細のタブ: ユーザーの編集
+  - id: user_edit_form
+    layer: component
+    kind: component
+    name: "UserEditForm"
+    source: { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 14 }
+    caller: user_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 3 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 19 }
+      note: "最初のタブ (details) の TabPanel の中にある。選んでいないタブの中身を描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードには条件が無いので always にした"
+    summary:
+      status: interpretation
+      value: "コンテキストのユーザー (useUser) を初期値にした、ユーザー名・パスワード・役割のフォーム。ログイン中のユーザーを useLoginQuery から得て、編集する相手が自分のときは役割の欄を出さない。保存で POST /users/<userId> を呼び、users と user:<id> の更新印を付ける"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 17 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 22 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 25 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 26 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 33 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 47 }
+    parameters:
+      - name: username
+        value: "フォームの入力。初期値はユーザーの値"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 34 }
+      - name: password
+        value: "フォームの入力 (8 文字以上)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 38 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 41 }
+      - name: role
+        value: "ROLES.viewOnly / ROLES.user / ROLES.admin から選ぶ (必須)。編集する相手が自分のときは欄が無い"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 48 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 50 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 53 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 56 }
+    rules:
+      - kind: validation
+        value: "パスワードは、入れるなら 8 文字以上"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 41 }
+      - kind: decision
+        value: "編集する相手がログイン中の自分 (user.id === login.id) のときは、役割の欄を出さない (自分の役割は変えられない)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 47 }
+
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: user_edit_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 11 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 17 }
+    summary:
+      status: interpretation
+      value: "ストアのユーザーを返す。ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は、API_URL の設定に関わらず basePath + /api に向く"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (basePath + /api + /auth/verify)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.basePath)。next.config の env が、環境変数 BASE_PATH の値を入れる"
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      when: conditional
+      condition: "ストアにログイン中のユーザーが無いとき (enabled: !user)"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できれば getAllUserTeams で所属チームを読み、ユーザーと所属チームを返す。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 5 }
+          - { file: src/lib/storage.ts, line: 9 }
+
+  - id: q_get_all_user_teams
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 3 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+        - { file: src/queries/prisma/team.ts, line: 100 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId。select id / name / logoUrl)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: name, use: [read] }
+          - { name: logo_url, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: src/queries/prisma/team.ts, line: 95 }
+          - { file: src/queries/prisma/team.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 236 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: src/queries/prisma/team.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_get_all_user_teams
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+
+  - id: use_update_user
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/users/<userId>')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: user_edit_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 11 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 19 }
+    summary:
+      status: interpretation
+      value: "受け取った path に、フォームの値を本文にして POST する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_user_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/users/[userId]"
+    source: { file: "src/app/api/users/[userId]/route.ts", line: 27 }
+    caller: use_update_user
+    call:
+      status: fact
+      when: conditional
+      condition: "保存ボタンを押したとき"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserEditForm.tsx", line: 22 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "本文を username / password / role のスキーマで検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、canUpdateUser で更新してよいか (管理者か本人か) を確かめる (だめなら 401)。相手のユーザーを読み (getUser も呼ぶ。経路はフレーム q_get_user と同じ。無ければ 404)、パスワードがあればハッシュにし、管理者なら役割とユーザー名 (小文字にする) も変える。ユーザー名が変わるときは、同じ名前のユーザーがいないかを確かめ (いれば 400)、updateUser で更新する"
+      evidence:
+        - { file: "src/app/api/users/[userId]/route.ts", line: 28 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 34 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 42 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 48 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 51 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 57 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 62 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 66 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 71 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 78 }
+    parameters:
+      - name: userId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 40 }
+      - name: username
+        value: "JSON の本文。任意の文字列 (255 文字まで)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 29 }
+      - name: password
+        value: "JSON の本文。任意の文字列 (8 文字以上、255 文字まで)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 30 }
+      - name: role
+        value: "JSON の本文。任意。admin / user / view-only のどれか"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 31 }
+          - { file: src/lib/schema.ts, line: 107 }
+    guards:
+      - kind: ownership
+        value: "canUpdateUser"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 42 }
+          - { file: src/permissions/user.ts, line: 23 }
+          - { file: src/permissions/user.ts, line: 28 }
+          - { file: src/permissions/user.ts, line: 32 }
+        note: "管理者 (user.isAdmin) か、更新する相手が自分 (user.id === viewedUserId) なら許す。満たさなければ 401。canUpdateUser はデータを読まないので段にせず、呼ぶ受け口に書いた"
+    rules:
+      - kind: validation
+        value: "username は 255 文字まで、password は 8 文字以上 255 文字まで、role は admin / user / view-only のどれか (どれも任意)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 29 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 30 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 31 }
+          - { file: src/lib/schema.ts, line: 107 }
+      - kind: calculation
+        value: "パスワードは、bcrypt のハッシュ (10 ラウンド) にして保存する"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 57 }
+          - { file: src/lib/password.ts, line: 3 }
+          - { file: src/lib/password.ts, line: 6 }
+      - kind: decision
+        value: "役割とユーザー名を変えられるのは管理者 (auth.user.isAdmin) だけ。管理者でなければ、送られてきても無視する (パスワードだけ変えられる)。ユーザー名は小文字にして保存する"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 61 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 65 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 66 }
+      - kind: validation
+        value: "ユーザー名を変えるとき、同じユーザー名の別のユーザーが既にいれば、400 (User already exists) を返す"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 70 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 73 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 74 }
+
+  - id: q_get_user_by_username
+    layer: query
+    kind: function
+    name: "getUserByUsername (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 60 }
+    caller: api_user_post
+    call:
+      status: fact
+      when: conditional
+      condition: "管理者がユーザー名を送り、それが今のユーザー名と違うとき"
+      evidence:
+        - { file: "src/app/api/users/[userId]/route.ts", line: 7 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 70 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 71 }
+    summary:
+      status: interpretation
+      value: "同じファイルの findUser を通して、小文字にしたユーザー名で、削除されていない user を 1 件読む (パスワードの列は取り出さない)。ライブラリの呼び出しは getUser と同じ行 (findUser の中)。経路はフレーム ext_prisma_user と同じ"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 61 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where: username と deletedAt null。select: id / username / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read] }
+          - { name: username, use: [read, filter] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 61 }
+          - { file: prisma/schema.prisma, line: 14 }
+          - { file: prisma/schema.prisma, line: 37 }
+
+  - id: q_update_user
+    layer: query
+    kind: function
+    name: "updateUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 106 }
+    caller: api_user_post
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/users/[userId]/route.ts", line: 7 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 78 }
+    summary:
+      status: interpretation
+      value: "id で user を 1 件更新し、id / username / role / createdAt を返す。書く列は呼び出し元が決める: POST /api/users/[userId] は password / role / username、POST /api/admin/users/[userId]/2fa は twoFactorRequired (同じ関数を呼ぶ)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 107 }
+        - { file: src/queries/prisma/user.ts, line: 111 }
+        - { file: src/queries/prisma/user.ts, line: 112 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 55 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.update (where: id。data: 呼び出し元が渡す。select: id / username / role / createdAt)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read, write] }
+          - { name: role, use: [read, write] }
+          - { name: created_at, use: [read] }
+          - { name: password, use: [write] }
+          - { name: two_factor_required, use: [write] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 107 }
+          - { file: src/queries/prisma/user.ts, line: 109 }
+          - { file: src/queries/prisma/user.ts, line: 112 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 57 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 62 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 66 }
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 55 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "書く列の名前は、この段ではなく呼び出し元でしか読めないので、呼び出し元の行を根拠にした。password / role / username は詳細のタブの保存 (送られたものだけ)、two_factor_required はセキュリティのタブのスイッチ"
+
+  - id: ext_prisma_user_update
+    layer: external
+    kind: library
+    name: "Prisma Client user.update"
+    source: { file: src/queries/prisma/user.ts, line: 107 }
+    caller: q_update_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 107 }
+
+  # ---- サイトのタブ: ユーザーのサイトの一覧
+  - id: user_websites
+    layer: component
+    kind: component
+    name: "UserWebsites"
+    source: { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 5 }
+    caller: user_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 22 }
+      note: "2 番目のタブ (websites) の TabPanel の中にある。選んでいないタブの中身を描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードには条件が無いので always にした"
+    summary:
+      status: interpretation
+      value: "useUserWebsitesQuery でそのユーザーのサイトの一覧を読み、DataGrid (読み込み中・空・ページ送りを出す枠) の中に WebsitesTable を、編集ボタン付き (showActions) で描く"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 6 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 9 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 10 }
+
+  - id: use_user_websites_query
+    layer: component
+    kind: hook
+    name: "useUserWebsitesQuery"
+    source: { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 6 }
+    caller: user_websites
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 3 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 6 }
+    summary:
+      status: interpretation
+      value: "引数で URL を選ぶ (teamId があれば /teams/<teamId>/websites、無くて userId があれば /users/<userId>/websites、どちらも無ければ /me/websites)。この画面は userId だけを渡すので GET /users/<userId>/websites を呼ぶ。usePagedQuery が、URL のクエリの page / search / orderBy / sortDescending を引数に足す。queryKey に websites の更新印を入れる"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 14 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 18 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 21 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_user_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/users/[userId]/websites"
+    source: { file: "src/app/api/users/[userId]/websites/route.ts", line: 7 }
+    caller: use_user_websites_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 18 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 20 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 21 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 6 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "URL は引数 (teamId / userId の有無) で切り替わるが、この画面は userId だけを渡す (UserWebsites.tsx:6) ので、いつも /users/<userId>/websites になる"
+    summary:
+      status: interpretation
+      value: "クエリをスキーマで検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、管理者でも本人でもなければ 401 (DB は読まない)。getQueryFilters (websiteId を渡さないので DB を読まない) で条件を作り、includeTeams が無ければ getUserWebsites でそのユーザーのサイトの一覧を返す"
+      evidence:
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 8 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 15 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 24 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 27 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 29 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+        - { file: src/lib/request.ts, line: 129 }
+    parameters:
+      - name: "page / pageSize / search / orderBy / sortDescending"
+        value: "URL のクエリ。スキーマ (pagingParams / searchParams / sortingParams) で検査する"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 9 }
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 10 }
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 11 }
+      - name: userId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 21 }
+    guards:
+      - kind: ownership
+        value: "auth.user.id === userId"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 24 }
+        note: "コードは、!auth.user.isAdmin && auth.user.id !== userId のとき 401 を返す。管理者 (auth.user.isAdmin) は、本人でなくても通る。確認の関数が無く、受け口に直接書いてあるので、ほかの入口の結果と同じく、式を肯定の形で書いた"
+
+  - id: q_get_user_websites
+    layer: query
+    kind: function
+    name: "getUserWebsites → getWebsites / attachShareIdToWebsites (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 149 }
+    caller: api_user_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 5 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 29 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+      note: "includeTeams があると別の関数 (getAllUserWebsitesIncludingTeamAccess) へ分かれるが、この画面のフックは includeTeams を渡さない (UserWebsites.tsx:6、usePagedQuery.ts:24) ので、この入口ではいつもこちら"
+    summary:
+      status: interpretation
+      value: "userId のサイトを、持ち主 (user の username / id) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させて、既定では name の順に、ページ単位で読む (pagedQuery で件数も数える)。見つかったサイトがあれば、その share を読んで slug を付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 102 }
+        - { file: src/queries/prisma/website.ts, line: 108 }
+        - { file: src/queries/prisma/website.ts, line: 114 }
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/queries/prisma/website.ts, line: 119 }
+        - { file: src/queries/prisma/website.ts, line: 150 }
+        - { file: src/queries/prisma/website.ts, line: 153 }
+        - { file: src/queries/prisma/website.ts, line: 156 }
+        - { file: src/queries/prisma/website.ts, line: 164 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.pagedQuery('website', …) の findMany と count (where userId, deletedAt null, 検索語。既定の並びは name)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+          - { name: name, use: [filter] }
+          - { name: domain, use: [filter] }
+          - { name: created_at, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 117 }
+          - { file: src/queries/prisma/website.ts, line: 153 }
+          - { file: src/queries/prisma/website.ts, line: 114 }
+          - { file: src/queries/prisma/website.ts, line: 110 }
+          - { file: src/queries/prisma/website.ts, line: 112 }
+          - { file: src/queries/prisma/website.ts, line: 9 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "name / domain は検索語と並べ替え、created_at は並べ替え (URL の orderBy が createdAt のとき) に使う。user_id は、持ち主 (user) との結合にも使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { user: { select username, id } }"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 156 }
+          - { file: src/queries/prisma/website.ts, line: 158 }
+          - { file: src/queries/prisma/website.ts, line: 159 }
+          - { file: prisma/schema.prisma, line: 113 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "Website.user (User) のリレーションの読み込み。テーブル名は、コードに直接は出ない"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findMany (where entityId in サイトの id, distinct entityId, orderBy createdAt desc)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 334 }
+          - { file: src/queries/prisma/website.ts, line: 336 }
+          - { file: src/queries/prisma/website.ts, line: 338 }
+          - { file: src/queries/prisma/website.ts, line: 340 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "サイトが 1 件以上あるときだけ"
+
+  - id: ext_prisma_paged_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.findMany / count (pagedQuery) と share.findMany"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_user_websites
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+      note: "pagedQuery は、引数のモデル名 (ここでは website) で client[model] を呼ぶ。最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行 (count と share.findMany) は evidence に入れた。share.findMany は、サイトが 1 件以上あるときだけ"
+
+  - id: websites_table
+    layer: component
+    kind: component
+    name: "WebsitesTable"
+    source: { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 16 }
+    caller: user_websites
+    call:
+      status: fact
+      when: conditional
+      condition: "サイトの一覧を読み終えて、データがあるとき (DataGrid は data があるときだけ children の関数を呼ぶ)"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 1 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserWebsites.tsx", line: 10 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+    summary:
+      status: interpretation
+      value: "サイトの一覧の表 (名前、ドメイン、訪問者数の小さなグラフ、作成日)。一覧のサイトの id を useWebsiteListChartsQuery に渡して、グラフのデータを読む。showActions なので、各行に、サイトの設定の画面へ移る編集ボタンを出す"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 24 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 25 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 62 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 79 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 85 }
+    links:
+      - kind: navigate
+        target: "/websites/${websiteId}/settings"
+        entry_id: websites.websiteId_d.settings
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 85 }
+          - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 79 }
+          - { file: src/components/hooks/useNavigation.ts, line: 34 }
+        note: "各行の編集ボタン (showActions のとき。UserWebsites が渡す)。いまの URL が /teams/<teamId> の下なら renderUrl が前に /teams/<teamId> を付けるが、この画面の URL (/admin/users/...) には無い"
+
+  - id: use_website_list_charts
+    layer: component
+    kind: hook
+    name: "useWebsiteListChartsQuery"
+    source: { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 32 }
+    caller: websites_table
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 6 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 25 }
+    summary:
+      status: interpretation
+      value: "同じファイルの useListChartsQuery を通して、サイトの id (重複を除いて並べたもの) とタイムゾーンを引数に GET /websites/charts を呼ぶ。id が 1 つも無ければ呼ばない。5 分間は読み直さない"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 33 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 23 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 28 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_websites_charts_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/websites/charts"
+    source: { file: src/app/api/websites/charts/route.ts, line: 20 }
+    caller: use_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "一覧にサイトが 1 件以上あるとき (enabled: ids.length > 0)"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 23 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 33 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "クエリをスキーマで検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、期間を決める (startAt / endAt が無ければ、タイムゾーンでの直近 7 日)。canViewBatchWebsites で、見てよいサイトの id だけに絞り、getWebsiteListCharts でサイトごとの訪問者数の推移と合計を読む"
+      evidence:
+        - { file: src/app/api/websites/charts/route.ts, line: 21 }
+        - { file: src/app/api/websites/charts/route.ts, line: 28 }
+        - { file: src/app/api/websites/charts/route.ts, line: 30 }
+        - { file: src/app/api/websites/charts/route.ts, line: 35 }
+        - { file: src/app/api/websites/charts/route.ts, line: 37 }
+    parameters:
+      - name: ids
+        value: "URL のクエリ。サイトの id をカンマで区切ったもの (この画面では、一覧に出ているサイト)"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 11 }
+          - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 24 }
+      - name: timezone
+        value: "URL のクエリ。任意。無ければ UTC"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 17 }
+          - { file: src/app/api/websites/charts/route.ts, line: 27 }
+          - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 25 }
+    rules:
+      - kind: validation
+        value: "ids は UUID で、1 件以上 20 件まで"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 13 }
+          - { file: src/app/api/websites/charts/route.ts, line: 14 }
+      - kind: decision
+        value: "startAt と endAt の両方が無ければ、期間は、タイムゾーンでの直近 7 日 (7day) にする"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 28 }
+          - { file: src/app/api/websites/charts/route.ts, line: 29 }
+          - { file: src/app/api/websites/charts/route.ts, line: 32 }
+        note: "この画面のフックは startAt / endAt を渡さない (useWebsiteListChartsQuery.ts:23) ので、いつも直近 7 日"
+
+  - id: q_can_view_batch_websites
+    layer: query
+    kind: function
+    name: "canViewBatchWebsites (src/permissions/website.ts)"
+    source: { file: src/permissions/website.ts, line: 43 }
+    caller: api_websites_charts_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/websites/charts/route.ts, line: 4 }
+        - { file: src/app/api/websites/charts/route.ts, line: 35 }
+    summary:
+      status: interpretation
+      value: "求められたサイトの id のうち、見てよいものだけを返す。管理者なら、DB を読まずに全部返す。そうでなければ、website を読んで自分が持ち主のものを選び、チームのサイトは team_user を読んで、自分がメンバーのチームのものを選ぶ (共有トークンの対象も足す)"
+      evidence:
+        - { file: src/permissions/website.ts, line: 50 }
+        - { file: src/permissions/website.ts, line: 51 }
+        - { file: src/permissions/website.ts, line: 65 }
+        - { file: src/permissions/website.ts, line: 69 }
+        - { file: src/permissions/website.ts, line: 83 }
+        - { file: src/permissions/website.ts, line: 91 }
+        - { file: src/permissions/website.ts, line: 111 }
+    guards:
+      - kind: ownership
+        value: "canViewBatchWebsites"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 50 }
+          - { file: src/permissions/website.ts, line: 83 }
+          - { file: src/permissions/website.ts, line: 104 }
+          - { file: src/permissions/website.ts, line: 111 }
+        note: "エラーにはせず、見てよくないサイトの id を結果から外す。管理者 (user.isAdmin) は全部、そうでなければ、持ち主のサイト、メンバーであるチームのサイト、共有トークンの対象だけ"
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findMany (where id in 求められた id。select id / userId / teamId)"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: user_id, use: [read] }
+          - { name: team_id, use: [read] }
+        evidence:
+          - { file: src/permissions/website.ts, line: 69 }
+          - { file: src/permissions/website.ts, line: 71 }
+          - { file: src/permissions/website.ts, line: 76 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 104 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "ログイン中のユーザーが管理者でないときだけ。この画面は管理者にだけ描かれる (admin の枠) ので、この入口からは届かないように見える"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findMany (where userId, teamId in サイトのチーム, team.deletedAt null。select teamId)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/permissions/website.ts, line: 91 }
+          - { file: src/permissions/website.ts, line: 93 }
+          - { file: src/permissions/website.ts, line: 94 }
+          - { file: src/permissions/website.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "管理者でなく、求められたサイトの中にチームのサイトがあるときだけ"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/permissions/website.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_batch_websites
+    layer: external
+    kind: library
+    name: "Prisma Client website.findMany / teamUser.findMany"
+    source: { file: src/permissions/website.ts, line: 69 }
+    caller: q_can_view_batch_websites
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき (管理者なら、手前で全部を許して返す)"
+      evidence:
+        - { file: src/permissions/website.ts, line: 50 }
+        - { file: src/permissions/website.ts, line: 69 }
+        - { file: src/permissions/website.ts, line: 91 }
+      note: "この画面は管理者にだけ描かれる (admin の枠が、管理者でなければ何も描かない) ので、この入口からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた。最初に呼ぶ行を source にし、残りの行は evidence に入れた"
+
+  - id: q_get_website_list_charts
+    layer: query
+    kind: function
+    name: "getWebsiteListCharts (src/queries/sql/getWebsiteListCharts.ts)"
+    source: { file: src/queries/sql/getWebsiteListCharts.ts, line: 23 }
+    caller: api_websites_charts_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/websites/charts/route.ts, line: 8 }
+        - { file: src/app/api/websites/charts/route.ts, line: 37 }
+    summary:
+      status: interpretation
+      value: "サイトごとに、期間の中の訪問者数 (セッションの数) を 12 時間ごとに数え、サイトごとの合計も出す。見てよいサイトが 1 件も無ければ、問い合わせずに空を返す。PostgreSQL 用 (website_event) と ClickHouse 用 (website_event_stats_hourly) の SQL を両方持ち、runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 37 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 41 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 43 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 48 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 89 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+        - { file: src/lib/db.ts, line: 27 }
+    settings:
+      - name: CLICKHOUSE_URL
+        kind: env
+        effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+        status: fact
+        evidence:
+          - { file: src/lib/db.ts, line: 27 }
+          - { file: src/lib/db.ts, line: 32 }
+          - { file: src/lib/db.ts, line: 38 }
+    rules:
+      - kind: calculation
+        value: "訪問者数は、12 時間ごと (BUCKET_HOURS) の、重複を除いたセッションの数。カスタムイベントとパフォーマンスのイベント (EVENT_TYPE.customEvent / EVENT_TYPE.performance) は数えない。サイトごとの合計は、期間全体で重複を除いた数 (12 時間ごとの数の足し算ではない)"
+        status: fact
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 10 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 66 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 89 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 100 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 119 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 138 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 188 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website_event } }
+        detail: "select website_id, 12 時間ごとの区切り, count(distinct session_id) from website_event where website_id = any(…) and event_type not in (…) and created_at between …"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: session_id, use: [read] }
+          - { name: created_at, use: [read, filter] }
+          - { name: event_type, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 95 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 92 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 94 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 96 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 66 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 71 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 98 }
+          - { file: prisma/schema.prisma, line: 183 }
+        note: "CLICKHOUSE_URL が設定されていないとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: clickhouse, table: website_event_stats_hourly } }
+        detail: "select website_id, 12 時間ごとの区切り, uniq(session_id) from website_event_stats_hourly where website_id in … and event_type not in (…) and created_at between …"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: session_id, use: [read] }
+          - { name: created_at, use: [read, filter] }
+          - { name: event_type, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 134 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 131 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 135 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 119 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 120 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 137 }
+          - { file: db/clickhouse/schema.sql, line: 113 }
+        note: "CLICKHOUSE_URL が設定されているとき。時間ごとの集計表を読む"
+
+  - id: ext_charts_pg
+    layer: external
+    kind: library
+    name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+    source: { file: src/lib/prisma.ts, line: 746 }
+    caller: q_get_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 43 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 84 }
+        - { file: src/lib/db.ts, line: 38 }
+        - { file: src/lib/prisma.ts, line: 746 }
+    settings:
+      - name: DATABASE_REPLICA_URL
+        kind: env
+        effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+        status: fact
+        evidence:
+          - { file: src/lib/prisma.ts, line: 738 }
+          - { file: src/lib/prisma.ts, line: 55 }
+          - { file: src/lib/prisma.ts, line: 861 }
+
+  - id: ext_charts_ch
+    layer: external
+    kind: library
+    name: "ClickHouse client (@clickhouse/client) query"
+    source: { file: src/lib/clickhouse.ts, line: 721 }
+    caller: q_get_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 48 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 128 }
+        - { file: src/lib/db.ts, line: 32 }
+        - { file: src/lib/clickhouse.ts, line: 721 }
+
+  # ---- セキュリティのタブ: 2 段階認証
+  - id: user_two_factor_settings
+    layer: component
+    kind: component
+    name: "UserTwoFactorSettings"
+    source: { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 29 }
+    caller: user_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 4 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserSettings.tsx", line: 25 }
+      note: "3 番目のタブ (security) の TabPanel の中にある。選んでいないタブの中身を描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードには条件が無いので always にした"
+    summary:
+      status: interpretation
+      value: "このユーザーの 2 段階認証の設定。全体の状態 (useTwoFactorStatusQuery)、このユーザーが有効にしているか (useTwoFactorUserStatusQuery)、このユーザーに必須か (useUserQuery の twoFactorRequired) を読んで、状態のバッジと「このユーザーに必須にする」スイッチを出す。スイッチを切り替えると POST /admin/users/<userId>/2fa を呼び、ユーザーを読み直す。有効にしているユーザーにはリセットのボタンを出し、小窓で RESET と入力して確定すると DELETE /admin/users/<userId>/2fa を呼ぶ。useUserQuery も呼ぶ。経路はフレーム use_user_query と同じ"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 34 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 39 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 40 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 42 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 47 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 53 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 54 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 70 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 107 }
+    rules:
+      - kind: decision
+        value: "「必須にする」スイッチは、全体で必須のとき (isGlobalRequired) と、暗号鍵が未設定でこのユーザーに必須でもないときは、操作できない。全体で必須のときは、入の表示にする"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 57 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 61 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 62 }
+      - kind: decision
+        value: "リセットのボタンは、このユーザーが 2 段階認証を有効にしているとき (twoFactorEnabled) だけ出す"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 49 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 107 }
+      - kind: validation
+        value: "リセットは、確認の欄に RESET と入力しないと確定できない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 27 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 126 }
+          - { file: src/components/common/TypeConfirmationForm.tsx, line: 43 }
+
+  - id: use_two_factor_status
+    layer: component
+    kind: hook
+    name: "useTwoFactorStatusQuery"
+    source: { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 11 }
+    caller: user_two_factor_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 21 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 34 }
+    summary:
+      status: interpretation
+      value: "引数 enabled が真のとき GET /2fa/status を呼ぶ。画面に戻ったときと、再接続のときにも読み直す"
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 16 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 18 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 19 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_2fa_status
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/2fa/status"
+    source: { file: src/app/api/2fa/status/route.ts, line: 6 }
+    caller: use_two_factor_status
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 16 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 17 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 34 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "enabled の条件が付いているが、この画面は true を渡す (UserTwoFactorSettings.tsx:34) ので、いつも成り立つ"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (経路はフレーム q_parse_request と同じ)、サーバーがクラウドモードなら固定値を返す。そうでなければ、ログイン中のユーザー自身 (この画面では管理者。URL の userId の相手ではない) の two_factor_auth と、全体で必須か (app_setting の twoFactorRequiredGlobal) を読む。暗号鍵が未設定なら、必須にしない。次に、ユーザーで必須か (user.twoFactorRequired)、所属チームで必須か (team_user → team.twoFactorRequired) を順に読み、最初に当たった理由で isRequired を返す。この画面が使うのは、isConfigured と globalRequired だけ"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 7 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+        - { file: src/app/api/2fa/status/route.ts, line: 23 }
+        - { file: src/app/api/2fa/status/route.ts, line: 25 }
+        - { file: src/app/api/2fa/status/route.ts, line: 28 }
+        - { file: src/app/api/2fa/status/route.ts, line: 34 }
+        - { file: src/app/api/2fa/status/route.ts, line: 43 }
+        - { file: src/app/api/2fa/status/route.ts, line: 54 }
+        - { file: src/app/api/2fa/status/route.ts, line: 59 }
+        - { file: src/app/api/2fa/status/route.ts, line: 70 }
+        - { file: src/app/api/2fa/status/route.ts, line: 73 }
+        - { file: src/app/api/2fa/status/route.ts, line: 78 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 35 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 36 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、DB を読まずに「有効でない・必須でない」の固定値を返す"
+        status: fact
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 13 }
+          - { file: src/app/api/2fa/status/route.ts, line: 14 }
+      - name: TWO_FACTOR_ENCRYPTION_KEY
+        kind: env
+        effect: "未設定か、64 桁の 16 進でないときは、全体の設定に関わらず、必須にしない (isRequired が偽、isConfigured が偽)"
+        status: fact
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 34 }
+          - { file: src/app/api/2fa/status/route.ts, line: 37 }
+          - { file: src/lib/two-factor/crypto.ts, line: 12 }
+          - { file: src/lib/two-factor/crypto.ts, line: 13 }
+    rules:
+      - kind: decision
+        value: "2 段階認証が必須かは、全体の設定 (app_setting の twoFactorRequiredGlobal が 'true')、ユーザー (user.twoFactorRequired)、所属チーム (twoFactorRequired が真のチームが 1 つでもある) の順に見て、最初に当たった理由 (global / user / team) で決める"
+        status: fact
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 31 }
+          - { file: src/app/api/2fa/status/route.ts, line: 43 }
+          - { file: src/app/api/2fa/status/route.ts, line: 47 }
+          - { file: src/app/api/2fa/status/route.ts, line: 58 }
+          - { file: src/app/api/2fa/status/route.ts, line: 59 }
+          - { file: src/app/api/2fa/status/route.ts, line: 63 }
+          - { file: src/app/api/2fa/status/route.ts, line: 77 }
+          - { file: src/app/api/2fa/status/route.ts, line: 78 }
+          - { file: src/app/api/2fa/status/route.ts, line: 82 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.findUnique (where userId)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 25 }
+          - { file: prisma/schema.prisma, line: 485 }
+          - { file: prisma/schema.prisma, line: 492 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: app_setting } }
+        detail: "prisma.client.appSetting.findUnique (where key = twoFactorRequiredGlobal)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: key, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 28 }
+          - { file: src/app/api/2fa/status/route.ts, line: 29 }
+          - { file: prisma/schema.prisma, line: 530 }
+          - { file: prisma/schema.prisma, line: 533 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, select twoFactorRequired)"
+        fields:
+          - { name: two_factor_required, use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 54 }
+          - { file: src/app/api/2fa/status/route.ts, line: 55 }
+          - { file: src/app/api/2fa/status/route.ts, line: 56 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "暗号鍵が設定済みで、全体では必須でないときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findMany (where userId)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 70 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "全体でもユーザーでも必須でないときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (where id in 所属チーム, twoFactorRequired true)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: two_factor_required, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 73 }
+          - { file: src/app/api/2fa/status/route.ts, line: 74 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 237 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "所属チームが 1 つ以上あるときだけ"
+
+  - id: ext_prisma_2fa_status
+    layer: external
+    kind: library
+    name: "Prisma Client (twoFactorAuth / appSetting / user / teamUser / team の読み取り)"
+    source: { file: src/app/api/2fa/status/route.ts, line: 25 }
+    caller: api_2fa_status
+    call:
+      status: fact
+      when: conditional
+      condition: "サーバーの CLOUD_MODE が設定されていないとき"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+        - { file: src/app/api/2fa/status/route.ts, line: 25 }
+        - { file: src/app/api/2fa/status/route.ts, line: 28 }
+        - { file: src/app/api/2fa/status/route.ts, line: 54 }
+        - { file: src/app/api/2fa/status/route.ts, line: 70 }
+        - { file: src/app/api/2fa/status/route.ts, line: 73 }
+      note: "最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行は evidence に入れた"
+
+  - id: use_two_factor_user_status
+    layer: component
+    kind: hook
+    name: "useTwoFactorUserStatusQuery"
+    source: { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 3 }
+    caller: user_two_factor_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 22 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 39 }
+    summary:
+      status: interpretation
+      value: "GET /admin/users/<userId>/2fa を呼ぶ。画面に戻ったときと、再接続のときにも読み直す"
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 7 }
+        - { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 8 }
+        - { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 9 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_admin_user_2fa_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/admin/users/[userId]/2fa"
+    source: { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 9 }
+    caller: use_two_factor_user_status
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 8 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "CLOUD_MODE なら 404。認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、管理者でなければ 401。URL の userId の two_factor_auth を読み、有効かどうか (isEnabled) だけを返す"
+      evidence:
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 10 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 14 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 20 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 26 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 28 }
+    parameters:
+      - name: userId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 24 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 20 }
+          - { file: src/permissions/user.ts, line: 43 }
+          - { file: src/permissions/user.ts, line: 44 }
+        note: "canEnforceTwoFactorAuthForUser が user?.isAdmin を返す。満たさなければ 401。同じファイルの POST と DELETE も同じ確認を行う"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、何もせずに 404 を返す"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 10 }
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 11 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.findUnique (where userId)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 26 }
+          - { file: prisma/schema.prisma, line: 485 }
+          - { file: prisma/schema.prisma, line: 492 }
+
+  - id: ext_prisma_admin_user_2fa_get
+    layer: external
+    kind: library
+    name: "Prisma Client twoFactorAuth.findUnique"
+    source: { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 26 }
+    caller: api_admin_user_2fa_get
+    call:
+      status: fact
+      when: conditional
+      condition: "サーバーの CLOUD_MODE が設定されていないとき"
+      evidence:
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 10 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 26 }
+
+  - id: use_update_user_2fa
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/admin/users/<userId>/2fa')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: user_two_factor_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 23 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 42 }
+    summary:
+      status: interpretation
+      value: "受け取った path に、渡された値 ({ required }) を本文にして POST する mutation を作る。UserEditForm と同じ関数だが、URL が違う"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 53 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_admin_user_2fa_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/admin/users/[userId]/2fa"
+    source: { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 31 }
+    caller: use_update_user_2fa
+    call:
+      status: fact
+      when: conditional
+      condition: "「このユーザーに 2 段階認証を必須にする」スイッチを切り替えたとき"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 42 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 53 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 63 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "CLOUD_MODE なら 404。本文 (required: 真偽) を検査して認証し、管理者でなければ 401。必須にしようとしていて暗号鍵が未設定なら 503。updateUser で、URL の userId の user の twoFactorRequired を書く。updateUser も呼ぶ。経路はフレーム q_update_user と同じ。parseRequest の経路は、フレーム q_parse_request と同じ (終端の決まりを満たすために、下に読み書きを持つ段までもう一度書いた)"
+      evidence:
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 32 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 36 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 38 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 44 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 51 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 52 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 55 }
+    parameters:
+      - name: userId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 48 }
+      - name: required
+        value: "JSON の本文。真偽 (スイッチの値)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 36 }
+          - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 53 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 44 }
+          - { file: src/permissions/user.ts, line: 43 }
+          - { file: src/permissions/user.ts, line: 44 }
+        note: "canEnforceTwoFactorAuthForUser が user?.isAdmin を返す。満たさなければ 401"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、何もせずに 404 を返す"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 32 }
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 33 }
+      - name: TWO_FACTOR_ENCRYPTION_KEY
+        kind: env
+        effect: "未設定か、64 桁の 16 進でないときは、必須にする操作 (required が真) を 503 で断る。必須を外す操作は通す"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 51 }
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 52 }
+          - { file: src/lib/two-factor/crypto.ts, line: 12 }
+          - { file: src/lib/two-factor/crypto.ts, line: 13 }
+
+  # 以下 2 フレームは、POST /api/admin/users/[userId]/2fa が終端にならないための書き直し (全体の経路はフレーム q_parse_request)
+  - id: q_parse_request_rw
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_admin_user_2fa_post
+    call:
+      status: fact
+      when: conditional
+      condition: "サーバーの CLOUD_MODE が設定されていないとき"
+      evidence:
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 3 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 32 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 38 }
+    summary:
+      status: interpretation
+      value: "本文をスキーマで検査し、checkAuth で認証する。呼び出し元が終端にならないよう書き直したもの。経路はフレーム q_parse_request と同じ"
+      evidence:
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 52 }
+
+  - id: q_check_auth_rw
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request_rw
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+    summary:
+      status: interpretation
+      value: "Bearer トークンからユーザーを確かめる。呼び出し元が終端にならないよう書き直したもの (読み書きを持つ最初の段なので、ここで止めた)。経路はフレーム q_check_auth と同じ"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 102 }
+    io:
+      - op: get
+        status: interpretation
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。フレーム q_check_auth の読み取りと同じ"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 91 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ"
+
+  - id: use_delete_user_2fa
+    layer: component
+    kind: hook
+    name: "useDeleteQuery('/admin/users/<userId>/2fa')"
+    source: { file: src/components/hooks/queries/useDeleteQuery.ts, line: 4 }
+    caller: user_two_factor_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 47 }
+    summary:
+      status: interpretation
+      value: "受け取った path に DELETE する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/components/hooks/useApi.ts, line: 63 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+
+  - id: api_admin_user_2fa_delete
+    layer: api_route
+    kind: route_handler
+    name: "DELETE /api/admin/users/[userId]/2fa"
+    source: { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 60 }
+    caller: use_delete_user_2fa
+    call:
+      status: fact
+      when: conditional
+      condition: "リセットの小窓で RESET と入力して確定したとき (リセットのボタンは、このユーザーが 2 段階認証を有効にしているときだけ出る)"
+      evidence:
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 47 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 70 }
+        - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 127 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/components/hooks/useApi.ts, line: 63 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "CLOUD_MODE なら 404。認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、管理者でなければ 401。URL の userId の 2 段階認証のデータ (設定、予備のコード、使用済みのワンタイムパスワード、試行回数の制限) を、1 つのトランザクションで消し、消した件数を返す"
+      evidence:
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 61 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 65 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 71 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 77 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 84 }
+    parameters:
+      - name: userId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 75 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 71 }
+          - { file: src/permissions/user.ts, line: 43 }
+          - { file: src/permissions/user.ts, line: 44 }
+        note: "canEnforceTwoFactorAuthForUser が user?.isAdmin を返す。満たさなければ 401"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、何もせずに 404 を返す"
+        status: fact
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 61 }
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 62 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.deleteMany (where userId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 78 }
+          - { file: prisma/schema.prisma, line: 485 }
+          - { file: prisma/schema.prisma, line: 492 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_backup_code } }
+        detail: "prisma.client.twoFactorBackupCode.deleteMany (where userId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 79 }
+          - { file: prisma/schema.prisma, line: 497 }
+          - { file: prisma/schema.prisma, line: 504 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_otp_used } }
+        detail: "prisma.client.twoFactorOtpUsed.deleteMany (where userId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 80 }
+          - { file: prisma/schema.prisma, line: 509 }
+          - { file: prisma/schema.prisma, line: 515 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_rate_limit } }
+        detail: "prisma.client.twoFactorRateLimit.deleteMany (where userId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 81 }
+          - { file: prisma/schema.prisma, line: 520 }
+          - { file: prisma/schema.prisma, line: 526 }
+
+  - id: ext_prisma_admin_user_2fa_delete
+    layer: external
+    kind: library
+    name: "Prisma Client $transaction (twoFactorAuth / twoFactorBackupCode / twoFactorOtpUsed / twoFactorRateLimit の deleteMany)"
+    source: { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 78 }
+    caller: api_admin_user_2fa_delete
+    call:
+      status: fact
+      when: conditional
+      condition: "サーバーの CLOUD_MODE が設定されていないとき"
+      evidence:
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 61 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 77 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 78 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 79 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 80 }
+        - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 81 }
+        - { file: src/lib/prisma.ts, line: 844 }
+      note: "最初に呼ぶ行を source にし、残りの行 (prisma.transaction は src/lib/prisma.ts:844 の client.$transaction) は evidence に入れた"

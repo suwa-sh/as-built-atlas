@@ -1,0 +1,33 @@
+format_version: 1
+entry_id: "pixels.pixelId_d"
+reviewed_at: "2026-11-17T15:04:34Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_frame
+    severity: low
+    where: callstack/website_chart/summary
+    claim: "useWebsiteAnnotationsQuery (WebsiteChart.tsx:35) と、その先の GET /api/websites/[websiteId]/annotations を段にしていない。分析の skill は、この入口からは条件が成り立たないように見える呼び出しも、消さずに conditional で書き、理由を note に書くと決めている。結果の notes (4) に辿らなかった理由はあるが、同じ結果の中で、同じくこの入口では届かないと読んだ fetchAccount と getEventExpandedMetrics は conditional の段にしていて、扱いがそろっていない。同じ扱いが、PixelControls の ExportButton (PixelControls.tsx:31)、GET metrics の getEventMetrics (metrics/route.ts:64)、GET values の getWebsiteSegments (values/route.ts:49)、FilterEditForm の SegmentFilters / PropertyFilters (FilterEditForm.tsx:147 から) にもある"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx", line: 35 }
+    suggestion: "フックを always、受け口を conditional (showAnnotations を渡されたとき) の段として足し、この画面は渡さないことを note に書く。ほかの 4 つも同じ形で足す。足さないなら、skill の決まりと違う扱いにする基準 (親が props を渡さない・パスで決まる、のように静的に決まるものは書かない、など) を notes (4) に書く (続きを書くかどうかは、人が決める)"
+  - kind: missing_item
+    severity: low
+    where: callstack/q_get_values/io/1/fields
+    claim: "getValues が取り出して検索の条件にも使う列 (select ${column}。getValues.ts:56 / :72 / :119。column は FILTER_COLUMNS[type]) が、3 つの読み取り (io/0、io/1、io/2) のどれの fields にも無い。note と notes (5)(h) は「実行時に決まる」としているが、type の候補は useFields の列 (src/components/hooks/useFields.ts:15 から) に限られ、コードから読める。同じ結果の q_session_metrics と q_pageview_metrics は、同じ形 (type で決まる列) を、この画面が渡す type の分だけ fields に書いていて、扱いがそろっていない"
+    evidence: { file: "src/queries/sql/getValues.ts", line: 72 }
+    suggestion: "この画面が渡す type に当たる列を read / filter で足す。session (io/0) には browser / os / device / country / region / city / distinct_id、website_event (io/1、io/2) には url_path / url_query / page_title / referrer_domain / hostname / tag / event_name / utm_source / utm_medium / utm_campaign / utm_content / utm_term (ClickHouse の io/2 にはセッションの列も)。フィルターの小窓からは一部しか選べないが、セグメントの保存のフォームの FieldFilters は列を外さない"
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_fetch_account/call
+    resolved: true
+    claim: "入口の概要と notes (5)(a) は「pixel の id では website の行が当たらないので、account:* の読み取りと website:* への書き込みは、この入口では起きない」と読んでいるが、その読みが、当の段に書かれていない。q_fetch_account の call (条件は request.ts:103 の cloudMode && website && !website.teamId) と ext_redis_website_set の call (redis.ts:91 の data があるとき) には note が無く、ext_prisma_share の call の note も「見つからなかったときだけ打ち切る」だけで、この入口ではいつも見つからないことに触れていない。分析の skill は、この入口からは条件が成り立たないように見える呼び出しに、そう見える理由を note に書くと決めている。q_get_query_filters の settings/0 (CLOUD_MODE) も、同じ読みに立つと、この入口では有無で結果が変わらない"
+    evidence: { file: "src/lib/request.ts", line: 103 }
+    suggestion: "q_fetch_account と ext_redis_website_set と ext_prisma_share の call の note に「この入口は website の id ではなく pixel の id を渡すので、website が見つからず、この呼び出しは起きないと読める」と書く。q_get_query_filters の CLOUD_MODE の effect にも同じ一言を足すか、設定を外す"
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_check_auth/io/0/fields
+    resolved: true
+    claim: "Redis の auth:* の読み取りの fields が、入口によって別の綴りになっている。この結果は name: \"*\" だが、ほかの入口の結果 (admin.websites、boards、layout_l.main_g など) は userId / pwd、login と logout は userId / role / pwd と書いている。コードは取り出した値の userId と pwd を読んでいて (auth.ts:104 / :108)、skill の決まり (値の中の項目がコードから読めれば、項目の名前を書く) では、項目の名前で書ける。q_check_auth_rw1 の io/0 も同じ。q_fetch_account の account:* も同じ形で、この結果は \"*\"、ほかの入口 (console.websiteId_d など) は hasSubscription などの項目で書いている"
+    evidence: { file: "src/lib/auth.ts", line: 104 }
+    suggestion: "auth:* の fields を userId (read) と pwd (read) にする (q_check_auth_rw1 も)。account:* は、呼び出し元が読む hasSubscription (request.ts:106) にする。どちらの綴りにそろえるかを決めたら、分析リポジトリの analysis-conventions.md の「名前と値の綴り」に足すと、入口をまたいでそろう"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読まれた)。high と medium の指摘は無い。pixel に固有の段 (page、getPixel、PixelPage、PixelProvider、usePixelQuery、GET /api/pixels/[pixelId]、canViewPixel、getTeamUser、PixelHeader と useSlug、useConfig、GET /api/config、PixelControls、PixelMetricsBar、PixelPanels) は、対象のファイルを全部読み、根拠の行・呼び出しの関係と条件・列・権限の確認・設定・つながりが合っていることを確かめた。共通の段は、全部の根拠の行の本文を主張と並べて読み (行が無い・範囲の外の根拠は 0 件)、次のファイルは本文も読んで書き漏れを探した: auth.ts の checkAuth、request.ts、permissions の share.ts と website.ts の canUpdateWebsite、load.ts、redis.ts、getUser、getWebsite、FilterBar、SegmentEditForm、WebsiteChart、MetricsTable、MetricLabel、Favicon、WorldMap、WebsiteExpandedView、MetricsExpandedTable、useApi、api-url.ts、values / stats / pageviews / metrics / segments (POST) / config の受け口、getValues、getWebsiteStats、getPageviewMetrics (PostgreSQL 側)、getSessionDataProperties (PostgreSQL 側)、getWebsiteDateRange、prisma.ts の絞り込みの組み立て。API を呼ぶフックの漏れは、画面が描く部品のフックの呼び出しを一覧にして確かめた (annotations のほかに漏れは無い)。結果の notes の判断で、正しいと確かめたもの: (2) 同じ処理の置き場は、コードの順の深さ優先と合う。(3) 書き直した段 (末尾が _rw) は、読み書きを持つ最初の段で止まり、確認・設定・ルールを繰り返していない。(5)(a) pixel を作る処理は website の行を作らない (src/app/api/pixels/route.ts:60) ので、website が当たらないという読みは妥当。canUpdateWebsite が website だけを探す (website.ts:141) ので、管理者でなければセグメントの保存が通らないという読みも妥当。(5)(c) ピクセルの URL (/p/<slug>) は画面ではなく受け口で、入口の一覧に無いので、links に書かない扱いでよい。(5)(e)(f) guards の値と設定の名前は、ほかの入口の結果の多い側の綴りと同じ (設定の名前、guards の値、links の /pixels/${pixelId}/edit を、全部の結果と機械的に比べた)。指摘にしなかったこと: (1) GET /api/config の下の Response.json を external にしていること (終端の決まりを満たすための扱いで、理由が notes (5)(g) にある)。(2) Tabs の中の MetricsTable を always にしていること (note がある)。(3) API_URL と PIXELS_URL の設定は、写している行も根拠にあるので fact にもできるが、interpretation のままでも誤りではない。(4) PostgreSQL でイベントのプロパティで絞るとき、website_event の event_id も条件に使う (prisma.ts:574 の website_event.event_id in (...))。URL のフィルターで決まる列は fields に書かない、という結果の扱いの範囲とみなした。確かめていないもの: getSessionDataValues、getPageviewStats、getSessionStats、getSessionMetrics、getChannelMetrics、getChannelExpandedMetrics、getSessionExpandedMetrics、getEventExpandedMetrics、getPageviewExpandedMetrics の SQL は、根拠の行の本文と fields の対応だけを見て、SQL の全文とは突き合わせていない。ClickHouse 側の SQL も同じ。"

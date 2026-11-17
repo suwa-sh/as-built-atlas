@@ -1,0 +1,2098 @@
+format_version: 1
+entry:
+  id: websites.websiteId_d.breakdown
+  path: /websites/[websiteId]/breakdown
+  name: breakdown
+  layer: page
+  source: {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 4}
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: {id: ui-nextjs, version: "0.4.0"}
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:46:14Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T15:44:57Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "1 つのサイトのアクセスを、選んだ項目 (既定はパス) の値の組ごとに集計する画面 (タイトルは Insights)。BreakdownPage と、その中の表 Breakdown が、どちらも useBreakdownQuery で GET /api/websites/<id>/breakdown を呼ぶ (同じ問い合わせのキーなので、1 回の呼び出しにまとまる)。受け口は、ページビューのイベントを website_event から読み、項目の値ごとに views・visitors・visits・bounces・totaltime を集計して、上位 500 行を返す。選んだ項目がセッションの列 (ブラウザや国など) なら、PostgreSQL では session も読む。PostgreSQL と ClickHouse のどちらで読むかは、設定 (CLICKHOUSE_URL) で切り替わる。項目の選択 (FieldSelectForm) と CSV のダウンロード (DownloadButton) は、ブラウザの中だけで動く。上部の WebsiteControls は、期間の選択 (daterange)、絞り込みの表示 (保存済みの segment の読み取りと、セグメントとして保存する書き込み)、絞り込みのボタンを描く。どの受け口も parseRequest → checkAuth で認証する (user を読む。Redis が有効なら auth:* も読む)。権限の確認では website / link / pixel / board / team_user を読む。集計の前に、getQueryFilters がサイト (Redis の website:* か website) を読んで期間の開始を切り詰め、URL に segment / cohort があれば segment も読む"
+  evidence:
+  - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 7}
+  - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 11}
+  - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 18}
+  - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 24}
+  - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 34}
+  - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 17}
+  - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 17}
+  - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 25}
+  - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 98}
+notes: "(1) 画面を包む枠 (ルート、(main)、websites/[websiteId] の layout) は別の入口なので辿っていない。(2) 同じ処理は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。BreakdownPage の中の順は、useBreakdownQuery (18 行) → WebsiteControls (24 行) → FieldsButton (26 行) → Breakdown (34 行)。その結果、parseRequest → checkAuth → getUser、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は、どれも GET …/breakdown の下にある。(3) Breakdown.tsx も同じ useBreakdownQuery を同じ引数で呼ぶ (問い合わせのキーが同じなので、TanStack Query が 1 回の呼び出しにまとめると読んだ)。Breakdown の呼び先はこれだけで、終端になるので、いちばん早い呼び先を、読み書きを持つ最初のフレーム (checkAuth) まで、もう一度書いた (use_breakdown_query_rw から q_check_auth_rw)。同じように、呼び先がすべてほかの呼び出し元の下にあって終端になるフレーム (canViewSharedWebsite、canViewSharedWebsiteFilters、canUpdateWebsite) は、getWebsite まで、もう一度書いた。もう一度書いたフレームには、権限の確認・設定・ルールを重ねて書いていない。(4) 設定 API_URL と BASE_PATH は、決まりのとおり、この入口で最初に API を呼ぶフレーム (use_breakdown_query) に 1 回だけ書いた。(5) 共通の絞り込みの部品 (WebsiteFilterButton のダイアログと、セグメントとして保存のフォームの中の入力欄) は、unknown + not_analyzed で閉じた。サイトの多くの画面が同じものを使う部品で、この画面に固有の処理ではないため (websites.websiteId_d の結果が辿っている)。(6) 集計の SQL の列のうち、選んだ項目の列は、項目の決まった一覧 (fieldsParam) と FILTER_COLUMNS の対応から読めるので、fields に全部書いた (実際に読むのは選んだ項目の列だけ)。URL の絞り込みで parseFilters が実行時に足す条件の列は、書かずに note に書いた。(7) URL のイベントのプロパティの絞り込み (epf) は、useFilterParameters が /events で終わる画面でだけ付けるので、この画面からは送られないと読んだ。event_data の読み取りは、消さずに interpretation で書き、note に理由を書いた。(8) 項目の選択、期間の選択、絞り込みを消す操作は、同じ画面の状態か URL のクエリを書き換えるだけなので、links に書いていない (ほかの入口へのつながりは無かった)。(9) ブラウザの中の保存 (期間の localStorage など) と、DownloadButton の CSV の作成は、I/O に書いていない。(10) checkAuth の API キーの枝は、決まりのとおりフレームにせず、rules に 1 行書いた。(11) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(12) レビューの指摘は 5 件 (medium 1、low 4) で、すべて直した: Redis の auth:* の読み取りを interpretation にした (キーの形は saveAuth から読み取ったもの)。生の SQL を実行する 2 つの external に DATABASE_REPLICA_URL を足した。プロパティの絞り込みの読み取り 4 件に data_type を足した。絞り込みのボタンの note の行番号を、この画面で描く欄 (FilterEditForm.tsx 178 行) に直した。high が無いので、もう一度のレビューはしていない。"
+callstack:
+- id: page
+  layer: page
+  kind: page
+  name: "breakdown (src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx)"
+  source: {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 4}
+  caller: null
+  summary:
+    status: interpretation
+    value: "サーバー側で動く page。URL の websiteId を受け取り、BreakdownPage を描くだけ。タイトルの metadata は Insights"
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 5}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 7}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 11}
+  parameters:
+  - name: "websiteId"
+    value: "URL の動的な段 [websiteId]"
+    status: fact
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 4}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 5}
+- id: breakdown_page
+  layer: component
+  kind: component
+  name: "BreakdownPage"
+  source: {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 13}
+  caller: page
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 2}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/page.tsx', line: 7}
+  rules:
+  - kind: decision
+    value: "集計する項目は、最初は path だけ。項目の選択のダイアログ (FieldSelectForm) は、event を選べる項目から外す"
+    status: fact
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 17}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 57}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/FieldSelectForm.tsx', line: 28}
+  summary:
+    status: interpretation
+    value: "ブラウザ側で動く ('use client')。useDateRange で期間を、画面の状態で選んだ項目 (fields、最初は path) を持ち、useBreakdownQuery で集計を読む (読んだ結果は、DownloadButton がブラウザの中で CSV にしてダウンロードさせるのに使う)。上部に WebsiteControls (絞り込みと期間の選択)、項目の選択のボタン FieldsButton、集計の表 Breakdown を描く。FieldsButton は、ダイアログで FieldSelectForm を開き、useFields の決まった項目の一覧から選ばせて、適用で fields を書き換える (データは読まない)"
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 1}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 16}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 17}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 18}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 24}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 26}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 32}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 34}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/FieldSelectForm.tsx', line: 16}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/FieldSelectForm.tsx', line: 23}
+    - {file: src/components/input/DownloadButton.tsx, line: 17}
+- id: use_breakdown_query
+  layer: component
+  kind: hook
+  name: "useBreakdownQuery (useAnalyticsQuery('breakdown'))"
+  source: {file: src/components/hooks/queries/useBreakdownQuery.ts, line: 6}
+  caller: breakdown_page
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 18}
+  settings:
+  - name: API_URL
+    kind: env
+    effect: "設定すると、API の呼び出し先がその URL になる (相対の URL なら BASE_PATH の後ろに付く)。無ければ BASE_PATH + /api (同じリポジトリの受け口) を呼ぶ"
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 39}
+    - {file: src/lib/api-url.ts, line: 43}
+    - {file: next.config.ts, line: 14}
+    - {file: next.config.ts, line: 215}
+    note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.apiUrl)。next.config の env が、環境変数 API_URL の値を入れる"
+  - name: BASE_PATH
+    kind: env
+    effect: "API の URL の前に付く (basePath + /api + /websites/<websiteId>/breakdown。API_URL が絶対の URL のときは付かない)"
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 43}
+    - {file: src/lib/api-url.ts, line: 44}
+    - {file: next.config.ts, line: 15}
+    - {file: next.config.ts, line: 216}
+    note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.basePath)。next.config の env が、環境変数 BASE_PATH の値を入れる"
+  summary:
+    status: interpretation
+    value: "useAnalyticsQuery に path 'breakdown' を渡す。useAnalyticsQuery は、期間・単位・タイムゾーンと、URL の絞り込み (項目・spf・segment・cohort・excludeBounce・match) に、渡した引数 (startDate / endDate を startAt / endAt に直し、fields は JSON の文字列にする) を重ねて、GET /websites/<websiteId>/breakdown を呼ぶ。useApi が、ログインのトークンを authorization に付け、getApiUrl が URL の前に /api (既定) を付ける"
+    evidence:
+    - {file: src/components/hooks/queries/useBreakdownQuery.ts, line: 10}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 14}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 15}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 17}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 23}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 27}
+    - {file: src/lib/analytics-query.ts, line: 14}
+    - {file: src/lib/analytics-query.ts, line: 21}
+    - {file: src/components/hooks/useFilterParameters.ts, line: 20}
+    - {file: src/components/hooks/useFilterParameters.ts, line: 35}
+    - {file: src/components/hooks/useApi.ts, line: 28}
+    - {file: src/components/hooks/useApi.ts, line: 42}
+    - {file: src/lib/api-url.ts, line: 44}
+- id: api_breakdown
+  layer: api_route
+  kind: route_handler
+  name: "GET /api/websites/[websiteId]/breakdown"
+  source: {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 7}
+  caller: use_breakdown_query
+  call:
+    status: fact
+    when: conditional
+    condition: "選んだ項目 (fields) が 1 つ以上あるとき (最初は path なので、画面を開くと呼ぶ。利用者が項目を全部外すと呼ばない)"
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 17}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 20}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 27}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 29}
+    - {file: src/lib/api-url.ts, line: 44}
+    note: "URL は /websites/${websiteId}/${path} で、path は useBreakdownQuery が 'breakdown' を渡す。useAnalyticsQuery の既定の enabled (websiteId がある) を、BreakdownPage が渡す enabled (fields が 1 つ以上) が上書きする"
+  rules:
+  - kind: validation
+    value: "クエリの startAt と endAt が 0 以上の整数でなく、または endAt が startAt より前なら 400 を返す"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 11}
+    - {file: src/lib/analytics-schema.ts, line: 18}
+    - {file: src/lib/analytics-schema.ts, line: 19}
+    - {file: src/lib/analytics-schema.ts, line: 41}
+    - {file: src/lib/request.ts, line: 33}
+  - kind: validation
+    value: "クエリの fields は JSON の配列で、要素が決まった項目 (path、referrer、title、query、os、browser、device、country、region、city、tag、hostname、distinctId、language、event、utmSource、utmMedium、utmCampaign、utmContent、utmTerm) のどれかでなければ 400 を返す"
+    status: fact
+    evidence:
+    - {file: src/lib/analytics-schema.ts, line: 51}
+    - {file: src/lib/analytics-schema.ts, line: 52}
+    - {file: src/lib/analytics-schema.ts, line: 29}
+    - {file: src/lib/schema.ts, line: 127}
+    - {file: src/lib/schema.ts, line: 288}
+    - {file: src/lib/request.ts, line: 33}
+  summary:
+    status: interpretation
+    value: "parseRequest でクエリを breakdownQuerySchema で検査して認証し、canViewWebsiteSection(breakdown) で閲覧の権限を確かめる (満たさなければ 401)。getQueryFilters で期間と絞り込みを作り、クエリと重ねた parameters (fields と、切り詰めた startDate / endDate) で getBreakdown を呼び、結果を返す"
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 11}
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 12}
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 14}
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 15}
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 16}
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 17}
+  parameters:
+  - name: "websiteId"
+    value: "URL の段 [websiteId]"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 13}
+  - name: "startAt / endAt / unit / timezone / fields と絞り込み"
+    value: "クエリ文字列 (breakdownQuerySchema で検査する。数字で終わる項目の絞り込みと spf は、検査の後に戻す)"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 11}
+    - {file: src/lib/request.ts, line: 40}
+  - name: "authorization"
+    value: "Bearer トークン (useApi が、ブラウザに保存したログインのトークンを付ける)"
+    status: fact
+    evidence:
+    - {file: src/components/hooks/useApi.ts, line: 28}
+- id: q_parse_request
+  layer: query
+  kind: function
+  name: "parseRequest (src/lib/request.ts)"
+  source: {file: src/lib/request.ts, line: 16}
+  caller: api_breakdown
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 11}
+  summary:
+    status: interpretation
+    value: "URL のクエリと JSON 本文を読み、スキーマがあれば検査する (合わなければ 400 のエラーを作る)。skipAuth が無いので checkAuth で認証し、できなければ 401 のエラーを作る。受け口は、エラーがあればそれを返して終わる。この画面のどの受け口も、最初にこの関数を呼ぶ"
+    evidence:
+    - {file: src/lib/request.ts, line: 21}
+    - {file: src/lib/request.ts, line: 23}
+    - {file: src/lib/request.ts, line: 30}
+    - {file: src/lib/request.ts, line: 33}
+    - {file: src/lib/request.ts, line: 51}
+    - {file: src/lib/request.ts, line: 52}
+    - {file: src/lib/request.ts, line: 55}
+- id: q_check_auth
+  layer: query
+  kind: function
+  name: "checkAuth (src/lib/auth.ts)"
+  source: {file: src/lib/auth.ts, line: 71}
+  caller: q_parse_request
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/request.ts, line: 52}
+    note: "if (!options?.skipAuth && !error) の中にある。この画面の受け口は skipAuth を渡さず、error は入力の誤りで打ち切る経路なので always にした"
+  guards:
+  - kind: authentication
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 122}
+    - {file: src/lib/auth.ts, line: 124}
+    - {file: src/lib/request.ts, line: 54}
+    - {file: src/lib/request.ts, line: 55}
+    note: "ユーザーも共有トークンも得られなければ null を返し、parseRequest が 401 にする"
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: "設定されていて、トークンに userId が無く authKey があるとき、Redis のセッション (auth:*) からユーザーを決める"
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 101}
+    - {file: src/lib/auth.ts, line: 102}
+    - {file: src/lib/redis.ts, line: 106}
+  - name: CLOUD_MODE
+    kind: env
+    effect: "設定されていると、umami_ で始まる API キーでの認証をしない (設定が無いときだけ API キーの経路に入る)"
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 74}
+    - {file: src/lib/api-key.ts, line: 41}
+  rules:
+  - kind: decision
+    value: "トークンが umami_ で始まり、API キーが有効なら、署名付きトークンではなく API キーとして確かめる (/api/websites は API キーを拒むパスに入っていない)"
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 74}
+    - {file: src/lib/auth.ts, line: 75}
+    - {file: src/lib/api-key.ts, line: 11}
+    - {file: src/lib/api-key.ts, line: 33}
+    note: "この画面のブラウザはログインのトークンを付けるので、API キーの経路 (checkApiKeyAuth) は辿っていない"
+  - kind: validation
+    value: "2 段階認証の途中の仮トークン (type が partial) は、認証として受け付けない"
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 83}
+    - {file: src/lib/auth.ts, line: 85}
+  - kind: validation
+    value: "トークンやセッションにパスワードの指紋 (pwd) があり、今のパスワードのハッシュと合わなければ、ユーザーを無効にする"
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 98}
+    - {file: src/lib/auth.ts, line: 99}
+    - {file: src/lib/auth.ts, line: 108}
+  - kind: validation
+    value: "ユーザーが無く共有トークンだけのときは、共有の文脈のヘッダーが無ければ受け付けない"
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 127}
+    - {file: src/lib/auth.ts, line: 129}
+    - {file: src/lib/auth.ts, line: 131}
+  summary:
+    status: interpretation
+    value: "Bearer トークンを解く。userId があれば getUser で user を読む。userId が無く、Redis が有効で authKey があれば、Redis のセッションを読んでから user を読む。共有トークンのヘッダーも解く。ユーザーには isAdmin (role が admin) を付けて返す"
+    evidence:
+    - {file: src/lib/auth.ts, line: 72}
+    - {file: src/lib/auth.ts, line: 78}
+    - {file: src/lib/auth.ts, line: 88}
+    - {file: src/lib/auth.ts, line: 94}
+    - {file: src/lib/auth.ts, line: 101}
+    - {file: src/lib/auth.ts, line: 105}
+    - {file: src/lib/auth.ts, line: 137}
+    - {file: src/components/hooks/useApi.ts, line: 28}
+  io:
+  - op: get
+    status: interpretation
+    resource: {kind: kvs, levels: {key_pattern: 'auth:*'}}
+    detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+    evidence:
+    - {file: src/lib/auth.ts, line: 102}
+    - {file: src/lib/auth.ts, line: 150}
+    - {file: src/lib/redis.ts, line: 37}
+    fields:
+    - {name: '*', use: [read]}
+    note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts 150 行) から読み取った"
+- id: ext_redis_auth
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get"
+  source: {file: src/lib/redis.ts, line: 37}
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、authKey があるとき"
+    evidence:
+    - {file: src/lib/auth.ts, line: 102}
+    - {file: src/lib/redis.ts, line: 37}
+- id: q_get_user
+  layer: query
+  kind: function
+  name: "getUser (src/queries/prisma/user.ts)"
+  source: {file: src/queries/prisma/user.ts, line: 49}
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: "トークンに userId があるとき、または Redis のセッションに userId があるとき"
+    evidence:
+    - {file: src/lib/auth.ts, line: 94}
+    - {file: src/lib/auth.ts, line: 105}
+  summary:
+    status: interpretation
+    value: "id で、削除されていない user を 1 件読む (findUser)。checkAuth は includePassword を渡すので、パスワードの列も取る"
+    evidence:
+    - {file: src/queries/prisma/user.ts, line: 50}
+    - {file: src/queries/prisma/user.ts, line: 32}
+    - {file: src/queries/prisma/user.ts, line: 36}
+    - {file: src/queries/prisma/user.ts, line: 41}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: user}}
+    detail: "prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)"
+    evidence:
+    - {file: src/queries/prisma/user.ts, line: 32}
+    - {file: src/queries/prisma/user.ts, line: 36}
+    - {file: src/queries/prisma/user.ts, line: 38}
+    - {file: src/queries/prisma/user.ts, line: 53}
+    - {file: prisma/schema.prisma, line: 37}
+    fields:
+    - {name: user_id, use: [read, filter]}
+    - {name: username, use: [read]}
+    - {name: password, use: [read]}
+    - {name: role, use: [read]}
+    - {name: created_at, use: [read]}
+    - {name: two_factor_required, use: [read]}
+    - {name: deleted_at, use: [filter]}
+- id: ext_prisma_user
+  layer: external
+  kind: library
+  name: "Prisma Client user.findUnique"
+  source: {file: src/queries/prisma/user.ts, line: 32}
+  caller: q_get_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/user.ts, line: 50}
+    - {file: src/queries/prisma/user.ts, line: 32}
+- id: q_can_view_section
+  layer: query
+  kind: function
+  name: "canViewWebsiteSection (src/permissions/share.ts)"
+  source: {file: src/permissions/share.ts, line: 53}
+  caller: api_breakdown
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 14}
+  guards:
+  - kind: other
+    value: "canViewWebsiteSection"
+    status: fact
+    evidence:
+    - {file: src/permissions/share.ts, line: 64}
+    - {file: src/permissions/share.ts, line: 73}
+    - {file: src/permissions/share.ts, line: 77}
+    note: "ログインユーザーがいないとき: shareToken がそのサイトを含み、shareToken.parameters の区画 (この受け口では breakdown) が true (区画の指定が 1 つも無ければ許す)"
+  summary:
+    status: interpretation
+    value: "ログインユーザーがいれば canViewWebsite に任せる。共有トークンだけのときは、トークンがそのサイトを含み、区画 (breakdown) が許されているかを、トークンの中身だけで決める (データは読まない)。満たさなければ、受け口が 401 を返す"
+    evidence:
+    - {file: src/permissions/share.ts, line: 58}
+    - {file: src/permissions/share.ts, line: 59}
+    - {file: src/permissions/share.ts, line: 64}
+    - {file: src/permissions/share.ts, line: 77}
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 14}
+- id: q_can_view_website
+  layer: query
+  kind: function
+  name: "canViewWebsite (src/permissions/website.ts)"
+  source: {file: src/permissions/website.ts, line: 8}
+  caller: q_can_view_section
+  call:
+    status: fact
+    when: conditional
+    condition: "ログインユーザーがいるとき (auth.user)"
+    evidence:
+    - {file: src/permissions/share.ts, line: 58}
+    - {file: src/permissions/share.ts, line: 59}
+  guards:
+  - kind: role
+    value: "user.isAdmin"
+    status: fact
+    evidence:
+    - {file: src/permissions/website.ts, line: 9}
+    - {file: src/lib/auth.ts, line: 137}
+    note: "user.isAdmin (role が admin) なら許す"
+  - kind: other
+    value: "canViewWebsite"
+    status: fact
+    evidence:
+    - {file: src/permissions/website.ts, line: 13}
+    - {file: src/permissions/website.ts, line: 14}
+    - {file: src/permissions/website.ts, line: 21}
+    note: "shareToken がその id (websiteId / pixelId / linkId) を含めば許す"
+  - kind: ownership
+    value: "canViewWebsite"
+    status: fact
+    evidence:
+    - {file: src/permissions/website.ts, line: 26}
+    - {file: src/permissions/website.ts, line: 31}
+    - {file: src/permissions/website.ts, line: 35}
+    - {file: src/permissions/website.ts, line: 37}
+    note: "持ち主がユーザーなら user.id === entity.userId。チームの持ち物 (entity.teamId) なら、そのチームの team_user に本人がいる"
+  summary:
+    status: interpretation
+    value: "管理者か、共有トークンがサイトを含めば許す。そうでなければ getEntity で id に当たるもの (website / link / pixel / board) を読み、持ち主が本人なら許す。チームの持ち物なら、getTeamUser で team_user に本人がいるかを見る。canViewSharedWebsite と canViewSharedWebsiteFilters も同じ関数を呼ぶ"
+    evidence:
+    - {file: src/permissions/website.ts, line: 9}
+    - {file: src/permissions/website.ts, line: 13}
+    - {file: src/permissions/website.ts, line: 24}
+    - {file: src/permissions/website.ts, line: 31}
+    - {file: src/permissions/website.ts, line: 35}
+- id: q_get_entity
+  layer: query
+  kind: function
+  name: "getEntity (src/lib/entity.ts)"
+  source: {file: src/lib/entity.ts, line: 4}
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: "管理者でなく、共有トークンがそのサイトを含まないとき"
+    evidence:
+    - {file: src/permissions/website.ts, line: 24}
+  summary:
+    status: interpretation
+    value: "同じ id で website / link / pixel / board を並べて読み (Promise.all)、最初に見つかったものを返す"
+    evidence:
+    - {file: src/lib/entity.ts, line: 5}
+    - {file: src/lib/entity.ts, line: 12}
+- id: q_get_website
+  layer: query
+  kind: function
+  name: "getWebsite (src/queries/prisma/website.ts)"
+  source: {file: src/queries/prisma/website.ts, line: 80}
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 6}
+  summary:
+    status: interpretation
+    value: "id が UUID の形でなければ null を返す。website を 1 件読み、あれば、その website を指す share のうち最新の slug を読んで shareId として付ける。fetchWebsite (キャッシュに無いとき) と canUpdateWebsite も同じ関数を呼ぶ"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 81}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 95}
+    - {file: src/queries/prisma/website.ts, line: 304}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: website}}
+    detail: "prisma.client.website.findUnique (where id)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: prisma/schema.prisma, line: 130}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: website_id, use: [filter]}
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: share}}
+    detail: "prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: prisma/schema.prisma, line: 412}
+    fields:
+    - {name: slug, use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    note: "website が見つかったときだけ"
+- id: ext_prisma_website
+  layer: external
+  kind: library
+  name: "Prisma Client website.findUnique / share.findFirst"
+  source: {file: src/queries/prisma/website.ts, line: 77}
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 304}
+- id: q_get_link
+  layer: query
+  kind: function
+  name: "getLink (src/queries/prisma/link.ts)"
+  source: {file: src/queries/prisma/link.ts, line: 12}
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 7}
+  summary:
+    status: interpretation
+    value: "id で link を 1 件読む"
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 13}
+    - {file: src/queries/prisma/link.ts, line: 9}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: link}}
+    detail: "prisma.client.link.findUnique (where id)"
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 9}
+    - {file: src/queries/prisma/link.ts, line: 13}
+    - {file: prisma/schema.prisma, line: 358}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: link_id, use: [filter]}
+- id: ext_prisma_link
+  layer: external
+  kind: library
+  name: "Prisma Client link.findUnique"
+  source: {file: src/queries/prisma/link.ts, line: 9}
+  caller: q_get_link
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 13}
+    - {file: src/queries/prisma/link.ts, line: 9}
+- id: q_get_pixel
+  layer: query
+  kind: function
+  name: "getPixel (src/queries/prisma/pixel.ts)"
+  source: {file: src/queries/prisma/pixel.ts, line: 12}
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 8}
+  summary:
+    status: interpretation
+    value: "id で pixel を 1 件読む"
+    evidence:
+    - {file: src/queries/prisma/pixel.ts, line: 13}
+    - {file: src/queries/prisma/pixel.ts, line: 9}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: pixel}}
+    detail: "prisma.client.pixel.findUnique (where id)"
+    evidence:
+    - {file: src/queries/prisma/pixel.ts, line: 9}
+    - {file: src/queries/prisma/pixel.ts, line: 13}
+    - {file: prisma/schema.prisma, line: 378}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: pixel_id, use: [filter]}
+- id: ext_prisma_pixel
+  layer: external
+  kind: library
+  name: "Prisma Client pixel.findUnique"
+  source: {file: src/queries/prisma/pixel.ts, line: 9}
+  caller: q_get_pixel
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/pixel.ts, line: 13}
+    - {file: src/queries/prisma/pixel.ts, line: 9}
+- id: q_get_board
+  layer: query
+  kind: function
+  name: "getBoard (src/queries/prisma/board.ts)"
+  source: {file: src/queries/prisma/board.ts, line: 13}
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 9}
+  summary:
+    status: interpretation
+    value: "id で board を 1 件読む"
+    evidence:
+    - {file: src/queries/prisma/board.ts, line: 14}
+    - {file: src/queries/prisma/board.ts, line: 10}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: board}}
+    detail: "prisma.client.board.findUnique (where id)"
+    evidence:
+    - {file: src/queries/prisma/board.ts, line: 10}
+    - {file: src/queries/prisma/board.ts, line: 14}
+    - {file: prisma/schema.prisma, line: 398}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: board_id, use: [filter]}
+- id: ext_prisma_board
+  layer: external
+  kind: library
+  name: "Prisma Client board.findUnique"
+  source: {file: src/queries/prisma/board.ts, line: 10}
+  caller: q_get_board
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/board.ts, line: 14}
+    - {file: src/queries/prisma/board.ts, line: 10}
+- id: q_get_team_user
+  layer: query
+  kind: function
+  name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+  source: {file: src/queries/prisma/teamUser.ts, line: 19}
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: "見つかったものに持ち主のユーザー (userId) が無く、チーム (teamId) があるとき"
+    evidence:
+    - {file: src/permissions/website.ts, line: 34}
+    - {file: src/permissions/website.ts, line: 35}
+  summary:
+    status: interpretation
+    value: "チームの id とユーザーの id で、削除されていない team の team_user を 1 件読む。canUpdateWebsite も同じ関数を呼ぶ"
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 20}
+    - {file: src/queries/prisma/teamUser.ts, line: 24}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: team_user}}
+    detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 20}
+    - {file: src/queries/prisma/teamUser.ts, line: 22}
+    - {file: src/queries/prisma/teamUser.ts, line: 23}
+    - {file: prisma/schema.prisma, line: 265}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: team_id, use: [filter]}
+    - {name: user_id, use: [filter]}
+  - op: read
+    status: interpretation
+    resource: {kind: rdb, levels: {dbms: postgresql, table: team}}
+    detail: "関連の条件 team: { deletedAt: null }"
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 24}
+    - {file: prisma/schema.prisma, line: 260}
+    - {file: prisma/schema.prisma, line: 249}
+    fields:
+    - {name: deleted_at, use: [filter]}
+    - {name: team_id, use: [filter]}
+    note: "TeamUser.team の関連をたどる条件として読まれる。テーブル名はコードに直接は出ない"
+- id: ext_prisma_team_user
+  layer: external
+  kind: library
+  name: "Prisma Client teamUser.findFirst"
+  source: {file: src/queries/prisma/teamUser.ts, line: 20}
+  caller: q_get_team_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 20}
+- id: q_get_query_filters
+  layer: query
+  kind: function
+  name: "getQueryFilters / setWebsiteDate (src/lib/request.ts)"
+  source: {file: src/lib/request.ts, line: 118}
+  caller: api_breakdown
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 15}
+  settings:
+  - name: CLOUD_MODE
+    kind: env
+    effect: "設定されていて、サイトにチームが無く、持ち主の契約 (account の hasSubscription) が無いとき、期間の開始を 6 か月前の月の初日より前にしない"
+    status: fact
+    evidence:
+    - {file: src/lib/request.ts, line: 101}
+    - {file: src/lib/request.ts, line: 103}
+    - {file: src/lib/request.ts, line: 106}
+    - {file: src/lib/request.ts, line: 107}
+  rules:
+  - kind: calculation
+    value: "期間の開始は、サイトのリセット日時 (resetAt) より前にしない"
+    status: fact
+    evidence:
+    - {file: src/lib/request.ts, line: 111}
+    - {file: src/lib/request.ts, line: 112}
+  - kind: calculation
+    value: "集計の単位 (unit) は、期間に対して許される単位でなければ、いちばん細かい許される単位に替える"
+    status: fact
+    evidence:
+    - {file: src/lib/request.ts, line: 80}
+    - {file: src/lib/request.ts, line: 82}
+  - kind: decision
+    value: "クエリに segment があれば、保存済みのセグメントの絞り込みと match を足す。cohort があれば、保存済みのコホートの条件を cohort_ で始まる絞り込みに変えて足す。excludeBounce があれば、直帰した訪問を除く印を足す"
+    status: fact
+    evidence:
+    - {file: src/lib/request.ts, line: 132}
+    - {file: src/lib/request.ts, line: 136}
+    - {file: src/lib/request.ts, line: 144}
+    - {file: src/lib/request.ts, line: 150}
+    - {file: src/lib/request.ts, line: 161}
+    - {file: src/lib/request.ts, line: 172}
+    - {file: src/lib/request.ts, line: 173}
+  summary:
+    status: interpretation
+    value: "クエリから期間と絞り込み (項目・イベントのプロパティ・セッションのプロパティ) を作る。websiteId があるので、setWebsiteDate (同じファイル) が fetchWebsite でサイトを読み、期間の開始を切り詰める。CLOUD_MODE でチームの無いサイトなら fetchAccount で契約を読む。クエリに segment / cohort があれば、保存済みの絞り込みを getWebsiteSegment で読む"
+    evidence:
+    - {file: src/lib/request.ts, line: 122}
+    - {file: src/lib/request.ts, line: 123}
+    - {file: src/lib/request.ts, line: 124}
+    - {file: src/lib/request.ts, line: 125}
+    - {file: src/lib/request.ts, line: 130}
+    - {file: src/lib/request.ts, line: 100}
+    - {file: src/lib/request.ts, line: 104}
+    - {file: src/lib/request.ts, line: 133}
+    - {file: src/lib/request.ts, line: 145}
+- id: q_fetch_website
+  layer: query
+  kind: function
+  name: "fetchWebsite (src/lib/load.ts)"
+  source: {file: src/lib/load.ts, line: 6}
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/request.ts, line: 130}
+    - {file: src/lib/request.ts, line: 100}
+    note: "if (websiteId) の中にある。この受け口は、いつも websiteId を渡すので always にした"
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: "設定されていると、website:<id> のキャッシュを読み、無いときだけ DB を読んで 1 日 (86400 秒) 保存する。無ければ、毎回 DB を読む"
+    status: fact
+    evidence:
+    - {file: src/lib/load.ts, line: 9}
+    - {file: src/lib/load.ts, line: 10}
+    - {file: src/lib/load.ts, line: 12}
+    - {file: src/lib/redis.ts, line: 106}
+  summary:
+    status: interpretation
+    value: "Redis が有効なら website:<id> のキャッシュを読み、無ければ getWebsite で読んで保存する。Redis が無効なら getWebsite を直接呼ぶ。削除済みなら null を返す。getWebsite も呼ぶ。経路はフレーム q_get_website と同じ"
+    evidence:
+    - {file: src/lib/load.ts, line: 9}
+    - {file: src/lib/load.ts, line: 10}
+    - {file: src/lib/load.ts, line: 12}
+    - {file: src/lib/load.ts, line: 15}
+    - {file: src/lib/redis.ts, line: 85}
+    - {file: src/lib/redis.ts, line: 89}
+  io:
+  - op: get
+    status: fact
+    resource: {kind: kvs, levels: {key_pattern: 'website:*'}}
+    detail: "redis.client.fetch(`website:${websiteId}`) の中の get"
+    evidence:
+    - {file: src/lib/load.ts, line: 10}
+    - {file: src/lib/redis.ts, line: 85}
+    - {file: src/lib/redis.ts, line: 37}
+    fields:
+    - {name: '*', use: [read]}
+    note: "Redis が有効 (REDIS_URL あり) のときだけ"
+  - op: set
+    status: fact
+    resource: {kind: kvs, levels: {key_pattern: 'website:*'}}
+    detail: "キャッシュに無ければ、getWebsite の結果を EX 86400 で set"
+    evidence:
+    - {file: src/lib/load.ts, line: 10}
+    - {file: src/lib/redis.ts, line: 92}
+    - {file: src/lib/redis.ts, line: 51}
+    fields:
+    - {name: '*', use: [write]}
+    note: "Redis が有効で、キャッシュに無く、website が見つかったときだけ"
+- id: ext_redis_website
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get / set"
+  source: {file: src/lib/redis.ts, line: 37}
+  caller: q_fetch_website
+  call:
+    status: fact
+    when: conditional
+    condition: "Redis が有効 (REDIS_URL あり) のとき"
+    evidence:
+    - {file: src/lib/load.ts, line: 9}
+    - {file: src/lib/load.ts, line: 10}
+    - {file: src/lib/redis.ts, line: 37}
+    - {file: src/lib/redis.ts, line: 51}
+- id: q_fetch_account
+  layer: query
+  kind: function
+  name: "fetchAccount (src/lib/load.ts)"
+  source: {file: src/lib/load.ts, line: 42}
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "CLOUD_MODE が設定されていて、サイトが見つかり、サイトにチームが無いとき"
+    evidence:
+    - {file: src/lib/request.ts, line: 103}
+    - {file: src/lib/request.ts, line: 104}
+  summary:
+    status: interpretation
+    value: "Redis から account:<userId> (サイトの持ち主の契約の情報) を読んで返す"
+    evidence:
+    - {file: src/lib/load.ts, line: 43}
+    - {file: src/lib/request.ts, line: 106}
+  io:
+  - op: get
+    status: fact
+    resource: {kind: kvs, levels: {key_pattern: 'account:*'}}
+    detail: "redis.client.get(`account:${userId}`)"
+    evidence:
+    - {file: src/lib/load.ts, line: 43}
+    - {file: src/lib/redis.ts, line: 37}
+    fields:
+    - {name: '*', use: [read]}
+- id: ext_redis_account
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get"
+  source: {file: src/lib/redis.ts, line: 37}
+  caller: q_fetch_account
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/load.ts, line: 43}
+    - {file: src/lib/redis.ts, line: 37}
+- id: q_get_website_segment
+  layer: query
+  kind: function
+  name: "getWebsiteSegment (src/queries/prisma/segment.ts)"
+  source: {file: src/queries/prisma/segment.ts, line: 36}
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "URL のクエリに segment か cohort があるとき (それぞれ 1 回ずつ呼ぶ)"
+    evidence:
+    - {file: src/lib/request.ts, line: 132}
+    - {file: src/lib/request.ts, line: 133}
+    - {file: src/lib/request.ts, line: 144}
+    - {file: src/lib/request.ts, line: 145}
+    - {file: src/components/hooks/useFilterParameters.ts, line: 35}
+    - {file: src/components/hooks/useFilterParameters.ts, line: 36}
+  summary:
+    status: interpretation
+    value: "id と websiteId で segment を 1 件読む。FilterBar から呼ぶ GET …/segments/[segmentId] も同じ関数を呼ぶ"
+    evidence:
+    - {file: src/queries/prisma/segment.ts, line: 37}
+    - {file: src/queries/prisma/segment.ts, line: 38}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: segment}}
+    detail: "prisma.client.segment.findFirst (where id, websiteId)"
+    evidence:
+    - {file: src/queries/prisma/segment.ts, line: 37}
+    - {file: src/queries/prisma/segment.ts, line: 38}
+    - {file: prisma/schema.prisma, line: 317}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: segment_id, use: [filter]}
+    - {name: website_id, use: [filter]}
+- id: ext_prisma_segment
+  layer: external
+  kind: library
+  name: "Prisma Client segment.findFirst"
+  source: {file: src/queries/prisma/segment.ts, line: 37}
+  caller: q_get_website_segment
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/segment.ts, line: 37}
+- id: q_get_breakdown
+  layer: query
+  kind: function
+  name: "getBreakdown (src/queries/sql/breakdown/getBreakdown.ts)"
+  source: {file: src/queries/sql/breakdown/getBreakdown.ts, line: 22}
+  caller: api_breakdown
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 17}
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: "設定されていると ClickHouse 用の問い合わせが動く。無ければ PostgreSQL 用 (Prisma の生 SQL) が動く"
+    status: fact
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 25}
+    - {file: src/lib/db.ts, line: 27}
+  rules:
+  - kind: decision
+    value: "数えるのは、ページビューのイベント (event_type が pageView) だけ"
+    status: fact
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 45}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 116}
+    - {file: src/lib/prisma.ts, line: 183}
+  - kind: calculation
+    value: "訪問 (session_id と visit_id の組) ごとにページビューを数え、選んだ項目の値の組ごとに、views はページビューの合計、visitors はセッションの数、visits は訪問の数、totaltime は訪問ごとの最初と最後のページビューの時間差の合計にする"
+    status: fact
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 71}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 72}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 73}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 75}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 82}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 83}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 84}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 92}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 140}
+  - kind: calculation
+    value: "直帰 (bounces) は、ページビューが 1 回だけで、カスタムイベントの無い訪問の数。URL に excludeBounce があるときは、直帰した訪問を最初から除き、bounces を 0 にする"
+    status: fact
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 51}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 52}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 53}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 54}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 61}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 120}
+    - {file: src/lib/prisma.ts, line: 237}
+    - {file: src/lib/prisma.ts, line: 248}
+    - {file: src/lib/clickhouse.ts, line: 217}
+  - kind: decision
+    value: "並びは visitors の多い順、同じなら views の多い順で、上位 500 行だけを返す"
+    status: fact
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 97}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 98}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 161}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 162}
+  summary:
+    status: interpretation
+    value: "website_event から、期間の内のページビューを、選んだ項目の列 (FILTER_COLUMNS で列の名前に直す) と訪問ごとにまとめ、項目の値ごとに集計する。直帰を数えるために、同じ期間のカスタムイベントのある訪問も website_event から読んで突き合わせる。PostgreSQL 用 (Prisma の生 SQL) と ClickHouse 用の実装があり、設定でどちらかが動く。PostgreSQL では、選んだ項目がセッションの列 (SESSION_COLUMNS) か、URL の絞り込みがセッションの列や referrer なら session を結合する。URL の絞り込みに cohort・excludeBounce・セッションのプロパティがあれば、それぞれの読み取りが足される"
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 25}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 48}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 55}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 85}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 150}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 169}
+    - {file: src/lib/prisma.ts, line: 298}
+    - {file: src/lib/prisma.ts, line: 318}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: website_event}}
+    detail: "from website_event (項目と訪問ごとの集計) と、left join のカスタムイベントの訪問の副問い合わせ (from website_event)"
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 79}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 80}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 81}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 83}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 85}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 89}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 90}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 57}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 58}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 61}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 169}
+    - {file: src/lib/constants.ts, line: 77}
+    - {file: src/lib/schema.ts, line: 127}
+    - {file: prisma/schema.prisma, line: 183}
+    fields:
+    - {name: session_id, use: [read, filter]}
+    - {name: visit_id, use: [read, filter]}
+    - {name: created_at, use: [read, filter]}
+    - {name: website_id, use: [filter]}
+    - {name: event_type, use: [filter]}
+    - {name: url_path, use: [read]}
+    - {name: referrer_domain, use: [read]}
+    - {name: page_title, use: [read]}
+    - {name: url_query, use: [read]}
+    - {name: hostname, use: [read]}
+    - {name: tag, use: [read]}
+    - {name: event_name, use: [read]}
+    - {name: utm_source, use: [read]}
+    - {name: utm_medium, use: [read]}
+    - {name: utm_campaign, use: [read]}
+    - {name: utm_content, use: [read]}
+    - {name: utm_term, use: [read]}
+    note: "url_path から utm_term までは、選んだ項目 (fields) の列だけを取り出してまとめる (画面の既定は path の url_path)。event_type は、ページビューに絞る条件と、カスタムイベントのある訪問を探す条件に使う。URL に cohort か excludeBounce があれば、同じ表を読む副問い合わせ (prisma.ts 224 行・243 行) も足される。URL の絞り込み (項目・cohort・プロパティ) で足される条件の列は、parseFilters が実行時に組み立てるので、書いていない"
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: session}}
+    detail: "parseFilters の joinSessionQuery (inner join session) と cohortQuery (join session)"
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 48}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 79}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 88}
+    - {file: src/lib/prisma.ts, line: 298}
+    - {file: src/lib/prisma.ts, line: 318}
+    - {file: src/lib/prisma.ts, line: 226}
+    - {file: src/lib/constants.ts, line: 60}
+    - {file: prisma/schema.prisma, line: 84}
+    fields:
+    - {name: session_id, use: [filter]}
+    - {name: website_id, use: [filter]}
+    - {name: browser, use: [read]}
+    - {name: os, use: [read]}
+    - {name: device, use: [read]}
+    - {name: language, use: [read]}
+    - {name: country, use: [read]}
+    - {name: region, use: [read]}
+    - {name: city, use: [read]}
+    - {name: distinct_id, use: [read]}
+    note: "選んだ項目にセッションの列 (browser・os・device・language・country・region・city・distinctId) があるとき、URL の絞り込みにセッションの列か referrer があるとき、または cohort があるときだけ。browser から distinct_id までは、選んだ項目の列だけを取り出す。URL の絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない"
+  - op: read
+    status: interpretation
+    resource: {kind: rdb, levels: {dbms: postgresql, table: event_data}}
+    detail: "イベントのプロパティの絞り込み: website_event.event_id in (select website_event_id from event_data …)"
+    evidence:
+    - {file: src/lib/request.ts, line: 124}
+    - {file: src/lib/prisma.ts, line: 574}
+    - {file: src/lib/prisma.ts, line: 575}
+    - {file: src/lib/prisma.ts, line: 576}
+    - {file: src/lib/prisma.ts, line: 577}
+    - {file: src/lib/prisma.ts, line: 578}
+    - {file: src/lib/prisma.ts, line: 579}
+    - {file: src/components/hooks/useFilterParameters.ts, line: 25}
+    - {file: prisma/schema.prisma, line: 205}
+    fields:
+    - {name: website_event_id, use: [read]}
+    - {name: website_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    - {name: data_key, use: [filter]}
+    - {name: data_type, use: [filter]}
+    note: "URL のクエリに epf (イベントのプロパティの絞り込み) があるときだけ。useFilterParameters は epf を、パスが /events で終わる画面でだけ付けるので、この画面からは届かないように見える。値を比べる列は、プロパティの型で決まる (実行時に組み立てる) ので書いていない"
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: session_data}}
+    detail: "セッションのプロパティの絞り込み: exists (select 1 from session_data …)"
+    evidence:
+    - {file: src/lib/request.ts, line: 125}
+    - {file: src/lib/request.ts, line: 137}
+    - {file: src/lib/prisma.ts, line: 313}
+    - {file: src/lib/prisma.ts, line: 702}
+    - {file: src/lib/prisma.ts, line: 703}
+    - {file: src/lib/prisma.ts, line: 704}
+    - {file: src/lib/prisma.ts, line: 705}
+    - {file: src/components/hooks/useFilterParameters.ts, line: 24}
+    - {file: prisma/schema.prisma, line: 229}
+    fields:
+    - {name: website_id, use: [filter]}
+    - {name: session_id, use: [filter]}
+    - {name: data_key, use: [filter]}
+    - {name: data_type, use: [filter]}
+    note: "URL にセッションのプロパティの絞り込み (spf) があるとき、または選んだ segment が持つときだけ。値を比べる列は、プロパティの型で決まる (実行時に組み立てる) ので書いていない"
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: clickhouse, table: website_event}}
+    detail: "from website_event (項目と訪問ごとの集計) と、left join のカスタムイベントの訪問の副問い合わせ (from website_event)"
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 144}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 145}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 146}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 148}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 150}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 153}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 154}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 124}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 125}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 128}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 169}
+    - {file: src/lib/constants.ts, line: 77}
+    fields:
+    - {name: session_id, use: [read, filter]}
+    - {name: visit_id, use: [read, filter]}
+    - {name: created_at, use: [read, filter]}
+    - {name: website_id, use: [filter]}
+    - {name: event_type, use: [filter]}
+    - {name: url_path, use: [read]}
+    - {name: referrer_domain, use: [read]}
+    - {name: page_title, use: [read]}
+    - {name: url_query, use: [read]}
+    - {name: hostname, use: [read]}
+    - {name: tag, use: [read]}
+    - {name: event_name, use: [read]}
+    - {name: utm_source, use: [read]}
+    - {name: utm_medium, use: [read]}
+    - {name: utm_campaign, use: [read]}
+    - {name: utm_content, use: [read]}
+    - {name: utm_term, use: [read]}
+    - {name: browser, use: [read]}
+    - {name: os, use: [read]}
+    - {name: device, use: [read]}
+    - {name: language, use: [read]}
+    - {name: country, use: [read]}
+    - {name: region, use: [read]}
+    - {name: city, use: [read]}
+    - {name: distinct_id, use: [read]}
+    note: "ClickHouse の website_event は、セッションの列 (browser など) も持つ。url_path から distinct_id までは、選んだ項目 (fields) の列だけを取り出してまとめる (画面の既定は url_path)。URL に cohort があれば、同じ表を読む副問い合わせ (clickhouse.ts 196 行) も足される。URL の絞り込みで足される条件の列は、parseFilters が実行時に組み立てるので、書いていない"
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: clickhouse, table: website_event_stats_hourly}}
+    detail: "excludeBounce の副問い合わせ: from website_event_stats_hourly (直帰でない訪問を探す)"
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 152}
+    - {file: src/lib/clickhouse.ts, line: 211}
+    - {file: src/lib/clickhouse.ts, line: 212}
+    - {file: src/lib/clickhouse.ts, line: 213}
+    - {file: src/lib/clickhouse.ts, line: 214}
+    - {file: src/lib/clickhouse.ts, line: 215}
+    - {file: src/lib/clickhouse.ts, line: 217}
+    - {file: src/lib/clickhouse.ts, line: 220}
+    fields:
+    - {name: session_id, use: [read]}
+    - {name: visit_id, use: [read]}
+    - {name: website_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    - {name: event_type, use: [filter]}
+    - {name: views, use: [read]}
+    - {name: event_name, use: [read]}
+    note: "URL のクエリに excludeBounce があるときだけ (この画面の WebsiteControls は、直帰を除く切り替えを出さない。allowBounceFilter の既定が false)"
+  - op: read
+    status: interpretation
+    resource: {kind: rdb, levels: {dbms: clickhouse, table: event_data}}
+    detail: "イベントのプロパティの絞り込み: website_event.event_id in (select event_id from event_data …)"
+    evidence:
+    - {file: src/lib/clickhouse.ts, line: 538}
+    - {file: src/lib/clickhouse.ts, line: 539}
+    - {file: src/lib/clickhouse.ts, line: 540}
+    - {file: src/lib/clickhouse.ts, line: 541}
+    - {file: src/lib/clickhouse.ts, line: 542}
+    - {file: src/lib/clickhouse.ts, line: 543}
+    - {file: src/components/hooks/useFilterParameters.ts, line: 25}
+    fields:
+    - {name: event_id, use: [read]}
+    - {name: website_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    - {name: data_key, use: [filter]}
+    - {name: data_type, use: [filter]}
+    note: "URL のクエリに epf があるときだけ。useFilterParameters は epf を、パスが /events で終わる画面でだけ付けるので、この画面からは届かないように見える。値を比べる列は、プロパティの型で決まるので書いていない"
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: clickhouse, table: session_data}}
+    detail: "セッションのプロパティの絞り込み: (website_id, session_id) in (select … from session_data final)"
+    evidence:
+    - {file: src/lib/clickhouse.ts, line: 661}
+    - {file: src/lib/clickhouse.ts, line: 662}
+    - {file: src/lib/clickhouse.ts, line: 663}
+    - {file: src/lib/clickhouse.ts, line: 664}
+    - {file: src/lib/clickhouse.ts, line: 665}
+    fields:
+    - {name: website_id, use: [read, filter]}
+    - {name: session_id, use: [read]}
+    - {name: data_key, use: [filter]}
+    - {name: data_type, use: [filter]}
+    note: "URL にセッションのプロパティの絞り込み (spf) があるとき、または選んだ segment が持つときだけ。値を比べる列は、プロパティの型で決まるので書いていない"
+- id: ext_prisma_breakdown
+  layer: external
+  kind: library
+  name: "Prisma Client $queryRawUnsafe (rawQuery)"
+  source: {file: src/lib/prisma.ts, line: 746}
+  caller: q_get_breakdown
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されておらず、DATABASE_URL が postgres のとき"
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 68}
+    - {file: src/lib/prisma.ts, line: 750}
+    - {file: src/lib/prisma.ts, line: 746}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 26}
+    - {file: src/lib/db.ts, line: 37}
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: interpretation
+    evidence:
+    - {file: src/lib/prisma.ts, line: 738}
+    - {file: src/lib/prisma.ts, line: 746}
+- id: ext_clickhouse_breakdown
+  layer: external
+  kind: library
+  name: "ClickHouse client (@clickhouse/client) query"
+  source: {file: src/lib/clickhouse.ts, line: 721}
+  caller: q_get_breakdown
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されているとき"
+    evidence:
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 133}
+    - {file: src/lib/clickhouse.ts, line: 721}
+    - {file: src/queries/sql/breakdown/getBreakdown.ts, line: 27}
+    - {file: src/lib/db.ts, line: 27}
+- id: website_controls
+  layer: component
+  kind: component
+  name: "WebsiteControls"
+  source: {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 10}
+  caller: breakdown_page
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 5}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 24}
+  rules:
+  - kind: decision
+    value: "共有の設定で allowFilter が false のときは、絞り込みのボタンと絞り込みの表示を出さない"
+    status: fact
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 34}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 46}
+    - {file: src/lib/share.ts, line: 7}
+  summary:
+    status: interpretation
+    value: "既定の引数 (絞り込みと期間の選択あり。直帰を除く切り替え・ダウンロード・月の選択なし) で描く。絞り込みのボタン (WebsiteFilterButton)、期間の選択 (WebsiteDateFilter)、絞り込みの表示 (FilterBar) を出す"
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 12}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 13}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 14}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 16}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 35}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 40}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 46}
+- id: website_filter_button
+  layer: component
+  kind: component
+  name: "WebsiteFilterButton → FilterEditForm"
+  source: {file: src/components/input/WebsiteFilterButton.tsx, line: 13}
+  caller: website_controls
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 35}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
+    - {file: src/components/hooks/context/useShare.ts, line: 5}
+    - {file: src/app/share/ShareProvider.tsx, line: 24}
+    note: "showFilter の条件 (allowFilter && allowShareFilter(share?.parameters)) の中にある。allowFilter は既定の true のまま。共有の設定 (ShareContext) は src/app/share の layout だけが与え、この入口では null なので、条件はいつも成り立つ"
+  summary:
+    status: unknown
+    reason: not_analyzed
+    note: "絞り込みのボタン。押すとダイアログで FilterEditForm を出し、決めた絞り込みを URL のクエリに書いて同じ画面を開き直す (WebsiteFilterButton.tsx 55・68・72・92 行)。FilterEditForm が FieldFilters・SegmentFilters・PropertyFilters を描くこと (FilterEditForm.tsx 138・149・178 行。168 行のイベントのプロパティの欄は、パスが /events で終わる画面だけで描くので、この画面では描かない) までを読んだ。その先の、値の候補やセグメントの一覧を読む受け口は辿っていない。サイトの多くの画面が同じものを使う共通の絞り込みの部品で、この画面に固有の処理ではないので止めた (ボタンを押すまで何も読まない。websites.websiteId_d の結果が辿っている)"
+- id: website_date_filter
+  layer: component
+  kind: component
+  name: "WebsiteDateFilter"
+  source: {file: src/components/input/WebsiteDateFilter.tsx, line: 17}
+  caller: website_controls
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 40}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 14}
+    note: "allowDateFilter の条件の中にある。BreakdownPage は渡さないので既定の true のままで、いつも描く"
+  summary:
+    status: interpretation
+    value: "期間の選択。今の期間は useDateRange (URL とブラウザの中の保存) から読む。選ぶと、URL のクエリ (date・offset・compare) を書き換えて同じ画面を開き直す。「全期間」を選んだときに使う、データのある期間を useDateRangeQuery で読む"
+    evidence:
+    - {file: src/components/input/WebsiteDateFilter.tsx, line: 23}
+    - {file: src/components/input/WebsiteDateFilter.tsx, line: 33}
+    - {file: src/components/input/WebsiteDateFilter.tsx, line: 38}
+    - {file: src/components/input/WebsiteDateFilter.tsx, line: 47}
+- id: use_date_range_query
+  layer: component
+  kind: hook
+  name: "useDateRangeQuery"
+  source: {file: src/components/hooks/queries/useDateRangeQuery.ts, line: 9}
+  caller: website_date_filter
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/input/WebsiteDateFilter.tsx, line: 33}
+  summary:
+    status: interpretation
+    value: "GET /websites/<websiteId>/daterange を呼び、最初と最後のデータの日時を返す。API の URL の組み立て (API_URL・BASE_PATH) は、フレーム use_breakdown_query と同じ"
+    evidence:
+    - {file: src/components/hooks/queries/useDateRangeQuery.ts, line: 14}
+    - {file: src/components/hooks/queries/useDateRangeQuery.ts, line: 20}
+- id: api_daterange
+  layer: api_route
+  kind: route_handler
+  name: "GET /api/websites/[websiteId]/daterange"
+  source: {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 6}
+  caller: use_date_range_query
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/hooks/queries/useDateRangeQuery.ts, line: 14}
+    - {file: src/components/hooks/queries/useDateRangeQuery.ts, line: 15}
+    - {file: src/lib/api-url.ts, line: 44}
+    note: "問い合わせは websiteId があるときだけ有効 (enabled) だが、この入口では必ず渡るので always にした"
+  summary:
+    status: interpretation
+    value: "parseRequest で認証し、canViewSharedWebsite を確かめ、getWebsiteDateRange の結果を返す。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ"
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 10}
+    - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 18}
+    - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 22}
+  parameters:
+  - name: "websiteId"
+    value: "URL の段 [websiteId]"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 16}
+- id: q_can_view_shared_website
+  layer: query
+  kind: function
+  name: "canViewSharedWebsite (src/permissions/share.ts)"
+  source: {file: src/permissions/share.ts, line: 80}
+  caller: api_daterange
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 18}
+  guards:
+  - kind: other
+    value: "canViewSharedWebsite"
+    status: fact
+    evidence:
+    - {file: src/permissions/share.ts, line: 85}
+    - {file: src/permissions/share.ts, line: 44}
+    note: "ログインユーザーがいないとき: shareToken がそのサイトを含む"
+  summary:
+    status: interpretation
+    value: "ログインユーザーがいれば canViewWebsite に任せる。共有トークンだけのときは、トークンがそのサイトを含むかだけで決める (データは読まない)。満たさなければ、受け口が 401 を返す"
+    evidence:
+    - {file: src/permissions/share.ts, line: 81}
+    - {file: src/permissions/share.ts, line: 82}
+    - {file: src/permissions/share.ts, line: 85}
+    - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 19}
+- id: q_can_view_website_rw_daterange
+  layer: query
+  kind: function
+  name: "canViewWebsite (src/permissions/website.ts)"
+  source: {file: src/permissions/website.ts, line: 8}
+  caller: q_can_view_shared_website
+  call:
+    status: fact
+    when: conditional
+    condition: "ログインユーザーがいるとき (auth.user)"
+    evidence:
+    - {file: src/permissions/share.ts, line: 82}
+  summary:
+    status: interpretation
+    value: "管理者でなく、共有トークンがサイトを含まなければ、getEntity で id に当たるものを読む。呼び出し元が終端にならないように、もう一度書いたもの。権限の確認の中身と、全体の経路はフレーム q_can_view_website と同じ"
+    evidence:
+    - {file: src/permissions/website.ts, line: 9}
+    - {file: src/permissions/website.ts, line: 24}
+- id: q_get_entity_rw_daterange
+  layer: query
+  kind: function
+  name: "getEntity (src/lib/entity.ts)"
+  source: {file: src/lib/entity.ts, line: 4}
+  caller: q_can_view_website_rw_daterange
+  call:
+    status: fact
+    when: conditional
+    condition: "管理者でなく、共有トークンがそのサイトを含まないとき"
+    evidence:
+    - {file: src/permissions/website.ts, line: 24}
+  summary:
+    status: interpretation
+    value: "同じ id で website / link / pixel / board を並べて読む。呼び出し元が終端にならないように、もう一度書いたもの (最初の getWebsite だけを書いた)。全体の経路はフレーム q_get_entity と同じ"
+    evidence:
+    - {file: src/lib/entity.ts, line: 5}
+    - {file: src/lib/entity.ts, line: 6}
+- id: q_get_website_rw_daterange
+  layer: query
+  kind: function
+  name: "getWebsite (src/queries/prisma/website.ts)"
+  source: {file: src/queries/prisma/website.ts, line: 80}
+  caller: q_get_entity_rw_daterange
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 6}
+  summary:
+    status: interpretation
+    value: "id が UUID の形でなければ null を返す。website を 1 件読み、あれば最新の share の slug を shareId として付ける。呼び出し元が終端にならないように、もう一度書いたもの。ライブラリの呼び出しまでの経路はフレーム q_get_website と同じ"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 81}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 95}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: website}}
+    detail: "prisma.client.website.findUnique (where id)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: prisma/schema.prisma, line: 130}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: website_id, use: [filter]}
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: share}}
+    detail: "prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: prisma/schema.prisma, line: 412}
+    fields:
+    - {name: slug, use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    note: "website が見つかったときだけ"
+- id: q_website_date_range
+  layer: query
+  kind: function
+  name: "getWebsiteDateRange (src/queries/sql/getWebsiteDateRange.ts)"
+  source: {file: src/queries/sql/getWebsiteDateRange.ts, line: 7}
+  caller: api_daterange
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/daterange/route.ts', line: 22}
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: "設定されていると ClickHouse 用の問い合わせが動く。無ければ PostgreSQL 用 (Prisma の生 SQL) が動く"
+    status: fact
+    evidence:
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 10}
+    - {file: src/lib/db.ts, line: 27}
+  summary:
+    status: interpretation
+    value: "既定のリセット日 (2000-01-01) 以降のイベントの created_at の最小と最大を返す。PostgreSQL では website_event を、ClickHouse では時間単位の集計表 website_event_stats_hourly を読む。設定でどちらかが動く"
+    evidence:
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 10}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 19}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 26}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 50}
+    - {file: src/lib/constants.ts, line: 30}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: website_event}}
+    detail: "select min(created_at), max(created_at) from website_event"
+    evidence:
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 28}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 26}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 29}
+    - {file: prisma/schema.prisma, line: 183}
+    fields:
+    - {name: created_at, use: [read, filter]}
+    - {name: website_id, use: [filter]}
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: clickhouse, table: website_event_stats_hourly}}
+    detail: "select min(created_at), max(created_at) from website_event_stats_hourly"
+    evidence:
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 50}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 48}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 51}
+    fields:
+    - {name: created_at, use: [read, filter]}
+    - {name: website_id, use: [filter]}
+- id: ext_prisma_daterange
+  layer: external
+  kind: library
+  name: "Prisma Client $queryRawUnsafe (rawQuery)"
+  source: {file: src/lib/prisma.ts, line: 746}
+  caller: q_website_date_range
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されておらず、DATABASE_URL が postgres のとき"
+    evidence:
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 23}
+    - {file: src/lib/prisma.ts, line: 750}
+    - {file: src/lib/prisma.ts, line: 746}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 10}
+    - {file: src/lib/db.ts, line: 37}
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: interpretation
+    evidence:
+    - {file: src/lib/prisma.ts, line: 738}
+    - {file: src/lib/prisma.ts, line: 746}
+- id: ext_clickhouse_daterange
+  layer: external
+  kind: library
+  name: "ClickHouse client (@clickhouse/client) query"
+  source: {file: src/lib/clickhouse.ts, line: 721}
+  caller: q_website_date_range
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されているとき"
+    evidence:
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 45}
+    - {file: src/lib/clickhouse.ts, line: 721}
+    - {file: src/queries/sql/getWebsiteDateRange.ts, line: 10}
+    - {file: src/lib/db.ts, line: 27}
+- id: filter_bar
+  layer: component
+  kind: component
+  name: "FilterBar"
+  source: {file: src/components/input/FilterBar.tsx, line: 28}
+  caller: website_controls
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 4}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 46}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
+    note: "showFilter の条件 (allowFilter && allowShareFilter(share?.parameters)) の中にある。allowFilter は既定の true のまま。共有の設定 (ShareContext) は src/app/share の layout だけが与え、この入口では null なので、条件はいつも成り立つ"
+  rules:
+  - kind: decision
+    value: "「セグメントとして保存」のボタンは、項目かセッションのプロパティの絞り込みがあり、イベントのプロパティの絞り込みが無く、segment も cohort も選んでおらず、URL が /share を含まないときだけ出す"
+    status: fact
+    evidence:
+    - {file: src/components/input/FilterBar.tsx, line: 36}
+    - {file: src/components/input/FilterBar.tsx, line: 42}
+    - {file: src/components/input/FilterBar.tsx, line: 169}
+  summary:
+    status: interpretation
+    value: "URL の絞り込みを並べて出し、消す・全部消す操作で URL のクエリを書き換える (同じ画面を開き直す)。絞り込みが 1 つも無ければ何も描かない。URL に segment か cohort があれば、その保存済みの絞り込みを useWebsiteSegmentQuery で読んで名前を出す。条件を満たすと「セグメントとして保存」(SegmentEditForm) を出す"
+    evidence:
+    - {file: src/components/input/FilterBar.tsx, line: 33}
+    - {file: src/components/input/FilterBar.tsx, line: 35}
+    - {file: src/components/input/FilterBar.tsx, line: 45}
+    - {file: src/components/input/FilterBar.tsx, line: 88}
+    - {file: src/components/input/FilterBar.tsx, line: 112}
+    - {file: src/components/input/FilterBar.tsx, line: 195}
+- id: use_website_segment_query
+  layer: component
+  kind: hook
+  name: "useWebsiteSegmentQuery"
+  source: {file: src/components/hooks/queries/useWebsiteSegmentQuery.ts, line: 6}
+  caller: filter_bar
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/input/FilterBar.tsx, line: 35}
+  summary:
+    status: interpretation
+    value: "websiteId と segmentId があるときだけ、GET /websites/<websiteId>/segments/<segmentId> を呼ぶ。FilterBar は、URL の segment か cohort の値を segmentId として渡す"
+    evidence:
+    - {file: src/components/hooks/queries/useWebsiteSegmentQuery.ts, line: 16}
+    - {file: src/components/hooks/queries/useWebsiteSegmentQuery.ts, line: 17}
+    - {file: src/components/input/FilterBar.tsx, line: 35}
+- id: api_segment_get
+  layer: api_route
+  kind: route_handler
+  name: "GET /api/websites/[websiteId]/segments/[segmentId]"
+  source: {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 8}
+  caller: use_website_segment_query
+  call:
+    status: fact
+    when: conditional
+    condition: "URL のクエリに segment か cohort があるとき (問い合わせの enabled)"
+    evidence:
+    - {file: src/components/hooks/queries/useWebsiteSegmentQuery.ts, line: 16}
+    - {file: src/components/hooks/queries/useWebsiteSegmentQuery.ts, line: 17}
+    - {file: src/components/input/FilterBar.tsx, line: 35}
+    - {file: src/lib/api-url.ts, line: 44}
+  summary:
+    status: interpretation
+    value: "parseRequest で認証し、canViewSharedWebsiteFilters を確かめ、getWebsiteSegment で segment を読む。無ければ 404。parseRequest と getWebsiteSegment も呼ぶ。経路はフレーム q_parse_request、q_get_website_segment と同じ"
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 12}
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 20}
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 24}
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 27}
+  parameters:
+  - name: "segmentId"
+    value: "URL の段 [segmentId] (画面は、クエリの segment か cohort の値を入れる)"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 18}
+- id: q_can_view_shared_filters
+  layer: query
+  kind: function
+  name: "canViewSharedWebsiteFilters (src/permissions/share.ts)"
+  source: {file: src/permissions/share.ts, line: 88}
+  caller: api_segment_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 20}
+  guards:
+  - kind: other
+    value: "canViewSharedWebsiteFilters"
+    status: fact
+    evidence:
+    - {file: src/permissions/share.ts, line: 98}
+    note: "ログインユーザーがいないとき: shareToken がそのサイトを含み、shareToken.parameters.allowFilter が false でない"
+  summary:
+    status: interpretation
+    value: "ログインユーザーがいれば canViewWebsite に任せる。共有トークンだけのときは、トークンがそのサイトを含み、絞り込みを禁じていないかで決める (データは読まない)。満たさなければ、受け口が 401 を返す"
+    evidence:
+    - {file: src/permissions/share.ts, line: 92}
+    - {file: src/permissions/share.ts, line: 93}
+    - {file: src/permissions/share.ts, line: 98}
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 21}
+- id: q_can_view_website_rw_filters
+  layer: query
+  kind: function
+  name: "canViewWebsite (src/permissions/website.ts)"
+  source: {file: src/permissions/website.ts, line: 8}
+  caller: q_can_view_shared_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "ログインユーザーがいるとき (auth.user)"
+    evidence:
+    - {file: src/permissions/share.ts, line: 93}
+  summary:
+    status: interpretation
+    value: "管理者でなく、共有トークンがサイトを含まなければ、getEntity で id に当たるものを読む。呼び出し元が終端にならないように、もう一度書いたもの。権限の確認の中身と、全体の経路はフレーム q_can_view_website と同じ"
+    evidence:
+    - {file: src/permissions/website.ts, line: 9}
+    - {file: src/permissions/website.ts, line: 24}
+- id: q_get_entity_rw_filters
+  layer: query
+  kind: function
+  name: "getEntity (src/lib/entity.ts)"
+  source: {file: src/lib/entity.ts, line: 4}
+  caller: q_can_view_website_rw_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "管理者でなく、共有トークンがそのサイトを含まないとき"
+    evidence:
+    - {file: src/permissions/website.ts, line: 24}
+  summary:
+    status: interpretation
+    value: "同じ id で website / link / pixel / board を並べて読む。呼び出し元が終端にならないように、もう一度書いたもの (最初の getWebsite だけを書いた)。全体の経路はフレーム q_get_entity と同じ"
+    evidence:
+    - {file: src/lib/entity.ts, line: 5}
+    - {file: src/lib/entity.ts, line: 6}
+- id: q_get_website_rw_filters
+  layer: query
+  kind: function
+  name: "getWebsite (src/queries/prisma/website.ts)"
+  source: {file: src/queries/prisma/website.ts, line: 80}
+  caller: q_get_entity_rw_filters
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 6}
+  summary:
+    status: interpretation
+    value: "id が UUID の形でなければ null を返す。website を 1 件読み、あれば最新の share の slug を shareId として付ける。呼び出し元が終端にならないように、もう一度書いたもの。ライブラリの呼び出しまでの経路はフレーム q_get_website と同じ"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 81}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 95}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: website}}
+    detail: "prisma.client.website.findUnique (where id)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: prisma/schema.prisma, line: 130}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: website_id, use: [filter]}
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: share}}
+    detail: "prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: prisma/schema.prisma, line: 412}
+    fields:
+    - {name: slug, use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    note: "website が見つかったときだけ"
+- id: segment_edit_form
+  layer: component
+  kind: component
+  name: "SegmentEditForm (セグメントとして保存)"
+  source: {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 18}
+  caller: filter_bar
+  call:
+    status: fact
+    when: conditional
+    condition: "「セグメントとして保存」のボタンが出ていて (FilterBar の canSaveSegment)、それを押してダイアログを開いたとき"
+    evidence:
+    - {file: src/components/input/FilterBar.tsx, line: 12}
+    - {file: src/components/input/FilterBar.tsx, line: 169}
+    - {file: src/components/input/FilterBar.tsx, line: 195}
+  summary:
+    status: interpretation
+    value: "今の URL の絞り込みを入れた、セグメントの名前と条件のフォーム。segmentId を渡されないので、useWebsiteSegmentQuery (フレーム use_website_segment_query と同じフック) は問い合わせをしない。保存すると useUpdateQuery で、type に segment を足して POST /websites/<websiteId>/segments を呼ぶ。フォームの中の絞り込みの入力欄 (FieldFilters / PropertyFilters) は、フレーム segment_filter_fields に書いた"
+    evidence:
+    - {file: src/components/input/FilterBar.tsx, line: 196}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 35}
+    - {file: src/components/hooks/queries/useWebsiteSegmentQuery.ts, line: 17}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 43}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 46}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 51}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 89}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 101}
+- id: use_update_query_segment
+  layer: component
+  kind: hook
+  name: "useUpdateQuery('/websites/<websiteId>/segments')"
+  source: {file: src/components/hooks/queries/useUpdateQuery.ts, line: 6}
+  caller: segment_edit_form
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 43}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 44}
+  summary:
+    status: interpretation
+    value: "受け取った path に、フォームの値と決まった値 (type: segment) を本文にして POST する mutation を作る。segmentId が無いので path は /websites/<websiteId>/segments"
+    evidence:
+    - {file: src/components/hooks/queries/useUpdateQuery.ts, line: 9}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 44}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 46}
+- id: api_segments_create
+  layer: api_route
+  kind: route_handler
+  name: "POST /api/websites/[websiteId]/segments"
+  source: {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 38}
+  caller: use_update_query_segment
+  call:
+    status: fact
+    when: conditional
+    condition: "セグメントのフォームを送信したとき"
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 44}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 51}
+    - {file: src/components/hooks/queries/useUpdateQuery.ts, line: 9}
+    - {file: src/lib/api-url.ts, line: 44}
+  rules:
+  - kind: validation
+    value: "本文は、type がセグメントの種類、name が 200 文字まで、parameters が segmentParamSchema に合わなければ 400 を返す"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 42}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 44}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 48}
+    - {file: src/lib/request.ts, line: 33}
+  - kind: validation
+    value: "type が cohort で、セッションのプロパティの絞り込みが付いているときは 400 を返す (セグメントだけが持てる)"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 57}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 58}
+  summary:
+    status: interpretation
+    value: "本文 (type・name・parameters) を検査して認証する。canUpdateWebsite を確かめ、新しい uuid で segment を作って返す。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ"
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 48}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 61}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 65}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 66}
+  parameters:
+  - name: "type / name / parameters"
+    value: "JSON 本文。type は、フォームが segment を足す"
+    status: fact
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 55}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 46}
+- id: q_can_update_website
+  layer: query
+  kind: function
+  name: "canUpdateWebsite (src/permissions/website.ts)"
+  source: {file: src/permissions/website.ts, line: 132}
+  caller: api_segments_create
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 61}
+  guards:
+  - kind: role
+    value: "user.isAdmin"
+    status: fact
+    evidence:
+    - {file: src/permissions/website.ts, line: 137}
+    note: "user.isAdmin (role が admin) なら許す。この確認の前に、ログインユーザーがいなければ (共有トークンだけなら) 拒む"
+  - kind: ownership
+    value: "canUpdateWebsite"
+    status: fact
+    evidence:
+    - {file: src/permissions/website.ts, line: 147}
+    - {file: src/permissions/website.ts, line: 148}
+    note: "サイトの持ち主がユーザーなら user.id === website.userId"
+  - kind: permission
+    value: "PERMISSIONS.websiteUpdate"
+    status: fact
+    evidence:
+    - {file: src/permissions/website.ts, line: 152}
+    - {file: src/permissions/website.ts, line: 154}
+    - {file: src/lib/constants.ts, line: 194}
+    note: "チームのサイトなら、team_user の role が website:update (PERMISSIONS.websiteUpdate) を持つ"
+  summary:
+    status: interpretation
+    value: "ログインユーザーでなければ拒み、管理者なら許す。getWebsite でサイトを読み、持ち主が本人なら許す。チームのサイトなら、getTeamUser で本人の役割を読み、サイトの更新の権限があるかで決める。満たさなければ、受け口が 401 を返す。getTeamUser も呼ぶ。経路はフレーム q_get_team_user と同じ"
+    evidence:
+    - {file: src/permissions/website.ts, line: 133}
+    - {file: src/permissions/website.ts, line: 137}
+    - {file: src/permissions/website.ts, line: 141}
+    - {file: src/permissions/website.ts, line: 147}
+    - {file: src/permissions/website.ts, line: 152}
+    - {file: src/permissions/website.ts, line: 154}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 62}
+- id: q_get_website_rw_update
+  layer: query
+  kind: function
+  name: "getWebsite (src/queries/prisma/website.ts)"
+  source: {file: src/queries/prisma/website.ts, line: 80}
+  caller: q_can_update_website
+  call:
+    status: fact
+    when: conditional
+    condition: "ログインユーザーがいて、管理者でないとき"
+    evidence:
+    - {file: src/permissions/website.ts, line: 141}
+  summary:
+    status: interpretation
+    value: "id が UUID の形でなければ null を返す。website を 1 件読み、あれば最新の share の slug を shareId として付ける。呼び出し元が終端にならないように、もう一度書いたもの。ライブラリの呼び出しまでの経路はフレーム q_get_website と同じ"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 81}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 95}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: website}}
+    detail: "prisma.client.website.findUnique (where id)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: prisma/schema.prisma, line: 130}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: website_id, use: [filter]}
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: share}}
+    detail: "prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)"
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: prisma/schema.prisma, line: 412}
+    fields:
+    - {name: slug, use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    note: "website が見つかったときだけ"
+- id: q_create_segment
+  layer: query
+  kind: function
+  name: "createSegment (src/queries/prisma/segment.ts)"
+  source: {file: src/queries/prisma/segment.ts, line: 54}
+  caller: api_segments_create
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 65}
+  summary:
+    status: interpretation
+    value: "受け取った値で segment を 1 件作る"
+    evidence:
+    - {file: src/queries/prisma/segment.ts, line: 55}
+  io:
+  - op: create
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: segment}}
+    detail: "prisma.client.segment.create (id, websiteId, type, name, parameters)"
+    evidence:
+    - {file: src/queries/prisma/segment.ts, line: 55}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 66}
+    - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 68}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 46}
+    - {file: prisma/schema.prisma, line: 317}
+    fields:
+    - {name: segment_id, use: [write]}
+    - {name: website_id, use: [write]}
+    - {name: type, use: [write], set_to: segment}
+    - {name: name, use: [write]}
+    - {name: parameters, use: [write]}
+    note: "列は、呼び出し元 (segments/route.ts 66〜70 行) で読んだ。type は本文の値で、この画面のフォームは segment を送る"
+- id: ext_prisma_segment_create
+  layer: external
+  kind: library
+  name: "Prisma Client segment.create"
+  source: {file: src/queries/prisma/segment.ts, line: 55}
+  caller: q_create_segment
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/segment.ts, line: 55}
+- id: segment_filter_fields
+  layer: component
+  kind: component
+  name: "SegmentEditForm の絞り込みの入力欄 (FieldFilters / PropertyFilters)"
+  source: {file: src/components/property-data/PropertyFilters.tsx, line: 53}
+  caller: segment_edit_form
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 14}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 15}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 84}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 89}
+    - {file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 101}
+    note: "showFilters の条件の中にある。FilterBar は渡さないので既定の true のままで、いつも描く"
+  summary:
+    status: unknown
+    reason: not_analyzed
+    note: "フォームが開くと、PropertyFilters が usePropertyFieldsQuery で GET /websites/<websiteId>/session-data/properties を呼ぶ (PropertyFilters.tsx 53 行、usePropertyFieldsQuery.ts 27 行) ことまでを読んだ。その受け口から先と、FieldFilters (FieldFilters.tsx 34 行) の中は辿っていない。サイトの多くの画面が同じものを使う共通の絞り込みの部品で、この画面に固有の処理ではないので止めた (websites.websiteId_d の結果が辿っている)"
+- id: breakdown
+  layer: component
+  kind: component
+  name: "Breakdown"
+  source: {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 13}
+  caller: breakdown_page
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 11}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/BreakdownPage.tsx', line: 34}
+  rules:
+  - kind: calculation
+    value: "直帰率は min(visits, bounces) / visits × 100 を四捨五入した %。訪問の長さは totaltime / visits"
+    status: fact
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 61}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 62}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 67}
+  summary:
+    status: interpretation
+    value: "BreakdownPage と同じ引数 (websiteId・期間・選んだ項目) で useBreakdownQuery を呼び、選んだ項目の列と、訪問者数・訪問数・ページビュー・直帰率・訪問の長さの列の表を描く。問い合わせのキーが BreakdownPage と同じなので、呼び出しは 1 回にまとまると読んだ。useBreakdownQuery も呼ぶ。経路はフレーム use_breakdown_query と同じ"
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 17}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 24}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 31}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 50}
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 65}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 26}
+- id: use_breakdown_query_rw
+  layer: component
+  kind: hook
+  name: "useBreakdownQuery (useAnalyticsQuery('breakdown'))"
+  source: {file: src/components/hooks/queries/useBreakdownQuery.ts, line: 6}
+  caller: breakdown
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 17}
+  summary:
+    status: interpretation
+    value: "GET /websites/<websiteId>/breakdown を呼ぶ。呼び出し元が終端にならないように、もう一度書いたもの。設定と全体の経路はフレーム use_breakdown_query と同じ"
+    evidence:
+    - {file: src/components/hooks/queries/useBreakdownQuery.ts, line: 10}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 27}
+- id: api_breakdown_rw
+  layer: api_route
+  kind: route_handler
+  name: "GET /api/websites/[websiteId]/breakdown"
+  source: {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 7}
+  caller: use_breakdown_query_rw
+  call:
+    status: fact
+    when: conditional
+    condition: "選んだ項目 (fields) が 1 つ以上あるとき"
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/(reports)/breakdown/Breakdown.tsx', line: 24}
+    - {file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 27}
+    - {file: src/lib/api-url.ts, line: 44}
+  summary:
+    status: interpretation
+    value: "parseRequest で検査と認証をしてから、権限を確かめて集計する。呼び出し元が終端にならないように、もう一度書いたもの (最初の parseRequest だけを書いた)。ルールと全体の経路はフレーム api_breakdown と同じ"
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 11}
+- id: q_parse_request_rw
+  layer: query
+  kind: function
+  name: "parseRequest (src/lib/request.ts)"
+  source: {file: src/lib/request.ts, line: 16}
+  caller: api_breakdown_rw
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/websites/[websiteId]/breakdown/route.ts', line: 11}
+  summary:
+    status: interpretation
+    value: "クエリを検査し、checkAuth で認証する。呼び出し元が終端にならないように、もう一度書いたもの。全体の経路はフレーム q_parse_request と同じ"
+    evidence:
+    - {file: src/lib/request.ts, line: 30}
+    - {file: src/lib/request.ts, line: 52}
+- id: q_check_auth_rw
+  layer: query
+  kind: function
+  name: "checkAuth (src/lib/auth.ts)"
+  source: {file: src/lib/auth.ts, line: 71}
+  caller: q_parse_request_rw
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/request.ts, line: 52}
+  summary:
+    status: interpretation
+    value: "Bearer トークンからユーザーを決める。呼び出し元が終端にならないように、もう一度書いたもの。確認・設定・ルールと全体の経路はフレーム q_check_auth と同じ"
+    evidence:
+    - {file: src/lib/auth.ts, line: 72}
+    - {file: src/lib/auth.ts, line: 102}
+  io:
+  - op: get
+    status: interpretation
+    resource: {kind: kvs, levels: {key_pattern: 'auth:*'}}
+    detail: "redis.client.get(authKey)"
+    evidence:
+    - {file: src/lib/auth.ts, line: 102}
+    - {file: src/lib/auth.ts, line: 150}
+    - {file: src/lib/redis.ts, line: 37}
+    fields:
+    - {name: '*', use: [read]}
+    note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ。auth:* の形は、saveAuth (auth.ts 150 行) から読み取った"

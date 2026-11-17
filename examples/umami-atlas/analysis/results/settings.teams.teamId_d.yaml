@@ -179,14 +179,6 @@ callstack:
         - { file: src/lib/request.ts, line: 51 }
         - { file: src/lib/request.ts, line: 52 }
         - { file: src/lib/request.ts, line: 55 }
-    guards:
-      - kind: authentication
-        status: fact
-        evidence:
-          - { file: src/lib/request.ts, line: 54 }
-          - { file: src/lib/request.ts, line: 55 }
-          - { file: src/lib/auth.ts, line: 122 }
-        note: "checkAuth がユーザーを得られなければ (共有トークンも無ければ) null を返し、ここで 401 にする"
 
   - id: q_check_auth
     layer: query
@@ -212,6 +204,14 @@ callstack:
         - { file: src/lib/auth.ts, line: 101 }
         - { file: src/lib/auth.ts, line: 105 }
         - { file: src/lib/auth.ts, line: 122 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+          - { file: src/lib/auth.ts, line: 122 }
+        note: "checkAuth がユーザーを得られなければ (共有トークンも無ければ) null を返し、parseRequest が 401 にする"
     settings:
       - name: REDIS_URL
         kind: env
@@ -346,12 +346,12 @@ callstack:
         - { file: src/permissions/team.ts, line: 15 }
     guards:
       - kind: ownership
-        value: "user.isAdmin、または getTeamUser(teamId, user.id) で team_user がある (そのチームのメンバー)"
+        value: "canViewTeam"
         status: fact
         evidence:
           - { file: src/permissions/team.ts, line: 11 }
           - { file: src/permissions/team.ts, line: 15 }
-        note: "満たさなければ、呼び出し元の route が 401 を返す"
+        note: "満たさなければ、呼び出し元の route が 401 を返す。user.isAdmin、または getTeamUser(teamId, user.id) で team_user がある (そのチームのメンバー)"
 
   # getTeamUser の経路はここに 1 回だけ書く (入口から辿る順で最初に着く permissions/team.ts:15)
   - id: q_get_team_user
@@ -757,18 +757,20 @@ callstack:
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 82 }
     guards:
       - kind: role
-        value: "管理者でなければ、相手の役割が ROLES.teamOwner (team-owner) のときは消せない"
+        value: "ROLES.teamOwner"
         status: fact
         evidence:
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 94 }
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 95 }
+        note: "管理者でなければ、相手の役割が ROLES.teamOwner (team-owner) のときは消せない"
       - kind: role
-        value: "管理者でなく、消す相手が自分でないときは、TEAM_ROLE_RANK で自分の役割の順位が相手より上 (actorRank > targetRank) であること"
+        value: "TEAM_ROLE_RANK"
         status: fact
         evidence:
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 99 }
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 104 }
           - { file: src/lib/constants.ts, line: 184 }
+        note: "管理者でなく、消す相手が自分でないときは、TEAM_ROLE_RANK で自分の役割の順位が相手より上 (actorRank > targetRank) であること"
     rules:
       - kind: validation
         value: "消す相手がそのチームのメンバーでなければ (team_user が無ければ) 400 を返す"
@@ -800,12 +802,12 @@ callstack:
         - { file: src/lib/auth.ts, line: 164 }
     guards:
       - kind: permission
-        value: "PERMISSIONS.teamUpdate (team:update)"
+        value: "PERMISSIONS.teamUpdate"
         status: fact
         evidence:
           - { file: src/permissions/team.ts, line: 73 }
           - { file: src/lib/constants.ts, line: 199 }
-        note: "管理者 (user.isAdmin) と、消す相手が自分のとき (removeUserId === user.id) は、この確認なしで許す"
+        note: "管理者 (user.isAdmin) と、消す相手が自分のとき (removeUserId === user.id) は、この確認なしで許す。PERMISSIONS.teamUpdate の値は team:update"
 
   # 以下 2 フレームは、canDeleteTeamUser が終端にならないための書き直し (全体の経路はフレーム q_get_team_user)
   - id: q_get_team_user_delete_user_rw
@@ -1050,12 +1052,12 @@ callstack:
         - { file: src/lib/auth.ts, line: 164 }
     guards:
       - kind: permission
-        value: "PERMISSIONS.teamUpdate (team:update)"
+        value: "PERMISSIONS.teamUpdate"
         status: fact
         evidence:
           - { file: src/permissions/team.ts, line: 41 }
           - { file: src/lib/constants.ts, line: 199 }
-        note: "管理者 (user.isAdmin) は、この確認なしで許す。役割ごとの権限の表 (ROLE_PERMISSIONS) では、team-owner と team-manager が team:update を持つ"
+        note: "管理者 (user.isAdmin) は、この確認なしで許す。役割ごとの権限の表 (ROLE_PERMISSIONS) では、team-owner と team-manager が team:update を持つ。PERMISSIONS.teamUpdate の値は team:update"
 
   # 以下 2 フレームは、canUpdateTeam が終端にならないための書き直し (全体の経路はフレーム q_get_team_user)
   - id: q_get_team_user_update_rw
@@ -1481,12 +1483,13 @@ callstack:
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 35 }
     guards:
       - kind: role
-        value: "管理者でなければ、TEAM_ROLE_RANK で自分の役割の順位が相手より上 (actorRank > targetRank) であること"
+        value: "TEAM_ROLE_RANK"
         status: fact
         evidence:
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 57 }
           - { file: "src/app/api/teams/[teamId]/users/[userId]/route.ts", line: 62 }
           - { file: src/lib/constants.ts, line: 184 }
+        note: "管理者でなければ、TEAM_ROLE_RANK で自分の役割の順位が相手より上 (actorRank > targetRank) であること"
     rules:
       - kind: validation
         value: "変更先の役割は team-member / team-view-only / team-manager のどれか (team-owner には変えられない)"
@@ -1834,12 +1837,12 @@ callstack:
         - { file: src/permissions/team.ts, line: 55 }
     guards:
       - kind: permission
-        value: "PERMISSIONS.teamDelete (team:delete)"
+        value: "PERMISSIONS.teamDelete"
         status: fact
         evidence:
           - { file: src/permissions/team.ts, line: 55 }
           - { file: src/lib/constants.ts, line: 200 }
-        note: "管理者 (user.isAdmin) は、この確認なしで許す。役割ごとの権限の表 (ROLE_PERMISSIONS) では、team-owner だけが team:delete を持つ"
+        note: "管理者 (user.isAdmin) は、この確認なしで許す。役割ごとの権限の表 (ROLE_PERMISSIONS) では、team-owner だけが team:delete を持つ。PERMISSIONS.teamDelete の値は team:delete"
 
   # 以下 2 フレームは、canDeleteTeam が終端にならないための書き直し (全体の経路はフレーム q_get_team_user)
   - id: q_get_team_user_delete_team_rw

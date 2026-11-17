@@ -1,0 +1,438 @@
+format_version: 1
+entry:
+  id: settings.preferences
+  path: /settings/preferences
+  name: preferences
+  layer: page
+  source: { file: "src/app/(main)/settings/preferences/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:19:38Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T15:18:45Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "設定メニューの中の、表示の好み (既定の期間、タイムゾーン、言語、テーマ) を選ぶ画面と、版の表示。好みはブラウザの中 (localStorage の umami.date-range / umami.timezone / umami.locale と、アプリのストア) に保存するだけで、サーバーのデータは書かない。サーバーに届くのは、ログイン中のユーザーを得る useLoginQuery だけで、ストアにユーザーが無いときだけ POST /api/auth/verify を呼んで user と所属の team を読む (認証はログイントークンから user を読み、Redis のセッションを使うときは auth:* も読む)。ユーザーが得られるまでは何も描かない"
+  evidence:
+    - { file: "src/app/(main)/settings/preferences/page.tsx", line: 5 }
+    - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 10 }
+    - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 13 }
+    - { file: "src/app/(main)/settings/preferences/DateRangeSetting.tsx", line: 13 }
+    - { file: src/components/hooks/useTimezone.ts, line: 16 }
+    - { file: src/components/hooks/useLocale.ts, line: 33 }
+    - { file: src/lib/storage.ts, line: 3 }
+    - { file: src/app/api/auth/verify/route.ts, line: 12 }
+notes: "[1] 好みの部品 (DateRangeSetting / TimezoneSetting / LanguageSetting / ThemeSetting / VersionSetting) は、データの読み書きに至らないので段にしていない。保存先は localStorage とアプリのストア (src/store/app) で、プロファイルの決まりにより I/O に書かない。ThemeSetting は @umami/react-zen の useTheme を使う。[2] LanguageSetting の useLocale は、まだ読んでいない言語の翻訳の JSON を ${basePath}/intl/messages/<locale>.json から取る (useLocale.ts:23) が、同じサーバーの静的なファイルなので、この分析リポジトリの決まりにより段にも I/O にも書いていない。[3] 版 (CURRENT_VERSION) は next.config が埋める固定の値を出すだけなので、settings に書いていない。DEFAULT_LOCALE はこの版では環境変数ではなく定数 'en-US' (constants.ts:25) なので、settings に書いていない。[4] 画面を包む枠 (settings / main / ルートの layout) の処理は、枠の入口の結果にあるので辿っていない。useLoginQuery は枠でも呼ばれるが、この画面の PreferenceSettings 自身も呼ぶので、画面の側にも書いた。[5] checkAuth の API キーの経路 (auth.ts:74) は、/api/auth の下が API_KEY_BLOCKED_PATHS (api-key.ts:15) に入っていて checkApiKeyAuth が読み書きの前に null を返す (auth.ts:35) ので、辿っていない。拒むことは rules に、経路の切り替えは設定 (CLOUD_MODE) に書いた。[6] DB の接続先の環境変数 (DATABASE_URL / DATABASE_REPLICA_URL) は、どの段にも同じように効くので settings に書いていない。[7] テストとの対応は、作業定義で選ばれていないので分析していない。[8] レビューの指摘は low が 4 件で、すべて直した (checkAuth の共有トークンのヘッダーの確認と、/api/auth で API キーを拒むことを rules に足した。user の列と team_user のリレーションの根拠の行を足した)"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "preferences (src/app/(main)/settings/preferences/page.tsx)"
+    source: { file: "src/app/(main)/settings/preferences/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page。PreferencesPage を描くだけ。タイトル Preferences の metadata を持つ"
+      evidence:
+        - { file: "src/app/(main)/settings/preferences/page.tsx", line: 5 }
+        - { file: "src/app/(main)/settings/preferences/page.tsx", line: 8 }
+
+  # ---------------------------------------------------------------- 画面の本体
+  - id: preferences_page
+    layer: component
+    kind: component
+    name: "PreferencesPage"
+    source: { file: "src/app/(main)/settings/preferences/PreferencesPage.tsx", line: 9 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/settings/preferences/page.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/preferences/page.tsx", line: 5 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。見出し (Preferences) とパネルを描き、その中に PreferenceSettings を描く"
+      evidence:
+        - { file: "src/app/(main)/settings/preferences/PreferencesPage.tsx", line: 1 }
+        - { file: "src/app/(main)/settings/preferences/PreferencesPage.tsx", line: 15 }
+        - { file: "src/app/(main)/settings/preferences/PreferencesPage.tsx", line: 17 }
+
+  - id: preference_settings
+    layer: component
+    kind: component
+    name: "PreferenceSettings"
+    source: { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 9 }
+    caller: preferences_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/settings/preferences/PreferencesPage.tsx", line: 7 }
+        - { file: "src/app/(main)/settings/preferences/PreferencesPage.tsx", line: 17 }
+    summary:
+      status: interpretation
+      value: "useLoginQuery でログイン中のユーザーを得て、まだ無ければ何も描かない。あれば、既定の期間 (DateRangeSetting)、タイムゾーン (TimezoneSetting)、言語 (LanguageSetting)、テーマ (ThemeSetting)、版 (VersionSetting) の欄を描く。各欄は、選んだ値をブラウザの localStorage とアプリのストアに保存するだけで、サーバーの API を呼ばない"
+      evidence:
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 10 }
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 13 }
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 21 }
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 25 }
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 29 }
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 33 }
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 37 }
+        - { file: "src/app/(main)/settings/preferences/DateRangeSetting.tsx", line: 13 }
+        - { file: "src/app/(main)/settings/preferences/ThemeSetting.tsx", line: 8 }
+        - { file: src/components/hooks/useTimezone.ts, line: 16 }
+        - { file: src/components/hooks/useLocale.ts, line: 33 }
+    rules:
+      - kind: decision
+        value: "既定の期間を戻すと、DEFAULT_DATE_RANGE_VALUE (24hour) にする。保存された値が無いときも、この値を出す"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/preferences/DateRangeSetting.tsx", line: 10 }
+          - { file: "src/app/(main)/settings/preferences/DateRangeSetting.tsx", line: 18 }
+          - { file: src/lib/constants.ts, line: 28 }
+      - kind: decision
+        value: "タイムゾーンを戻すと、ブラウザのタイムゾーン (getTimezone) にする"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/preferences/TimezoneSetting.tsx", line: 16 }
+      - kind: decision
+        value: "言語を戻すと、DEFAULT_LOCALE (en-US) にする"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/preferences/LanguageSetting.tsx", line: 20 }
+          - { file: src/lib/constants.ts, line: 25 }
+
+  # ---- ログイン中のユーザー
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: preference_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/preferences/PreferenceSettings.tsx", line: 10 }
+    summary:
+      status: interpretation
+      value: "ストアのユーザーを返す。ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は、API_URL の設定に関わらず basePath + /api に向く"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (basePath + /api + /auth/verify)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.basePath)。next.config の env が、環境変数 BASE_PATH の値を入れる"
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      when: conditional
+      condition: "ストアにログイン中のユーザーが無いとき (enabled: !user)"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できれば getAllUserTeams で所属チームを読み、ユーザーと所属チームを返す"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 8 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 4 }
+
+  # ---- 認証
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 1 }
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "URL のクエリと JSON 本文を読む (POST /api/auth/verify はスキーマを渡さないので検査しない)。skipAuth が無いので checkAuth で認証し、認証できなければ 401 のエラーを返す"
+      evidence:
+        - { file: src/lib/request.ts, line: 22 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、POST /api/auth/verify は skipAuth もスキーマも渡さないので、いつも成り立つ"
+    summary:
+      status: interpretation
+      value: "Bearer トークンを解き、userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。2FA の仮トークンは拒否する。ユーザーも共有トークンも無ければ null を返す。API キーの形のトークンは、/api/auth の下では拒む"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+          - { file: src/lib/auth.ts, line: 122 }
+        note: "checkAuth がユーザーを得られなければ (共有トークンも無ければ) null を返し、parseRequest が 401 にする"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていると、トークンに userId が無く authKey があるとき、Redis のセッション (auth:*) からユーザーを引く"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+        note: "API キーの経路は、/api/auth の下では API_KEY_BLOCKED_PATHS で必ず拒まれて読み書きに至らないので、辿っていない"
+    rules:
+      - kind: validation
+        value: "2FA のパスワード段階だけを通った仮トークン (PARTIAL_AUTH_TOKEN_TYPE) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+      - kind: validation
+        value: "トークン (またはセッション) にパスワードの指紋があり、今のパスワードのハッシュと合わなければ、そのユーザーを無効にする (パスワードを変える前のトークンを拒む)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーがいなくて共有トークンだけのときは、共有の文脈を示すヘッダーが無ければ認めない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 128 }
+          - { file: src/lib/auth.ts, line: 129 }
+          - { file: src/lib/auth.ts, line: 131 }
+      - kind: validation
+        value: "/api/auth の下の受け口では、API キーを受け付けない (API_KEY_BLOCKED_PATHS)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 35 }
+          - { file: src/lib/auth.ts, line: 37 }
+          - { file: src/lib/api-key.ts, line: 15 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser / findUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき、または Redis のセッションに userId があったとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 22 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "id で削除されていない user を 1 件読む。checkAuth は includePassword: true で呼ぶので、パスワードの列も読む (パスワードの指紋の照合のため)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: src/lib/auth.ts, line: 94 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 14 }
+          - { file: prisma/schema.prisma, line: 15 }
+          - { file: prisma/schema.prisma, line: 16 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 37 }
+          - { file: prisma/schema.prisma, line: 8 }
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  # ---- 所属チーム
+  - id: q_team_verify
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 3 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+        - { file: src/queries/prisma/team.ts, line: 100 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId。select id / name / logoUrl)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: name, use: [read] }
+          - { name: logo_url, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: src/queries/prisma/team.ts, line: 95 }
+          - { file: src/queries/prisma/team.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 234 }
+          - { file: prisma/schema.prisma, line: 236 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: src/queries/prisma/team.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 243 }
+          - { file: prisma/schema.prisma, line: 260 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team_verify
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_team_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }

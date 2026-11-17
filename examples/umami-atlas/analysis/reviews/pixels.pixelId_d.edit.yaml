@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: pixels.pixelId_d.edit
+reviewed_at: "2026-11-17T11:50:21Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/pixel_edit_page/links/0
+    claim: "note の「この画面の URL (/pixels/...) に /teams は無い」は、コードと合わない。next.config.ts の書き換え (/teams/:teamId/:path* を /:path* へ) があるので、この画面は /teams/<teamId>/pixels/<pixelId>/edit でも開く。そのとき useNavigation は URL から teamId を取り出し、renderUrl は戻るリンクの前に /teams/<teamId> を付ける。行き先 (target と entry_id) は、そのままで正しい。"
+    evidence: { file: next.config.ts, line: 253 }
+    suggestion: "note を「チームの URL (/teams/<teamId>/pixels/<pixelId>/edit。next.config.ts:253 の書き換え) で開いたときは、戻るリンクの前に /teams/<teamId> が付く」に直し、根拠に next.config.ts:253 と src/components/hooks/useNavigation.ts:9 を足す。入口の summary にも、チームの URL でも開くことを 1 文足す (ピクセルの一覧の結果 pixels は、同じことを summary に書いている)。"
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/api_pixel_shares_get/parameters/1
+    claim: "search を「URL のクエリ」から届く値として fact で書いているが、この受け口のスキーマ (filterParams と pagingParams) に search の項目が無い。parseRequest はスキーマの検査を通した値で query を置き換えるので、画面が search を送っても、受け口では落ちて undefined になる (書き戻すのは、数字で終わる名前と pf_ / epf / spf で始まる名前だけ)。結果の notes [11] のとおり src/lib/schema.ts を読んでいないため、この点が抜けている。"
+    evidence: { file: src/lib/schema.ts, line: 45 }
+    suggestion: "src/lib/schema.ts の 45〜71 行と 87〜91 行、src/lib/request.ts の 35〜44 行を読み、parameters の value と q_get_shares の summary に「search はスキーマに無いので、受け口には届かない」と書く (根拠にこれらの行を足す)。use_pixel_shares_query の summary の「search を送る」は、そのままでよい。"
+notes: "主張はおおむねコードと合っていた。根拠の行は、対象の 35 ほどのファイルで 1 つずつ開いて確かめ、上の 2 件のほかに食い違いは無かった。辿る順 (同じ関数を最初に着いた呼び出し元の下に 1 回だけ書く) と、終端の決まりのための書き直し (読み書きを持つ最初の段まで。確認・設定・ルールを繰り返さない) も、決まりどおりだった。指摘にしなかったこと: (1) useConfig が呼ぶ GET /api/config を段にしていない。理由は notes [3] に書いてあり、(main) の枠、pixels、links.linkId_d.edit の結果と同じ扱い。一方、pixels.pixelId_d、links.linkId_d、boards.boardId_d、boards.boardId_d.design、websites.websiteId_d の結果は、useConfig → GET /api/config → Response.json (external) を段にして閉じている。「終端の決まりを満たす段にできない」という理由は、これらの結果と食い違う。入口をまたいで扱いが分かれているので、どちらにそろえるかは、人が決めるとよい。(2) PIXELS_URL は表示する文字だけを変える設定だが、pixels と pixels.pixelId_d の結果も同じ名前で書いているので、そのままでよい (pixels.pixelId_d は status を interpretation にしていて、ここは fact。根拠の行は両方そろっているので fact で差し支えない)。SimpleShareEditForm が出す共有の URL (CLOUD_MODE / CLOUD_URL / BASE_PATH) は「表示だけ」として設定に書いていない。表示だけの設定を書くかどうかの扱いが、同じ結果の中で分かれている (links.linkId_d.edit のレビューでも同じことを伝えている)。(3) 画面の側の「名前は必須」(PixelEditForm.tsx:82、SimpleShareCreateForm.tsx:60、SimpleShareEditForm.tsx:99) は、入力が空でないことだけの確認なので、ルールの漏れにしていない。(4) src/lib/schema.ts の pagingParams (page / pageSize は正の整数) は、型の確認に近いので、ルールの漏れにしていない。(5) share の作成で created_at (@default(now())) を書く列に入れていないのは、links.linkId_d.edit の結果と同じ扱い。(6) share/id/[shareId] の GET と DELETE に、共有が無いときの確認が無いことは、結果の notes と summary に書いてある (対象のコードの側の性質)。(7) クラウドモードのときの共有の行き先を unknown (not_traceable_in_repo) にしているのは、CLOUD_URL が環境変数の値なので妥当。(8) 名前と値の綴り (user.isAdmin、canViewPixel、canUpdatePixel、PERMISSIONS.websiteUpdate、PERMISSIONS.websiteDelete、API_URL、CLOUD_MODE、CLOUD_URL、BASE_PATH、REDIS_URL、/share/${slug}、${process.env.cloudUrl}/share/${slug}) は、analysis-conventions.md と、ほかの入口の結果 (pixels、pixels.pixelId_d、links.linkId_d.edit、boards.boardId_d.edit) に合っていた。(9) 戻るリンクの note と同じ文 (この画面のパスに /teams は無い) が、pixels.pixelId_d の結果の PixelHeader のリンクにもある。別の入口なので、ここでは指摘にしていない。"

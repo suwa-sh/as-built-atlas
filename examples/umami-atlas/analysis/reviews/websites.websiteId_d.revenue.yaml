@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: websites.websiteId_d.revenue
+reviewed_at: "2026-11-17T16:24:47Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_revenue_sessions/io/0/fields
+    claim: "PostgreSQL の website_event の website_id が read と filter になっているが、getRevenueSessions の select が出すのは session.website_id で、website_event.website_id は join と where の条件にしか使っていない。"
+    evidence: { file: src/queries/sql/revenue/getRevenueSessions.ts, line: 39 }
+    suggestion: "io/0 の website_id の use を filter だけにする (読む列としては io/1 の session の website_id に書いてある)。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_revenue_chart
+    claim: "売上の行を通貨を大文字にして指定の通貨と比べ、性能の計測のイベント (event_type != performance) を除く業務のルールがこの段のコードにあるのに、q_revenue_stats や q_revenue_sessions と違って rules に書かれていない。"
+    evidence: { file: src/queries/sql/revenue/getRevenueChart.ts, line: 74 }
+    suggestion: "q_revenue_stats の rules/1 と同じ内容の decision を、getRevenueChart.ts:58 / :74 / :114 / :131 を根拠にして足す。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_revenue_metrics
+    claim: "売上の行を通貨を大文字にして指定の通貨と比べ、性能の計測のイベント (event_type != performance) を除く業務のルールがこの段のコードにあるのに、rules に書かれていない (rules には最初のイベントへの結び付けと流入の種類の分け方だけがある)。"
+    evidence: { file: src/queries/sql/revenue/getRevenueMetrics.ts, line: 76 }
+    suggestion: "q_revenue_stats の rules/1 と同じ内容の decision を、getRevenueMetrics.ts:62 / :76 / :282 / :301 を根拠にして足す。"
+    resolved: true
+notes: "Revenue.tsx に合わせた部分 (通貨の既定値と DEFAULT_CURRENCY、chart と stats の両方が読めたときだけ内訳と一覧を描く条件、RevenueMetricsTable を 4 回描くことと enabled の扱い、SessionModal を同じ画面で開く流れ) と、新しく書いた getRevenueSessions の経路 (受け口の schema に maxResults・search があり getQueryFilters が通すこと、PostgreSQL は session を join し ClickHouse は join しないこと、売上の副問い合わせの列と期間の条件、pagedRawQuery の 2 回の読み取り) は、コードと合っていた。写した部分も、WebsiteControls の props が attribution と同じこと、セッションの小窓の受け口ごとのセクションの一覧と getQueryFilters を呼ぶ受け口の一覧、設定と確認の綴りがほかの入口とそろっていることを確かめた。api_revenue_metrics の when: always は、最初に選ばれているタブ (referrer / country) で画面を開けば呼ぶので、そのままでよい。指摘ではないが、コードの事実として: values の受け口 (values/route.ts:27-35) は渡すセクションに revenue を含まず、event-data/[eventId] は events だけを許すので、revenue のセクションだけを許した共有リンクでは、絞り込みの値の候補とイベントのプロパティの小窓が 401 になる。"

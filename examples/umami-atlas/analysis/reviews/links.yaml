@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: links
+reviewed_at: "2026-11-17T15:28:30Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/use_link_query
+    claim: "useLinkQuery は get(`/links/${linkId}`) で API を呼ぶフックなので、getApiUrl (api-url.ts:38) を通り API_URL と BASE_PATH が効くのに、settings が無い。この結果のほかの API を呼ぶフック (use_team_members_query、use_update_query、use_links_query、use_link_list_charts_query、use_delete_query) にはどちらも書いてあり、note [10] も「API を呼ぶフックの settings に書いた」としている。ほかの入口の同じフック (links.linkId_d.edit と links.linkId_d の useLinkQuery) にも API_URL が書いてある"
+    evidence: { file: src/components/hooks/queries/useLinkQuery.ts, line: 11 }
+    suggestion: "use_link_query の settings に、ほかのフックと同じ文の API_URL と BASE_PATH (根拠 api-url.ts:38、:39、:41、:44 と next.config.ts:14、:15、:215、:216) を足す"
+    resolved: true
+notes: "機械チェックは OK (作業定義の profile.dir からプロファイルを読めた)。全フレームの source と、call・summary・parameters・io・links・guards・settings・rules の根拠の行を対象のコードで開いて確かめ、上の 1 件のほかは主張と合っていた (深さ優先の置き場: getTeamUser は LinksPage.tsx:15 経由の canViewTeam の下、getLink は LinksPage.tsx:27 の追加ボタン → LinkEditForm.tsx:47 経由の canViewLink の下で正しい。終端の書き直し 2 か所 (_rw) も決まりどおり。列の名前と schema.prisma の @map、ClickHouse の website_event_stats_hourly の列も確認した)。指摘にしなかったこと: (1) use_team_members_query の summary の「2 ページ目以降では、結果に自分が入らず」は、もう少し広い。メンバーの読み取りは pageSize を付けないので既定の 20 件 (constants.ts:31、prisma.ts:759) で切られ、URL の page も付く。だから、1 ページ目でも、チームのメンバーが 20 人を超えて自分が作成順の 21 人目以降なら、操作が出ないと読める。中心の読み (一覧と URL のクエリを共有するので、メンバーの読み取りが絞られる) は正しいので、表現の補足に留めた。(2) POST /api/links は、slug の一意の制約 (schema.prisma:344 の @unique) に当たったときの扱いが無い (route.ts:62 の createLink を try で囲まない)。編集の受け口 (links/[linkId]/route.ts:50) は 400 にするが、作成では 500 になると読める。コードの段の業務のルールではなく DB の制約なので、指摘にしていない。(3) ext_charts_pg / ext_charts_ch の condition は CLICKHOUSE_URL だけを書くが、getWebsiteListCharts.ts:37 で、見てよいリンクが 0 件なら問い合わせない。q_get_website_list_charts の summary に書いてあるので指摘にしていない。(4) usePixelQuery (pixels の結果) にも、上の指摘と同じく settings が無い。そろえるなら、あわせて直すとよい。(5) useConfig → GET /api/config をフレームにしていないこと、checkAuth の API キーの経路を辿っていないこと、Redis の auth:* の fields が「*」であることは、pixels のレビューと同じ扱いで指摘にしていない。(6) ext_prisma_paged_links と ext_prisma_get_team_users は同じ行 (prisma.ts:761) だが、引数で読むテーブル (link と team_user) が変わるので、別に書くのは context.md の決まりどおり。(7) LOG_QUERY (prisma.ts と clickhouse.ts の生の SQL) は、ログを出すだけで動きを変えないので、設定の漏れに数えていない。(8) テストとの対応は、analyzer.tests が無いので見ていない。"

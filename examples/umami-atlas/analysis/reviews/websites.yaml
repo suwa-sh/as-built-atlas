@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: websites
+reviewed_at: "2026-11-17T15:41:33Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: medium
+    where: callstack/api_user_websites_get
+    claim: "受け口は !auth.user.isAdmin && auth.user.id !== userId のとき 401 を返すので、管理者なら本人でなくても通す役割の確認がある。それが guards に無く、ownership の note に文で書いてあるだけ。同じ結果の canViewTeam / canCreateTeamWebsite / POST /api/websites では、管理者の素通しを kind role、値 user.isAdmin の確認として書いていて、扱いが食い違う"
+    evidence: { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+    suggestion: "api_user_websites_get の guards に kind role、value user.isAdmin (根拠は route.ts:23) を足し、ownership の note から管理者の説明を外す。同じ書き方のほかの入口 (settings.websites、layout_l.main_g) もそろえるか、扱いを analysis-conventions.md に決める"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_batch_websites
+    claim: "canViewBatchWebsites は、user?.isAdmin なら DB を読まずに求められた id を全部返す (管理者の素通し) のに、guards は ownership の canViewBatchWebsites だけで、役割の確認 (user.isAdmin) が note の文にしか無い。同じ結果の canViewTeam は、同じ形の素通しを kind role で書いている"
+    evidence: { file: src/permissions/website.ts, line: 50 }
+    suggestion: "q_can_view_batch_websites の guards に kind role、value user.isAdmin (根拠は permissions/website.ts:50) を足す。同じ関数を書いたほかの入口 (settings.websites、admin.users.userId_d) もそろえる"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/website_add_form
+    claim: "追加のフォームは、名前とドメインのどちらも入力を必須にしている (rules の required) のに、rules にはドメインの DOMAIN_REGEX の形しか書いていない"
+    evidence: { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 35 }
+    suggestion: "website_add_form の rules の validation を「名前とドメインは必須。ドメインは DOMAIN_REGEX の形」とし、根拠に WebsiteAddForm.tsx:35 と :45 を足す"
+    resolved: true
+notes: "根拠の行 (page / WebsitesPage / WebsitesDataTable / WebsitesTable / WebsiteAddButton / WebsiteAddForm / WebsiteTrackingCode / useLoginQuery / useTeamMembersQuery / useUserWebsitesQuery / useUpdateQuery / useWebsiteListChartsQuery / usePagedQuery / useNavigation / useApi / api-url / client / Favicon / DataGrid / DialogButton / next.config.ts / auth/verify・teams/[teamId]/users・websites・websites/request-schema・teams/[teamId]/websites・users/[userId]/websites・me/websites・websites/charts・config の route / request.ts / auth.ts / api-key.ts / redis.ts / load.ts / subscription.ts / permissions の team.ts・website.ts / queries の user.ts・team.ts・teamUser.ts・website.ts・share.ts / getWebsiteListCharts.ts / db.ts / prisma.ts / clickhouse.ts / constants.ts / schema.ts / schema.prisma / clickhouse の schema.sql) は、どれも主張を支えていた。同じ処理を 1 回だけ書く木の置き場 (parseRequest → checkAuth → getUser は POST /api/auth/verify の下、canViewTeam → getTeamUser は GET /api/teams/[teamId]/users の下)、書き直し (_rw の 2 か所。読み書きを持つ最初の段まで、確認・設定・ルールを繰り返さない)、この画面からは条件が成り立たないように見える呼び出し (POST /api/auth/verify、GET /api/me/websites、createShare) を conditional で残して note に理由を書く形は、analysis-conventions.md と context.md の決まりどおり。確認の値の綴り (user.isAdmin、PERMISSIONS.websiteCreate、canViewTeam、canCreateTeamWebsite、canViewBatchWebsites、auth.user.id === userId) と、つながりの綴り (/websites/${row.id}、/websites/${websiteId}/settings) は、ほかの入口の結果とそろっている。useUserWebsitesQuery の 3 つの行き先の call を interpretation にしているのも、context.md の決まりと settings.websites のレビューの結論に合う。指摘にしなかったこと: (1) API_URL を、この入口で最初に API を呼ぶ段 (useLoginQuery) ではなく、useTeamMembersQuery に書いている。/auth の URL には API_URL が効かない (api-url.ts:6、:39) という理由が note にあり、事実と合うので、決まりの趣旨には沿っている。決まりの文面 (最初に API を呼ぶフレーム) との差を解消したければ、analysis-conventions.md に「API_URL は、API_URL が効く API を最初に呼ぶフレーム」と書き足すとよい。(2) getWebsites と attachShareIdToWebsites は、getTeamWebsites と getUserWebsites の両方から呼ばれる同じ関数で、website と share の読み取りが 2 つのフレームに書かれている。ただし、外側の関数が違い (where が teamId か userId か)、まとめると片方が終端になって書き直しが要るので、ライブラリの呼び出しだけを 1 回にした扱いは妥当と見た。(3) useTeamMembersQuery の summary の、一覧の検索語やページが、メンバーの読み取りにも付いて、操作が出なくなりうるという読み取りは、usePagedQuery.ts:18、:24 と、teams/[teamId]/users の route のスキーマ (search と page を受け付ける) から、コードどおりと確かめた。(4) WebsiteTrackingCode は、設定 (TRACKER_SCRIPT_NAME、CLOUD_URL、BASE_PATH) から計測タグの文字列を組み立てるだけで、データにも外部にも届かないので、フレームにしないのは context.md の決まりどおり"

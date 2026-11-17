@@ -1,0 +1,748 @@
+format_version: 1
+entry:
+  id: admin.security
+  path: /admin/security
+  name: "security"
+  layer: page
+  source: { file: "src/app/(main)/admin/security/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T11:37:23Z"
+  reviewed:
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T11:36:35Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "管理者が、2 段階認証を全員に必須にするかどうかを切り替える画面。表示時に GET /api/2fa/status を呼ぶ。受け口は、ログイン中のユーザーを確かめ (user。Redis が有効でトークンが authKey を持つときは auth:* のセッションも読む)、自分の two_factor_auth と、app_setting の twoFactorRequiredGlobal を読む。暗号鍵 (TWO_FACTOR_ENCRYPTION_KEY) が正しく設定されていて、全員への必須が無効のときは、user の必須の印、所属チーム (team_user)、必須の印を持つチーム (team) も順に読む。画面が使うのは、返った isConfigured と globalRequired だけ。スイッチを切り替えると POST /api/admin/2fa/global を呼ぶ。受け口は、管理者 (user.isAdmin) であることを確かめ、app_setting の twoFactorRequiredGlobal を true か false で作成または更新する。そのあと状態を読み直す。暗号鍵が未設定のときは、説明の代わりにエラーの文言を出し、必須が無効ならスイッチを操作できない。ほかの入口へのつながり (遷移や小窓) は無い"
+  evidence:
+    - { file: "src/app/(main)/admin/security/page.tsx", line: 5 }
+    - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 10 }
+    - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 11 }
+    - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 14 }
+    - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 15 }
+    - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 19 }
+    - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 42 }
+    - { file: src/app/api/2fa/status/route.ts, line: 25 }
+    - { file: src/app/api/2fa/status/route.ts, line: 28 }
+    - { file: src/app/api/2fa/status/route.ts, line: 34 }
+    - { file: src/app/api/admin/2fa/global/route.ts, line: 21 }
+    - { file: src/app/api/admin/2fa/global/route.ts, line: 31 }
+notes: "(1) 祖先の枠 (ルート、(main)、admin の layout) は別の入口なので辿っていない。(2) 同じ処理の置き場は、入口から辿る順で決めた。parseRequest とその先 (checkAuth、getUser、Redis の読み取り) は、先に着く GET /api/2fa/status の下に 1 回だけ書き、POST /api/admin/2fa/global の側は summary で触れるだけにした。(3) canEnforceTwoFactorAuthForEveryone (permissions/user.ts:39) は、user.isAdmin を返すだけで、読み書きもライブラリの呼び出しも無い。段にすると終端の決まりを満たせないので段にせず、権限の確認は、それを呼ぶ受け口 (api_global_post) に書いた。値は、決まりのとおり user.isAdmin。(4) isTwoFactorConfigured (two-factor/crypto.ts:11) も段にしていない補助の関数。設定 TWO_FACTOR_ENCRYPTION_KEY は、その結果で動きを変える 2 つの受け口に書いた。POST の「必須にするには暗号鍵が要る」は、設定で分かれる処理なので settings だけに書き、rules に重ねていない。(5) CLOUD_MODE は、2 つの受け口と checkAuth に書いた。ただし admin の枠 (別の入口) は、CLOUD_MODE があると包まれる画面を描かない (admin/layout.tsx:5) ので、この画面からは CLOUD_MODE ありの枝には届かないと読める。枠は辿らない決まりなので、経路と設定は消さずに書き、note に添えた。(6) checkAuth の API キーの枝 (auth.ts:74 → checkApiKeyAuth) は、同じファイルの関数なので q_check_auth の段に含めた。/api/2fa と /api/admin は API キーを受け付けないパス (api-key.ts:14 / :17) で、getApiKeyByHash より前に null を返すので、api_key の読み書きは書いていない。(7) 受け口が Prisma を直接呼ぶので、読み書きは受け口の段に書き、呼んでいる行ごとに external の段を置いた。upsert は create と update の 2 件にした。(8) フレームにしなかったもの: PageHeader / Panel / Switch (見た目だけの部品)、useMessages (翻訳)、useApi と getApiUrl (URL とヘッダーを組み立てる小道具)、useModified と useToast (useUpdateQuery が返すが、この画面は使わない)、parseShareToken (ヘッダーのトークンを解くだけ)。(9) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(10) レビューの指摘 2 件 (どちらも low) は、どちらも直した: upsert の呼び出しの条件に暗号鍵の設定による打ち切りを足し、入口の概要の根拠に isConfigured と globalRequired を取り出す行を足した。指摘にならなかった注意 (スイッチのルールの言い回し) も直した"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "security (src/app/(main)/admin/security/page.tsx)"
+    source: { file: "src/app/(main)/admin/security/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page ('use client' が無い)。AdminSecurityPage を描くだけ。metadata でタイトル (Security) を決める。URL のパラメータは無く、データは自分では読まない"
+      evidence:
+        - { file: "src/app/(main)/admin/security/page.tsx", line: 4 }
+        - { file: "src/app/(main)/admin/security/page.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/security/page.tsx", line: 9 }
+
+  - id: admin_security_page
+    layer: component
+    kind: component
+    name: "AdminSecurityPage (src/app/(main)/admin/security/AdminSecurityPage.tsx)"
+    source: { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 8 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/security/page.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/security/page.tsx", line: 2 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。useTwoFactorStatusQuery で 2 段階認証の状態を読み、読み込み中は何も描かない。返った globalRequired をスイッチの入切に映す。isConfigured が false なら、説明の代わりに「設定されていない」のエラーの文言を出す。スイッチを切り替えると、useUpdateQuery の mutateAsync で { required: 切り替えた値 } を POST /admin/2fa/global に送り、終わったら 2fa-status の問い合わせを無効にして状態を読み直す。設定済みで必須が有効のときは、補足の文言を出す"
+      evidence:
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 1 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 10 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 11 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 15 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 20 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 23 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 41 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 48 }
+    rules:
+      - kind: validation
+        value: "2 段階認証の暗号鍵が設定済みと分かっておらず (!isConfigured。状態を読めなかったときも含む)、全員への必須も無効のときは、スイッチを操作できない (必須を有効にできない。有効になっているものを無効にすることはできる)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 42 }
+          - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 14 }
+          - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 15 }
+
+  # ---- 2 段階認証の状態の読み込み
+  - id: use_two_factor_status_query
+    layer: component
+    kind: hook
+    name: "useTwoFactorStatusQuery"
+    source: { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 11 }
+    caller: admin_security_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 10 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 5 }
+    summary:
+      status: interpretation
+      value: "queryKey 2fa-status で GET /2fa/status を呼ぶ。この画面は enabled に true を渡すので、表示のたびに呼ぶ。ウィンドウに戻ったときと、通信が戻ったときにも読み直す。URL は useApi の get が getApiUrl で組み立て (API_URL があればその URL、無ければ basePath + /api)、ヘッダーに localStorage のログイントークンを Bearer で付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 16 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 18 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/client.ts, line: 5 }
+        - { file: src/lib/storage.ts, line: 9 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    parameters:
+      - name: enabled
+        value: "true (この画面は、いつも問い合わせる)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 10 }
+          - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 17 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.apiUrl)。next.config の env が、環境変数 API_URL の値を入れる"
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (basePath + /api + /2fa/status。API_URL が相対のときは basePath + API_URL)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 43 }
+          - { file: src/lib/api-url.ts, line: 44 }
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.basePath)。next.config の env が、環境変数 BASE_PATH の値を入れる"
+
+  - id: api_status
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/2fa/status"
+    source: { file: src/app/api/2fa/status/route.ts, line: 6 }
+    caller: use_two_factor_status_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 16 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "enabled はこの画面ではいつも true (AdminSecurityPage.tsx:10) なので、フックが動けば必ず呼ぶ"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し、できなければ 401 を返す。CLOUD_MODE があれば、何も読まずに、すべて無効の状態を返す。そうでなければ、自分の two_factor_auth (有効かどうか) と、app_setting の twoFactorRequiredGlobal (全員に必須か) を読む。暗号鍵が設定されていなければ、必須ではないとして返す。全員に必須なら、理由 global で返す。そうでなければ user の twoFactorRequired を読み、真なら理由 user で返す。そうでなければ、所属チーム (team_user) と、その中で twoFactorRequired が真のチーム (team) を読み、1 つでもあれば理由 team で返す。どれでもなければ、必須ではないとして返す"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 7 }
+        - { file: src/app/api/2fa/status/route.ts, line: 9 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+        - { file: src/app/api/2fa/status/route.ts, line: 25 }
+        - { file: src/app/api/2fa/status/route.ts, line: 28 }
+        - { file: src/app/api/2fa/status/route.ts, line: 34 }
+        - { file: src/app/api/2fa/status/route.ts, line: 43 }
+        - { file: src/app/api/2fa/status/route.ts, line: 54 }
+        - { file: src/app/api/2fa/status/route.ts, line: 59 }
+        - { file: src/app/api/2fa/status/route.ts, line: 70 }
+        - { file: src/app/api/2fa/status/route.ts, line: 73 }
+        - { file: src/app/api/2fa/status/route.ts, line: 78 }
+        - { file: src/app/api/2fa/status/route.ts, line: 88 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 5 }
+          - { file: src/lib/storage.ts, line: 9 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、データを読まずに、2 段階認証がすべて無効 (isConfigured も globalRequired も false) の状態を返す"
+        status: fact
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 13 }
+          - { file: src/app/api/2fa/status/route.ts, line: 14 }
+        note: "admin の枠 (別の入口) は、CLOUD_MODE があるとこの画面を描かないので、この画面からは、この枝には届かないと読める"
+      - name: TWO_FACTOR_ENCRYPTION_KEY
+        kind: env
+        effect: "無いか、64 桁の 16 進でなければ、isConfigured: false を返し、2 段階認証を必須としない (user / team_user / team も読まない)"
+        status: fact
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 34 }
+          - { file: src/app/api/2fa/status/route.ts, line: 39 }
+          - { file: src/lib/two-factor/crypto.ts, line: 4 }
+          - { file: src/lib/two-factor/crypto.ts, line: 12 }
+          - { file: src/lib/two-factor/crypto.ts, line: 13 }
+        note: "読むのは、段にしていない補助の関数 isTwoFactorConfigured"
+    rules:
+      - kind: decision
+        value: "2 段階認証が必須かどうかは、全員への必須 (app_setting の twoFactorRequiredGlobal が 'true')、ユーザーごとの必須 (user.twoFactorRequired)、所属チームのどれかの必須 (team.twoFactorRequired) の順に確かめ、最初に当たったものを理由 (global / user / team) にする"
+        status: fact
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 31 }
+          - { file: src/app/api/2fa/status/route.ts, line: 43 }
+          - { file: src/app/api/2fa/status/route.ts, line: 47 }
+          - { file: src/app/api/2fa/status/route.ts, line: 59 }
+          - { file: src/app/api/2fa/status/route.ts, line: 63 }
+          - { file: src/app/api/2fa/status/route.ts, line: 77 }
+          - { file: src/app/api/2fa/status/route.ts, line: 82 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: two_factor_auth } }
+        detail: "prisma.client.twoFactorAuth.findUnique (where: userId。列を選ばずに行をまるごと取る)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 25 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 483 }
+          - { file: prisma/schema.prisma, line: 485 }
+          - { file: prisma/schema.prisma, line: 492 }
+        note: "CLOUD_MODE が設定されていないとき。列とテーブルの名前は schema.prisma の @map / @@map のとおり"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: app_setting } }
+        detail: "prisma.client.appSetting.findUnique (where: key が 'twoFactorRequiredGlobal'。行をまるごと取る)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: key, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 28 }
+          - { file: src/app/api/2fa/status/route.ts, line: 29 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 529 }
+          - { file: prisma/schema.prisma, line: 530 }
+          - { file: prisma/schema.prisma, line: 533 }
+        note: "CLOUD_MODE が設定されていないとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where: id。select: twoFactorRequired)"
+        fields:
+          - { name: two_factor_required, use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 54 }
+          - { file: src/app/api/2fa/status/route.ts, line: 55 }
+          - { file: src/app/api/2fa/status/route.ts, line: 56 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "CLOUD_MODE が無く、暗号鍵が設定済みで、全員への必須が無効のときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findMany (where: userId。行をまるごと取る)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 70 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 252 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "上の条件に加えて、ユーザーごとの必須も無効のときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (where: id が所属チームのどれか、かつ twoFactorRequired が true。行をまるごと取る)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: two_factor_required, use: [filter] }
+        evidence:
+          - { file: src/app/api/2fa/status/route.ts, line: 73 }
+          - { file: src/app/api/2fa/status/route.ts, line: 74 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 232 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 237 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "上の条件に加えて、所属チームが 1 つ以上あるときだけ (teamIds.length)"
+
+  # ---- 認証 (この画面の 2 つの受け口は、どちらも parseRequest を呼ぶ。入口から辿る順で最初に着くここに 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_status
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 7 }
+        - { file: src/app/api/2fa/status/route.ts, line: 2 }
+    summary:
+      status: interpretation
+      value: "URL と JSON の本文を読む。スキーマがあれば検査する (GET はクエリ、それ以外は本文。合わなければ 400 のエラー)。GET /api/2fa/status はスキーマも skipAuth も渡さないので、入力の検証はせず、checkAuth で認証する。認証できなければ unauthorized (401) のエラーを返す。POST /api/admin/2fa/global も同じ関数を呼ぶ (スキーマを渡す)"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 33 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 3 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、GET /api/2fa/status はスキーマも options も渡さない (status/route.ts:7) ので、条件はいつも成り立つ。POST /api/admin/2fa/global から呼ぶときは、本文がスキーマに合わなければ (入力の誤りによる打ち切り) 呼ばない"
+    summary:
+      status: interpretation
+      value: "Bearer トークンを取り出す。API キーが有効で、トークンが umami_ で始まれば、API キーとして確かめる (/api/2fa と /api/admin は API キーを受け付けないパスなので、この画面の受け口では null になる)。そうでなければ署名付きトークンを解き、2FA の仮トークンなら拒否する。トークンに userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ、ユーザーを無効にする。ユーザーも共有トークンも無ければ null (認証の失敗)。ユーザーがいればパスワードを消し、role が admin なら isAdmin を付ける (POST /api/admin/2fa/global は、この isAdmin で許すかを決める)"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 35 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 98 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 137 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/app/api/2fa/status/route.ts, line: 9 }
+        note: "トークンからユーザーが得られず、共有トークンも無ければ null を返す。parseRequest が 401 のエラーにし、受け口がそれを返す"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていて、トークンに userId が無く authKey があるときだけ、Redis からセッションを読む"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、API キー (umami_ で始まるトークン) での認証の枝を通らない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+    rules:
+      - kind: validation
+        value: "API キーは、アカウントの資格情報や管理の状態を扱うパス (/api/2fa、/api/admin など) では認証に使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 35 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 14 }
+          - { file: src/lib/api-key.ts, line: 17 }
+      - kind: validation
+        value: "2FA のログインの途中で出す仮のトークン (PARTIAL_AUTH_TOKEN_TYPE) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+      - kind: validation
+        value: "トークンやセッションが持つパスワードの指紋 (pwd) が、今のパスワードのハッシュと違えば、無効にする (指紋を持たない古いトークンは通す)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーが無く共有トークンだけのときは、共有の文脈を示すヘッダー (SHARE_CONTEXT_HEADER) が無ければ認証しない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 128 }
+          - { file: src/lib/auth.ts, line: 129 }
+    io:
+      - op: get
+        status: interpretation
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。キーは、トークンから取り出した authKey の値 (auth.ts:91)。auth:<ランダム> の形は、トークンを作る側の saveAuth (auth.ts:150 / :160) から読み取った"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 91 }
+          - { file: src/lib/auth.ts, line: 150 }
+          - { file: src/lib/auth.ts, line: 160 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ。値はまるごと取り出す (redis.ts:37 / :40)"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき。または、Redis から読んだセッションに userId があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 93 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 104 }
+    summary:
+      status: interpretation
+      value: "同じファイルの findUser を通して、id で、削除されていない user を 1 件読む。パスワードの列は includePassword のときだけ取り出す (checkAuth は付けて呼ぶ)。role も読むので、checkAuth が isAdmin を決められる"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+    parameters:
+      - name: userId
+        value: "トークンの userId、または Redis のセッションの userId"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 94 }
+          - { file: src/lib/auth.ts, line: 105 }
+      - name: options.includePassword
+        value: "true (パスワードの指紋を確かめるため)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 94 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where: id と deletedAt null。select: id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "列の名前は schema.prisma の @map のとおり"
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 50 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "checkAuth が呼ぶのは、リポジトリが自前で包んだ get (redis.ts:34)。その中の this.client.get がライブラリの呼び出し"
+
+  # ---- GET /api/2fa/status が直接呼ぶ Prisma
+  - id: ext_prisma_two_factor_auth
+    layer: external
+    kind: library
+    name: "Prisma Client twoFactorAuth.findUnique"
+    source: { file: src/app/api/2fa/status/route.ts, line: 25 }
+    caller: api_status
+    call:
+      status: fact
+      when: conditional
+      condition: "環境変数 CLOUD_MODE が設定されていないとき"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 25 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+      note: "admin の枠 (別の入口) は、CLOUD_MODE があるとこの画面を描かないので、この画面から呼ぶときは、条件はいつも成り立つと読める。打ち切りが設定で決まるので、決まりのとおり conditional にした"
+
+  - id: ext_prisma_app_setting_find
+    layer: external
+    kind: library
+    name: "Prisma Client appSetting.findUnique"
+    source: { file: src/app/api/2fa/status/route.ts, line: 28 }
+    caller: api_status
+    call:
+      status: fact
+      when: conditional
+      condition: "環境変数 CLOUD_MODE が設定されていないとき"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 28 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+
+  - id: ext_prisma_user_required
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique (twoFactorRequired)"
+    source: { file: src/app/api/2fa/status/route.ts, line: 54 }
+    caller: api_status
+    call:
+      status: fact
+      when: conditional
+      condition: "CLOUD_MODE が無く、暗号鍵 (TWO_FACTOR_ENCRYPTION_KEY) が設定済みで、全員への必須が無効のとき"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 54 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+        - { file: src/app/api/2fa/status/route.ts, line: 34 }
+        - { file: src/app/api/2fa/status/route.ts, line: 43 }
+
+  - id: ext_prisma_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findMany"
+    source: { file: src/app/api/2fa/status/route.ts, line: 70 }
+    caller: api_status
+    call:
+      status: fact
+      when: conditional
+      condition: "CLOUD_MODE が無く、暗号鍵が設定済みで、全員への必須もユーザーごとの必須も無効のとき"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 70 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+        - { file: src/app/api/2fa/status/route.ts, line: 34 }
+        - { file: src/app/api/2fa/status/route.ts, line: 43 }
+        - { file: src/app/api/2fa/status/route.ts, line: 59 }
+
+  - id: ext_prisma_team
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/app/api/2fa/status/route.ts, line: 73 }
+    caller: api_status
+    call:
+      status: fact
+      when: conditional
+      condition: "CLOUD_MODE が無く、暗号鍵が設定済みで、全員への必須もユーザーごとの必須も無効で、所属チームが 1 つ以上あるとき"
+      evidence:
+        - { file: src/app/api/2fa/status/route.ts, line: 73 }
+        - { file: src/app/api/2fa/status/route.ts, line: 72 }
+        - { file: src/app/api/2fa/status/route.ts, line: 13 }
+        - { file: src/app/api/2fa/status/route.ts, line: 34 }
+        - { file: src/app/api/2fa/status/route.ts, line: 43 }
+        - { file: src/app/api/2fa/status/route.ts, line: 59 }
+
+  # ---- 全員への必須の切り替え
+  - id: use_update_query
+    layer: component
+    kind: hook
+    name: "useUpdateQuery"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: admin_security_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 11 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 5 }
+      note: "描画のたびに動く準備の呼び出し。API を呼ぶのは、返した mutateAsync が呼ばれたとき"
+    summary:
+      status: interpretation
+      value: "渡された path (この画面では /admin/2fa/global) へ、渡されたデータを POST する mutation を作って返す。URL は useApi の post が getApiUrl で組み立て、ヘッダーに localStorage のログイントークンを Bearer で付ける。touch と toast も返すが、この画面は使わない"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 14 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    parameters:
+      - name: path
+        value: "'/admin/2fa/global'"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 11 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.apiUrl)"
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (basePath + /api + /admin/2fa/global。API_URL が相対のときは basePath + API_URL)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 43 }
+          - { file: src/lib/api-url.ts, line: 44 }
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.basePath)"
+
+  - id: api_global_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/admin/2fa/global"
+    source: { file: src/app/api/admin/2fa/global/route.ts, line: 8 }
+    caller: use_update_query
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者が、全員への必須のスイッチを切り替えたとき"
+      evidence:
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 11 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 43 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "CLOUD_MODE があれば 404 を返す。本文を { required: 真偽値 } のスキーマで検査し、parseRequest で認証する (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)。canEnforceTwoFactorAuthForEveryone (user.isAdmin を返すだけの関数) が偽なら 401 を返す。required が true で、暗号鍵が設定されていなければ 503 を返す。そうでなければ、app_setting の twoFactorRequiredGlobal を、required を文字列にした値で作成または更新 (upsert) し、{ ok: true, required } を返す"
+      evidence:
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 9 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 13 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 15 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 21 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 27 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 31 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 37 }
+        - { file: src/permissions/user.ts, line: 40 }
+    parameters:
+      - name: required
+        value: "JSON 本文。真偽値 (スイッチの切り替え後の値)"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 13 }
+          - { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 19 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 21 }
+          - { file: src/permissions/user.ts, line: 39 }
+          - { file: src/permissions/user.ts, line: 40 }
+          - { file: src/lib/auth.ts, line: 137 }
+        note: "判定するのは、段にしていない補助の関数 canEnforceTwoFactorAuthForEveryone (user?.isAdmin ?? false)。満たさなければ 401 を返す。isAdmin は、checkAuth が role が admin のユーザーに付ける"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、何もせずに 404 を返す"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 9 }
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 10 }
+        note: "admin の枠 (別の入口) は、CLOUD_MODE があるとこの画面を描かないので、この画面からは、この枝には届かないと読める"
+      - name: TWO_FACTOR_ENCRYPTION_KEY
+        kind: env
+        effect: "無いか、64 桁の 16 進でなければ、必須を有効にする要求 (required が true) を 503 で断る。無効にする要求は通す"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 27 }
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 28 }
+          - { file: src/lib/two-factor/crypto.ts, line: 4 }
+          - { file: src/lib/two-factor/crypto.ts, line: 12 }
+          - { file: src/lib/two-factor/crypto.ts, line: 13 }
+        note: "読むのは、段にしていない補助の関数 isTwoFactorConfigured"
+    io:
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: app_setting } }
+        detail: "prisma.client.appSetting.upsert の create (key: 'twoFactorRequiredGlobal'、value: String(required))。行が無いとき"
+        fields:
+          - { name: key, use: [write] }
+          - { name: value, use: [write] }
+        evidence:
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 31 }
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 34 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 529 }
+          - { file: prisma/schema.prisma, line: 530 }
+          - { file: prisma/schema.prisma, line: 531 }
+          - { file: prisma/schema.prisma, line: 533 }
+        note: "upsert を、create と update の 2 件に分けて書いた"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: app_setting } }
+        detail: "prisma.client.appSetting.upsert の update (where: key が 'twoFactorRequiredGlobal'。value: String(required))。行があるとき"
+        fields:
+          - { name: value, use: [write] }
+          - { name: key, use: [filter] }
+        evidence:
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 31 }
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 32 }
+          - { file: src/app/api/admin/2fa/global/route.ts, line: 33 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 529 }
+          - { file: prisma/schema.prisma, line: 530 }
+          - { file: prisma/schema.prisma, line: 531 }
+          - { file: prisma/schema.prisma, line: 533 }
+
+  - id: ext_prisma_app_setting_upsert
+    layer: external
+    kind: library
+    name: "Prisma Client appSetting.upsert"
+    source: { file: src/app/api/admin/2fa/global/route.ts, line: 31 }
+    caller: api_global_post
+    call:
+      status: fact
+      when: conditional
+      condition: "環境変数 CLOUD_MODE が設定されておらず、required が false か、暗号鍵 (TWO_FACTOR_ENCRYPTION_KEY) が設定済みのとき"
+      evidence:
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 31 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 9 }
+        - { file: src/app/api/admin/2fa/global/route.ts, line: 27 }
+      note: "手前のほかの打ち切り (入力の誤り、認証の失敗、管理者でない) は、要求を断る経路なので、条件に入れていない。admin の枠は CLOUD_MODE があるとこの画面を描かないので、この画面から呼ぶときは、CLOUD_MODE の条件はいつも成り立つと読める"

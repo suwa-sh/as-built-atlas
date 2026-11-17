@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: root_r
+reviewed_at: "2026-11-17T15:17:14Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の summary は、前回のチームを localStorage から読むと書いているが、根拠は page.tsx:11 の getItem(LAST_TEAM_CONFIG) の呼び出しだけで、getItem が localStorage を読む行 (src/lib/storage.ts:9) が根拠に無い (page のフレームの summary には有る)。"
+    evidence: { file: src/lib/storage.ts, line: 9 }
+    suggestion: "入口の summary の evidence に src/lib/storage.ts:9 を足す。"
+    resolved: true
+notes: "主張はすべてコードと合っていた。page.tsx の 'use client' (1)、useRouter (8)、useEffect の中の getItem(LAST_TEAM_CONFIG) (11)、if / else の router.replace (14 / 16)、return null (20)、LAST_TEAM_CONFIG = 'umami.last-team' (constants.ts:9)、next.config.ts:253-254 の /teams/:teamId/:path* から /:path* への rewrites を確かめた。links の target の綴り (/websites、/teams/${lastTeam}/websites) と entry_id (websites) は、ほかの入口 (settings.websites.websiteId_d、admin.websites.websiteId_d) の /websites と同じ。router.replace の 2 行を external のフレーム 1 つ (when: always) にまとめたことは、context.md の「データに届かない画面は、最後に頼るライブラリを external フレームとして 1 つ書いて閉じる」に合い、if / else のどちらかが必ず動くので always で妥当。localStorage の読み書きを I/O に書かず summary に書いたことは context.md の決まりどおり。App.tsx:30 (枠が値を書く行) は summary の説明に根拠として挙げているだけで、枠の処理をフレームとして辿ってはいないので、指摘にしなかった。settings / guards / rules が無いことも、このファイルのコードに当たるものが無いので妥当。"

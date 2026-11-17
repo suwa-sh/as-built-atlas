@@ -1,0 +1,13 @@
+format_version: 1
+entry_id: settings.profile
+reviewed_at: "2026-11-17T15:21:48Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_frame
+    severity: low
+    where: callstack/profile_settings
+    claim: "ProfileSettings は自分で useConfig を呼び (ProfileSettings.tsx:9)、useConfig はストアに設定値が無いとき GET /config を呼ぶが、useConfig と GET /api/config のフレームが無い。context.md は API を呼ぶフックを 1 つずつフレームにし、枠と同じフックを画面の側も呼ぶときは画面の側にも書くと決めている。この結果の中でも、notes (5) は「枠が読み込み済みなのでふつう呼ばれない」POST /api/auth/verify を conditional のフレームとして残す一方、notes (3) は同じ理由で GET /api/config を落としていて、扱いが食い違う。入口をまたいでも、useConfig を呼ぶ結果のうち links.linkId_d / pixels.pixelId_d / websites.websiteId_d の 3 件だけが use_config → GET /api/config → Response.json (external) の形で書き、ほか (layout_l.main_g / settings.api-keys / pixels など) は書いていないので、決まりが割れている"
+    evidence: { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 9 }
+    suggestion: "入口をまたいだ扱い (useConfig → GET /api/config をフレームにするか、データに届かない受け口として summary で触れるだけにするか) を analysis-conventions.md に決めて書き、この結果をそれに合わせる。フレームにするなら、profile_settings の下に useConfig (hook) と GET /api/config (when conditional。ストアに設定値が無いとき) を足し、Response.json を external にして閉じる (links.linkId_d の書き方)"
+notes: "根拠の行 (page / ProfilePage / ProfileSettings / PasswordChangeButton / PasswordEditForm / useLoginQuery / useUpdateQuery / useApi / api-url / POST /api/auth/verify / POST /api/me/password / request.ts / auth.ts / api-key.ts / redis.ts / user.ts / team.ts / password.ts / login/route.ts / next.config.ts / schema.prisma) は、どれも主張を支えていた。画面を包む枠 (ルート、(main)、settings の layout) を辿っていないのは、context.md の決まりどおり。parseRequest → checkAuth → getUser を POST /api/auth/verify の下に 1 回だけ書き、POST /api/me/password では summary で触れる形も、入口から辿る順の決まりに合う。設定の名前 (CLOUD_MODE / BASE_PATH / API_URL / REDIS_URL) と、ログイン済みの確認を checkAuth の段だけに value 無しで書く形は、analysis-conventions.md とほかの入口の結果にそろっている。hashPassword / checkPassword (bcryptjs) をフレームにせず rules に書く形は、login / admin.users.userId_d の結果と同じ。updateUser の io の根拠の schema.prisma:20 は created_at の行で、password の列の行 (:15) は無いが、password の列には @map が無く、書く列は呼び出し元 (me/password/route.ts:30) の行で支えられているので指摘にしなかった"

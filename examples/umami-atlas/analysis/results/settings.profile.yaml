@@ -1,0 +1,656 @@
+format_version: 1
+entry:
+  id: settings.profile
+  path: /settings/profile
+  name: "profile"
+  layer: page
+  source: { file: "src/app/(main)/settings/profile/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:22:18Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T15:21:48Z"
+    findings_open: 1
+summary:
+  status: interpretation
+  value: "設定メニューの中の、ログイン中のユーザー自身のプロフィールの画面。ログイン中のユーザー (useLoginQuery。ストアに無いときだけ POST /api/auth/verify で user と所属の team を読む) のユーザー名と役割を出す。設定値 cloudMode (GET /api/config が返す CLOUD_MODE の有無) が偽なら、「パスワードを変更」のボタンを出す。押すと開く小窓のフォームで、今のパスワードと新しいパスワード (8 文字以上、確認用と一致) を入れて保存すると、POST /api/me/password が、ログイン中のユーザーの user を読んで今のパスワードを照合し、合えば新しいパスワードのハッシュで user の password を更新する。どの API も最初にログインの確認 (user。REDIS_URL があれば Redis の auth:*) を行う。パスワードを変えると、パスワードの指紋を持つそれまでのログイントークンは、ログインの確認で無効になる"
+  evidence:
+    - { file: "src/app/(main)/settings/profile/page.tsx", line: 5 }
+    - { file: "src/app/(main)/settings/profile/ProfilePage.tsx", line: 17 }
+    - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 7 }
+    - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 9 }
+    - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 41 }
+    - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 13 }
+    - { file: src/app/api/me/password/route.ts, line: 22 }
+    - { file: src/app/api/me/password/route.ts, line: 24 }
+    - { file: src/app/api/me/password/route.ts, line: 30 }
+    - { file: src/lib/auth.ts, line: 98 }
+notes: "(1) 画面を包む枠 (ルート、(main)、settings の layout) は別の入口なので辿っていない。settings の枠は、ビルド時の CLOUD_MODE があれば何も描かない (枠の入口の結果にある)。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。ProfileSettings.tsx では useLoginQuery (7 行目) が最初なので、parseRequest → checkAuth → getUser の経路は POST /api/auth/verify の下にある。POST /api/me/password も parseRequest と getUser を呼ぶが、summary に書くだけにした (呼び先の updateUser が読み書きを持つので、POST /api/me/password は終端にならない)。(3) フレームにしなかったもの: GET /api/config (useConfig。ストアに設定値が無いときだけ呼ぶが、枠が読み込み済みで、認証を通らず環境変数を返すだけの受け口。ほかの入口の結果と同じ扱い)、ProfileHeader.tsx (同じフォルダにあるが、この画面からは使われていない)、PageBody / PageHeader / Panel / Dialog / Modal (見た目だけの部品)、useMessages (翻訳)、useApi と getApiUrl (URL とヘッダーを組み立てる小道具)、hashPassword / checkPassword (bcryptjs を包む小道具。ルールとして受け口の段に書いた)。(4) 「パスワードを変更」のボタンを出す条件 !cloudMode は、実行時の GET /api/config の値 (CLOUD_MODE の有無) で決まる。settings の枠がビルド時の CLOUD_MODE で何も描かないので、この画面からはふつう成り立つ条件だが、ビルド時と実行時で別の経路なので、消さずに conditional にし、設定 CLOUD_MODE を ProfileSettings の段に書いた。(5) useLoginQuery の POST /api/auth/verify は、ストアにユーザーが無いときだけ呼ぶ。(main) の枠がユーザーを得てから画面を描くので、この画面からはふつう呼ばれないが、消さずに conditional で書いた (ほかの入口の結果と同じ扱い)。(6) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は辿っていない。ブラウザはログインのトークンを付ける (useApi.ts:28) うえ、/api/auth と /api/me/password は API キーを受け付けないパス (api-key.ts:12 / :15)。そのため、API キーの経路に入るかを決める CLOUD_MODE は、checkAuth の settings に書いていない。(7) POST /api/me/password の受け口のスキーマは currentPassword と newPassword だけを持ち、フォームが送る confirmPassword は検証に使わない (確認用との一致は、ブラウザ側のフォームの検証だけ)。(8) updateUser の更新で Prisma が自動で書く updated_at (@updatedAt) は、コードに列の名前が出ないので、ほかの入口の結果に合わせて fields に書いていない。(9) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(10) レビューの指摘 1 件 (low。useConfig と GET /api/config をフレームにしていない) は直していない。GET /api/config は skipAuth で環境変数を返すだけで、データにも外部のライブラリにも届かず、フレームにすると終端の決まりを満たせない (枠 layout_l.main_g の結果と同じ判断)。ほかの入口の結果でも扱いが分かれているので、そろえる決まりを analysis-conventions.md に足すかは、人が決める (この作業では、その入口の結果とレビューのファイル以外を書けない)。"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "profile の page (src/app/(main)/settings/profile/page.tsx)"
+    source: { file: "src/app/(main)/settings/profile/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page ('use client' が無い)。ProfilePage を描くだけ。metadata でタイトル (Profile) を決める。データは自分では読まない"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/page.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/profile/page.tsx", line: 5 }
+        - { file: "src/app/(main)/settings/profile/page.tsx", line: 9 }
+
+  - id: profile_page
+    layer: component
+    kind: component
+    name: "ProfilePage (src/app/(main)/settings/profile/ProfilePage.tsx)"
+    source: { file: "src/app/(main)/settings/profile/ProfilePage.tsx", line: 9 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/settings/profile/page.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/profile/page.tsx", line: 5 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。見出し (Profile) と、枠 (Panel) の中に ProfileSettings を描くだけ"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/ProfilePage.tsx", line: 1 }
+        - { file: "src/app/(main)/settings/profile/ProfilePage.tsx", line: 15 }
+        - { file: "src/app/(main)/settings/profile/ProfilePage.tsx", line: 17 }
+
+  - id: profile_settings
+    layer: component
+    kind: component
+    name: "ProfileSettings (src/app/(main)/settings/profile/ProfileSettings.tsx)"
+    source: { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 6 }
+    caller: profile_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/settings/profile/ProfilePage.tsx", line: 7 }
+        - { file: "src/app/(main)/settings/profile/ProfilePage.tsx", line: 17 }
+    summary:
+      status: interpretation
+      value: "useLoginQuery でログイン中のユーザーを、useConfig で設定値を得る。ユーザーが無ければ何も描かない。ユーザー名と、役割 (user / admin / view-only を翻訳した名前。ほかは unknown) を出す。設定値 cloudMode が偽なら、パスワードの欄に PasswordChangeButton を描く"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 7 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 9 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 11 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 15 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 17 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 41 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 45 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定すると (GET /config の cloudMode が真になり)、パスワードの欄と「パスワードを変更」のボタンを出さない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 9 }
+          - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 41 }
+          - { file: src/components/hooks/useConfig.ts, line: 22 }
+          - { file: src/app/api/config/route.ts, line: 15 }
+        note: "cloudMode は useConfig がストアから返す値で、ストアに無ければ GET /config で読む。受け口は環境変数 CLOUD_MODE の有無を返す。settings の枠はビルド時の CLOUD_MODE で何も描かないので、この画面からは、ふつう偽"
+
+  # ---------------------------------------------------------------- ログイン中のユーザー
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: profile_settings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 2 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 7 }
+    summary:
+      status: interpretation
+      value: "ストアのユーザーを返す。ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は API_URL の設定に関わらず basePath + /api に向く"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+        note: "/auth で始まる URL には API_URL が効かない (api-url.ts:6 / :39) ので、API_URL は書いていない"
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      when: conditional
+      condition: "ストアにログイン中のユーザーが無いとき (enabled: !user)"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "(main) の枠がユーザーを得てから画面を描くので、この画面からはふつう呼ばれない (ストアにユーザーがある)。消さずに conditional で書いた"
+    summary:
+      status: interpretation
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できれば getAllUserTeams で所属チームを読み、ユーザーと所属チームを返す"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 4 }
+
+  # ---- 認証 (この画面の API はどれも最初に parseRequest を呼ぶ。入口から辿る順で最初に着くここに 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 1 }
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "URL のクエリと JSON 本文を読み、スキーマがあれば検査する (GET はクエリ、それ以外は本文。合わなければ 400)。skipAuth が無いので checkAuth で認証し、認証できなければ 401 のエラーを返す。この画面の POST /api/me/password も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 33 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、この画面でフレームにした API は skipAuth を渡さず、error はスキーマの検査で落ちたとき (入力の誤りによる打ち切り) だけ"
+    summary:
+      status: interpretation
+      value: "Bearer トークンを解き、userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。2FA の仮トークンは拒否する。ユーザーも共有トークンも無ければ null を返す。ユーザーがいればパスワードを消し、role が admin なら isAdmin を付ける。API キーの経路は、ブラウザがログイントークンを付け、この画面の API のパスは API キーを受け付けないので、この画面からは使わない"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 137 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+          - { file: src/lib/auth.ts, line: 122 }
+        note: "checkAuth がユーザーを得られなければ (共有トークンも無ければ) null を返し、parseRequest が 401 にする"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていると、トークンに userId が無く authKey があるとき、Redis のセッション (auth:*) からユーザーを引く"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+    rules:
+      - kind: validation
+        value: "API キーは、アカウントの資格情報や管理の状態を扱うパス (/api/auth、/api/me/password など) では認証に使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 35 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 12 }
+          - { file: src/lib/api-key.ts, line: 15 }
+      - kind: validation
+        value: "2FA のパスワード段階だけを通った仮トークン (PARTIAL_AUTH_TOKEN_TYPE) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+      - kind: validation
+        value: "トークン (またはセッション) にパスワードの指紋があり、今のパスワードのハッシュと合わなければ、そのユーザーを無効にする (パスワードを変える前のトークンを拒む)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーが無く共有トークンだけのときは、共有の文脈を示すヘッダー (x-umami-share-context) が無ければ認証しない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 129 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ。値はまるごと取り出す (redis.ts:37 / :40)"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき、または Redis のセッションに userId があったとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 22 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "同じファイルの findUser を通して、id で削除されていない user を 1 件読む。checkAuth は includePassword: true で呼ぶので、パスワードの列も読む (パスワードの指紋の照合のため)。POST /api/me/password も、ログイン中のユーザーの id と includePassword: true で同じ関数を呼ぶ (今のパスワードの照合のため)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/app/api/me/password/route.ts, line: 22 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "列の名前は schema.prisma の @map のとおり"
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "checkAuth が呼ぶのは、リポジトリが自前で包んだ get (redis.ts:34)。その中の this.client.get がライブラリの呼び出し"
+
+  - id: q_team_verify
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 3 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+      note: "手前にあるのは、認証の失敗で打ち切る経路だけ (verify/route.ts:8)"
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+        - { file: src/queries/prisma/team.ts, line: 100 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId。select id / name / logoUrl)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: name, use: [read] }
+          - { name: logo_url, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: src/queries/prisma/team.ts, line: 95 }
+          - { file: src/queries/prisma/team.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 236 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: src/queries/prisma/team.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team_verify
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_team_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+
+  # ---------------------------------------------------------------- パスワードの変更
+  - id: password_change_button
+    layer: component
+    kind: component
+    name: "PasswordChangeButton (src/app/(main)/settings/profile/PasswordChangeButton.tsx)"
+    source: { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 6 }
+    caller: profile_settings
+    call:
+      status: fact
+      when: conditional
+      condition: "設定値 cloudMode が偽のとき (ログイン中のユーザーがいるとき)"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 4 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 41 }
+        - { file: "src/app/(main)/settings/profile/ProfileSettings.tsx", line: 45 }
+      note: "settings の枠がビルド時の CLOUD_MODE で何も描かないので、この画面からはふつう成り立つが、ここで見る cloudMode は実行時の GET /config の値で、別の経路なので conditional にした"
+    summary:
+      status: interpretation
+      value: "「パスワードを変更」のボタンと、押すと開く小窓 (DialogTrigger / Modal / Dialog)。小窓の中に PasswordEditForm を描く。保存に成功すると、保存のお知らせ (toast) を出す"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 10 }
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 11 }
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 15 }
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 22 }
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 24 }
+
+  - id: password_edit_form
+    layer: component
+    kind: component
+    name: "PasswordEditForm (src/app/(main)/settings/profile/PasswordEditForm.tsx)"
+    source: { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 11 }
+    caller: password_change_button
+    call:
+      status: interpretation
+      when: conditional
+      condition: "「パスワードを変更」のボタンを押して、小窓が開いたとき"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 4 }
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 15 }
+        - { file: "src/app/(main)/settings/profile/PasswordChangeButton.tsx", line: 24 }
+      note: "小窓 (Modal) が閉じているときに中身が描かれるかは、UI ライブラリ (@umami/react-zen) の中で決まり、リポジトリからは読めない。開いたときだけ描くと読んだ"
+    summary:
+      status: interpretation
+      value: "今のパスワード・新しいパスワード・確認用のパスワードの入力のフォーム。送信すると、useUpdateQuery の mutateAsync で入力を POST /me/password へ送り、成功すると onSave (お知らせ) と onClose (小窓を閉じる) を呼ぶ。失敗の文言はフォームに出す"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 13 }
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 15 }
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 16 }
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 18 }
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 19 }
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 32 }
+    rules:
+      - kind: validation
+        value: "新しいパスワードと確認用のパスワードは 8 文字以上 (3 つの欄は、どれも必須)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 36 }
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 44 }
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 45 }
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 54 }
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 55 }
+        note: "ブラウザ側のフォームの検証。サーバー側の検証は、POST /api/me/password の段にある"
+      - kind: validation
+        value: "確認用のパスワードが、新しいパスワードと同じでなければ送れない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 24 }
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 25 }
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 56 }
+        note: "ブラウザ側のフォームの検証だけ。受け口のスキーマは confirmPassword を持たない"
+
+  - id: use_update_query
+    layer: component
+    kind: hook
+    name: "useUpdateQuery"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: password_edit_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 9 }
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 13 }
+    summary:
+      status: interpretation
+      value: "受け取ったパス (ここでは /me/password) へ、入力を POST で送る mutation を作る。URL は useApi の post が getApiUrl で組み立て (既定は basePath + /api)、ヘッダーに localStorage のログイントークンを Bearer で付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/components/hooks/useApi.ts, line: 32 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/client.ts, line: 5 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    parameters:
+      - name: path
+        value: "/me/password"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 13 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.apiUrl)。next.config の env が、環境変数 API_URL の値を入れる"
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_me_password_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/me/password"
+    source: { file: src/app/api/me/password/route.ts, line: 7 }
+    caller: use_update_query
+    call:
+      status: fact
+      when: conditional
+      condition: "パスワードの変更のフォームを送信したとき"
+      evidence:
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 13 }
+        - { file: "src/app/(main)/settings/profile/PasswordEditForm.tsx", line: 16 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で本文を検証し、認証する (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)。ログイン中のユーザーの id で、getUser でパスワード込みの user を読む (getUser も呼ぶ。経路はフレーム q_get_user と同じ)。今のパスワードが保存されたハッシュと合わなければ 400 (Current password is incorrect)。合えば、新しいパスワードをハッシュにして updateUser で user の password を書き、更新した user を返す。変えるのは、いつもログイン中のユーザー自身のパスワード (URL や本文で相手を選べない)。パスワードを変えると、パスワードの指紋を持つそれまでのログイントークンは、checkAuth で無効になる"
+      evidence:
+        - { file: src/app/api/me/password/route.ts, line: 13 }
+        - { file: src/app/api/me/password/route.ts, line: 19 }
+        - { file: src/app/api/me/password/route.ts, line: 22 }
+        - { file: src/app/api/me/password/route.ts, line: 24 }
+        - { file: src/app/api/me/password/route.ts, line: 25 }
+        - { file: src/app/api/me/password/route.ts, line: 28 }
+        - { file: src/app/api/me/password/route.ts, line: 30 }
+        - { file: src/app/api/me/password/route.ts, line: 32 }
+        - { file: src/lib/auth.ts, line: 98 }
+        - { file: src/app/api/auth/login/route.ts, line: 59 }
+    parameters:
+      - name: currentPassword
+        value: "本文。文字列"
+        status: fact
+        evidence:
+          - { file: src/app/api/me/password/route.ts, line: 9 }
+      - name: newPassword
+        value: "本文。8 文字以上の文字列"
+        status: fact
+        evidence:
+          - { file: src/app/api/me/password/route.ts, line: 10 }
+    rules:
+      - kind: validation
+        value: "新しいパスワードは 8 文字以上"
+        status: fact
+        evidence:
+          - { file: src/app/api/me/password/route.ts, line: 10 }
+          - { file: src/app/api/me/password/route.ts, line: 13 }
+      - kind: validation
+        value: "今のパスワードが、保存されたパスワードのハッシュと合わなければ、変えられない (400 Current password is incorrect)"
+        status: fact
+        evidence:
+          - { file: src/app/api/me/password/route.ts, line: 24 }
+          - { file: src/app/api/me/password/route.ts, line: 25 }
+          - { file: src/lib/password.ts, line: 10 }
+      - kind: calculation
+        value: "新しいパスワードは bcrypt のハッシュ (10 ラウンド) にして保存する"
+        status: fact
+        evidence:
+          - { file: src/app/api/me/password/route.ts, line: 28 }
+          - { file: src/lib/password.ts, line: 3 }
+          - { file: src/lib/password.ts, line: 6 }
+
+  - id: q_update_user
+    layer: query
+    kind: function
+    name: "updateUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 106 }
+    caller: api_me_password_post
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/me/password/route.ts, line: 5 }
+        - { file: src/app/api/me/password/route.ts, line: 30 }
+      note: "手前にあるのは、入力の誤り・認証の失敗・今のパスワードの不一致で打ち切る経路だけ (me/password/route.ts:15 / :24)"
+    summary:
+      status: interpretation
+      value: "id で user を 1 件更新し、id / username / role / createdAt を返す。書く列は呼び出し元が決める (ここでは password だけ)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 107 }
+        - { file: src/queries/prisma/user.ts, line: 111 }
+        - { file: src/queries/prisma/user.ts, line: 112 }
+        - { file: src/app/api/me/password/route.ts, line: 30 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.update (where: id。data: password。select: id / username / role / createdAt)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: password, use: [write] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 107 }
+          - { file: src/queries/prisma/user.ts, line: 109 }
+          - { file: src/queries/prisma/user.ts, line: 112 }
+          - { file: src/app/api/me/password/route.ts, line: 30 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "書く列の名前は、この段ではなく呼び出し元 (me/password/route.ts:30) でしか読めないので、呼び出し元の行を根拠にした"
+
+  - id: ext_prisma_user_update
+    layer: external
+    kind: library
+    name: "Prisma Client user.update"
+    source: { file: src/queries/prisma/user.ts, line: 107 }
+    caller: q_update_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 107 }

@@ -1,0 +1,76 @@
+format_version: 1
+entry_id: settings.websites.websiteId_d
+reviewed_at: "2026-11-17T15:22:56Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_update_website/io/0/fields
+    claim: "website.update は Prisma の @updatedAt により updated_at 列も書くが、fields に updated_at が無い (POST /api/websites/[websiteId] から呼ばれる側)。"
+    evidence: { file: "prisma/schema.prisma", line: 107 }
+    suggestion: "fields に { name: \"updated_at\", use: [write] } を足し、note に「updated_at は Prisma の @updatedAt (prisma/schema.prisma:107) が自動で書く」と書く (links.linkId_d.edit と websites.websiteId_d の結果と同じ書き方)。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_update_website/io/1/fields
+    claim: "譲渡 (POST /api/websites/[websiteId]/transfer) から呼ばれる website.update も updated_at を自動で書くが、fields に無い。"
+    evidence: { file: "prisma/schema.prisma", line: 107 }
+    suggestion: "fields に { name: \"updated_at\", use: [write] } を足し、schema.prisma:107 を根拠に入れる。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_create_share/io/0/fields
+    claim: "share.create は Prisma の @updatedAt により updated_at 列も書くが、fields に無い。"
+    evidence: { file: "prisma/schema.prisma", line: 409 }
+    suggestion: "fields に { name: \"updated_at\", use: [write] } を足し、note に @updatedAt (prisma/schema.prisma:409) が自動で書くことを書く (links.linkId_d.edit の共有の作成と同じ書き方)。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_update_share/io/0/fields
+    claim: "share.update は Prisma の @updatedAt により updated_at 列も書くが、fields に無い。"
+    evidence: { file: "prisma/schema.prisma", line: 409 }
+    suggestion: "fields に { name: \"updated_at\", use: [write] } を足し、schema.prisma:409 を根拠に入れる。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_reset_website/io/0/fields
+    claim: "リセットの tx.website.update (resetAt を入れる) も updated_at を自動で書くが、fields は reset_at と website_id だけ。"
+    evidence: { file: "prisma/schema.prisma", line: 107 }
+    suggestion: "fields に { name: \"updated_at\", use: [write] } を足し、schema.prisma:107 を根拠に入れる。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_delete_website/io/4/fields
+    claim: "クラウドモードの論理削除 (tx.website.update で deletedAt を入れる) も updated_at を自動で書くが、fields は deleted_at と website_id だけ。"
+    evidence: { file: "prisma/schema.prisma", line: 107 }
+    suggestion: "fields に { name: \"updated_at\", use: [write] } を足し、schema.prisma:107 を根拠に入れる。"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_view_shared_website/guards/0
+    claim: "canViewSharedWebsite の確認の値が shareTokenIncludesWebsite になっているが、websites.websiteId_d / websites.websiteId_d.funnels / console.websiteId_d / layout_l.main_g.websites.websiteId_d の結果は、同じ関数の確認を canViewSharedWebsite と書いており、綴りがそろわない。"
+    evidence: { file: "src/permissions/share.ts", line: 85 }
+    suggestion: "value を \"canViewSharedWebsite\" にそろえ、shareTokenIncludesWebsite で判定することは note に書く。"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_view_website/guards/1
+    claim: "canViewWebsite の中の共有トークンの比較を、別の確認 (kind other、値 shareToken?.websiteId === websiteId) として書いているが、websites.websiteId_d の結果は、同じ関数の確認を ownership の canViewWebsite 1 件にまとめ、共有トークンの条件は note に書いている。同じ確認が入口ごとに別の綴りで集計される。"
+    evidence: { file: "src/permissions/website.ts", line: 13 }
+    suggestion: "この guard を外して、共有トークンの対象なら通ることを guards/2 (ownership の canViewWebsite) の note に書く。または analysis-conventions.md でどちらの書き方にするかを決めて、全入口でそろえる。"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/use_website_query/settings/1
+    claim: "BASE_PATH (API の URL の前に付く) を use_website_query だけに書いており、同じく useApi で API を呼ぶほかのフックとフォーム (use_update_website、use_website_shares_query、share_edit_form、use_delete_share、use_user_teams_query、use_update_transfer、use_update_reset、use_delete_website、use_subscription、use_login_query) には無い。また、結果の notes (7) は「BASE_PATH は書いていない」としており、本文と食い違う。"
+    evidence: { file: "src/lib/api-url.ts", line: 38 }
+    suggestion: "ほかの入口の結果 (settings.websites など) が API を呼ぶフックに BASE_PATH を書いているのに合わせて、API を呼ぶほかのフレームにも BASE_PATH を足し、notes (7) の記述を直す。"
+  - kind: missing_item
+    severity: low
+    where: callstack/shares_table/links
+    claim: "SharedSharesTable の共有 URL は、クラウドモードでは cloudUrl の側 (${process.env.cloudUrl}/share/${slug}) に向くが、links には /share/${slug} しか無く、クラウドモードで行き先を変える設定 CLOUD_MODE もこの段に無い。"
+    evidence: { file: "src/components/share/SharedSharesTable.tsx", line: 29 }
+    suggestion: "links.linkId_d.edit / pixels.pixelId_d.edit / boards.boardId_d.edit の結果と同じく、target \"${process.env.cloudUrl}/share/${slug}\" (status unknown、reason not_traceable_in_repo) の link を足し、CLOUD_MODE を settings に足す。"
+    resolved: true
+notes: "(1) 根拠の行は、入口の page から WebsiteSettingsPage、5 つの区画、各フックと受け口、権限の関数、query の関数、schema.prisma の列まで、ほぼ全部を開いて確かめた。主張を支えていない根拠は見つからなかった。(2) call の when (always / conditional) と条件、_rw フレームの書き直しの範囲 (読み書きを持つ最初の段まで、確認・設定・ルールを繰り返さない) は、analysis-conventions.md と context.md の決まりに合っている。(3) 指摘にしなかったが、伝えておくこと: api_shares_get の parameters の note に「search はスキーマの検査で落ちるので届かない」とあるが、zod の z.object は知らないキーを捨てるだけで、検査そのものは通る。届かないという結論は正しいので、言い回しだけの問題。(4) 共有トークンの確認の綴り (canViewSharedWebsite / shareTokenIncludesWebsite / canViewWebsite の中の比較) は入口ごとに揺れている (console.websiteId_d の notes (11) も同じことを書いている)。analysis-conventions.md の「名前と値の綴り」に、kind other の書き方を足して決めるのがよい。(5) checkAuth の CLOUD_MODE (API キーの経路を辿っていないのに設定だけ書く) は、admin.websites.websiteId_d の結果の notes (13) で直さない判断が書かれていて、ほかの入口とそろっているので、指摘にしなかった。"

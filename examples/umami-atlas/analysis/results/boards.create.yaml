@@ -1,0 +1,77 @@
+format_version: 1
+entry:
+  id: boards.create
+  path: /boards/create
+  name: "create"
+  layer: page
+  source: { file: "src/app/(main)/boards/create/page.tsx", line: 5 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T11:33:19Z"
+  reviewed:
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T11:32:56Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "ボードの作成の URL (/boards/create) の画面。ブラウザ側で動き、描画の直後に、ボードの一覧 (/boards) へ router.replace で転送するだけ。何も描かず (null を返す)、データを読まない・書かない。いまの URL が /teams/<teamId> の下なら、転送先の前に /teams/<teamId> が付く。クエリ文字列は引き継がない"
+  evidence:
+    - { file: "src/app/(main)/boards/create/page.tsx", line: 1 }
+    - { file: "src/app/(main)/boards/create/page.tsx", line: 9 }
+    - { file: "src/app/(main)/boards/create/page.tsx", line: 12 }
+    - { file: src/components/hooks/useNavigation.ts, line: 34 }
+    - { file: src/components/hooks/useNavigation.ts, line: 35 }
+notes: "(1) データに届かない画面なので、プロファイルの決まりのとおり、入口のフレームから、最後に頼るライブラリ (next/navigation のルーター) を external のフレームとして 1 つ書いて閉じた。I/O は無い。(2) フレームにしなかったもの: useNavigation (URL の組み立てと、next/navigation の useRouter / usePathname / useSearchParams を呼ぶだけ。ほかの入口の結果でもフレームにしていない)、buildPath (クエリ文字列を付けるだけの小道具)。(3) 転送先の links は、/boards の 1 件だけを書いた。renderUrl は、いまの URL に /teams/<teamId> があると前に /teams/${teamId} を付ける (useNavigation.ts:9、:34)。next.config の rewrites が /teams/:teamId/:path* を /:path* へ回す (next.config.ts:253-254) ので、この画面は /teams/<teamId>/boards/create でも開き、そのときの転送先は /teams/<teamId>/boards (同じ入口 boards) になる。ほかの入口の結果 (枠の結果の renderUrl の行き先) が、付く前の形だけを target に書き、チームの接頭辞は note に書いているので、その綴りに合わせた。(4) 権限の確認・設定・業務のルールは、この画面には無い (page.tsx の 13 行すべてを読んだ)。BASE_PATH は、ルーターが URL の前に付けるだけで、この画面の動きも行き先の入口も変えないので settings に書いていない。(5) external の call は always にした。転送は useEffect の中にあり、描画のたびに条件なしで動く (依存する router と renderUrl が変わると、もう一度動く)"
+callstack:
+  - id: page
+    layer: page
+    kind: page
+    name: "CreateBoardPage (src/app/(main)/boards/create/page.tsx)"
+    source: { file: "src/app/(main)/boards/create/page.tsx", line: 5 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。useNavigation から router と renderUrl を取り、useEffect の中で router.replace(renderUrl('/boards', false)) を呼んで、ボードの一覧へ転送する。renderUrl の 2 番目の引数が false なので、いまのクエリ文字列は付けない。画面には何も描かない (null を返す)"
+      evidence:
+        - { file: "src/app/(main)/boards/create/page.tsx", line: 1 }
+        - { file: "src/app/(main)/boards/create/page.tsx", line: 6 }
+        - { file: "src/app/(main)/boards/create/page.tsx", line: 8 }
+        - { file: "src/app/(main)/boards/create/page.tsx", line: 9 }
+        - { file: "src/app/(main)/boards/create/page.tsx", line: 12 }
+        - { file: src/components/hooks/useNavigation.ts, line: 35 }
+    links:
+      - kind: navigate
+        target: "/boards"
+        entry_id: boards
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/boards/create/page.tsx", line: 9 }
+          - { file: src/components/hooks/useNavigation.ts, line: 34 }
+        note: "描画の直後に router.replace で移る (履歴に残さない)。いまの URL が /teams/<teamId> の下なら、renderUrl が前に /teams/<teamId> を付ける"
+
+  - id: ext_router_replace
+    layer: external
+    kind: library
+    name: "next/navigation (useRouter の router.replace)"
+    source: { file: "src/app/(main)/boards/create/page.tsx", line: 9 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/boards/create/page.tsx", line: 9 }
+        - { file: src/components/hooks/useNavigation.ts, line: 6 }
+        - { file: src/components/hooks/useNavigation.ts, line: 1 }
+      note: "router は、useNavigation が next/navigation の useRouter から取って返したもの (useNavigation.ts:6、:42)。useEffect の中で条件なしに呼ぶ"
+    summary:
+      status: interpretation
+      value: "Next.js のルーター。いまの履歴の項目を置き換えて、渡された URL (/boards) の画面へ移る。データには触れない"
+      evidence:
+        - { file: "src/app/(main)/boards/create/page.tsx", line: 9 }

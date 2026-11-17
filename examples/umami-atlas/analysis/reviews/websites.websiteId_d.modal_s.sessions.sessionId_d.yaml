@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: "websites.websiteId_d.modal_s.sessions.sessionId_d"
+reviewed_at: "2026-11-17T16:03:24Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_view_website/guards/1
+    claim: "管理者の確認 (role、user.isAdmin) が guards/0 と guards/1 に 2 回書いてある。コードの確認は website.ts:9 の 1 か所だけで、ほかの入口の結果に同じ重複は無い。"
+    evidence: { file: "src/permissions/website.ts", line: 9 }
+    suggestion: "guards/1 を消し、user.isAdmin の確認を 1 件にする。"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_update_website/guards/1
+    claim: "管理者の確認 (role、user.isAdmin) が guards/0 と guards/1 に 2 回書いてある。コードの確認は website.ts:137 の 1 か所だけ。"
+    evidence: { file: "src/permissions/website.ts", line: 137 }
+    suggestion: "guards/1 を消し、user.isAdmin の確認を 1 件にする。"
+    resolved: true
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_can_update_website/guards/3
+    claim: "権限の定数 PERMISSIONS.websiteUpdate はコード (website.ts:154 の hasPermission の引数) にそのまま書いてあるのに interpretation になっている。同じ結果の q_can_delete_website では、同じ形の PERMISSIONS.websiteDelete を fact にしていて、付け方がそろっていない。"
+    evidence: { file: "src/permissions/website.ts", line: 154 }
+    suggestion: "status を fact にする (ほかの入口の結果の PERMISSIONS.websiteUpdate も interpretation なので、そろえるかどうかを合わせて決める)。"
+    resolved: true
+notes: "主な主張 (page → SessionProfileModal → SessionProfile の木、各受け口の parseRequest / 権限の確認 / 問い合わせ、PostgreSQL と ClickHouse の両方の I/O、deleteSession のトランザクション、録画の保存と取り消し、Redis の website:* / account:* / auth:*、external の source の行) は、対象のコードで確かめて合っていた。指摘にしなかった点: (1) getSessionReplays の I/O のうち、URL のフィルター・コホートで読む website_event の副問い合わせ、session_data / event_data の条件、search での session の絞り込み (getSessionReplays.ts:43) は、この画面のフック (useSessionReplaysQuery) がフィルターも search も送らず、受け口の schema (withDateRange + pagingParams + searchParams) でも segment / cohort が落ちるので、この画面からは届かないように見える。I/O の note にそう見える理由を書き足すと読み手に親切。(2) 録画の保存の印 (ReplaySaveForm と保存の取り消し) は、セッションを読めたとき (ReplayPlayback.tsx:73 の session && ...) だけ出るので、replay_save_form と api_replay_saved_post の condition に足してもよい。(3) 画面を包む枠 (layout) の処理を辿っていないのは、プロファイルの決まりどおり。"

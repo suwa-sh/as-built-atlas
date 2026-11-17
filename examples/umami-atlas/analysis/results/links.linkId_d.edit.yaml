@@ -1,0 +1,2066 @@
+format_version: 1
+entry:
+  id: links.linkId_d.edit
+  path: /links/[linkId]/edit
+  name: edit
+  layer: page
+  source: {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 5}
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: {id: ui-nextjs, version: 0.4.0}
+  skill_version: 0.4.0
+  model: claude-fable-5-2
+  analyzed_at: '2026-11-17T11:42:59Z'
+  reviewed:
+    by: claude-fable-5-2 (fresh context)
+    at: '2026-11-17T11:42:06Z'
+    findings_open: 0
+summary:
+  status: interpretation
+  value: '短縮リンク 1 件を編集する画面。サーバー側の page が、URL の linkId で link を直接読み、無いか削除済みなら何も描かない。あれば、ブラウザ側で GET /api/links/[linkId] でリンクを読み直し、見出し (名前と転送先の URL、リンクの画面へ戻るリンク)、編集フォーム、共有の欄を描く。編集フォームは、名前・転送先の URL・slug を POST /api/links/[linkId] で更新する (link の update。slug が重なれば 400)。共有の欄は、GET /api/links/[linkId]/shares でこのリンクの共有 (share) を読み、追加 (POST /api/links/[linkId]/shares で share の create)、編集 (小窓。GET と POST /api/share/id/[shareId] で share の read と update)、削除 (確認の小窓。DELETE /api/share/id/[shareId] で share の delete) ができる。各 API は、ログイントークンから user を読んで認証し (Redis のセッションを使うときは auth:* も読む)、権限を確かめる: リンクの API は、管理者・リンクの持ち主・リンクのチームのメンバー (更新と共有の追加は website:update の権限)。共有の API は、共有の対象を website / link / pixel / board から探し、同じ考え方で確かめる (更新は website:update、削除は website:delete)。クラウドモードでは、slug の欄を出さず、共有の URL が CLOUD_URL で始まる'
+  evidence:
+  - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 7}
+  - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 9}
+  - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 13}
+  - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 15}
+  - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 17}
+  - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 20}
+  - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 23}
+  - {file: src/app/(main)/links/LinkEditForm.tsx, line: 36}
+  - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 11}
+  - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 46}
+  - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 55}
+  - {file: 'src/app/api/links/[linkId]/route.ts', line: 16}
+  - {file: 'src/app/api/links/[linkId]/route.ts', line: 41}
+  - {file: 'src/app/api/links/[linkId]/route.ts', line: 46}
+  - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 30}
+  - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 59}
+  - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 17}
+  - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 52}
+  - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 79}
+notes: '[1] 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: getLink は page (page.tsx:7)、parseRequest → checkAuth → getUser は GET /api/links/[linkId] (route.ts:8。LinkProvider の useLinkQuery が最初に着く)、getTeamUser は canViewLink (permissions/link.ts:34)、getShare と getEntity (getWebsite / getPixel / getBoard) は GET /api/share/id/[shareId]。[2] 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段まで書き直した (id が _rw で終わるフレーム。analysis-conventions.md の決まりどおり、external の段は書いていない): canUpdateLink の下の getLink、canUpdateEntity / canDeleteEntity の下の getEntity → getWebsite。書き直した段に、確認・設定・ルールは繰り返していない。[3] フレームにしなかったもの: useConfig → GET /api/config (skipAuth で環境変数を返すだけで、データにもライブラリにも届かず、終端の決まりを満たすフレームにできない。(main) の枠の結果と同じ扱い)、SharedSharesTable (行を並べるだけ)、LinkEditHeader (LinkEditPage と同じファイル)。これらが持つ設定とリンクは、それを描くフレームに書いた (CLOUD_MODE / LINKS_URL は link_edit_form、CLOUD_MODE / CLOUD_URL / BASE_PATH と共有の画面へのリンクは simple_shares_table)。SimpleShareEditForm が出す共有の URL は、読むだけの欄 (表示だけ) なので、設定にもリンクにも書かず、概要に書いた。[4] page はサーバー側で getLink を直接呼び、ログインと権限の確認をしない (page.tsx:7)。読んだリンクは、有無と deletedAt の判定にだけ使い、ブラウザへは渡さない。ブラウザ側の読み直し (GET /api/links/[linkId]) は、canViewLink で確かめる。[5] LinkEditForm と LinkShareForm の caller は、JSX に書いている LinkEditPage にし、描くかどうかを決める LinkProvider の条件は call の condition に書いた (settings.teams.teamId_d と同じ書き方)。[6] 権限の確認の value は、analysis-conventions.md の綴りに合わせた (役割は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前、ログイン済みは checkAuth の 1 か所だけ)。条件の説明は note に書いた。[7] getEntity の下の getWebsite は、website が見つかったときだけ share も読む (attachShareIdToWebsite)。この画面の共有の対象はリンクなので、ふつうは見つからないが、コードの上では届くので I/O に残し、note に書いた。[8] share/id/[shareId] の GET と DELETE は、共有が無いときの確認をせずに share.entityId を読む (route.ts:19、75)。POST だけが 404 を返す (route.ts:44)。[9] 画面から API を呼ぶ URL は、環境変数 API_URL があると (/auth と /config 以外は) その URL に向く。既定では同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL は、API を呼ぶフック・フォームの settings に書いた。[10] checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。DATABASE_URL / DATABASE_REPLICA_URL は、どの段にも同じように効く接続先なので、settings に書いていない。[11] src/lib/schema.ts の filterParams / pagingParams / anyObjectParam は読んでいない。受け口が取り出す項目 (route の分割代入の行) だけを parameters に書いた。[12] テストとの対応は、作業定義の analysis.tests が無いので、分析していない。[13] レビューの指摘は medium 1 件と low 2 件で、すべて直した (share の作成で書く列に updated_at を足した、checkAuth に共有トークンのルールを足した、共有の編集フォームの call の根拠に DialogButton の行を足した)。'
+callstack:
+- id: page
+  layer: page
+  kind: page
+  name: edit (src/app/(main)/links/[linkId]/edit/page.tsx)
+  source: {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 5}
+  caller: null
+  summary:
+    status: interpretation
+    value: サーバー側で動く page。URL の linkId を params から取り出し、getLink で link を直接読む (API を通さない。ログインと権限の確認は、この段では行わない)。リンクが無いか削除済みなら何も描かず、あれば LinkEditPage に linkId だけを渡す (読んだリンクの中身は渡さない)
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 6}
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 7}
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 9}
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 13}
+  parameters:
+  - name: linkId
+    value: URL の動的な段 [linkId]
+    status: fact
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 5}
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 6}
+  rules:
+  - kind: decision
+    value: リンクが無いか、削除済み (deletedAt に値がある) なら、何も描かない
+    status: fact
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 9}
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 10}
+- id: q_get_link
+  layer: query
+  kind: function
+  name: getLink / findLink (src/queries/prisma/link.ts)
+  source: {file: src/queries/prisma/link.ts, line: 12}
+  caller: page
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 2}
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 7}
+  summary:
+    status: interpretation
+    value: id で link を 1 件読む (id の形は確かめない。deletedAt の条件も付けない)。GET /api/links/[linkId]、canViewLink、canUpdateLink、getEntity も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 9}
+    - {file: src/queries/prisma/link.ts, line: 13}
+    - {file: src/queries/prisma/link.ts, line: 15}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: link
+    detail: prisma.client.link.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: link_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 9}
+    - {file: src/queries/prisma/link.ts, line: 15}
+    - {file: prisma/schema.prisma, line: 341}
+    - {file: prisma/schema.prisma, line: 358}
+- id: ext_prisma_get_link
+  layer: external
+  kind: library
+  name: Prisma Client link.findUnique
+  source: {file: src/queries/prisma/link.ts, line: 9}
+  caller: q_get_link
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 13}
+    - {file: src/queries/prisma/link.ts, line: 9}
+- id: link_edit_page
+  layer: component
+  kind: component
+  name: LinkEditPage / LinkEditHeader
+  source: {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 13}
+  caller: page
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 3}
+    - {file: 'src/app/(main)/links/[linkId]/edit/page.tsx', line: 13}
+    note: 手前の return null (page.tsx:10) は、相手が見つからない・削除済みによる打ち切りなので、always にした
+  summary:
+    status: interpretation
+    value: ブラウザ側で動く ('use client')。LinkProvider でリンクを読み込み、その中に、見出し (同じファイルの LinkEditHeader。LinkContext のリンクの名前と転送先の URL、リンクの画面へ戻るリンクを出すだけで、新たにデータを読まない)、編集フォーム (LinkEditForm)、共有の欄 (LinkShareForm) を描く
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 1}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 15}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 17}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 20}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 23}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 32}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 39}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 43}
+  links:
+  - kind: navigate
+    target: /links/${link.id}
+    entry_id: links.linkId_d
+    status: fact
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 39}
+    - {file: src/components/hooks/useNavigation.ts, line: 34}
+    note: 見出しの戻るリンク。renderUrl は、URL に /teams/<id> があれば前に付け、いまの URL のクエリを引き継ぐ。この画面の URL (/links/...) に /teams は無い
+- id: link_provider
+  layer: component
+  kind: component
+  name: LinkProvider
+  source: {file: src/app/(main)/links/LinkProvider.tsx, line: 9}
+  caller: link_edit_page
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 5}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 15}
+  summary:
+    status: interpretation
+    value: useLinkQuery でリンクを読み、読み込み中は Loading、読めなければ何も描かない。読めたら LinkContext に入れて子 (LinkEditHeader の useLink) に渡す
+    evidence:
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 10}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 12}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 16}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 20}
+- id: use_link_query
+  layer: component
+  kind: hook
+  name: useLinkQuery
+  source: {file: src/components/hooks/queries/useLinkQuery.ts, line: 4}
+  caller: link_provider
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 4}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 10}
+  summary:
+    status: interpretation
+    value: linkId があるとき GET /links/<linkId> を呼ぶ。queryKey に link:<linkId> の更新印を入れるので、保存のあと読み直す。LinkEditForm も同じフックを同じ linkId で呼ぶ
+    evidence:
+    - {file: src/components/hooks/queries/useLinkQuery.ts, line: 6}
+    - {file: src/components/hooks/queries/useLinkQuery.ts, line: 9}
+    - {file: src/components/hooks/queries/useLinkQuery.ts, line: 11}
+    - {file: src/components/hooks/queries/useLinkQuery.ts, line: 13}
+  settings:
+  - name: API_URL
+    kind: env
+    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 39}
+    - {file: next.config.ts, line: 14}
+    - {file: next.config.ts, line: 215}
+- id: api_link_get
+  layer: api_route
+  kind: route_handler
+  name: GET /api/links/[linkId]
+  source: {file: 'src/app/api/links/[linkId]/route.ts', line: 7}
+  caller: use_link_query
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/hooks/queries/useLinkQuery.ts, line: 11}
+    - {file: src/components/hooks/queries/useLinkQuery.ts, line: 13}
+    - {file: src/components/hooks/useApi.ts, line: 42}
+    - {file: src/lib/api-url.ts, line: 44}
+    note: 'enabled: !!linkId の条件が付いているが、この画面では linkId が URL の段から必ず渡るので、いつも成り立つ'
+  summary:
+    status: interpretation
+    value: parseRequest で認証し、canViewLink で見てよいかを確かめ (だめなら 401)、getLink でリンクを読んで返す (削除済みかは見ない)。getLink も呼ぶ。経路はフレーム q_get_link と同じ
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 8}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 16}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 17}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 20}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 22}
+  parameters:
+  - name: linkId
+    value: URL の動的な段
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 14}
+- id: q_parse_request
+  layer: query
+  kind: function
+  name: parseRequest (src/lib/request.ts)
+  source: {file: src/lib/request.ts, line: 16}
+  caller: api_link_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 2}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 8}
+  summary:
+    status: interpretation
+    value: URL のクエリと JSON の本文を読み、スキーマがあれば検査する (GET はクエリ、それ以外は本文。合わなければ 400)。skipAuth が無いので checkAuth を呼び、認証できなければ 401 のエラーを返す。この画面のほかの API (links/[linkId] の POST、links/[linkId]/shares の GET / POST、share/id/[shareId] の GET / POST / DELETE) も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた
+    evidence:
+    - {file: src/lib/request.ts, line: 30}
+    - {file: src/lib/request.ts, line: 33}
+    - {file: src/lib/request.ts, line: 51}
+    - {file: src/lib/request.ts, line: 52}
+    - {file: src/lib/request.ts, line: 55}
+- id: q_check_auth
+  layer: query
+  kind: function
+  name: checkAuth (src/lib/auth.ts)
+  source: {file: src/lib/auth.ts, line: 71}
+  caller: q_parse_request
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/request.ts, line: 3}
+    - {file: src/lib/request.ts, line: 52}
+    note: if (!options?.skipAuth && !error) の中にあるが、この画面でフレームにした API は skipAuth を渡さず、error はスキーマの検査で落ちたとき (入力の誤りによる打ち切り) だけ
+  summary:
+    status: interpretation
+    value: Bearer トークンを解き、userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。2FA の仮トークンは拒む。ユーザーも共有トークンも無ければ null を返す。API キーの経路は、ブラウザがログイントークンを付けるので、この画面からは使わない
+    evidence:
+    - {file: src/lib/auth.ts, line: 72}
+    - {file: src/lib/auth.ts, line: 78}
+    - {file: src/lib/auth.ts, line: 83}
+    - {file: src/lib/auth.ts, line: 94}
+    - {file: src/lib/auth.ts, line: 101}
+    - {file: src/lib/auth.ts, line: 105}
+    - {file: src/lib/auth.ts, line: 122}
+  guards:
+  - kind: authentication
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 122}
+    - {file: src/lib/auth.ts, line: 124}
+    - {file: src/lib/request.ts, line: 54}
+    - {file: src/lib/request.ts, line: 55}
+    note: ユーザーを得られなければ (共有トークンも無ければ) null を返し、呼び出し元の parseRequest が 401 にする
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: 設定されていると、トークンに userId が無く authKey があるとき、Redis のセッション (auth:*) からユーザーを引く
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 101}
+    - {file: src/lib/redis.ts, line: 106}
+  - name: CLOUD_MODE
+    kind: env
+    effect: 設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 74}
+    - {file: src/lib/api-key.ts, line: 41}
+    note: この画面のブラウザはログイントークンを付ける (src/lib/client.ts:4) ので、API キーの経路は辿っていない
+  rules:
+  - kind: validation
+    value: 2FA のパスワード段階だけを通った仮トークン (PARTIAL_AUTH_TOKEN_TYPE) は、セッションとして受け付けない
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 83}
+    - {file: src/lib/auth.ts, line: 85}
+  - kind: validation
+    value: トークン (またはセッション) にパスワードの指紋があり、今のパスワードのハッシュと合わなければ、そのユーザーを無効にする (パスワードを変える前のトークンを拒む)
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 98}
+    - {file: src/lib/auth.ts, line: 108}
+  - kind: validation
+    value: 共有トークンは、type が共有用のものだけを受け付ける。利用者がいなくて共有トークンだけのときは、共有画面からの印のヘッダー (SHARE_CONTEXT_HEADER) が無ければ受け付けない
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 127}
+    - {file: src/lib/auth.ts, line: 128}
+    - {file: src/lib/auth.ts, line: 129}
+    - {file: src/lib/auth.ts, line: 174}
+  io:
+  - op: get
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: auth:*
+    detail: redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形
+    fields:
+    - {name: '*', use: [read]}
+    evidence:
+    - {file: src/lib/auth.ts, line: 102}
+    - {file: src/lib/auth.ts, line: 150}
+    note: Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ
+- id: q_get_user
+  layer: query
+  kind: function
+  name: getUser / findUser (src/queries/prisma/user.ts)
+  source: {file: src/queries/prisma/user.ts, line: 49}
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: トークンに userId があるとき、または Redis のセッションに userId があったとき
+    evidence:
+    - {file: src/lib/auth.ts, line: 22}
+    - {file: src/lib/auth.ts, line: 94}
+    - {file: src/lib/auth.ts, line: 105}
+  summary:
+    status: interpretation
+    value: 'id で削除されていない user を 1 件読む。checkAuth は includePassword: true で呼ぶので、パスワードの列も読む (パスワードの指紋の照合のため)'
+    evidence:
+    - {file: src/queries/prisma/user.ts, line: 50}
+    - {file: src/queries/prisma/user.ts, line: 32}
+    - {file: src/queries/prisma/user.ts, line: 36}
+    - {file: src/queries/prisma/user.ts, line: 41}
+    - {file: src/lib/auth.ts, line: 94}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: user
+    detail: prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)
+    fields:
+    - {name: user_id, use: [read, filter]}
+    - {name: username, use: [read]}
+    - {name: password, use: [read]}
+    - {name: role, use: [read]}
+    - {name: created_at, use: [read]}
+    - {name: two_factor_required, use: [read]}
+    - {name: deleted_at, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/user.ts, line: 32}
+    - {file: src/queries/prisma/user.ts, line: 36}
+    - {file: src/queries/prisma/user.ts, line: 38}
+    - {file: src/queries/prisma/user.ts, line: 53}
+    - {file: prisma/schema.prisma, line: 13}
+    - {file: prisma/schema.prisma, line: 19}
+    - {file: prisma/schema.prisma, line: 20}
+    - {file: prisma/schema.prisma, line: 22}
+    - {file: prisma/schema.prisma, line: 37}
+- id: ext_prisma_user
+  layer: external
+  kind: library
+  name: Prisma Client user.findUnique
+  source: {file: src/queries/prisma/user.ts, line: 32}
+  caller: q_get_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/user.ts, line: 50}
+    - {file: src/queries/prisma/user.ts, line: 32}
+- id: ext_redis_get
+  layer: external
+  kind: library
+  name: redis (node-redis クライアント) get
+  source: {file: src/lib/redis.ts, line: 37}
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき
+    evidence:
+    - {file: src/lib/auth.ts, line: 101}
+    - {file: src/lib/auth.ts, line: 102}
+    - {file: src/lib/redis.ts, line: 37}
+- id: q_can_view_link
+  layer: query
+  kind: function
+  name: canViewLink (src/permissions/link.ts)
+  source: {file: src/permissions/link.ts, line: 6}
+  caller: api_link_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 4}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 16}
+  summary:
+    status: interpretation
+    value: 管理者なら許す。共有トークンがそのリンクを指していれば許す。ログインのユーザーが無ければ拒む。getLink でリンクを読み (経路はフレーム q_get_link と同じ)、無ければ拒む。持ち主がユーザーなら本人かを、チームの持ち物なら getTeamUser でそのチームのメンバーかを確かめる。GET /api/links/[linkId]/shares も同じ関数を呼ぶ
+    evidence:
+    - {file: src/permissions/link.ts, line: 7}
+    - {file: src/permissions/link.ts, line: 11}
+    - {file: src/permissions/link.ts, line: 19}
+    - {file: src/permissions/link.ts, line: 23}
+    - {file: src/permissions/link.ts, line: 25}
+    - {file: src/permissions/link.ts, line: 29}
+    - {file: src/permissions/link.ts, line: 30}
+    - {file: src/permissions/link.ts, line: 33}
+    - {file: src/permissions/link.ts, line: 34}
+    - {file: src/permissions/link.ts, line: 36}
+  guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - {file: src/permissions/link.ts, line: 7}
+    note: 管理者なら、ほかの確認をせずに許す
+  - kind: ownership
+    value: canViewLink
+    status: fact
+    evidence:
+    - {file: src/permissions/link.ts, line: 12}
+    - {file: src/permissions/link.ts, line: 13}
+    - {file: src/permissions/link.ts, line: 14}
+    - {file: src/permissions/link.ts, line: 30}
+    - {file: src/permissions/link.ts, line: 34}
+    - {file: src/permissions/link.ts, line: 36}
+    note: 共有トークンがそのリンクを指す、link.userId が本人 (user.id === link.userId)、link.teamId のチームのメンバー (getTeamUser が行を返す) のどれか。満たさなければ、呼び出し元の route が 401 を返す
+- id: q_get_team_user
+  layer: query
+  kind: function
+  name: getTeamUser (src/queries/prisma/teamUser.ts)
+  source: {file: src/queries/prisma/teamUser.ts, line: 19}
+  caller: q_can_view_link
+  call:
+    status: fact
+    when: conditional
+    condition: 管理者でも共有トークンの対象でもなく、リンクが個人の持ち物でなく、チームの持ち物 (link.teamId がある) のとき
+    evidence:
+    - {file: src/permissions/link.ts, line: 4}
+    - {file: src/permissions/link.ts, line: 33}
+    - {file: src/permissions/link.ts, line: 34}
+  summary:
+    status: interpretation
+    value: teamId と userId で、削除されていないチームの team_user を 1 件読む。canUpdateLink、canViewEntity、canUpdateEntity、canDeleteEntity も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 20}
+    - {file: src/queries/prisma/teamUser.ts, line: 24}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team_user
+    detail: prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: team_id, use: [filter]}
+    - {name: user_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 20}
+    - {file: src/queries/prisma/teamUser.ts, line: 22}
+    - {file: src/queries/prisma/teamUser.ts, line: 23}
+    - {file: prisma/schema.prisma, line: 254}
+    - {file: prisma/schema.prisma, line: 255}
+    - {file: prisma/schema.prisma, line: 265}
+  - op: read
+    status: interpretation
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team
+    detail: 'リレーションの条件 team: { deletedAt: null }'
+    fields:
+    - {name: team_id, use: [filter]}
+    - {name: deleted_at, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 24}
+    - {file: prisma/schema.prisma, line: 233}
+    - {file: prisma/schema.prisma, line: 240}
+    - {file: prisma/schema.prisma, line: 249}
+    note: TeamUser.team のリレーションの条件として読まれる。テーブル名はコードに直接は出ない
+- id: ext_prisma_get_team_user
+  layer: external
+  kind: library
+  name: Prisma Client teamUser.findFirst
+  source: {file: src/queries/prisma/teamUser.ts, line: 20}
+  caller: q_get_team_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/teamUser.ts, line: 20}
+- id: link_edit_form
+  layer: component
+  kind: component
+  name: LinkEditForm
+  source: {file: src/app/(main)/links/LinkEditForm.tsx, line: 24}
+  caller: link_edit_page
+  call:
+    status: fact
+    when: conditional
+    condition: LinkProvider がリンクを読み終え、リンクがあるとき (読み込み中と、リンクが無いときは描かない)
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 4}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 20}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 16}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 20}
+    note: JSX に書いているのは LinkEditPage で、LinkProvider の children として渡す。描くかどうかは LinkProvider が決める
+  summary:
+    status: interpretation
+    value: リンクの名前・転送先の URL・slug の編集フォーム。useLinkQuery でリンクを読んで初期値にし (経路はフレーム use_link_query と同じ)、送信で useUpdateQuery の POST /links/<linkId> を呼ぶ。成功したら links と link:<linkId> の更新印を付けて、読み直させる。useConfig の設定値 (GET /config。環境変数を返すだけで、データを読まないので、フレームにしていない) で、slug の欄の出し方と、表示する短縮 URL の前半を決める。この画面は onClose を渡さないので、取り消しボタンは出ない
+    evidence:
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 36}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 37}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 43}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 47}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 51}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 54}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 55}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 77}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 96}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 132}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 142}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 20}
+  settings:
+  - name: CLOUD_MODE
+    kind: env
+    effect: 設定すると (GET /config の cloudMode が真になり)、slug の入力欄と、slug を作り直すボタンを出さず、slug を隠し項目にする
+    status: fact
+    evidence:
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 44}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 96}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 102}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 107}
+    - {file: src/app/api/config/route.ts, line: 15}
+  - name: LINKS_URL
+    kind: env
+    effect: 設定すると (GET /config の linksUrl)、画面に出す短縮 URL の前半が、その値になる。無ければ、ブラウザの origin + /q
+    status: fact
+    evidence:
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 45}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 46}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 132}
+    - {file: src/app/api/config/route.ts, line: 17}
+    - {file: src/lib/constants.ts, line: 22}
+  rules:
+  - kind: validation
+    value: 転送先の URL は、URL として解釈できる文字列であること (new URL が失敗する文字列は、不正な URL として送信させない)
+    status: fact
+    evidence:
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 62}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 63}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 91}
+    - {file: src/lib/url.ts, line: 44}
+- id: use_update_query
+  layer: component
+  kind: hook
+  name: useUpdateQuery('/links/<linkId>')
+  source: {file: src/components/hooks/queries/useUpdateQuery.ts, line: 6}
+  caller: link_edit_form
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 16}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 36}
+  summary:
+    status: interpretation
+    value: 受け取った path に、フォームの値と追加の値 (この画面では id と teamId。teamId は渡されないので undefined) を合わせて POST する mutation を作る
+    evidence:
+    - {file: src/components/hooks/queries/useUpdateQuery.ts, line: 8}
+    - {file: src/components/hooks/queries/useUpdateQuery.ts, line: 9}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 37}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 39}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 40}
+  settings:
+  - name: API_URL
+    kind: env
+    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 39}
+    - {file: next.config.ts, line: 14}
+    - {file: next.config.ts, line: 215}
+- id: api_link_post
+  layer: api_route
+  kind: route_handler
+  name: POST /api/links/[linkId]
+  source: {file: 'src/app/api/links/[linkId]/route.ts', line: 25}
+  caller: use_update_query
+  call:
+    status: fact
+    when: conditional
+    condition: フォームの保存ボタンを押して送信したとき
+    evidence:
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 37}
+    - {file: src/app/(main)/links/LinkEditForm.tsx, line: 51}
+    - {file: src/components/hooks/queries/useUpdateQuery.ts, line: 9}
+    - {file: src/components/hooks/useApi.ts, line: 49}
+    - {file: src/lib/api-url.ts, line: 44}
+    note: 'path は linkId ? `/links/${linkId}` : ''/links''。この画面は linkId を必ず渡すので、前者に決まる'
+  summary:
+    status: interpretation
+    value: 本文を検査し、parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canUpdateLink で更新してよいかを確かめ (だめなら 401)、updateLink で name / url / slug を更新する。slug の一意の制約に当たれば 400、ほかの失敗は 500 を返す
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 26}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 32}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 41}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 42}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 46}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 50}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 54}
+  parameters:
+  - name: linkId
+    value: URL の動的な段
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 38}
+  - name: name / url / slug
+    value: JSON の本文。フォームの値 (フックが足す id と teamId は、スキーマに無く、受け口は取り出さない)
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 27}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 28}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 29}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 39}
+    - {file: src/components/hooks/queries/useUpdateQuery.ts, line: 9}
+  rules:
+  - kind: validation
+    value: name は 100 文字まで、url は 500 文字まで、slug は 8 文字以上 100 文字まで (どれも省ける)
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 27}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 28}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 29}
+  - kind: validation
+    value: slug がほかのリンクと重なると (一意の制約の違反)、400 で「That slug is already taken.」を返す
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 50}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 51}
+    - {file: prisma/schema.prisma, line: 344}
+- id: q_can_update_link
+  layer: query
+  kind: function
+  name: canUpdateLink (src/permissions/link.ts)
+  source: {file: src/permissions/link.ts, line: 42}
+  caller: api_link_post
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 4}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 41}
+  summary:
+    status: interpretation
+    value: ユーザーが無ければ拒み、管理者なら許す。getLink でリンクを読み、無ければ拒む。持ち主がユーザーなら本人かを、チームの持ち物なら getTeamUser で team_user を読み (経路はフレーム q_get_team_user と同じ)、その役割が website:update の権限を持つかを hasPermission (定数の表を見るだけ) で確かめる。POST /api/links/[linkId]/shares も同じ関数を呼ぶ
+    evidence:
+    - {file: src/permissions/link.ts, line: 43}
+    - {file: src/permissions/link.ts, line: 47}
+    - {file: src/permissions/link.ts, line: 51}
+    - {file: src/permissions/link.ts, line: 53}
+    - {file: src/permissions/link.ts, line: 57}
+    - {file: src/permissions/link.ts, line: 58}
+    - {file: src/permissions/link.ts, line: 61}
+    - {file: src/permissions/link.ts, line: 62}
+    - {file: src/permissions/link.ts, line: 64}
+    - {file: src/lib/auth.ts, line: 164}
+  guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - {file: src/permissions/link.ts, line: 47}
+    note: 管理者なら、ほかの確認をせずに許す
+  - kind: ownership
+    value: canUpdateLink
+    status: fact
+    evidence:
+    - {file: src/permissions/link.ts, line: 58}
+    - {file: src/permissions/link.ts, line: 62}
+    note: link.userId が本人 (user.id === link.userId) か、link.teamId のチームのメンバー (getTeamUser が行を返す)。満たさなければ、呼び出し元の route が 401 を返す
+  - kind: permission
+    value: PERMISSIONS.websiteUpdate
+    status: fact
+    evidence:
+    - {file: src/permissions/link.ts, line: 64}
+    - {file: src/lib/constants.ts, line: 194}
+    note: チームの持ち物のリンクのとき、チームでの役割が website:update を持つこと
+- id: q_get_link_update_rw
+  layer: query
+  kind: function
+  name: getLink / findLink (src/queries/prisma/link.ts)
+  source: {file: src/queries/prisma/link.ts, line: 12}
+  caller: q_can_update_link
+  call:
+    status: fact
+    when: conditional
+    condition: ログイン中のユーザーが管理者でないとき
+    evidence:
+    - {file: src/permissions/link.ts, line: 47}
+    - {file: src/permissions/link.ts, line: 51}
+  summary:
+    status: interpretation
+    value: id で link を 1 件読む。呼び出し元 (canUpdateLink) が終端にならないよう、いちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_get_link と同じ
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 13}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: link
+    detail: prisma.client.link.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: link_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 9}
+    - {file: src/queries/prisma/link.ts, line: 15}
+    - {file: prisma/schema.prisma, line: 358}
+- id: q_update_link
+  layer: query
+  kind: function
+  name: updateLink (src/queries/prisma/link.ts)
+  source: {file: src/queries/prisma/link.ts, line: 67}
+  caller: api_link_post
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 5}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 46}
+  summary:
+    status: interpretation
+    value: id で link を 1 件更新する。書く値は、受け口が渡す name / url / slug
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 68}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 46}
+  io:
+  - op: update
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: link
+    detail: 'prisma.client.link.update (where id, data: name / url / slug)'
+    fields:
+    - {name: name, use: [write]}
+    - {name: url, use: [write]}
+    - {name: slug, use: [write]}
+    - {name: updated_at, use: [write]}
+    - {name: link_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 68}
+    - {file: 'src/app/api/links/[linkId]/route.ts', line: 46}
+    - {file: prisma/schema.prisma, line: 341}
+    - {file: prisma/schema.prisma, line: 342}
+    - {file: prisma/schema.prisma, line: 343}
+    - {file: prisma/schema.prisma, line: 344}
+    - {file: prisma/schema.prisma, line: 348}
+    - {file: prisma/schema.prisma, line: 358}
+    note: 書く列は、受け口が渡す値 (route.ts:46) から読んだ。updated_at は、Prisma の @updatedAt (prisma/schema.prisma:348) が自動で書く
+- id: ext_prisma_update_link
+  layer: external
+  kind: library
+  name: Prisma Client link.update
+  source: {file: src/queries/prisma/link.ts, line: 68}
+  caller: q_update_link
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/link.ts, line: 68}
+- id: link_share_form
+  layer: component
+  kind: component
+  name: LinkShareForm / LinkShareFormContent
+  source: {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 10}
+  caller: link_edit_page
+  call:
+    status: fact
+    when: conditional
+    condition: LinkProvider がリンクを読み終え、リンクがあるとき (読み込み中と、リンクが無いときは描かない)
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 3}
+    - {file: 'src/app/(main)/links/[linkId]/edit/LinkEditPage.tsx', line: 23}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 16}
+    - {file: src/app/(main)/links/LinkProvider.tsx, line: 20}
+    note: JSX に書いているのは LinkEditPage で、LinkProvider の children として渡す。描くかどうかは LinkProvider が決める
+  summary:
+    status: interpretation
+    value: useLinkSharesQuery でこのリンクの共有の一覧を読み、見出しと追加ボタンを出す。追加ボタンを押すと作成フォーム (SimpleShareCreateForm) に切り替わる。作成フォームを開いていないときは、共有があれば一覧 (SimpleSharesTable)、無ければ「データなし」の文言を出す
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 11}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 12}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 13}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 17}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 40}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 45}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 53}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 55}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 57}
+- id: use_link_shares_query
+  layer: component
+  kind: hook
+  name: useLinkSharesQuery
+  source: {file: src/components/hooks/queries/useLinkSharesQuery.ts, line: 6}
+  caller: link_share_form
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 5}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 11}
+  summary:
+    status: interpretation
+    value: usePagedQuery で GET /links/<linkId>/shares を呼ぶ。いまの URL のクエリの page / search / orderBy / sortDescending を引数として送る。queryKey に shares の更新印を入れるので、共有の追加・変更・削除のあと読み直す
+    evidence:
+    - {file: src/components/hooks/queries/useLinkSharesQuery.ts, line: 7}
+    - {file: src/components/hooks/queries/useLinkSharesQuery.ts, line: 10}
+    - {file: src/components/hooks/queries/useLinkSharesQuery.ts, line: 11}
+    - {file: src/components/hooks/queries/useLinkSharesQuery.ts, line: 13}
+    - {file: src/components/hooks/usePagedQuery.ts, line: 18}
+    - {file: src/components/hooks/usePagedQuery.ts, line: 23}
+    - {file: src/components/hooks/usePagedQuery.ts, line: 24}
+  settings:
+  - name: API_URL
+    kind: env
+    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 39}
+    - {file: next.config.ts, line: 14}
+    - {file: next.config.ts, line: 215}
+- id: api_link_shares_get
+  layer: api_route
+  kind: route_handler
+  name: GET /api/links/[linkId]/shares
+  source: {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 11}
+  caller: use_link_shares_query
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/hooks/queries/useLinkSharesQuery.ts, line: 13}
+    - {file: src/components/hooks/usePagedQuery.ts, line: 24}
+    - {file: src/components/hooks/useApi.ts, line: 42}
+    - {file: src/lib/api-url.ts, line: 44}
+  summary:
+    status: interpretation
+    value: クエリを検査し、parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canViewLink で見てよいかを確かめ (経路はフレーム q_can_view_link と同じ。だめなら 401)、getSharesByEntityId で、このリンクの共有をページ単位で読む
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 12}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 17}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 26}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 27}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 30}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 36}
+  parameters:
+  - name: linkId
+    value: URL の動的な段
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 23}
+  - name: page / pageSize / search
+    value: URL のクエリ。受け口が取り出すのは、この 3 つ (画面のフックは pageSize を送らない)
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 24}
+    - {file: src/components/hooks/usePagedQuery.ts, line: 24}
+- id: q_get_shares
+  layer: query
+  kind: function
+  name: getSharesByEntityId (src/queries/prisma/share.ts)
+  source: {file: src/queries/prisma/share.ts, line: 36}
+  caller: api_link_shares_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 9}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 30}
+  summary:
+    status: interpretation
+    value: entityId (ここではリンクの id) の共有を、作成の新しい順に、ページ単位で読み (pagedQuery)、件数も数える。search は受け取るが、絞り込みの条件には入れていない。受け口が orderBy を渡さないので、並びは createdAt の降順のまま
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 40}
+    - {file: src/queries/prisma/share.ts, line: 42}
+    - {file: src/queries/prisma/share.ts, line: 46}
+    - {file: src/queries/prisma/share.ts, line: 49}
+    - {file: src/queries/prisma/share.ts, line: 52}
+    - {file: src/lib/prisma.ts, line: 757}
+    - {file: src/lib/prisma.ts, line: 761}
+    - {file: src/lib/prisma.ts, line: 775}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: 'prisma.pagedQuery(''share''): share.findMany (where entityId, orderBy createdAt desc, take / skip) と share.count (where entityId)'
+    fields:
+    - {name: '*', use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 43}
+    - {file: src/queries/prisma/share.ts, line: 46}
+    - {file: src/queries/prisma/share.ts, line: 49}
+    - {file: src/lib/prisma.ts, line: 761}
+    - {file: src/lib/prisma.ts, line: 775}
+    - {file: prisma/schema.prisma, line: 403}
+    - {file: prisma/schema.prisma, line: 408}
+    - {file: prisma/schema.prisma, line: 412}
+- id: ext_prisma_paged_share
+  layer: external
+  kind: library
+  name: Prisma Client share.findMany / count (pagedQuery)
+  source: {file: src/lib/prisma.ts, line: 761}
+  caller: q_get_shares
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 42}
+    - {file: src/lib/prisma.ts, line: 761}
+    - {file: src/lib/prisma.ts, line: 775}
+    note: 最初に呼ぶ行を source にし、count の行は evidence に入れた
+- id: share_create_form
+  layer: component
+  kind: component
+  name: SimpleShareCreateForm
+  source: {file: src/components/share/SimpleShareCreateForm.tsx, line: 15}
+  caller: link_share_form
+  call:
+    status: fact
+    when: conditional
+    condition: 共有の追加ボタンを押したとき (作成フォームを開いている間)
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 7}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 40}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 45}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 46}
+  summary:
+    status: interpretation
+    value: 共有の名前、絞り込みを許すか、テーマを入力するフォーム。送信で、親から受け取った createPath (この画面では /links/<linkId>/shares) に、name と parameters (allowFilter、theme) を POST し、shares の更新印を付けて、作成フォームを閉じる。失敗したら、エラーをフォームに出す
+    evidence:
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 24}
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 35}
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 36}
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 38}
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 39}
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 43}
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 44}
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 46}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 47}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 48}
+  settings:
+  - name: API_URL
+    kind: env
+    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 39}
+    - {file: next.config.ts, line: 14}
+    - {file: next.config.ts, line: 215}
+- id: api_link_shares_post
+  layer: api_route
+  kind: route_handler
+  name: POST /api/links/[linkId]/shares
+  source: {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 39}
+  caller: share_create_form
+  call:
+    status: fact
+    when: conditional
+    condition: 作成フォームの追加ボタンを押して送信したとき
+    evidence:
+    - {file: src/components/share/SimpleShareCreateForm.tsx, line: 35}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 47}
+    - {file: src/components/hooks/useApi.ts, line: 49}
+    - {file: src/lib/api-url.ts, line: 44}
+    note: URL は、親の LinkShareForm が props (createPath) で渡す `/links/${linkId}/shares`
+  summary:
+    status: interpretation
+    value: 本文を検査し、parseRequest で認証し (経路はフレーム q_parse_request と同じ)、canUpdateLink でリンクを更新してよいかを確かめ (経路はフレーム q_can_update_link と同じ。だめなら 401)、createShare で共有を作る。id は uuid、対象はこのリンク、種類は ENTITY_TYPE.link、slug は 16 文字のランダムな文字
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 40}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 45}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 55}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 56}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 59}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 60}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 61}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 62}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 64}
+  parameters:
+  - name: linkId
+    value: URL の動的な段
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 51}
+  - name: name / parameters
+    value: JSON の本文。parameters は省けて、省くと空のオブジェクトになる
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 41}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 42}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 52}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 53}
+  rules:
+  - kind: validation
+    value: 共有の名前は必須で、200 文字まで
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 41}
+  - kind: calculation
+    value: 共有の URL に使う slug は、サーバーが 16 文字のランダムな文字で作る (利用者は決められない)
+    status: fact
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 64}
+- id: q_create_share
+  layer: query
+  kind: function
+  name: createShare (src/queries/prisma/share.ts)
+  source: {file: src/queries/prisma/share.ts, line: 56}
+  caller: api_link_shares_post
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 9}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 59}
+  summary:
+    status: interpretation
+    value: 受け取った値で share を 1 件作る
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 59}
+  io:
+  - op: create
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: 'prisma.client.share.create (data: id / entityId / shareType / name / slug / parameters)'
+    fields:
+    - {name: share_id, use: [write]}
+    - {name: entity_id, use: [write]}
+    - {name: share_type, use: [write], set_to: '2'}
+    - {name: name, use: [write]}
+    - {name: slug, use: [write]}
+    - {name: parameters, use: [write]}
+    - {name: updated_at, use: [write]}
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 59}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 60}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 61}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 62}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 63}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 64}
+    - {file: 'src/app/api/links/[linkId]/shares/route.ts', line: 65}
+    - {file: src/lib/constants.ts, line: 134}
+    - {file: prisma/schema.prisma, line: 402}
+    - {file: prisma/schema.prisma, line: 403}
+    - {file: prisma/schema.prisma, line: 404}
+    - {file: prisma/schema.prisma, line: 405}
+    - {file: prisma/schema.prisma, line: 406}
+    - {file: prisma/schema.prisma, line: 407}
+    - {file: prisma/schema.prisma, line: 409}
+    - {file: prisma/schema.prisma, line: 412}
+    note: 書く列は、受け口が渡す値 (shares/route.ts:60-65) から読んだ。share_type の 2 は ENTITY_TYPE.link (src/lib/constants.ts:134)。updated_at は、Prisma の @updatedAt (prisma/schema.prisma:409) が自動で書く
+- id: ext_prisma_create_share
+  layer: external
+  kind: library
+  name: Prisma Client share.create
+  source: {file: src/queries/prisma/share.ts, line: 59}
+  caller: q_create_share
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 59}
+- id: simple_shares_table
+  layer: component
+  kind: component
+  name: SimpleSharesTable / SharedSharesTable
+  source: {file: src/components/share/SimpleSharesTable.tsx, line: 6}
+  caller: link_share_form
+  call:
+    status: fact
+    when: conditional
+    condition: 作成フォームを開いておらず、共有が 1 件以上あるとき
+    evidence:
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 8}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 53}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 54}
+    - {file: 'src/app/(main)/links/[linkId]/LinkShareForm.tsx', line: 55}
+  summary:
+    status: interpretation
+    value: 共有の一覧。SharedSharesTable (名前と共有の URL を並べる表。データを読まないので、フレームにしていない) に行を渡し、行ごとの操作として、編集ボタン (SimpleShareEditButton) と削除ボタン (ShareDeleteButton) を描く。共有の URL は、useConfig の cloudMode が真なら CLOUD_URL、そうでなければブラウザの origin と BASE_PATH から作り、新しいタブで開くリンクと、コピーのボタンを付ける
+    evidence:
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 8}
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 10}
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 12}
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 13}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 24}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 27}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 57}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 73}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 94}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 109}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 121}
+  links:
+  - kind: navigate
+    target: /share/${slug}
+    entry_id: share.slug_d.path_o
+    status: fact
+    evidence:
+    - {file: src/components/share/SharedSharesTable.tsx, line: 34}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 57}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 109}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 110}
+    note: クラウドモードでないとき。新しいタブで開く。前に、ブラウザの origin と basePath が付く
+  - kind: navigate
+    target: ${process.env.cloudUrl}/share/${slug}
+    status: unknown
+    reason: not_traceable_in_repo
+    evidence:
+    - {file: src/components/share/SharedSharesTable.tsx, line: 28}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 29}
+    note: クラウドモードのときの行き先。cloudUrl は環境変数 CLOUD_URL の値で、リポジトリからは読めない
+  settings:
+  - name: CLOUD_MODE
+    kind: env
+    effect: 設定すると (GET /config の cloudMode が真になり)、共有の URL が、ブラウザの origin + BASE_PATH ではなく、CLOUD_URL で始まる
+    status: fact
+    evidence:
+    - {file: src/components/share/SharedSharesTable.tsx, line: 24}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 28}
+    - {file: src/components/share/SharedSharesTable.tsx, line: 29}
+    - {file: src/app/api/config/route.ts, line: 15}
+  - name: CLOUD_URL
+    kind: env
+    effect: クラウドモードのとき、共有の URL の前に付く
+    status: fact
+    evidence:
+    - {file: src/components/share/SharedSharesTable.tsx, line: 29}
+    - {file: next.config.ts, line: 17}
+    - {file: next.config.ts, line: 218}
+  - name: BASE_PATH
+    kind: env
+    effect: クラウドモードでないとき、共有の URL の、origin の後ろに付く
+    status: fact
+    evidence:
+    - {file: src/components/share/SharedSharesTable.tsx, line: 34}
+    - {file: next.config.ts, line: 15}
+    - {file: next.config.ts, line: 216}
+- id: share_edit_button
+  layer: component
+  kind: component
+  name: SimpleShareEditButton
+  source: {file: src/components/share/SimpleShareEditButton.tsx, line: 6}
+  caller: simple_shares_table
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 3}
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 12}
+    note: 共有の行ごとに描く (renderActions)
+  summary:
+    status: interpretation
+    value: 編集ボタンと、押すと開く小窓。小窓に SimpleShareEditForm を描く
+    evidence:
+    - {file: src/components/share/SimpleShareEditButton.tsx, line: 10}
+    - {file: src/components/share/SimpleShareEditButton.tsx, line: 11}
+- id: share_edit_form
+  layer: component
+  kind: component
+  name: SimpleShareEditForm
+  source: {file: src/components/share/SimpleShareEditForm.tsx, line: 17}
+  caller: share_edit_button
+  call:
+    status: fact
+    when: conditional
+    condition: 共有の編集ボタンを押して、小窓を開いたとき
+    evidence:
+    - {file: src/components/share/SimpleShareEditButton.tsx, line: 4}
+    - {file: src/components/share/SimpleShareEditButton.tsx, line: 11}
+    - {file: src/components/input/DialogButton.tsx, line: 81}
+    - {file: src/components/input/DialogButton.tsx, line: 85}
+    note: 小窓の仕組み (DialogTrigger と Modal) は DialogButton にある。開くまで中身を描かないのは UI ライブラリ (@umami/react-zen) の動きで、リポジトリからは読めない
+  summary:
+    status: interpretation
+    value: 開くと GET /share/id/<shareId> で共有を読み、名前・絞り込みを許すか・テーマを初期値にする (読み込み中は Loading)。共有の URL を、読むだけの欄に出す (useConfig の cloudMode が真なら CLOUD_URL、そうでなければブラウザの origin で始まる。表示だけ)。送信で POST /share/id/<shareId> に、名前、いまの slug、もとの parameters に allowFilter と theme を重ねたものを送り、shares の更新印を付けて小窓を閉じる。失敗したら、エラーをフォームに出す
+    evidence:
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 27}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 37}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 44}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 45}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 52}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 59}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 60}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 61}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 63}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 69}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 71}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 73}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 79}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 97}
+  settings:
+  - name: API_URL
+    kind: env
+    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 39}
+    - {file: next.config.ts, line: 14}
+    - {file: next.config.ts, line: 215}
+- id: api_share_get
+  layer: api_route
+  kind: route_handler
+  name: GET /api/share/id/[shareId]
+  source: {file: 'src/app/api/share/id/[shareId]/route.ts', line: 8}
+  caller: share_edit_form
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 44}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 51}
+    - {file: src/components/hooks/useApi.ts, line: 42}
+    - {file: src/lib/api-url.ts, line: 44}
+    note: 小窓を開いたとき (フォームを描いたとき) の useEffect で呼ぶ。shares の更新印が変わったときも呼び直す
+  summary:
+    status: interpretation
+    value: parseRequest で認証し (経路はフレーム q_parse_request と同じ)、getShare で共有を読み、canViewEntity で、その共有の対象 (entityId) を見てよいかを確かめ (だめなら 401)、共有を返す。共有が無いときの確認は無く、そのまま share.entityId を読む
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 9}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 17}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 19}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 20}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 23}
+  parameters:
+  - name: shareId
+    value: URL の動的な段
+    status: fact
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 15}
+- id: q_get_share
+  layer: query
+  kind: function
+  name: getShare / findShare (src/queries/prisma/share.ts)
+  source: {file: src/queries/prisma/share.ts, line: 9}
+  caller: api_share_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 6}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 17}
+  summary:
+    status: interpretation
+    value: id で share を 1 件読む。share/id/[shareId] の POST と DELETE も、権限の確認の前に同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 6}
+    - {file: src/queries/prisma/share.ts, line: 10}
+    - {file: src/queries/prisma/share.ts, line: 12}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: prisma.client.share.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: share_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 6}
+    - {file: src/queries/prisma/share.ts, line: 12}
+    - {file: prisma/schema.prisma, line: 402}
+    - {file: prisma/schema.prisma, line: 412}
+- id: ext_prisma_get_share
+  layer: external
+  kind: library
+  name: Prisma Client share.findUnique
+  source: {file: src/queries/prisma/share.ts, line: 6}
+  caller: q_get_share
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 10}
+    - {file: src/queries/prisma/share.ts, line: 6}
+- id: q_can_view_entity
+  layer: query
+  kind: function
+  name: canViewEntity (src/permissions/entity.ts)
+  source: {file: src/permissions/entity.ts, line: 7}
+  caller: api_share_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 5}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 19}
+  summary:
+    status: interpretation
+    value: ユーザーが無ければ拒み、管理者なら許す。getEntity で対象 (website / link / pixel / board のどれか) を探し、無ければ拒む。持ち主がユーザーなら本人かを、チームの持ち物なら getTeamUser でそのチームのメンバーかを確かめる (getTeamUser の経路はフレーム q_get_team_user と同じ)
+    evidence:
+    - {file: src/permissions/entity.ts, line: 8}
+    - {file: src/permissions/entity.ts, line: 12}
+    - {file: src/permissions/entity.ts, line: 16}
+    - {file: src/permissions/entity.ts, line: 18}
+    - {file: src/permissions/entity.ts, line: 22}
+    - {file: src/permissions/entity.ts, line: 23}
+    - {file: src/permissions/entity.ts, line: 26}
+    - {file: src/permissions/entity.ts, line: 27}
+    - {file: src/permissions/entity.ts, line: 29}
+  guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 12}
+    note: 管理者なら、ほかの確認をせずに許す
+  - kind: ownership
+    value: canViewEntity
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 23}
+    - {file: src/permissions/entity.ts, line: 27}
+    - {file: src/permissions/entity.ts, line: 29}
+    note: entity.userId が本人 (user.id === entity.userId) か、entity.teamId のチームのメンバー (getTeamUser が行を返す)。満たさなければ、呼び出し元の route が 401 を返す
+- id: q_get_entity
+  layer: query
+  kind: function
+  name: getEntity (src/lib/entity.ts)
+  source: {file: src/lib/entity.ts, line: 4}
+  caller: q_can_view_entity
+  call:
+    status: fact
+    when: conditional
+    condition: ログイン中のユーザーが管理者でないとき
+    evidence:
+    - {file: src/permissions/entity.ts, line: 3}
+    - {file: src/permissions/entity.ts, line: 12}
+    - {file: src/permissions/entity.ts, line: 16}
+  summary:
+    status: interpretation
+    value: 同じ id の website / link / pixel / board を同時に探し、website、link、pixel、board の順で、最初に見つかったものを返す (この画面の共有の対象はリンクなので、ふつうは link が当たる)。getLink も呼ぶ。経路はフレーム q_get_link と同じ。canUpdateEntity と canDeleteEntity も同じ関数を呼ぶ
+    evidence:
+    - {file: src/lib/entity.ts, line: 5}
+    - {file: src/lib/entity.ts, line: 6}
+    - {file: src/lib/entity.ts, line: 7}
+    - {file: src/lib/entity.ts, line: 8}
+    - {file: src/lib/entity.ts, line: 9}
+    - {file: src/lib/entity.ts, line: 12}
+- id: q_get_website
+  layer: query
+  kind: function
+  name: getWebsite / findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)
+  source: {file: src/queries/prisma/website.ts, line: 80}
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 2}
+    - {file: src/lib/entity.ts, line: 6}
+  summary:
+    status: interpretation
+    value: id が uuid の形でなければ null。website を id で 1 件読み (deletedAt の条件は付けない)、見つかれば、その website の最新の share の slug を shareId として付ける
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 81}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 91}
+    - {file: src/queries/prisma/website.ts, line: 95}
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: src/queries/prisma/website.ts, line: 318}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website
+    detail: prisma.client.website.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: website_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 87}
+    - {file: prisma/schema.prisma, line: 99}
+    - {file: prisma/schema.prisma, line: 130}
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)
+    fields:
+    - {name: slug, use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: src/queries/prisma/website.ts, line: 306}
+    - {file: src/queries/prisma/website.ts, line: 309}
+    - {file: src/queries/prisma/website.ts, line: 312}
+    - {file: prisma/schema.prisma, line: 403}
+    - {file: prisma/schema.prisma, line: 406}
+    - {file: prisma/schema.prisma, line: 408}
+    - {file: prisma/schema.prisma, line: 412}
+    note: website が見つかったときだけ。この画面の共有の対象はリンクなので、ふつうは website が見つからず、ここまで進まない
+- id: ext_prisma_get_website
+  layer: external
+  kind: library
+  name: Prisma Client website.findUnique / share.findFirst
+  source: {file: src/queries/prisma/website.ts, line: 77}
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 304}
+    note: 最初に呼ぶ行を source にし、残りの行は evidence に入れた
+- id: q_get_pixel
+  layer: query
+  kind: function
+  name: getPixel / findPixel (src/queries/prisma/pixel.ts)
+  source: {file: src/queries/prisma/pixel.ts, line: 12}
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 2}
+    - {file: src/lib/entity.ts, line: 8}
+  summary:
+    status: interpretation
+    value: id で pixel を 1 件読む (id の形は確かめない。deletedAt の条件も付けない)
+    evidence:
+    - {file: src/queries/prisma/pixel.ts, line: 9}
+    - {file: src/queries/prisma/pixel.ts, line: 13}
+    - {file: src/queries/prisma/pixel.ts, line: 15}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: pixel
+    detail: prisma.client.pixel.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: pixel_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/pixel.ts, line: 9}
+    - {file: src/queries/prisma/pixel.ts, line: 15}
+    - {file: prisma/schema.prisma, line: 362}
+    - {file: prisma/schema.prisma, line: 378}
+- id: ext_prisma_get_pixel
+  layer: external
+  kind: library
+  name: Prisma Client pixel.findUnique
+  source: {file: src/queries/prisma/pixel.ts, line: 9}
+  caller: q_get_pixel
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/pixel.ts, line: 13}
+    - {file: src/queries/prisma/pixel.ts, line: 9}
+- id: q_get_board
+  layer: query
+  kind: function
+  name: getBoard / findBoard (src/queries/prisma/board.ts)
+  source: {file: src/queries/prisma/board.ts, line: 13}
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 2}
+    - {file: src/lib/entity.ts, line: 9}
+  summary:
+    status: interpretation
+    value: id で board を 1 件読む (id の形は確かめない)
+    evidence:
+    - {file: src/queries/prisma/board.ts, line: 10}
+    - {file: src/queries/prisma/board.ts, line: 14}
+    - {file: src/queries/prisma/board.ts, line: 16}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: board
+    detail: prisma.client.board.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: board_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/board.ts, line: 10}
+    - {file: src/queries/prisma/board.ts, line: 16}
+    - {file: prisma/schema.prisma, line: 382}
+    - {file: prisma/schema.prisma, line: 398}
+- id: ext_prisma_get_board
+  layer: external
+  kind: library
+  name: Prisma Client board.findUnique
+  source: {file: src/queries/prisma/board.ts, line: 10}
+  caller: q_get_board
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/board.ts, line: 14}
+    - {file: src/queries/prisma/board.ts, line: 10}
+- id: api_share_post
+  layer: api_route
+  kind: route_handler
+  name: POST /api/share/id/[shareId]
+  source: {file: 'src/app/api/share/id/[shareId]/route.ts', line: 26}
+  caller: share_edit_form
+  call:
+    status: fact
+    when: conditional
+    condition: 小窓の保存ボタンを押して送信したとき
+    evidence:
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 59}
+    - {file: src/components/hooks/useApi.ts, line: 49}
+    - {file: src/lib/api-url.ts, line: 44}
+  summary:
+    status: interpretation
+    value: 本文を検査し、parseRequest で認証し (経路はフレーム q_parse_request と同じ)、getShare で共有を読み (経路はフレーム q_get_share と同じ。無ければ 404)、canUpdateEntity で、共有の対象を更新してよいかを確かめ (だめなら 401)、updateShare で name / slug / parameters を更新する
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 27}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 33}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 42}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 44}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 48}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 49}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 52}
+  parameters:
+  - name: shareId
+    value: URL の動的な段
+    status: fact
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 39}
+  - name: name / slug / parameters
+    value: JSON の本文。slug は、画面が、読んだ共有の slug をそのまま送る
+    status: fact
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 28}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 29}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 30}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 40}
+    - {file: src/components/share/SimpleShareEditForm.tsx, line: 61}
+  rules:
+  - kind: validation
+    value: 共有の名前は 200 文字まで、slug は 100 文字まで (どちらも必須)
+    status: fact
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 28}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 29}
+  - kind: validation
+    value: 更新する共有が無ければ、404 を返す
+    status: fact
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 44}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 45}
+- id: q_can_update_entity
+  layer: query
+  kind: function
+  name: canUpdateEntity (src/permissions/entity.ts)
+  source: {file: src/permissions/entity.ts, line: 35}
+  caller: api_share_post
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 5}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 48}
+  summary:
+    status: interpretation
+    value: ユーザーが無ければ拒み、管理者なら許す。getEntity で対象を探し、無ければ拒む。持ち主がユーザーなら本人かを、チームの持ち物なら getTeamUser で team_user を読み (経路はフレーム q_get_team_user と同じ)、その役割が website:update の権限を持つかを確かめる
+    evidence:
+    - {file: src/permissions/entity.ts, line: 36}
+    - {file: src/permissions/entity.ts, line: 40}
+    - {file: src/permissions/entity.ts, line: 44}
+    - {file: src/permissions/entity.ts, line: 46}
+    - {file: src/permissions/entity.ts, line: 50}
+    - {file: src/permissions/entity.ts, line: 51}
+    - {file: src/permissions/entity.ts, line: 54}
+    - {file: src/permissions/entity.ts, line: 55}
+    - {file: src/permissions/entity.ts, line: 57}
+  guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 40}
+    note: 管理者なら、ほかの確認をせずに許す
+  - kind: ownership
+    value: canUpdateEntity
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 51}
+    - {file: src/permissions/entity.ts, line: 55}
+    note: entity.userId が本人 (user.id === entity.userId) か、entity.teamId のチームのメンバー (getTeamUser が行を返す)。満たさなければ、呼び出し元の route が 401 を返す
+  - kind: permission
+    value: PERMISSIONS.websiteUpdate
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 57}
+    - {file: src/lib/constants.ts, line: 194}
+    note: チームの持ち物のとき、チームでの役割が website:update を持つこと
+- id: q_get_entity_update_rw
+  layer: query
+  kind: function
+  name: getEntity (src/lib/entity.ts)
+  source: {file: src/lib/entity.ts, line: 4}
+  caller: q_can_update_entity
+  call:
+    status: fact
+    when: conditional
+    condition: ログイン中のユーザーが管理者でないとき
+    evidence:
+    - {file: src/permissions/entity.ts, line: 40}
+    - {file: src/permissions/entity.ts, line: 44}
+  summary:
+    status: interpretation
+    value: 同じ id の website / link / pixel / board を同時に探す。呼び出し元 (canUpdateEntity) が終端にならないよう、いちばん早い呼び先を書き直したもの。全体の経路はフレーム q_get_entity と同じ
+    evidence:
+    - {file: src/lib/entity.ts, line: 5}
+- id: q_get_website_update_rw
+  layer: query
+  kind: function
+  name: getWebsite / findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)
+  source: {file: src/queries/prisma/website.ts, line: 80}
+  caller: q_get_entity_update_rw
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 6}
+  summary:
+    status: interpretation
+    value: website を id で 1 件読み、見つかれば、最新の share の slug を付ける。getEntity のいちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_get_website と同じ
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 95}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website
+    detail: prisma.client.website.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: website_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 87}
+    - {file: prisma/schema.prisma, line: 99}
+    - {file: prisma/schema.prisma, line: 130}
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)
+    fields:
+    - {name: slug, use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: src/queries/prisma/website.ts, line: 306}
+    - {file: src/queries/prisma/website.ts, line: 309}
+    - {file: src/queries/prisma/website.ts, line: 312}
+    - {file: prisma/schema.prisma, line: 403}
+    - {file: prisma/schema.prisma, line: 406}
+    - {file: prisma/schema.prisma, line: 408}
+    - {file: prisma/schema.prisma, line: 412}
+    note: website が見つかったときだけ。この画面の共有の対象はリンクなので、ふつうは website が見つからず、ここまで進まない
+- id: q_update_share
+  layer: query
+  kind: function
+  name: updateShare (src/queries/prisma/share.ts)
+  source: {file: src/queries/prisma/share.ts, line: 64}
+  caller: api_share_post
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 6}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 52}
+  summary:
+    status: interpretation
+    value: id で share を 1 件更新する。書く値は、受け口が渡す name / slug / parameters
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 68}
+    - {file: src/queries/prisma/share.ts, line: 70}
+    - {file: src/queries/prisma/share.ts, line: 72}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 52}
+  io:
+  - op: update
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: 'prisma.client.share.update (where id, data: name / slug / parameters)'
+    fields:
+    - {name: name, use: [write]}
+    - {name: slug, use: [write]}
+    - {name: parameters, use: [write]}
+    - {name: updated_at, use: [write]}
+    - {name: share_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 68}
+    - {file: src/queries/prisma/share.ts, line: 70}
+    - {file: src/queries/prisma/share.ts, line: 72}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 53}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 54}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 55}
+    - {file: prisma/schema.prisma, line: 402}
+    - {file: prisma/schema.prisma, line: 404}
+    - {file: prisma/schema.prisma, line: 406}
+    - {file: prisma/schema.prisma, line: 407}
+    - {file: prisma/schema.prisma, line: 409}
+    - {file: prisma/schema.prisma, line: 412}
+    note: 書く列は、受け口が渡す値 (share/id/[shareId]/route.ts:53-55) から読んだ。updated_at は、Prisma の @updatedAt (prisma/schema.prisma:409) が自動で書く
+- id: ext_prisma_update_share
+  layer: external
+  kind: library
+  name: Prisma Client share.update
+  source: {file: src/queries/prisma/share.ts, line: 68}
+  caller: q_update_share
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 68}
+- id: share_delete_button
+  layer: component
+  kind: component
+  name: ShareDeleteButton
+  source: {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 6}
+  caller: simple_shares_table
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 1}
+    - {file: src/components/share/SimpleSharesTable.tsx, line: 13}
+    note: 共有の行ごとに描く (renderActions)
+  summary:
+    status: interpretation
+    value: 削除ボタンと、押すと開く確認の小窓。確認で DELETE /share/id/<shareId> を呼び、成功したら shares の更新印を付けて、小窓を閉じる
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 16}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 20}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 22}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 24}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 30}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 32}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 39}
+- id: use_delete_share
+  layer: component
+  kind: hook
+  name: useDeleteQuery('/share/id/<shareId>')
+  source: {file: src/components/hooks/queries/useDeleteQuery.ts, line: 4}
+  caller: share_delete_button
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 2}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 16}
+  summary:
+    status: interpretation
+    value: 受け取った path に DELETE する mutation を作る
+    evidence:
+    - {file: src/components/hooks/queries/useDeleteQuery.ts, line: 6}
+    - {file: src/components/hooks/queries/useDeleteQuery.ts, line: 7}
+    - {file: src/components/hooks/useApi.ts, line: 63}
+  settings:
+  - name: API_URL
+    kind: env
+    effect: 設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)
+    status: fact
+    evidence:
+    - {file: src/lib/api-url.ts, line: 38}
+    - {file: src/lib/api-url.ts, line: 39}
+    - {file: next.config.ts, line: 14}
+    - {file: next.config.ts, line: 215}
+- id: api_share_delete
+  layer: api_route
+  kind: route_handler
+  name: DELETE /api/share/id/[shareId]
+  source: {file: 'src/app/api/share/id/[shareId]/route.ts', line: 61}
+  caller: use_delete_share
+  call:
+    status: fact
+    when: conditional
+    condition: 確認の小窓で、削除のボタンを押したとき
+    evidence:
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 16}
+    - {file: 'src/app/(main)/websites/[websiteId]/settings/ShareDeleteButton.tsx', line: 20}
+    - {file: src/components/hooks/queries/useDeleteQuery.ts, line: 7}
+    - {file: src/components/hooks/useApi.ts, line: 63}
+    - {file: src/lib/api-url.ts, line: 44}
+  summary:
+    status: interpretation
+    value: parseRequest で認証し (経路はフレーム q_parse_request と同じ)、getShare で共有を読み (経路はフレーム q_get_share と同じ)、canDeleteEntity で、共有の対象を削除してよいかを確かめ (だめなら 401)、deleteShare で共有を消す。共有が無いときの確認は無く、そのまま share.entityId を読む
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 65}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 73}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 75}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 76}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 79}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 81}
+  parameters:
+  - name: shareId
+    value: URL の動的な段
+    status: fact
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 71}
+- id: q_can_delete_entity
+  layer: query
+  kind: function
+  name: canDeleteEntity (src/permissions/entity.ts)
+  source: {file: src/permissions/entity.ts, line: 63}
+  caller: api_share_delete
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 5}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 75}
+  summary:
+    status: interpretation
+    value: ユーザーが無ければ拒み、管理者なら許す。getEntity で対象を探し、無ければ拒む。持ち主がユーザーなら本人かを、チームの持ち物なら getTeamUser で team_user を読み (経路はフレーム q_get_team_user と同じ)、その役割が website:delete の権限を持つかを確かめる
+    evidence:
+    - {file: src/permissions/entity.ts, line: 64}
+    - {file: src/permissions/entity.ts, line: 68}
+    - {file: src/permissions/entity.ts, line: 72}
+    - {file: src/permissions/entity.ts, line: 74}
+    - {file: src/permissions/entity.ts, line: 78}
+    - {file: src/permissions/entity.ts, line: 79}
+    - {file: src/permissions/entity.ts, line: 82}
+    - {file: src/permissions/entity.ts, line: 83}
+    - {file: src/permissions/entity.ts, line: 85}
+  guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 68}
+    note: 管理者なら、ほかの確認をせずに許す
+  - kind: ownership
+    value: canDeleteEntity
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 79}
+    - {file: src/permissions/entity.ts, line: 83}
+    note: entity.userId が本人 (user.id === entity.userId) か、entity.teamId のチームのメンバー (getTeamUser が行を返す)。満たさなければ、呼び出し元の route が 401 を返す
+  - kind: permission
+    value: PERMISSIONS.websiteDelete
+    status: fact
+    evidence:
+    - {file: src/permissions/entity.ts, line: 85}
+    - {file: src/lib/constants.ts, line: 195}
+    note: チームの持ち物のとき、チームでの役割が website:delete を持つこと
+- id: q_get_entity_delete_rw
+  layer: query
+  kind: function
+  name: getEntity (src/lib/entity.ts)
+  source: {file: src/lib/entity.ts, line: 4}
+  caller: q_can_delete_entity
+  call:
+    status: fact
+    when: conditional
+    condition: ログイン中のユーザーが管理者でないとき
+    evidence:
+    - {file: src/permissions/entity.ts, line: 68}
+    - {file: src/permissions/entity.ts, line: 72}
+  summary:
+    status: interpretation
+    value: 同じ id の website / link / pixel / board を同時に探す。呼び出し元 (canDeleteEntity) が終端にならないよう、いちばん早い呼び先を書き直したもの。全体の経路はフレーム q_get_entity と同じ
+    evidence:
+    - {file: src/lib/entity.ts, line: 5}
+- id: q_get_website_delete_rw
+  layer: query
+  kind: function
+  name: getWebsite / findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)
+  source: {file: src/queries/prisma/website.ts, line: 80}
+  caller: q_get_entity_delete_rw
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/lib/entity.ts, line: 6}
+  summary:
+    status: interpretation
+    value: website を id で 1 件読み、見つかれば、最新の share の slug を付ける。getEntity のいちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_get_website と同じ
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 95}
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website
+    detail: prisma.client.website.findUnique (where id)
+    fields:
+    - {name: '*', use: [read]}
+    - {name: website_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 77}
+    - {file: src/queries/prisma/website.ts, line: 85}
+    - {file: src/queries/prisma/website.ts, line: 87}
+    - {file: prisma/schema.prisma, line: 99}
+    - {file: prisma/schema.prisma, line: 130}
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: prisma.client.share.findFirst (where entityId, orderBy createdAt desc, select slug)
+    fields:
+    - {name: slug, use: [read]}
+    - {name: entity_id, use: [filter]}
+    - {name: created_at, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/website.ts, line: 304}
+    - {file: src/queries/prisma/website.ts, line: 306}
+    - {file: src/queries/prisma/website.ts, line: 309}
+    - {file: src/queries/prisma/website.ts, line: 312}
+    - {file: prisma/schema.prisma, line: 403}
+    - {file: prisma/schema.prisma, line: 406}
+    - {file: prisma/schema.prisma, line: 408}
+    - {file: prisma/schema.prisma, line: 412}
+    note: website が見つかったときだけ。この画面の共有の対象はリンクなので、ふつうは website が見つからず、ここまで進まない
+- id: q_delete_share
+  layer: query
+  kind: function
+  name: deleteShare (src/queries/prisma/share.ts)
+  source: {file: src/queries/prisma/share.ts, line: 76}
+  caller: api_share_delete
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 6}
+    - {file: 'src/app/api/share/id/[shareId]/route.ts', line: 79}
+  summary:
+    status: interpretation
+    value: id で share を 1 件消す
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 77}
+  io:
+  - op: delete
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    detail: prisma.client.share.delete (where id)
+    fields:
+    - {name: '*', use: [write]}
+    - {name: share_id, use: [filter]}
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 77}
+    - {file: prisma/schema.prisma, line: 402}
+    - {file: prisma/schema.prisma, line: 412}
+- id: ext_prisma_delete_share
+  layer: external
+  kind: library
+  name: Prisma Client share.delete
+  source: {file: src/queries/prisma/share.ts, line: 77}
+  caller: q_delete_share
+  call:
+    status: fact
+    when: always
+    evidence:
+    - {file: src/queries/prisma/share.ts, line: 77}

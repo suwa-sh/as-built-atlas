@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: sso
+reviewed_at: "2026-11-17T15:16:42Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/ext_router_push_url/call
+    claim: "router.push(url) の手前にあるのは、url と token が無いときに何もしない分岐と、url が安全でないときに / へ移って return する打ち切りだけで、どちらも入力の誤りで打ち切る経路なので、分析の skill の基準では when は always に当たる (conditional と書かれている)。"
+    evidence: { file: src/app/sso/SSOPage.tsx, line: 27 }
+    suggestion: "when を always にして condition を消し、url と token が揃わないときに何もしないことは rules か note に書く (打ち切りの経路そのものである ext_router_push_root は conditional のままでよい)。"
+    resolved: true
+notes: "evidence の行 (page.tsx:2,4,6,7、SSOPage.tsx:1,3,10,14,16,17,19-22,26,27,31、client.ts:9、storage.ts:3、constants.ts:2) はすべて主張を支えていた。localStorage への保存を I/O にしないこと、router.push の 2 行を別の external フレームにしたこと (同じ処理は、ライブラリを呼ぶ同じ行)、/ へのつながりを root_r にしたこと (login の結果と同じ綴り)、行き先がクエリの値で決まるつながりを unknown (dynamic_dispatch) にしたこと、BASE_PATH を settings に書かないことは、context.md と analysis-conventions.md に合う。src の下で sso を探しても、この画面と /api/auth/sso の契約のファイル以外に当たらないことを確かめた。権限の確認・設定・ほかの書き漏れは無い。"

@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: share.slug_d.path_o
+reviewed_at: "2026-11-17T15:28:07Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の summary は、受け口が「共有トークンにそのサイトの id が含まれ、節の指定があれば許された節か」を確かめると書くが、節の確認は GET /api/websites/[websiteId]/active (canViewWebsiteSection) だけで、GET /api/websites/[websiteId] は canViewSharedWebsite (share.ts:85) で id が含まれるかしか見ない。フレームの summary と guards は正しく分けてあるが、入口の summary だけが 2 つの受け口をまとめて書いている"
+    evidence: { file: src/permissions/share.ts, line: 85 }
+    suggestion: "入口の summary を、節の確認は訪問者数の受け口 (/active) だけに当てはまり、サイトの読み込みの受け口は共有トークンに id が含まれるかだけを見る、と書き分ける"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/use_website_query
+    claim: "settings に BASE_PATH が無い。同じフック useWebsiteQuery を書いた layout_l.main_g.websites.websiteId_d の結果は BASE_PATH (API の URL の前に付く。next.config.ts:15、:216、api-url.ts:38、:44) を書いている。analysis-conventions.md も BASE_PATH を設定の名前の例に挙げ、書かない設定には入れていない。書かない扱いは、この結果の notes (10) にあるだけ"
+    evidence: { file: next.config.ts, line: 15 }
+    suggestion: "settings に BASE_PATH を足して layout_l.main_g.websites.websiteId_d とそろえる。書かない扱いに決めるなら、analysis-conventions.md の書かない設定に BASE_PATH を足し、ほかの入口の結果も合わせて外す"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/use_active_users
+    claim: "settings に BASE_PATH が無い。同じフック useActiveUsersQuery を書いた layout_l.main_g.websites.websiteId_d の結果は BASE_PATH (API の URL の前に付く。next.config.ts:15、:216、api-url.ts:38、:44) を書いている。analysis-conventions.md も BASE_PATH を設定の名前の例に挙げ、書かない設定には入れていない。書かない扱いは、この結果の notes (10) にあるだけ"
+    evidence: { file: next.config.ts, line: 15 }
+    suggestion: "settings に BASE_PATH を足して layout_l.main_g.websites.websiteId_d とそろえる。書かない扱いに決めるなら、analysis-conventions.md の書かない設定に BASE_PATH を足し、ほかの入口の結果も合わせて外す"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。全 57 フレームの call / summary / parameters / io (fields を含む) / links / guards / settings / rules の根拠の行を、対象のコードと prisma/schema.prisma、db/clickhouse/schema.sql で開いて確かめ、上の 3 件のほかに行のずれや主張との食い違いは見つからなかった。層と種類、when、fact / interpretation の付け方、データの当てはめ (rdb の dbms と table、kvs の auth:*、external_api)、同じ処理の置き場 (入口から辿る順)、終端を満たすための書き直し (id が _rw で終わるフレーム) の範囲も、決まりのとおりだった。確認の値 (isAllowed、canViewSharedWebsite、canViewWebsite、canViewWebsiteSection、user.isAdmin) と設定の名前 (API_URL、CLOUD_MODE、REDIS_URL、CLICKHOUSE_URL、DATABASE_REPLICA_URL、PRIVATE_MODE、FAVICON_URL)、links の綴り (/share/${slug}/<節>) は、ほかの入口の結果と同じだった。指摘にしなかったこと: (1) 埋め込む 17 の画面の summary を unknown (not_analyzed) で止めているのは、note に読んだ範囲 (定義の行と描く行) と止めた理由があり、analysis-conventions.md と context.md も打ち切りを禁じていないので、指摘にしていない。続きを分析するかは人が決める。(2) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth → getApiKeyByHash / getUser / updateApiKeyLastUsed) を辿らず、CLOUD_MODE だけを settings に書いているのは、ほかの入口の結果と同じ扱いなので指摘にしていない (admin.teams.teamId_d と admin.websites.websiteId_d のレビューも、analysis-conventions.md で決めることを勧めている)。(3) Favicon の useConfig が呼ぶ GET /api/config をフレームにしていないのは layout_l.main_g.websites.websiteId_d と同じ扱い。websites.websiteId_d などはフレームにしており、入口をまたいでそろっていないが、データに届かない受け口なのでこの入口の漏れとはしなかった。(4) share.created_at の use が filter なのは、並べ替え (orderBy) も filter に含める語彙の定義どおり。(5) analyzer.tests が無いので、テストの書き漏れは見ていない"

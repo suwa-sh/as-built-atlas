@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: login.two-factor
+reviewed_at: "2026-11-17T11:39:00Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_record_failed_attempt/summary
+    claim: "「直列化の衝突は、3 回までやり直す」と書いているが、コードは試行を合わせて 3 回までで打ち切る (retries < MAX_RETRIES の繰り返し。やり直しは 2 回まで。3 回目も衝突すると例外を投げる)。"
+    evidence: { file: src/lib/two-factor/rate-limit.ts, line: 21 }
+    suggestion: "「直列化の衝突は、合わせて 3 回まで試し、それでも衝突すれば例外を投げる」のように書き直す (根拠に rate-limit.ts:52 を足す)。"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_check_auth/settings/0
+    claim: "CLOUD_MODE を checkAuth の設定に書いているが、この入口では有無で結果が変わらない。/api/auth は API キーを拒否するパスなので、umami_ のトークンは設定の有無に関わらず認証できず null になる (同じフレームの summary も「API キーの経路はここでは働かない」と書いている)。分析の指示書は、この入口で有無で結果が変わらない設定は書かないと決めている。"
+    evidence: { file: src/lib/auth.ts, line: 35 }
+    suggestion: "checkAuth の settings から CLOUD_MODE を外す (page と POST /api/2fa/verify の CLOUD_MODE は残す)。同じ書き方が login の結果にもあるので、そろえるなら両方で外す。"
+    resolved: true
+notes: "指摘にしなかったこと: (1) POST /api/2fa/verify の下の呼び出しを、設定 (CLOUD_MODE の 404、TWO_FACTOR_ENCRYPTION_KEY の 503) による打ち切りの後ろでも always にしている点。page.tsx:6 と login/route.ts:38、42 を読み、この入口から辿る限り条件がいつも成り立つという note の理由がコードと合うことを確かめたので、指示書の「条件がいつも成り立つ呼び出しは always」の扱いとして受け入れた。(2) twoFactorOtpUsed の findUnique と delete、twoFactorRateLimit の upsert と update を、external のフレーム 1 つにまとめている点 (delete と update は条件付き)。ほかの入口の結果も同じ関数の中の Prisma の呼び出しをまとめており、読み書きの側に条件が書いてあるので、指摘にしなかった。受け口が直接呼ぶ Prisma は行ごとに分けていて、同じ結果の中で粒度が違うことだけ伝える。(3) KVS の auth:* の読み取りの項目に role を書いている点。ほかの入口の一部は userId と pwd だけを書いている。指示書は「取り出した後にどの項目を使うかは見ない」と決めているので、この結果の書き方 (userId / role / pwd) が決まりに合う。そろえるなら、ほかの入口の側を直す。(4) 画面の送信ボタンを 6 桁でないと押せなくする条件 (LoginTwoFactorPage.tsx:134) は rules に無いが、login の結果が必須入力だけの検査を書かない扱いにしているので、同じ扱いとみた。(5) 根拠の行は、全フレームの call / summary / parameters / io / links / guards / settings / rules を開いて確かめた。schema.prisma の行、constants.ts:15 と 175、next.config.ts:15 と 216、prisma.ts:844、LoginForm.tsx:28 も主張と合っていた。entry_id の root_r と login は入口の一覧にある。links の target (consumeReturnUrl()) と設定の名前は、login の結果と同じ綴りだった。"

@@ -1,0 +1,56 @@
+format_version: 1
+entry_id: websites.websiteId_d.attribution
+reviewed_at: "2026-11-17T15:44:07Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    resolved: true
+    severity: low
+    where: callstack/use_segments/settings/0
+    claim: "API_URL の設定が 7 つのフレーム (use_values、use_segments、use_property_fields、use_property_values、use_date_range、use_segment_query、use_update_segment) に書かれている。analysis-conventions.md は「API を呼ぶフックごとに書かず、その入口で最初に API を呼ぶフレームに 1 回だけ書く」と決めていて、結果の notes (4) も「use_values にだけ書いた」としているので、notes とも食い違う"
+    evidence: { file: src/lib/api-url.ts, line: 38 }
+    suggestion: "API_URL は use_values の settings にだけ残し、ほかの 6 つのフレームの settings から消す (呼び出しの note の「API_URL を設定すると、向き先が変わる」も、use_values を指す書き方にそろえる)"
+  - kind: missing_item
+    resolved: true
+    severity: low
+    where: callstack/use_values/settings
+    claim: "BASE_PATH の設定が無い。getApiUrl は basePath (next.config.ts が BASE_PATH から写す) を API の URL の前に付ける (API_URL が絶対の URL のときを除く)。analysis-conventions.md は BASE_PATH と API_URL を、その入口で最初に API を呼ぶフレームに 1 回だけ書くと決めていて、ほかの入口の結果 (websites.yaml、websites.websiteId_d.funnels.yaml など) も書いている"
+    evidence: { file: src/lib/api-url.ts, line: 38 }
+    suggestion: "use_values の settings に name: BASE_PATH (kind: env) を 1 件足す (根拠は next.config.ts 15・216 行、api-url.ts 38・41・44 行)"
+  - kind: missing_item
+    resolved: true
+    severity: low
+    where: callstack/ext_prisma_attribution
+    claim: "生の SQL を実行する $queryRawUnsafe (prisma.ts 746 行) は、DATABASE_REPLICA_URL があれば複製の DB に送る (prisma.ts 738 行) のに、ext_prisma_attribution に settings が無い。同じ行を呼ぶ ext_values_pg、ext_session_data_properties_pg、ext_session_data_values_pg、ext_daterange_pg には DATABASE_REPLICA_URL を書いている"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "ext_prisma_attribution に settings を足し、ほかの PostgreSQL の生の SQL のフレームと同じ書き方で DATABASE_REPLICA_URL を 1 件書く"
+  - kind: missing_item
+    resolved: true
+    severity: low
+    where: callstack/q_check_auth/rules
+    claim: "analysis-conventions.md は、checkAuth の中の API キーの枝 (CLOUD_MODE が無く、トークンが umami_ で始まれば checkApiKeyAuth で確かめる) を、フレームにせず checkAuth の rules に 1 行書くと決めているが、rules に無い (summary と CLOUD_MODE の effect で触れているだけ)"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    suggestion: "q_check_auth の rules に kind: validation (または decision) で、API キーの枝を 1 行足す (根拠は auth.ts 74・75 行、api-key.ts 41 行)"
+  - kind: evidence_mismatch
+    resolved: true
+    severity: low
+    where: callstack/use_attribution_query/call
+    claim: "note の「enabled は step があることと websiteId があること」は合わない。useAnalyticsQuery は enabled: !!params.websiteId の後ろに ...options を広げるので、Attribution が渡す enabled: !!step で上書きされ、websiteId の条件は効かない (結論の always は変わらない)"
+    evidence: { file: src/components/hooks/queries/useAnalyticsQuery.ts, line: 28 }
+    suggestion: "note を「enabled は Attribution が渡す !!step で上書きされる (useAnalyticsQuery.ts 28・29 行)。Attribution は step があるときだけ描かれるので、いつも成り立つ」に直す"
+  - kind: evidence_mismatch
+    resolved: true
+    severity: low
+    where: callstack/q_get_attribution/io/1
+    claim: "note の「website_id で結ぶのは、URL の絞り込みにセッションの列か cohort があるときの joinSessionQuery だけ」は、条件が足りない。parseFilters は、URL の絞り込みに referrer があるときも joinSessionQuery (inner join session) を付ける"
+    evidence: { file: src/lib/prisma.ts, line: 300 }
+    suggestion: "note の条件に「referrer の絞り込み」を足す (q_get_attribution の summary の「セッションの列・cohort・プロパティがあれば」も同じ)"
+  - kind: evidence_mismatch
+    resolved: true
+    severity: low
+    where: summary
+    claim: "入口の summary の「この画面の書き込みは、セグメントとして保存 (segment の作成) だけ」は、結果の I/O と食い違う。fetchWebsite (q_fetch_website) は、REDIS_URL があり、キャッシュに無いとき、Redis の website:* に set する (io/1 が op: set で書いている)"
+    evidence: { file: src/lib/load.ts, line: 10 }
+    suggestion: "summary を「利用者の操作による書き込みは、セグメントとして保存 (segment の作成) だけ。ほかに、Redis が有効ならサイトの情報を website:* にキャッシュする」のように直す"
+notes: "確かめた範囲: この画面に固有のフレーム (page、attribution_page、website_value_combobox、use_values_rw1、api_values_rw1、q_parse_request_rw2、q_check_auth_rw2、attribution、use_attribution_query、api_attribution、q_get_attribution、ext_prisma_attribution、ext_clickhouse_attribution) は、根拠の行を対象のコードで開いて確かめ、上の指摘のほかは主張を支えていた。WebsiteControls の下の木は websites.websiteId_d の結果を写したもので、こちらは要所だけを確かめた (WebsiteControls と WebsiteFilterButton の条件、前のレビューで直した q_check_auth の io と api_segment_create / api_session_data_values の call の状態が interpretation になっていること)。share.ts、website.ts、entity.ts、load.ts などの行は、すべては開いていない。指摘にしなかったが伝えること: (1) ClickHouse 用の website_event の fields で、referrer_domain と utm_* を filter だけにしているが、外側の select (getAttribution.ts 252・324 行) で読んでもいる。select * の * read で覆われているので指摘にしていない (PostgreSQL 側は read と filter の両方を付けている)。(2) getAttribution の event_data と session_data の fields に data_type が無い (prisma.ts 565・691 行と clickhouse.ts 529・652 行の having で比べる)。同じファイルのほかのフレーム (session-data の 2 つ) は data_type を書いているので、そろえるなら足すとよい。(3) URL のイベントのプロパティの絞り込み (epf) は、この画面のフィルターのボタンでは付かない (WebsiteFilterButton.tsx 50 行。/events で終わるパスだけ)。event_data を読むのは、URL にすでに epf が付いているときだけ。(4) PostgreSQL の有料広告の問い合わせは、空の名前を除く前に limit 20 をかける (getAttribution.ts 151・154 行) ので、20 件より少なく返ることがある。ClickHouse は除いてから limit をかける。(5) 変換の段の入力欄は、打った文字ごとに onChange で step を変える (WebsiteValueComboBox.tsx 79 行) ので、集計の問い合わせは、文字を打つたびに走る (候補の検索だけが 300 ミリ秒待つ)。(6) last-click は、変換の段より前のイベントが期間の中に無いセッションを model に入れない (getAttribution.ts 100・298 行) ので、そのセッションは流入元の表に数えられない。ルールの文 (変換の段に至った時刻より前の、いちばん遅いイベント) とは矛盾しない。(7) リファラーまわりのお気に入りのアイコン (Favicon) は、この画面の表 (ListTable) では描かないので、外部への送信は無い。"

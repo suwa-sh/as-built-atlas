@@ -1,0 +1,76 @@
+format_version: 1
+entry_id: dashboard.edit
+reviewed_at: "2026-11-17T15:30:05Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_website
+    claim: "canViewWebsite は最初に user?.isAdmin で管理者を通すが、guards には ownership (canViewWebsite) しか無く、管理者の確認が note にしか書かれていない。"
+    evidence: { file: src/permissions/website.ts, line: 9 }
+    suggestion: "guards に kind: role、value: user.isAdmin の確認を足す (console.websiteId_d や links.linkId_d の結果と同じ書き方)。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_pixel
+    claim: "canViewPixel は最初に user?.isAdmin で管理者を通すが、guards には ownership (canViewPixel) しか無く、管理者の確認が note にしか書かれていない。"
+    evidence: { file: src/permissions/pixel.ts, line: 7 }
+    suggestion: "guards に kind: role、value: user.isAdmin の確認を足す (pixels.pixelId_d.edit の結果と同じ書き方)。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_link
+    claim: "canViewLink は最初に user?.isAdmin で管理者を通すが、guards には ownership (canViewLink) しか無く、管理者の確認が note にしか書かれていない。"
+    evidence: { file: src/permissions/link.ts, line: 7 }
+    suggestion: "guards に kind: role、value: user.isAdmin の確認を足す (links.linkId_d.edit の結果と同じ書き方)。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_team
+    claim: "canViewTeam は user.isAdmin なら getTeamUser を読まずに通すが、guards には ownership (canViewTeam) しか無く、管理者の確認が note にしか書かれていない。"
+    evidence: { file: src/permissions/team.ts, line: 11 }
+    suggestion: "guards に kind: role、value: user.isAdmin の確認を足す (admin.websites.websiteId_d の結果と同じ書き方)。"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/api_user_websites_get
+    claim: "受け口は !auth.user.isAdmin && auth.user.id !== userId で 401 を返し、管理者は本人でなくても通すが、guards には ownership (auth.user.id === userId) しか無く、管理者の確認が note にしか書かれていない。"
+    evidence: { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+    suggestion: "guards に kind: role、value: user.isAdmin の確認を足す (このリポジトリの決まりで、管理者の確認はいつも user.isAdmin と書く)。"
+    resolved: true
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/api_pixels_get/call
+    claim: "usePixelsQuery は teamId の有無で /teams/<teamId>/pixels と /pixels を切り替えるので、URL は引数で決まる有限の候補のうちの 1 つだが、call が fact になっている (同じ結果の兄弟の api_team_pixels_get や api_user_websites_get は interpretation)。"
+    evidence: { file: src/components/hooks/queries/usePixelsQuery.ts, line: 17 }
+    suggestion: "call.status を interpretation にし、note に「引数 (teamId の有無) で切り替わる」と書く (プロファイルの context.md の状態の付け方)。"
+    resolved: true
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/api_links_get/call
+    claim: "useLinksQuery は teamId の有無で /teams/<teamId>/links と /links を切り替えるので、URL は引数で決まる有限の候補のうちの 1 つだが、call が fact になっている (兄弟の api_team_links_get は interpretation)。"
+    evidence: { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
+    suggestion: "call.status を interpretation にし、note に「引数 (teamId の有無) で切り替わる」と書く。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/use_login_query
+    claim: "API の URL は basePath (next.config.ts が BASE_PATH から写す) を前に付けて作られ、/auth/verify は API_URL を使わなくても BASE_PATH には影響されるが、この段に settings が無い。API を呼ぶほかのフック (use_dashboard_query、use_website_query、use_pixels_query など) にも API_URL だけで BASE_PATH が無い。"
+    evidence: { file: src/lib/api-url.ts, line: 44 }
+    suggestion: "API を呼ぶフックの settings に、BASE_PATH (API の URL の前に付く。API_URL が絶対の URL のときは付かない) を足す (links・pixels・teams の結果と同じ書き方)。"
+  - kind: missing_item
+    severity: low
+    where: callstack/dashboard_provider
+    claim: "DashboardProvider は useApi の post で POST /dashboard を呼ぶ (保存の API の呼び出し元) が、API_URL の設定が書かれていない。結果の notes (9) の「API を呼ぶフックとコンポーネントの settings に書いた」とも合わない。"
+    evidence: { file: "src/app/(main)/dashboard/DashboardProvider.tsx", line: 73 }
+    suggestion: "dashboard_provider の settings に API_URL (と BASE_PATH) を、use_dashboard_query と同じ書き方で足す。"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/board_component_renderer/summary
+    claim: "「登録簿の部品は 19 種類」とあるが、登録簿の定義 (config.type) は 17 種類で、19 は WebsiteMetricsBar のピクセル・リンク向けの 2 つを足した実装の数。入口の summary の「18 種類の集計の部品」も同じ数え方。"
+    evidence: { file: "src/app/(main)/boards/boardComponentRegistry.tsx", line: 149 }
+    suggestion: "「登録簿の定義は 17 種類 (TextBlock を除く 16 種類がデータを読み、WebsiteMetricsBar は対象ごとに 3 つの実装がある) で、描く実装は 18」のように、種類と実装の数を分けて書く。"
+    resolved: true
+notes: "指摘にしなかったこと: (1) 21 個の not_analyzed のフレーム (登録簿の部品 18 と WebsiteControls / PixelControls / LinkControls) は、どれも note に「どこまで読んだか」と「なぜ止めたか」があり、analysis-conventions.md もプロファイルの context.md も打ち切りを禁じていないので、指摘にしていない (続きを分析するかは人が決める)。(2) GET /api/dashboard と POST /api/dashboard の ownership の値が式 (board.userId === auth.user.id、existing.userId === userId) なのは、確認の関数が無いためで、admin.users.userId_d の結果も同じ書き方なので指摘にしていない。(3) canViewWebsite などの管理者の確認 (role: user.isAdmin) は、boards.boardId_d.design の結果も書いていない。リポジトリ全体でそろっていないので、そちらも合わせて直すとよい。(4) 主要な根拠の行 (dashboard の route、DashboardProvider、DashboardEditPage、checkAuth / parseRequest、canView* の各関数、board / report / pixel / link / website の問い合わせ、各 API の route、next.config.ts の転送と env、api-url.ts) は開いて確かめ、主張を支えていた。辿る順 (深さ優先で最初に着いた呼び出し元の下に 1 回だけ書く) と、書き直し (_rw) のフレームの範囲も、プロファイルと analysis-conventions.md の決まりに合っていた。"

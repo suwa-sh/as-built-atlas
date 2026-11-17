@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: "settings.security"
+reviewed_at: "2026-11-17T15:27:52Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: "callstack/use_two_factor_status_query/summary"
+    claim: "summary は「通信が戻ったときにも読み直す」と書くが、根拠の行は useTwoFactorStatusQuery.ts の 18 行 (refetchOnWindowFocus) までで、refetchOnReconnect の 19 行が無い。"
+    evidence: { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 19 }
+    suggestion: "evidence に useTwoFactorStatusQuery.ts の 19 行を足す。"
+    resolved: true
+notes: "(1) 約 50 のフレームの call / summary / parameters / io / guards / settings / rules を、根拠の行 (page.tsx、UserSecurityPage.tsx、TwoFactorSetupModal.tsx、TwoFactorDisableModal.tsx、2fa の status / setup/initiate / setup/confirm / setup/cancel / disable の route.ts、request.ts、auth.ts、api-key.ts、redis.ts、api-url.ts、next.config.ts、user.ts、rate-limit.ts、replay-prevention.ts、crypto.ts、password.ts、schema.prisma、settings/layout.tsx) を開いて確かめた。上の 1 件のほかに、根拠が主張を支えていない箇所、状態や理由の取り違え、データの当てはめ違い、書き漏れ、辿り漏れは見つからなかった。列の名前は schema.prisma の @map と合い、ほかの入口 (layout_l.main_g、admin.security、login.two-factor) と同じ綴り。設定の名前 (CLOUD_MODE、API_URL、BASE_PATH、REDIS_URL、TWO_FACTOR_ENCRYPTION_KEY) と authentication の書き方 (checkAuth の 1 か所だけ、value なし) も analysis-conventions.md に合う。フレームにしなかった TwoFactorSuccessModal / ControlledDialog / OtpInput は、API を呼ばないことを確かめた。(2) 指摘にしなかった、入口のあいだの書き方の違い: CLOUD_MODE と暗号鍵の未設定で早く返す経路の後ろの呼び出し (ext_prisma_2fa_initiate、ext_prisma_2fa_confirm、q_check_rate_limit、q_is_otp_replayed、q_mark_otp_used、q_reset_rate_limit など) を、この結果は conditional (note に、この画面からは条件がいつも成り立つと読める) とし、layout_l.main_g の結果は同じ呼び出しを always (note で理由) としている。この結果は、分析の skill の「打ち切るかどうかが設定で決まるときは、その後ろの呼び出しを conditional」に字義どおり従っており、layout_l.main_g も GET /api/2fa/status の後ろの Prisma は conditional としていて一貫していないため、どちらかを誤りとはしなかった。そろえるなら、analysis-conventions.md に「設定による早い return の後ろで、この入口からは条件がいつも成り立つ呼び出しは、always / conditional のどちらで書くか」を 1 行足すとよい。(3) settings/layout.tsx:5 は process.env.cloudMode を見て null を返す (next.config が CLOUD_MODE を写したもの) ので、各 note の「settings の枠は CLOUD_MODE があると画面を描かない」は根拠どおり。"

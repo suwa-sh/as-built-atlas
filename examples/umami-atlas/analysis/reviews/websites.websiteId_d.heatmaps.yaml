@@ -1,0 +1,42 @@
+format_version: 1
+entry_id: websites.websiteId_d.heatmaps
+reviewed_at: "2026-11-17T15:49:38Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_check_auth/io/0
+    resolved: true
+    claim: "Redis の読み取りが fact になっているが、読む行 (auth.ts 102 行) のキーは変数 authKey で、auth:* の形は別の関数 saveAuth (auth.ts 150 行) から読み取ったもの。detail もそう書いており、読む場所にそのまま書いてある値ではない"
+    evidence: { file: src/lib/auth.ts, line: 102 }
+    suggestion: "status を interpretation にし、note に、キーの形は saveAuth が作る auth:<ランダム> から読み取ったと書く (概要の画面 websites.websiteId_d の結果も、レビューを受けて interpretation にしている)"
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/api_segments_create/call
+    resolved: true
+    claim: "呼び出しの URL は SegmentEditForm.tsx 44 行で segmentId の有無により /segments と /segments/<segmentId> に切り替わる組み立て式で、POST /segments に決まるのは FilterBar (195 行) が segmentId を渡さないことを読み取った結果なので、fact ではない"
+    evidence: { file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 44 }
+    suggestion: "call.status を interpretation にし、note に、URL は segmentId の有無で切り替わり、この入口の FilterBar は segmentId を渡さないので POST /segments に届くと書く (概要の画面の結果と同じ扱い)"
+  - kind: missing_item
+    severity: low
+    where: callstack/q_get_heatmap/io/1/fields
+    resolved: true
+    claim: "PostgreSQL の website_event の読み取りに、コードに固定で書いてある列が欠けている。直帰の除外の join (prisma.ts 246〜251 行) が絞る event_type と、イベントのプロパティの絞り込み (prisma.ts 574 行) が結ぶ event_id が無い。detail と evidence (prisma.ts 243 行) では直帰の除外の join に触れていて、ClickHouse の側 (io/7) では同じ直帰の除外の列 (event_type など) を書いているので、食い違っている"
+    evidence: { file: src/lib/prisma.ts, line: 246 }
+    suggestion: "io/1 の fields に {name: event_type, use: [filter]} と {name: event_id, use: [filter]} を足し、note に、直帰の除外またはイベントのプロパティの絞り込みがあるときだけと書く"
+  - kind: missing_item
+    severity: low
+    where: callstack/q_get_heatmap/io/6/fields
+    resolved: true
+    claim: "ClickHouse の website_event の読み取りに、イベントのプロパティの絞り込みが結ぶ列 website_event.event_id (clickhouse.ts 538 行) が無い。この列は固定で書いてあり、実行時に組み立てる比べる値の列ではない"
+    evidence: { file: src/lib/clickhouse.ts, line: 538 }
+    suggestion: "io/6 の fields に {name: event_id, use: [filter]} を足し、URL にイベントのプロパティの絞り込みがあるときだけと note に書く"
+  - kind: missing_item
+    severity: low
+    where: callstack/q_website_date_range
+    resolved: true
+    claim: "getWebsiteDateRange の PostgreSQL 側も、同じ rawQuery (prisma.ts 737〜746 行) を通るので、DATABASE_REPLICA_URL があれば複製の DB に送られる。それなのに、この設定は getHeatmap の段にしか書いていない。同じ画面で、同じ仕組みの設定が段によって書かれたり書かれなかったりしている"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "q_website_date_range の settings に、q_get_heatmap と同じ書き方で DATABASE_REPLICA_URL を足す (根拠は getWebsiteDateRange.ts 23 行と prisma.ts 738・55 行)。ほかの入口のように raw SQL の external の段にそろえて書くのでもよい"
+notes: "指摘にはしなかったが伝えておくこと。(1) unknown + not_analyzed で閉じた 2 つのフレーム (website_filter_button、segment_filter_fields) は、どちらも note に、どこまで読んだかと、なぜ止めたかがある。分析の癖とプロファイルの context.md は打ち切りを禁じていないので、指摘にしていない (続きを分析するかは人が決める)。(2) アップグレードのボタンの行き先は CLOUD_URL で決まるが、settings には書かず、links の note で触れている。同じボタンを持つほかの入口 (settings.websites.websiteId_d、admin.websites.websiteId_d) も同じ書き方なので、指摘にしていない。(3) API_URL を、最初に API を呼ぶ useSubscription ではなく useDateRangeQuery に書いている。/auth で始まる URL には API_URL が効かない (api-url.ts 6・39 行) ことをコードで確かめたので、効く最初の段に書く扱いは妥当と判断した。分析の癖の文に、この例外を足すとよい。(4) 書き直したフレーム (_rw) と、同じ処理の置き場 (入口からコードの順に深さ優先) は、HeatmapsPage の 23・57・102 行と WebsiteControls の 35・40・46 行の順で確かめ、決まりどおりだった。(5) 根拠の行は、page.tsx・HeatmapsPage.tsx・Heatmap.tsx・heatmaps/route.ts・daterange/route.ts・segments/route.ts (POST)・segments/[segmentId]/route.ts (GET)・auth/subscription/route.ts・getHeatmap.ts・getWebsiteDateRange.ts・share.ts・website.ts・team.ts・entity.ts・request.ts・auth.ts・api-key.ts・load.ts・redis.ts・db.ts・prisma.ts・clickhouse.ts・useSubscription.ts・useAnalyticsQuery.ts・useApi.ts・api-url.ts・SegmentEditForm.tsx・FilterBar.tsx・WebsiteControls.tsx・PropertyFilters.tsx・prisma/schema.prisma (各モデルの @@map の行)・db/clickhouse/schema.sql で開いて確かめ、上の指摘のほかは主張と合っていた。"

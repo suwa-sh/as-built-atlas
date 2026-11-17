@@ -1,0 +1,2899 @@
+"format_version": 1
+"entry":
+  "id": "websites.websiteId_d.replays.replayId_d"
+  "path": "/websites/[websiteId]/replays/[replayId]"
+  "name": "[replayId]"
+  "layer": "page"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+    "line": 4
+"target":
+  "repo": "github.com/umami-software/umami"
+  "clone_path": "../umami"
+  "scope": "."
+  "commit": "559e3c607c23d2c72d9bd4f6481bda428255323c"
+"analyzer":
+  "profile":
+    "id": "ui-nextjs"
+    "version": "0.4.0"
+  "skill_version": "0.4.0"
+  "model": "claude-opus-5-5"
+  "analyzed_at": "2026-11-17T16:06:23Z"
+  "reviewed":
+    "by": "claude-opus-5-5 (fresh context)"
+    "at": "2026-11-17T16:05:38Z"
+    "findings_open": 2
+"notes": "(1) この入口の初めての分析。同じ部品の木は、イベントの画面の結果 (websites.websiteId_d.events。録画の小窓として ReplayPlayback を描く) を出発点にし、この画面での違い (page から ReplayPlayback を直接描く、showSessionInfo が既定の true で SessionInfo を描く、onClose を渡さない) を対象のコードで確かめて直した。 (2) 同じ処理の置き場は、プロファイルの決まり (入口から、コードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に書く) に従った。ReplayPlayback のフックの順は useReplayQuery (:36)、useReplaySavedQuery (:37)、useWebsiteSessionQuery (:38)、useUpdateQuery (:42)、その後に描く ReplaySaveForm (:106)。parseRequest → checkAuth と、canViewAuthenticatedWebsite → canViewWebsite → getEntity / getTeamUser は、最初に着く GET replays/[replayId] の下に書いた。 (3) 呼び先がすべてほかの呼び出し元の下に書いた処理で、そのままでは終端になる呼び出し元の下には、決まりどおり、いちばん早い呼び出しを読み書きを持つフレームまで書き直した (id の末尾が _rw<数字>): canDeleteWebsite の下の getWebsite (rw1)、canViewWebsiteSection の下の canViewWebsite → getEntity → getWebsite (rw1 / rw1 / rw2)、canUpdateWebsite の下の getWebsite (rw3)、ReplaySaveForm の下の useUpdateQuery → POST replays/saved/[replayId] → parseRequest → checkAuth (rw1)。書き直したフレームには、権限の確認・設定・ルールを繰り返して書いていない。 (4) 迷った点と選んだ扱い。(a) GET sessions/[sessionId] は、フックの enabled が録画の sessionId に依るので、conditional にした。(b) createReplaySaved は、最初に着く呼び出し元 (保存を外す操作) からは届かないように見えるが、分析リポジトリの決まりに従い、消さずに conditional で書き、note に理由を書いた。(c) 録画を再生する ReplayPlayer (rrweb-player を使う。データを読まない) と、SessionInfo / Avatar (見た目だけ) はフレームにしていない。(d) API_URL と BASE_PATH は、入口から辿る順で最初に API を呼ぶ useReplayQuery に 1 回だけ書いた。(e) リンク (links) は 1 件も無い。 (5) 直さなかったレビューの指摘 (low 2 件): q_linked_distinct_ids の call (セッションが見つからなければ 404 で打ち切る) と ext_prisma_share の call (サイトが見つからなければ呼ばない) を conditional にする指摘は、分析の skill の決まり (相手が見つからないことで打ち切る経路があるだけなら always。打ち切りは note に書く) に従い always のままにした。note に打ち切りを書いてある。"
+"summary":
+  "status": "interpretation"
+  "value": "サイトの録画 (セッションの訪問 1 回分の操作の記録) 1 件を再生する画面。サーバー側の page は URL の websiteId と replayId を ReplayPlayback に渡すだけで、画面の本体はブラウザ側で動く。開いたときに読むもの: 録画の操作 (replays/[replayId]。session_replay)、保存済みかどうか (replays/saved/[replayId]。session_replay_saved)、録画が属するセッションの情報 (sessions/[sessionId]。session と website_event、または ClickHouse の website_event_stats_hourly、session_link)。書き込み: 保存の印で、名前を付けて録画を保存する (session_replay_saved の作成)、または保存を外す (削除)。録画を見るにはログインした利用者であることが要り、共有トークンだけでは見られない。保存には、サイトを書き換える権限が要る"
+  "evidence":
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+    "line": 11
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+    "line": 36
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+    "line": 37
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+    "line": 38
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+    "line": 42
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+    "line": 60
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+    "line": 106
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+    "line": 30
+  - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+    "line": 31
+  - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+    "line": 90
+  - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+    "line": 49
+"callstack":
+- "id": "page"
+  "layer": "page"
+  "kind": "page"
+  "name": "[replayId] (src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx)"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+    "line": 4
+  "caller": null
+  "summary":
+    "status": "interpretation"
+    "value": "サーバー側で動く page。URL の websiteId と replayId を受け取り、ReplayPlayback を描くだけで、自分ではデータを読まない。metadata で title を Session Replay にする"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 9
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 11
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 14
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 15
+  "parameters":
+  - "name": "websiteId"
+    "value": "URL の段 [websiteId]"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 7
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 9
+  - "name": "replayId"
+    "value": "URL の段 [replayId] (録画の id。中身は訪問の id で、受け口は visit_id として使う)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 7
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 9
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 72
+- "id": "replay_playback"
+  "layer": "component"
+  "kind": "component"
+  "name": "ReplayPlayback"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+    "line": 23
+  "caller": "page"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 11
+  "summary":
+    "status": "interpretation"
+    "value": "録画 1 件の再生の画面の本体 (ブラウザ側で動く)。録画の操作 (useReplayQuery) と、保存済みかどうか (useReplaySavedQuery) を読み、録画が属するセッション (useWebsiteSessionQuery) を読む。録画を rrweb-player で再生する (ReplayPlayer。データを読まない見た目の部品なのでフレームにしていない)。セッションを読めたら、見出しと保存の印を出し、下にセッションの情報 (SessionInfo。見た目の部品) を出す。保存の印を押すと、保存済みなら保存を外し (useUpdateQuery で isSaved: false を送る)、未保存なら名前を付けて保存する小窓 (ReplaySaveForm) を開く。この画面は onClose を渡さないので、閉じるボタンは出ない"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 26
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 27
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 36
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 37
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 38
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 42
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 58
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 60
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 73
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 90
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 106
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 120
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 130
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 131
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/page.tsx"
+      "line": 11
+- "id": "use_replay"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useReplayQuery"
+  "source":
+    "file": "src/components/hooks/queries/useReplayQuery.ts"
+    "line": 9
+  "caller": "replay_playback"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 36
+  "summary":
+    "status": "interpretation"
+    "value": "録画の操作を GET /websites/<id>/replays/<replayId> から読むフック (replayId は訪問の id)。この画面は until / chunkIndex / eventIndex を渡さないので、録画の全部を読む"
+    "evidence":
+    - "file": "src/components/hooks/queries/useReplayQuery.ts"
+      "line": 12
+    - "file": "src/components/hooks/queries/useReplayQuery.ts"
+      "line": 15
+    - "file": "src/components/hooks/queries/useReplayQuery.ts"
+      "line": 20
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 36
+  "settings":
+  - "name": "API_URL"
+    "kind": "env"
+    "effect": "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 32
+    - "file": "src/lib/api-url.ts"
+      "line": 38
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    - "file": "next.config.ts"
+      "line": 14
+    - "file": "next.config.ts"
+      "line": 215
+    "note": "この画面のフックはどれも同じ関数 (useApi → getApiUrl) で URL を作るので、API_URL と BASE_PATH は、入口から辿る順で最初に API を呼ぶ、このフレームに 1 回だけ書いた"
+  - "name": "BASE_PATH"
+    "kind": "env"
+    "effect": "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+    "status": "fact"
+    "evidence":
+    - "file": "next.config.ts"
+      "line": 15
+    - "file": "next.config.ts"
+      "line": 216
+    - "file": "src/lib/api-url.ts"
+      "line": 38
+    - "file": "src/lib/api-url.ts"
+      "line": 41
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "この画面のフックはどれも同じ関数 (useApi → getApiUrl) で URL を作るので、API_URL と BASE_PATH は、入口から辿る順で最初に API を呼ぶ、このフレームに 1 回だけ書いた"
+- "id": "api_replay_get"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/replays/[replayId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+    "line": 73
+  "caller": "use_replay"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/components/hooks/queries/useReplayQuery.ts"
+      "line": 20
+    - "file": "src/components/hooks/queries/useReplayQuery.ts"
+      "line": 22
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "フックの enabled (websiteId と replayId があること) は、URL の段から渡るので、この画面ではいつも成り立つ"
+  "summary":
+    "status": "interpretation"
+    "value": "録画の操作をまとめて返す受け口。parseRequest (route.ts:77) でログインを確かめ、canViewAuthenticatedWebsite (route.ts:90。満たさなければ 401) で、ログインした利用者がサイトを見てよいかを確かめる。getReplayChunks で録画のかたまりを読み、restoreReplayEventFragments で分けて送られた操作をつなぎ直して、操作を時刻の順に並べて 1 つにまとめる。sessionId はいちばん最初のかたまりのものを返す"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 77
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 90
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 94
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 95
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 96
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 98
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 102
+  "rules":
+  - "kind": "calculation"
+    "value": "録画のかたまりの操作を 1 つの並びにまとめ、時刻が前後していれば時刻の順に並べ直す。until / chunkIndex / eventIndex を渡されたときは、そこまでの操作だけを返す"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 35
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 36
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 44
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 50
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 66
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 67
+- "id": "q_parse_request"
+  "layer": "query"
+  "kind": "function"
+  "name": "parseRequest (src/lib/request.ts)"
+  "source":
+    "file": "src/lib/request.ts"
+    "line": 16
+  "caller": "api_replay_get"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 77
+  "summary":
+    "status": "interpretation"
+    "value": "受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す。この画面のほかの受け口 (replays/saved/[replayId] の GET / POST、sessions/[sessionId] の GET) も、最初に同じ関数を呼ぶ。経路はここと同じ"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 22
+    - "file": "src/lib/request.ts"
+      "line": 23
+    - "file": "src/lib/request.ts"
+      "line": 30
+    - "file": "src/lib/request.ts"
+      "line": 52
+    - "file": "src/lib/request.ts"
+      "line": 59
+  "rules":
+  - "kind": "validation"
+    "value": "受け口が渡した schema に合わない入力は 400 を返す (GET はクエリを、それ以外は本文を検査する)"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 28
+    - "file": "src/lib/request.ts"
+      "line": 30
+    - "file": "src/lib/request.ts"
+      "line": 33
+- "id": "q_check_auth"
+  "layer": "query"
+  "kind": "function"
+  "name": "checkAuth (src/lib/auth.ts)"
+  "source":
+    "file": "src/lib/auth.ts"
+    "line": 71
+  "caller": "q_parse_request"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 52
+    "note": "この画面の受け口は skipAuth を渡さない。入力の誤りがあるときだけ、呼ばずに打ち切る (src/lib/request.ts:51)"
+  "summary":
+    "status": "interpretation"
+    "value": "リクエストの Bearer トークンと共有トークンから、利用者を決める。トークンに userId があれば user を読む。無くて authKey があり、Redis が有効なら auth:* を読み、そこにある userId で user を読む。利用者も共有トークンも無ければ null (受け口が 401 を返す)。umami_ で始まるトークンを API キーとして調べる経路 (auth.ts:75 の checkApiKeyAuth) は、画面のフックがログインのトークンを付けるので、この入口からは辿っていない (rules に 1 行書いた)"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 72
+    - "file": "src/lib/auth.ts"
+      "line": 78
+    - "file": "src/lib/auth.ts"
+      "line": 88
+    - "file": "src/lib/auth.ts"
+      "line": 94
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/auth.ts"
+      "line": 105
+    - "file": "src/lib/auth.ts"
+      "line": 122
+    - "file": "src/lib/auth.ts"
+      "line": 140
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 28
+  "io":
+  - "op": "get"
+    "status": "interpretation"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "auth:*"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/auth.ts"
+      "line": 150
+    "note": "REDIS_URL が設定されていて、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts:150) から読み取った"
+  "guards":
+  - "kind": "authentication"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 122
+    - "file": "src/lib/auth.ts"
+      "line": 124
+    - "file": "src/lib/request.ts"
+      "line": 54
+    - "file": "src/lib/request.ts"
+      "line": 55
+    "note": "ログインした利用者も、共有トークンも無ければ通さない"
+  "settings":
+  - "name": "REDIS_URL"
+    "kind": "env"
+    "effect": "設定されていると、トークンに userId が無く authKey があるとき、Redis の auth:* からログインの情報を読む。設定されていなければ、トークンの userId だけを使う"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 101
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/redis.ts"
+      "line": 106
+  - "name": "CLOUD_MODE"
+    "kind": "env"
+    "effect": "設定されていないときだけ、umami_ で始まるトークンを API キーとして扱う (設定されていると、API キーを受け付けない)"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 74
+    - "file": "src/lib/api-key.ts"
+      "line": 41
+  "rules":
+  - "kind": "validation"
+    "value": "2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 83
+    - "file": "src/lib/auth.ts"
+      "line": 85
+  - "kind": "validation"
+    "value": "トークン (または Redis のログイン情報) にパスワードの指紋 (pwd) があり、いまのパスワードのハッシュと違えば、ログインしていない扱いにする (パスワードを変える前のトークンを無効にする)"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 98
+    - "file": "src/lib/auth.ts"
+      "line": 99
+    - "file": "src/lib/auth.ts"
+      "line": 108
+  - "kind": "validation"
+    "value": "共有トークンは、type が共有用のものだけを受け付ける。利用者がいなくて共有トークンだけのときは、共有画面からの印のヘッダー (SHARE_CONTEXT_HEADER) が無ければ受け付けない"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 127
+    - "file": "src/lib/auth.ts"
+      "line": 128
+    - "file": "src/lib/auth.ts"
+      "line": 129
+    - "file": "src/lib/auth.ts"
+      "line": 174
+  - "kind": "validation"
+    "value": "API キーの形のトークン (umami_ で始まる) は、API キーとして照合する経路 (checkApiKeyAuth) に回す。この画面のブラウザはログインのトークンを付けるので、この経路は通らない"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 74
+    - "file": "src/lib/auth.ts"
+      "line": 75
+    - "file": "src/lib/api-key.ts"
+      "line": 4
+    - "file": "src/lib/api-key.ts"
+      "line": 33
+    - "file": "src/components/hooks/useApi.ts"
+      "line": 28
+    "note": "分析リポジトリの決まりで、API キーの枝はフレームにせず、ここに 1 行だけ書く"
+- "id": "q_get_user"
+  "layer": "query"
+  "kind": "function"
+  "name": "getUser → findUser (src/queries/prisma/user.ts)"
+  "source":
+    "file": "src/queries/prisma/user.ts"
+    "line": 49
+  "caller": "q_check_auth"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "トークンに userId があるとき (Redis の auth:* から userId が取れたときも、auth.ts:105 で同じ関数を呼ぶ)"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 93
+    - "file": "src/lib/auth.ts"
+      "line": 94
+  "summary":
+    "status": "interpretation"
+    "value": "user を id で 1 件読む。削除済み (deleted_at がある) の利用者は読まない。checkAuth はパスワードの指紋を比べるために password も取り出す"
+    "evidence":
+    - "file": "src/queries/prisma/user.ts"
+      "line": 32
+    - "file": "src/queries/prisma/user.ts"
+      "line": 36
+    - "file": "src/queries/prisma/user.ts"
+      "line": 41
+    - "file": "src/queries/prisma/user.ts"
+      "line": 50
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "user"
+    "fields":
+    - "name": "user_id"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "username"
+      "use":
+      - "read"
+    - "name": "password"
+      "use":
+      - "read"
+    - "name": "role"
+      "use":
+      - "read"
+    - "name": "created_at"
+      "use":
+      - "read"
+    - "name": "two_factor_required"
+      "use":
+      - "read"
+    - "name": "deleted_at"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/user.ts"
+      "line": 32
+    - "file": "src/queries/prisma/user.ts"
+      "line": 34
+    - "file": "src/queries/prisma/user.ts"
+      "line": 38
+    - "file": "prisma/schema.prisma"
+      "line": 37
+- "id": "ext_prisma_user"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client user.findUnique"
+  "source":
+    "file": "src/queries/prisma/user.ts"
+    "line": 32
+  "caller": "q_get_user"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/user.ts"
+      "line": 50
+    - "file": "src/queries/prisma/user.ts"
+      "line": 32
+- "id": "ext_redis_auth"
+  "layer": "external"
+  "kind": "library"
+  "name": "redis (node-redis クライアント) get — auth:*"
+  "source":
+    "file": "src/lib/redis.ts"
+    "line": 37
+  "caller": "q_check_auth"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "REDIS_URL が設定されていて、トークンに userId が無く authKey があるとき"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 101
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/redis.ts"
+      "line": 37
+- "id": "q_can_view_authenticated_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewAuthenticatedWebsite (src/permissions/share.ts)"
+  "source":
+    "file": "src/permissions/share.ts"
+    "line": 101
+  "caller": "api_replay_get"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 90
+  "summary":
+    "status": "interpretation"
+    "value": "ログインした利用者がサイトを見てよいかを決める。共有トークンだけ (利用者がいない) なら許さない。利用者がいれば canViewWebsite に任せる。録画の保存の受け口 replays/saved/[replayId] の GET (route.ts:23) も同じ関数を呼ぶ。経路はここと同じ"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 105
+    - "file": "src/permissions/share.ts"
+      "line": 106
+    - "file": "src/permissions/share.ts"
+      "line": 109
+  "guards":
+  - "kind": "other"
+    "value": "auth?.user"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 105
+    - "file": "src/permissions/share.ts"
+      "line": 106
+    "note": "共有トークンだけの呼び出しを通さない (ログインした利用者がいること)。その上の確認は canViewWebsite (フレーム q_can_view_website)。綴りは、ほかの入口の結果 (websites.websiteId_d.heatmaps など) にそろえた"
+- "id": "q_can_view_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 8
+  "caller": "q_can_view_authenticated_website"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 109
+    "note": "ログインした利用者がいないときだけ、呼ばずに打ち切る (share.ts:105)"
+  "summary":
+    "status": "interpretation"
+    "value": "利用者がサイトを見てよいかを決める。管理者と、共有トークンの対象は、DB を読まずに許す。それ以外は、対象を getEntity で読み、持ち主か、持ち主のチームのメンバー (getTeamUser) かを確かめる。sessions/[sessionId] の GET が呼ぶ canViewWebsiteSection (share.ts:59) も同じ関数を呼ぶ"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 9
+    - "file": "src/permissions/website.ts"
+      "line": 13
+    - "file": "src/permissions/website.ts"
+      "line": 24
+    - "file": "src/permissions/website.ts"
+      "line": 31
+    - "file": "src/permissions/website.ts"
+      "line": 35
+  "guards":
+  - "kind": "role"
+    "value": "user.isAdmin"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 9
+    - "file": "src/permissions/website.ts"
+      "line": 10
+    "note": "管理者は、ほかの確認もデータの読み取りもせずに通る"
+  - "kind": "ownership"
+    "value": "canViewWebsite"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 9
+    - "file": "src/permissions/website.ts"
+      "line": 13
+    - "file": "src/permissions/website.ts"
+      "line": 26
+    - "file": "src/permissions/website.ts"
+      "line": 30
+    - "file": "src/permissions/website.ts"
+      "line": 31
+    - "file": "src/permissions/website.ts"
+      "line": 34
+    - "file": "src/permissions/website.ts"
+      "line": 35
+    - "file": "src/permissions/website.ts"
+      "line": 37
+    "note": "管理者 (user.isAdmin) か、共有トークンの対象か、対象の持ち主 (user.id === entity.userId) であること。対象がチームのもの (entity.teamId) なら、そのチームのメンバー (team_user に行がある) であること"
+- "id": "q_get_entity"
+  "layer": "query"
+  "kind": "function"
+  "name": "getEntity (src/lib/entity.ts)"
+  "source":
+    "file": "src/lib/entity.ts"
+    "line": 4
+  "caller": "q_can_view_website"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "利用者が管理者でなく、共有トークンの対象でもないとき"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 24
+  "summary":
+    "status": "interpretation"
+    "value": "同じ id で website / link / pixel / board を並べて読み、最初に見つかったものを返す (id がどの種類のものかを、呼ぶ側が知らないため)"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 5
+    - "file": "src/lib/entity.ts"
+      "line": 6
+    - "file": "src/lib/entity.ts"
+      "line": 7
+    - "file": "src/lib/entity.ts"
+      "line": 8
+    - "file": "src/lib/entity.ts"
+      "line": 9
+    - "file": "src/lib/entity.ts"
+      "line": 12
+- "id": "q_get_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite → findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 6
+  "summary":
+    "status": "interpretation"
+    "value": "website を id で 1 件読み、見つかれば、いちばん新しい共有 (share) の slug を shareId として付ける。id が UUID の形でなければ、読まずに null を返す。canDeleteWebsite (src/permissions/website.ts:169) と canUpdateWebsite (src/permissions/website.ts:141) も同じ関数を呼ぶ。経路はここと同じ"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 81
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 91
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "fields":
+    - "name": "slug"
+      "use":
+      - "read"
+    - "name": "entity_id"
+      "use":
+      - "filter"
+    - "name": "created_at"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- "id": "ext_prisma_website"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client website.findUnique"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 77
+  "caller": "q_get_website"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    "note": "id が UUID の形でないときだけ、呼ばずに打ち切る (website.ts:81)"
+- "id": "ext_prisma_share"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client share.findFirst"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 304
+  "caller": "q_get_website"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    "note": "サイトが見つからなかったときだけ、呼ばずに打ち切る (website.ts:91)"
+- "id": "q_get_link"
+  "layer": "query"
+  "kind": "function"
+  "name": "getLink → findLink (src/queries/prisma/link.ts)"
+  "source":
+    "file": "src/queries/prisma/link.ts"
+    "line": 12
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 7
+  "summary":
+    "status": "interpretation"
+    "value": "link を id で 1 件読む"
+    "evidence":
+    - "file": "src/queries/prisma/link.ts"
+      "line": 9
+    - "file": "src/queries/prisma/link.ts"
+      "line": 13
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "link"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "link_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/link.ts"
+      "line": 9
+    - "file": "src/queries/prisma/link.ts"
+      "line": 15
+    - "file": "prisma/schema.prisma"
+      "line": 358
+- "id": "ext_prisma_link"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client link.findUnique"
+  "source":
+    "file": "src/queries/prisma/link.ts"
+    "line": 9
+  "caller": "q_get_link"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/link.ts"
+      "line": 13
+    - "file": "src/queries/prisma/link.ts"
+      "line": 9
+- "id": "q_get_pixel"
+  "layer": "query"
+  "kind": "function"
+  "name": "getPixel → findPixel (src/queries/prisma/pixel.ts)"
+  "source":
+    "file": "src/queries/prisma/pixel.ts"
+    "line": 12
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 8
+  "summary":
+    "status": "interpretation"
+    "value": "pixel を id で 1 件読む"
+    "evidence":
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 9
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 13
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "pixel"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "pixel_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 9
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 15
+    - "file": "prisma/schema.prisma"
+      "line": 378
+- "id": "ext_prisma_pixel"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client pixel.findUnique"
+  "source":
+    "file": "src/queries/prisma/pixel.ts"
+    "line": 9
+  "caller": "q_get_pixel"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 13
+    - "file": "src/queries/prisma/pixel.ts"
+      "line": 9
+- "id": "q_get_board"
+  "layer": "query"
+  "kind": "function"
+  "name": "getBoard → findBoard (src/queries/prisma/board.ts)"
+  "source":
+    "file": "src/queries/prisma/board.ts"
+    "line": 13
+  "caller": "q_get_entity"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 9
+  "summary":
+    "status": "interpretation"
+    "value": "board を id で 1 件読む"
+    "evidence":
+    - "file": "src/queries/prisma/board.ts"
+      "line": 10
+    - "file": "src/queries/prisma/board.ts"
+      "line": 14
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "board"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "board_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/board.ts"
+      "line": 10
+    - "file": "src/queries/prisma/board.ts"
+      "line": 16
+    - "file": "prisma/schema.prisma"
+      "line": 398
+- "id": "ext_prisma_board"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client board.findUnique"
+  "source":
+    "file": "src/queries/prisma/board.ts"
+    "line": 10
+  "caller": "q_get_board"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/board.ts"
+      "line": 14
+    - "file": "src/queries/prisma/board.ts"
+      "line": 10
+- "id": "q_get_team_user"
+  "layer": "query"
+  "kind": "function"
+  "name": "getTeamUser (src/queries/prisma/teamUser.ts)"
+  "source":
+    "file": "src/queries/prisma/teamUser.ts"
+    "line": 19
+  "caller": "q_can_view_website"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "対象に持ち主の利用者 (userId) が無く、チーム (teamId) があるとき"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 34
+    - "file": "src/permissions/website.ts"
+      "line": 35
+  "summary":
+    "status": "interpretation"
+    "value": "チームと利用者の組で team_user を 1 件読む (削除済みのチームは除く)。canUpdateWebsite (src/permissions/website.ts:152) と canDeleteWebsite (src/permissions/website.ts:180) も同じ関数を呼ぶ"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 20
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 22
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 23
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 24
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "team_user"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "team_id"
+      "use":
+      - "filter"
+    - "name": "user_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 20
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 22
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 23
+    - "file": "prisma/schema.prisma"
+      "line": 265
+  - "op": "read"
+    "status": "interpretation"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "team"
+    "fields":
+    - "name": "team_id"
+      "use":
+      - "filter"
+    - "name": "deleted_at"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 24
+    - "file": "prisma/schema.prisma"
+      "line": 249
+    "note": "TeamUser.team の関連の条件 (deletedAt: null) として読まれる。テーブル名はコードに直接は出ない"
+- "id": "ext_prisma_team_user"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client teamUser.findFirst"
+  "source":
+    "file": "src/queries/prisma/teamUser.ts"
+    "line": 20
+  "caller": "q_get_team_user"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/teamUser.ts"
+      "line": 20
+- "id": "q_replay_chunks"
+  "layer": "query"
+  "kind": "function"
+  "name": "getReplayChunks (src/queries/sql/replays/getReplayChunks.ts)"
+  "source":
+    "file": "src/queries/sql/replays/getReplayChunks.ts"
+    "line": 23
+  "caller": "api_replay_get"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 94
+  "summary":
+    "status": "interpretation"
+    "value": "訪問の録画のかたまり (session_replay の行) を、かたまりの番号の順に読む。PostgreSQL では操作 (events) が gzip で縮めてあるので戻してから JSON として読む。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 28
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 60
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 70
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 75
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 83
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 105
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 125
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 139
+  "settings":
+  - "name": "CLICKHOUSE_URL"
+    "kind": "env"
+    "effect": "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 32
+    - "file": "src/lib/db.ts"
+      "line": 38
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_replay"
+    "fields":
+    - "name": "session_id"
+      "use":
+      - "read"
+    - "name": "visit_id"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "events"
+      "use":
+      - "read"
+    - "name": "chunk_index"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "event_count"
+      "use":
+      - "read"
+    - "name": "started_at"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "ended_at"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 63
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 64
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 65
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 66
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 67
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 68
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 69
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 70
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 71
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 72
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 42
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 48
+    - "file": "prisma/schema.prisma"
+      "line": 436
+    "note": "started_at と chunk_index の条件は、until / chunkIndex を渡されたときだけ (この画面のフックは渡さない)"
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_replay"
+    "fields":
+    - "name": "session_id"
+      "use":
+      - "read"
+    - "name": "visit_id"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "events"
+      "use":
+      - "read"
+    - "name": "chunk_index"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "event_count"
+      "use":
+      - "read"
+    - "name": "started_at"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "ended_at"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 118
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 119
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 120
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 121
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 122
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 123
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 124
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 125
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 126
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 127
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 95
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 101
+    - "file": "db/clickhouse/schema.sql"
+      "line": 311
+    "note": "started_at と chunk_index の条件は、until / chunkIndex を渡されたときだけ (この画面のフックは渡さない)"
+- "id": "ext_replay_chunks_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_replay_chunks"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 60
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+  "settings":
+  - "name": "DATABASE_REPLICA_URL"
+    "kind": "env"
+    "effect": "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 738
+    - "file": "src/lib/prisma.ts"
+      "line": 55
+    - "file": "src/lib/prisma.ts"
+      "line": 861
+- "id": "ext_replay_chunks_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_replay_chunks"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/replays/getReplayChunks.ts"
+      "line": 105
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "use_replay_saved"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useReplaySavedQuery"
+  "source":
+    "file": "src/components/hooks/queries/useReplaySavedQuery.ts"
+    "line": 4
+  "caller": "replay_playback"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 37
+  "summary":
+    "status": "interpretation"
+    "value": "録画が保存済みかどうかを GET /websites/<id>/replays/saved/<replayId> から読むフック。保存を変えると (touch('replays')) 読み直す"
+    "evidence":
+    - "file": "src/components/hooks/queries/useReplaySavedQuery.ts"
+      "line": 6
+    - "file": "src/components/hooks/queries/useReplaySavedQuery.ts"
+      "line": 9
+    - "file": "src/components/hooks/queries/useReplaySavedQuery.ts"
+      "line": 11
+- "id": "api_replay_saved_get"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/replays/saved/[replayId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+    "line": 11
+  "caller": "use_replay_saved"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/components/hooks/queries/useReplaySavedQuery.ts"
+      "line": 11
+    - "file": "src/components/hooks/queries/useReplaySavedQuery.ts"
+      "line": 13
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+    "note": "フックの enabled (websiteId と replayId があること) は、URL の段から渡るので、この画面ではいつも成り立つ"
+  "summary":
+    "status": "interpretation"
+    "value": "録画が保存済みかどうか (isSaved) を返す受け口。parseRequest (route.ts:15) と canViewAuthenticatedWebsite (route.ts:23。満たさなければ 401) も呼ぶ。経路は、フレーム q_parse_request / q_can_view_authenticated_website と同じ。getReplaySaved で読む"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 15
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 23
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 27
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 29
+- "id": "q_get_replay_saved"
+  "layer": "query"
+  "kind": "function"
+  "name": "getReplaySaved (src/queries/prisma/sessionReplay.ts)"
+  "source":
+    "file": "src/queries/prisma/sessionReplay.ts"
+    "line": 68
+  "caller": "api_replay_saved_get"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 27
+  "summary":
+    "status": "interpretation"
+    "value": "サイトと訪問の組で session_replay_saved を 1 件探し、あるかどうかを返す"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 69
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 70
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 73
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_replay_saved"
+    "fields":
+    - "name": "saved_replay_id"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    - "name": "visit_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 69
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 70
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 71
+    - "file": "prisma/schema.prisma"
+      "line": 453
+- "id": "ext_prisma_replay_saved_find"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client sessionReplaySaved.findUnique"
+  "source":
+    "file": "src/queries/prisma/sessionReplay.ts"
+    "line": 69
+  "caller": "q_get_replay_saved"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 69
+- "id": "use_website_session"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useWebsiteSessionQuery"
+  "source":
+    "file": "src/components/hooks/queries/useWebsiteSessionQuery.ts"
+    "line": 3
+  "caller": "replay_playback"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 38
+  "summary":
+    "status": "interpretation"
+    "value": "セッション 1 件を GET /websites/<id>/sessions/<sessionId> から読むフック。sessionId は、読み終えた録画の sessionId (replay?.sessionId)"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteSessionQuery.ts"
+      "line": 9
+    - "file": "src/components/hooks/queries/useWebsiteSessionQuery.ts"
+      "line": 11
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 38
+- "id": "api_session_get"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "GET /api/websites/[websiteId]/sessions/[sessionId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+    "line": 8
+  "caller": "use_website_session"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "録画を読み終え、録画の sessionId が決まったとき (録画のかたまりが 1 つも無ければ sessionId は null で、呼ばない)"
+    "evidence":
+    - "file": "src/components/hooks/queries/useWebsiteSessionQuery.ts"
+      "line": 9
+    - "file": "src/components/hooks/queries/useWebsiteSessionQuery.ts"
+      "line": 11
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 38
+    - "file": "src/app/api/websites/[websiteId]/replays/[replayId]/route.ts"
+      "line": 98
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+  "summary":
+    "status": "interpretation"
+    "value": "セッション 1 件を返す受け口 (無ければ 404)。PostgreSQL だけで動くときは、消してよいか (canDeleteWebsite) も確かめて canDelete として返す。canViewWebsiteSection (route.ts:22。セクションは sessions / events / realtime / revenue。満たさなければ 401) で見てよいかを確かめる。parseRequest (route.ts:12) も呼ぶ。経路は、フレーム q_parse_request と同じ。getWebsiteSession で読み、同じ distinct ID に結び付いたセッションを getLinkedDistinctIds / getLinkedSessionIds で数える"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 12
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 19
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 22
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 27
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 30
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 34
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 46
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 54
+  "settings":
+  - "name": "CLICKHOUSE_URL"
+    "kind": "env"
+    "effect": "設定されていると、消してよいかを確かめず、canDelete をいつも false で返す"
+    "status": "fact"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 19
+    - "file": "src/lib/db.ts"
+      "line": 22
+    - "file": "src/lib/db.ts"
+      "line": 23
+  "rules":
+  - "kind": "decision"
+    "value": "結び付いた distinct ID がちょうど 1 つのときだけ、セッションの distinctId にそれを入れ、その ID に結び付いたセッションの数 (stitchedSessionCount) を数える。複数あれば distinctId を空にする"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 35
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 40
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 43
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 45
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 46
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 52
+- "id": "q_can_delete_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "canDeleteWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 160
+  "caller": "api_session_get"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が無く、PostgreSQL だけで動くとき (isRelationalOnly)"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 19
+    - "file": "src/lib/db.ts"
+      "line": 23
+  "summary":
+    "status": "interpretation"
+    "value": "利用者がサイトを消してよいか (ここではセッションを消してよいか) を決める。管理者は読まずに許す。そうでなければ getWebsite でサイトを読み、持ち主 (userId) があれば本人のときだけ許す。チームのサイトなら getTeamUser で自分の team_user を読み、その役割が website:delete を持つときだけ許す。この受け口 (GET) では結果を canDelete として返すだけで、止めない。getWebsite と getTeamUser は、どちらもほかの呼び出し元の下に書いた処理 (フレーム q_get_website / q_get_team_user と同じ経路) で終端になるので、いちばん早い getWebsite を書き直した (q_get_website_rw1)"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 161
+    - "file": "src/permissions/website.ts"
+      "line": 165
+    - "file": "src/permissions/website.ts"
+      "line": 169
+    - "file": "src/permissions/website.ts"
+      "line": 175
+    - "file": "src/permissions/website.ts"
+      "line": 179
+    - "file": "src/permissions/website.ts"
+      "line": 180
+    - "file": "src/permissions/website.ts"
+      "line": 182
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 19
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 56
+  "guards":
+  - "kind": "role"
+    "value": "user.isAdmin"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 165
+    "note": "管理者は、ほかの確認もデータの読み取りもせずに通る"
+  - "kind": "ownership"
+    "value": "canDeleteWebsite"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 161
+    - "file": "src/permissions/website.ts"
+      "line": 175
+    - "file": "src/permissions/website.ts"
+      "line": 176
+    - "file": "src/permissions/website.ts"
+      "line": 179
+    - "file": "src/permissions/website.ts"
+      "line": 180
+    "note": "ログインした利用者がいること。サイトに持ち主 (userId) があれば本人 (user.id === website.userId) だけ。チームのサイトなら、そのチームのメンバーで、下の権限を持つこと。この受け口 (GET) では止めずに canDelete を返すだけ"
+  - "kind": "permission"
+    "value": "PERMISSIONS.websiteDelete"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 182
+    - "file": "src/lib/constants.ts"
+      "line": 195
+    "note": "チームのサイトのときだけ。team_user の role が website:delete を持つこと"
+- "id": "q_get_website_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_can_delete_website"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "利用者が管理者でないとき"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 165
+    - "file": "src/permissions/website.ts"
+      "line": 169
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。呼び出し元 (q_can_delete_website) が終端にならないように書き直した。external のフレームは q_get_website の下に書いた"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "fields":
+    - "name": "slug"
+      "use":
+      - "read"
+    - "name": "entity_id"
+      "use":
+      - "filter"
+    - "name": "created_at"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- "id": "q_can_view_website_section"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewWebsiteSection (src/permissions/share.ts)"
+  "source":
+    "file": "src/permissions/share.ts"
+    "line": 53
+  "caller": "api_session_get"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 21
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 22
+  "summary":
+    "status": "interpretation"
+    "value": "サイトの、あるセクションを見てよいかを決める (この受け口が渡すセクションは sessions / events / realtime / revenue)。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める。canViewWebsite はフレーム q_can_view_website と同じ処理で、そのままでは終端になるので、いちばん早い呼び出しを書き直した (q_can_view_website_rw1 から)"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 58
+    - "file": "src/permissions/share.ts"
+      "line": 59
+    - "file": "src/permissions/share.ts"
+      "line": 64
+    - "file": "src/permissions/share.ts"
+      "line": 69
+    - "file": "src/permissions/share.ts"
+      "line": 77
+  "guards":
+  - "kind": "other"
+    "value": "canViewWebsiteSection"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 40
+    - "file": "src/permissions/share.ts"
+      "line": 64
+    - "file": "src/permissions/share.ts"
+      "line": 69
+    - "file": "src/permissions/share.ts"
+      "line": 73
+    - "file": "src/permissions/share.ts"
+      "line": 77
+    "note": "ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと。共有の設定にセクションごとの可否があれば、受け口が渡したセクション (この受け口では sessions / events / realtime / revenue) のどれかが true であること"
+- "id": "q_can_view_website_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "canViewWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 8
+  "caller": "q_can_view_website_section"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "ログインした利用者がいるとき (共有トークンだけのときは呼ばない)"
+    "evidence":
+    - "file": "src/permissions/share.ts"
+      "line": 58
+    - "file": "src/permissions/share.ts"
+      "line": 59
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム q_can_view_website と同じ処理。呼び出し元 (q_can_view_website_section) が終端にならないように、いちばん早い呼び出し (getEntity) を書き直した。権限の確認の内容は q_can_view_website に書いた"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 8
+    - "file": "src/permissions/website.ts"
+      "line": 24
+- "id": "q_get_entity_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "getEntity (src/lib/entity.ts)"
+  "source":
+    "file": "src/lib/entity.ts"
+    "line": 4
+  "caller": "q_can_view_website_rw1"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "利用者が管理者でなく、共有トークンの対象でもないとき"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 24
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム q_get_entity と同じ処理 (website / link / pixel / board を同じ id で並べて読む)。ここでは、いちばん早い getWebsite だけを書き直した"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 5
+    - "file": "src/lib/entity.ts"
+      "line": 6
+- "id": "q_get_website_rw2"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_get_entity_rw1"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/lib/entity.ts"
+      "line": 6
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。external のフレームは q_get_website の下に書いた"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "fields":
+    - "name": "slug"
+      "use":
+      - "read"
+    - "name": "entity_id"
+      "use":
+      - "filter"
+    - "name": "created_at"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- "id": "q_website_session"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsiteSession (src/queries/sql/sessions/getWebsiteSession.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+    "line": 8
+  "caller": "api_session_get"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 27
+  "summary":
+    "status": "interpretation"
+    "value": "セッション 1 件の属性 (端末・場所など) と、訪問の数・ページビューの数・カスタムイベントの数・最初と最後の日時・滞在時間の合計を出す。PostgreSQL は session と website_event を結び、ClickHouse は時間ごとの集計表 website_event_stats_hourly から読む。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 9
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 18
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 33
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 36
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 54
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 55
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 106
+  "settings":
+  - "name": "CLICKHOUSE_URL"
+    "kind": "env"
+    "effect": "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 32
+    - "file": "src/lib/db.ts"
+      "line": 38
+  "rules":
+  - "kind": "calculation"
+    "value": "訪問の数は異なる visit_id の数、ページビューはページビュー (event_type = 1) の件数、イベントはカスタムイベント (event_type = 2) の件数、滞在時間は訪問ごとの最初と最後の日時の差の合計"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 33
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 34
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 35
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 36
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 52
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 53
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 85
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 88
+  - "kind": "decision"
+    "value": "性能の計測のイベント (event_type = 5) は数えない"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 58
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 109
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session"
+    "fields":
+    - "name": "session_id"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "distinct_id"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "browser"
+      "use":
+      - "read"
+    - "name": "os"
+      "use":
+      - "read"
+    - "name": "device"
+      "use":
+      - "read"
+    - "name": "screen"
+      "use":
+      - "read"
+    - "name": "language"
+      "use":
+      - "read"
+    - "name": "country"
+      "use":
+      - "read"
+    - "name": "region"
+      "use":
+      - "read"
+    - "name": "city"
+      "use":
+      - "read"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 38
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 39
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 41
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 42
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 49
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 54
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 56
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 57
+    - "file": "prisma/schema.prisma"
+      "line": 84
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website_event"
+    "fields":
+    - "name": "session_id"
+      "use":
+      - "filter"
+    - "name": "visit_id"
+      "use":
+      - "read"
+    - "name": "created_at"
+      "use":
+      - "read"
+    - "name": "event_type"
+      "use":
+      - "read"
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 40
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 50
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 51
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 52
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 53
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 55
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 58
+    - "file": "prisma/schema.prisma"
+      "line": 183
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "website_event_stats_hourly"
+    "fields":
+    - "name": "session_id"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "distinct_id"
+      "use":
+      - "read"
+    - "name": "visit_id"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "read"
+      - "filter"
+    - "name": "browser"
+      "use":
+      - "read"
+    - "name": "os"
+      "use":
+      - "read"
+    - "name": "device"
+      "use":
+      - "read"
+    - "name": "screen"
+      "use":
+      - "read"
+    - "name": "language"
+      "use":
+      - "read"
+    - "name": "country"
+      "use":
+      - "read"
+    - "name": "region"
+      "use":
+      - "read"
+    - "name": "city"
+      "use":
+      - "read"
+    - "name": "min_time"
+      "use":
+      - "read"
+    - "name": "max_time"
+      "use":
+      - "read"
+    - "name": "views"
+      "use":
+      - "read"
+    - "name": "event_name"
+      "use":
+      - "read"
+    - "name": "event_type"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 90
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 91
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 92
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 101
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 102
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 103
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 104
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 105
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 106
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 107
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 108
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 109
+    - "file": "db/clickhouse/schema.sql"
+      "line": 113
+    "note": "event_name は配列の列で、その長さをイベントの数として足す"
+- "id": "ext_website_session_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_website_session"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 18
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+  "settings":
+  - "name": "DATABASE_REPLICA_URL"
+    "kind": "env"
+    "effect": "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 738
+    - "file": "src/lib/prisma.ts"
+      "line": 55
+    - "file": "src/lib/prisma.ts"
+      "line": 861
+- "id": "ext_website_session_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_website_session"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getWebsiteSession.ts"
+      "line": 70
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_linked_distinct_ids"
+  "layer": "query"
+  "kind": "function"
+  "name": "getLinkedDistinctIds (src/queries/sql/sessions/getLinkedDistinctIds.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+    "line": 7
+  "caller": "api_session_get"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 34
+    "note": "セッションが見つからないときだけ、呼ばずに 404 で打ち切る (route.ts:29)"
+  "summary":
+    "status": "interpretation"
+    "value": "セッションに結び付いた distinct ID (利用者を見分ける ID) を session_link から読む。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 10
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 21
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 22
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 36
+  "settings":
+  - "name": "CLICKHOUSE_URL"
+    "kind": "env"
+    "effect": "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 32
+    - "file": "src/lib/db.ts"
+      "line": 38
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_link"
+    "fields":
+    - "name": "distinct_id"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    - "name": "session_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 21
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 22
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 23
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 24
+    - "file": "prisma/schema.prisma"
+      "line": 95
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_link"
+    "fields":
+    - "name": "distinct_id"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    - "name": "session_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 36
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 37
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 38
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 39
+    - "file": "db/clickhouse/schema.sql"
+      "line": 429
+- "id": "ext_linked_distinct_ids_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_linked_distinct_ids"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 19
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+  "settings":
+  - "name": "DATABASE_REPLICA_URL"
+    "kind": "env"
+    "effect": "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 738
+    - "file": "src/lib/prisma.ts"
+      "line": 55
+    - "file": "src/lib/prisma.ts"
+      "line": 861
+- "id": "ext_linked_distinct_ids_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_linked_distinct_ids"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedDistinctIds.ts"
+      "line": 34
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "q_linked_session_ids"
+  "layer": "query"
+  "kind": "function"
+  "name": "getLinkedSessionIds (src/queries/sql/sessions/getLinkedSessionIds.ts)"
+  "source":
+    "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+    "line": 7
+  "caller": "api_session_get"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "結び付いた distinct ID がちょうど 1 つに決まるとき"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 40
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 45
+    - "file": "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts"
+      "line": 46
+  "summary":
+    "status": "interpretation"
+    "value": "distinct ID に結び付いたセッションと、それぞれの最初の日時を session_link から読む。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 10
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 22
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 23
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 24
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 27
+  "settings":
+  - "name": "CLICKHOUSE_URL"
+    "kind": "env"
+    "effect": "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/db.ts"
+      "line": 27
+    - "file": "src/lib/db.ts"
+      "line": 32
+    - "file": "src/lib/db.ts"
+      "line": 38
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_link"
+    "fields":
+    - "name": "session_id"
+      "use":
+      - "read"
+    - "name": "created_at"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    - "name": "distinct_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 22
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 23
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 24
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 25
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 26
+    - "file": "prisma/schema.prisma"
+      "line": 95
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "clickhouse"
+        "table": "session_link"
+    "fields":
+    - "name": "session_id"
+      "use":
+      - "read"
+    - "name": "created_at"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    - "name": "distinct_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 40
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 41
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 42
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 43
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 44
+    - "file": "db/clickhouse/schema.sql"
+      "line": 429
+- "id": "ext_linked_session_ids_pg"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  "source":
+    "file": "src/lib/prisma.ts"
+    "line": 746
+  "caller": "q_linked_session_ids"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 19
+    - "file": "src/lib/prisma.ts"
+      "line": 746
+  "settings":
+  - "name": "DATABASE_REPLICA_URL"
+    "kind": "env"
+    "effect": "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/lib/prisma.ts"
+      "line": 738
+    - "file": "src/lib/prisma.ts"
+      "line": 55
+    - "file": "src/lib/prisma.ts"
+      "line": 861
+- "id": "ext_linked_session_ids_ch"
+  "layer": "external"
+  "kind": "library"
+  "name": "ClickHouse client (@clickhouse/client) query"
+  "source":
+    "file": "src/lib/clickhouse.ts"
+    "line": 721
+  "caller": "q_linked_session_ids"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    "evidence":
+    - "file": "src/queries/sql/sessions/getLinkedSessionIds.ts"
+      "line": 37
+    - "file": "src/lib/clickhouse.ts"
+      "line": 721
+- "id": "use_update_replay_saved"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useUpdateQuery('/websites/<id>/replays/saved/<replayId>')"
+  "source":
+    "file": "src/components/hooks/queries/useUpdateQuery.ts"
+    "line": 6
+  "caller": "replay_playback"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 42
+  "summary":
+    "status": "interpretation"
+    "value": "渡されたパスへ POST する、更新用の共通のフック。ここでは /websites/<id>/replays/saved/<replayId>。保存の印を押して保存を外すとき (ReplayPlayback.tsx:60) に isSaved: false を送る。ReplaySaveForm (ReplaySaveForm.tsx:25) も、同じフックを同じパスで呼び、isSaved: true と名前を送る。経路はここと同じ"
+    "evidence":
+    - "file": "src/components/hooks/queries/useUpdateQuery.ts"
+      "line": 9
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 42
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 60
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 25
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 31
+- "id": "api_replay_saved_post"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "POST /api/websites/[websiteId]/replays/saved/[replayId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+    "line": 32
+  "caller": "use_update_replay_saved"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "セッションを読めて保存の印が出ていて、録画が保存済みのとき、利用者が保存の印を押したとき (保存を外す)"
+    "evidence":
+    - "file": "src/components/hooks/queries/useUpdateQuery.ts"
+      "line": 9
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 58
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 60
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 73
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 90
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 91
+    - "file": "src/lib/api-url.ts"
+      "line": 44
+  "summary":
+    "status": "interpretation"
+    "value": "録画を保存する・保存を外す受け口。canUpdateWebsite (route.ts:49。満たさなければ 401) で書き換えてよいかを確かめ、isSaved が true なら createReplaySaved、false なら deleteReplaySaved を呼ぶ。parseRequest (route.ts:41) も呼ぶ。経路は、フレーム q_parse_request と同じ"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 41
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 49
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 53
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 54
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 56
+  "rules":
+  - "kind": "validation"
+    "value": "isSaved は真偽、名前は 100 文字まで"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 36
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 37
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 38
+  - "kind": "decision"
+    "value": "isSaved が true なら保存の行を作り、false なら保存の行を消す"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 53
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 54
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 55
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 56
+- "id": "q_can_update_website"
+  "layer": "query"
+  "kind": "function"
+  "name": "canUpdateWebsite (src/permissions/website.ts)"
+  "source":
+    "file": "src/permissions/website.ts"
+    "line": 132
+  "caller": "api_replay_saved_post"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 49
+  "summary":
+    "status": "interpretation"
+    "value": "利用者がサイトを書き換えてよいかを決める。管理者は DB を読まずに許す。それ以外は、getWebsite でサイトを読み、持ち主か、チームのサイトならチームでの役割が更新の権限を持つか (getTeamUser) を確かめる。呼び先の getWebsite と getTeamUser はどちらもほかの呼び出し元の下に書いた処理で終端になるので、いちばん早い getWebsite を書き直した (q_get_website_rw3)"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 133
+    - "file": "src/permissions/website.ts"
+      "line": 137
+    - "file": "src/permissions/website.ts"
+      "line": 141
+    - "file": "src/permissions/website.ts"
+      "line": 148
+    - "file": "src/permissions/website.ts"
+      "line": 152
+    - "file": "src/permissions/website.ts"
+      "line": 154
+  "guards":
+  - "kind": "role"
+    "value": "user.isAdmin"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 137
+    - "file": "src/permissions/website.ts"
+      "line": 138
+    "note": "管理者は、ほかの確認もデータの読み取りもせずに通る"
+  - "kind": "ownership"
+    "value": "canUpdateWebsite"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 137
+    - "file": "src/permissions/website.ts"
+      "line": 147
+    - "file": "src/permissions/website.ts"
+      "line": 148
+    "note": "管理者 (user.isAdmin) か、サイトの持ち主 (user.id === website.userId) であること。この確認の前に、ログインした利用者がいること (共有トークンだけでは書き換えられない)"
+  - "kind": "permission"
+    "value": "PERMISSIONS.websiteUpdate"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 151
+    - "file": "src/permissions/website.ts"
+      "line": 152
+    - "file": "src/permissions/website.ts"
+      "line": 154
+    - "file": "src/lib/constants.ts"
+      "line": 194
+    "note": "website:update (チームのサイトのとき、チームでの役割がこの権限を持つこと)"
+- "id": "q_get_website_rw3"
+  "layer": "query"
+  "kind": "function"
+  "name": "getWebsite (src/queries/prisma/website.ts)"
+  "source":
+    "file": "src/queries/prisma/website.ts"
+    "line": 80
+  "caller": "q_can_update_website"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "利用者が管理者でないとき"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 137
+    - "file": "src/permissions/website.ts"
+      "line": 141
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。呼び出し元 (q_can_update_website) が終端にならないように書き直した。external のフレームは q_get_website の下に書いた"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+  "io":
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "website"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 77
+    - "file": "src/queries/prisma/website.ts"
+      "line": 85
+    - "file": "prisma/schema.prisma"
+      "line": 130
+  - "op": "read"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "share"
+    "fields":
+    - "name": "slug"
+      "use":
+      - "read"
+    - "name": "entity_id"
+      "use":
+      - "filter"
+    - "name": "created_at"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/website.ts"
+      "line": 304
+    - "file": "src/queries/prisma/website.ts"
+      "line": 95
+    - "file": "prisma/schema.prisma"
+      "line": 412
+    "note": "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- "id": "q_create_replay_saved"
+  "layer": "query"
+  "kind": "function"
+  "name": "createReplaySaved (src/queries/prisma/sessionReplay.ts)"
+  "source":
+    "file": "src/queries/prisma/sessionReplay.ts"
+    "line": 76
+  "caller": "api_replay_saved_post"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "isSaved が true のとき (保存の小窓のフォームから送ったとき)"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 53
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 54
+    "note": "この呼び出し元 (ReplayPlayback の保存を外す操作) は isSaved: false だけを送るので、ここからは届かないように見える。isSaved: true は ReplaySaveForm から送る (フレーム api_replay_saved_post_rw1 の経路)。同じ受け口の関数なので、ここに 1 回だけ書いた"
+  "summary":
+    "status": "interpretation"
+    "value": "session_replay_saved に 1 行作る (id は新しい UUID、名前が無ければ空の文字)"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 77
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 78
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 54
+  "io":
+  - "op": "create"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_replay_saved"
+    "fields":
+    - "name": "saved_replay_id"
+      "use":
+      - "write"
+    - "name": "website_id"
+      "use":
+      - "write"
+    - "name": "visit_id"
+      "use":
+      - "write"
+    - "name": "name"
+      "use":
+      - "write"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 77
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 78
+    - "file": "prisma/schema.prisma"
+      "line": 453
+- "id": "ext_prisma_replay_saved_create"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client sessionReplaySaved.create"
+  "source":
+    "file": "src/queries/prisma/sessionReplay.ts"
+    "line": 77
+  "caller": "q_create_replay_saved"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 77
+- "id": "q_delete_replay_saved"
+  "layer": "query"
+  "kind": "function"
+  "name": "deleteReplaySaved (src/queries/prisma/sessionReplay.ts)"
+  "source":
+    "file": "src/queries/prisma/sessionReplay.ts"
+    "line": 89
+  "caller": "api_replay_saved_post"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "isSaved が false のとき (保存済みの録画の保存の印を押したとき)"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 55
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 56
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 60
+  "summary":
+    "status": "interpretation"
+    "value": "サイトと訪問の組で session_replay_saved の行を消す"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 90
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 91
+  "io":
+  - "op": "delete"
+    "status": "fact"
+    "resource":
+      "kind": "rdb"
+      "levels":
+        "dbms": "postgresql"
+        "table": "session_replay_saved"
+    "fields":
+    - "name": "*"
+      "use":
+      - "write"
+    - "name": "website_id"
+      "use":
+      - "filter"
+    - "name": "visit_id"
+      "use":
+      - "filter"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 90
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 91
+    - "file": "prisma/schema.prisma"
+      "line": 453
+- "id": "ext_prisma_replay_saved_delete"
+  "layer": "external"
+  "kind": "library"
+  "name": "Prisma Client sessionReplaySaved.deleteMany"
+  "source":
+    "file": "src/queries/prisma/sessionReplay.ts"
+    "line": 90
+  "caller": "q_delete_replay_saved"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/queries/prisma/sessionReplay.ts"
+      "line": 90
+- "id": "replay_save_form"
+  "layer": "component"
+  "kind": "component"
+  "name": "ReplaySaveForm"
+  "source":
+    "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+    "line": 13
+  "caller": "replay_playback"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "セッションを読めて保存の印が出ていて、録画が保存済みでなく、利用者が保存の印を押して小窓を開いたとき"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 73
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 90
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 97
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx"
+      "line": 106
+  "summary":
+    "status": "interpretation"
+    "value": "録画に名前を付けて保存するフォーム (名前は必須)。保存すると useUpdateQuery で isSaved: true と名前を送り、成功したら保存済みの印に変える。useUpdateQuery の経路は、フレーム use_update_replay_saved と同じ (同じパス)。呼び先がほかの呼び出し元の下に書いた処理だけで終端になるので、いちばん早い呼び出しを書き直した (use_update_replay_saved_rw1 から)"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 25
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 30
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 31
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 44
+  "rules":
+  - "kind": "validation"
+    "value": "名前は必須"
+    "status": "interpretation"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 44
+- "id": "use_update_replay_saved_rw1"
+  "layer": "component"
+  "kind": "hook"
+  "name": "useUpdateQuery('/websites/<id>/replays/saved/<replayId>')"
+  "source":
+    "file": "src/components/hooks/queries/useUpdateQuery.ts"
+    "line": 6
+  "caller": "replay_save_form"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 25
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム use_update_replay_saved と同じ処理 (同じパスへ POST する)。呼び出し元 (replay_save_form) が終端にならないように書き直した"
+    "evidence":
+    - "file": "src/components/hooks/queries/useUpdateQuery.ts"
+      "line": 9
+- "id": "api_replay_saved_post_rw1"
+  "layer": "api_route"
+  "kind": "route_handler"
+  "name": "POST /api/websites/[websiteId]/replays/saved/[replayId]"
+  "source":
+    "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+    "line": 32
+  "caller": "use_update_replay_saved_rw1"
+  "call":
+    "status": "fact"
+    "when": "conditional"
+    "condition": "利用者がフォームで保存を押したとき"
+    "evidence":
+    - "file": "src/components/hooks/queries/useUpdateQuery.ts"
+      "line": 9
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 30
+    - "file": "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx"
+      "line": 31
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム api_replay_saved_post と同じ処理 (ここでは isSaved: true なので createReplaySaved の枝を通る)。いちばん早い呼び出し (parseRequest) だけを書き直した"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 41
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 53
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 54
+- "id": "q_parse_request_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "parseRequest (src/lib/request.ts)"
+  "source":
+    "file": "src/lib/request.ts"
+    "line": 16
+  "caller": "api_replay_saved_post_rw1"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/app/api/websites/[websiteId]/replays/saved/[replayId]/route.ts"
+      "line": 41
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム q_parse_request と同じ処理。呼び出し元が終端にならないように、いちばん早い呼び出しを書き直した。ルールは q_parse_request に書いた"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 52
+- "id": "q_check_auth_rw1"
+  "layer": "query"
+  "kind": "function"
+  "name": "checkAuth (src/lib/auth.ts)"
+  "source":
+    "file": "src/lib/auth.ts"
+    "line": 71
+  "caller": "q_parse_request_rw1"
+  "call":
+    "status": "fact"
+    "when": "always"
+    "evidence":
+    - "file": "src/lib/request.ts"
+      "line": 52
+    "note": "この受け口は skipAuth を渡さない。入力の誤りがあるときだけ、呼ばずに打ち切る (src/lib/request.ts:51)"
+  "summary":
+    "status": "interpretation"
+    "value": "フレーム q_check_auth と同じ処理。権限の確認・設定・ルールと、その先の経路 (getUser、Redis の get) は q_check_auth に書いた"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 71
+    - "file": "src/lib/auth.ts"
+      "line": 94
+    - "file": "src/lib/auth.ts"
+      "line": 102
+  "io":
+  - "op": "get"
+    "status": "interpretation"
+    "resource":
+      "kind": "kvs"
+      "levels":
+        "key_pattern": "auth:*"
+    "fields":
+    - "name": "*"
+      "use":
+      - "read"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 102
+    - "file": "src/lib/auth.ts"
+      "line": 150
+    "note": "REDIS_URL が設定されていて、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts:150) から読み取った"

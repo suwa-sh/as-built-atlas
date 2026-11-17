@@ -1,0 +1,157 @@
+format_version: 1
+entry:
+  id: sso
+  path: /sso
+  name: "sso"
+  layer: page
+  source: { file: src/app/sso/page.tsx, line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:17:23Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T15:16:42Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "外から渡されたログインのトークンを受け取って、指定の画面へ移る画面 (/sso?url=<戻り先>&token=<トークン>)。ブラウザ側で動き、読み込み中の表示だけを出す。URL のクエリに url と token の両方があるときだけ、url が同じサイトの中の相対パス (/ で始まり、// で始まらず、: を含まない) かを確かめ、そうでなければ / へ移る。そうなら token をブラウザの localStorage (umami.auth) に保存してから url へ移る。url か token が無ければ何もしない (読み込み中の表示のまま)。サーバーのデータは読まない・書かない (トークンの保存はブラウザの中だけ)"
+  evidence:
+    - { file: src/app/sso/page.tsx, line: 7 }
+    - { file: src/app/sso/SSOPage.tsx, line: 1 }
+    - { file: src/app/sso/SSOPage.tsx, line: 10 }
+    - { file: src/app/sso/SSOPage.tsx, line: 20 }
+    - { file: src/app/sso/SSOPage.tsx, line: 22 }
+    - { file: src/app/sso/SSOPage.tsx, line: 26 }
+    - { file: src/app/sso/SSOPage.tsx, line: 27 }
+    - { file: src/app/sso/SSOPage.tsx, line: 31 }
+    - { file: src/lib/client.ts, line: 9 }
+    - { file: src/lib/storage.ts, line: 3 }
+    - { file: src/lib/constants.ts, line: 2 }
+notes: "(1) データに届かない画面なので、プロファイルの決まりのとおり、最後に頼るライブラリ (next/navigation のルーター) を external のフレームにして閉じた。I/O は無い。router.push は 2 か所 (SSOPage.tsx:22 と :27) あり、ライブラリを呼ぶ行が違うので、external のフレームを 2 つに分けた。(2) setClientAuthToken (src/lib/client.ts:8) は、トークンを localStorage の umami.auth に JSON で書くだけ (src/lib/storage.ts:3)。ブラウザの中の保存なので、I/O にもフレームにもせず、summary に書いた。(3) links: / への移動は root_r に当たる (fact)。router.push(url) の行き先はクエリの値で決まるので、式のまま target に url と書き、unknown (dynamic_dispatch) にした。範囲の中に /sso へ移る箇所は見つからなかった (src の下で sso を探して、この画面と /api/auth/sso の契約のファイルだけ)。だれが url と token を付けてこの画面を開くかは、リポジトリからは読めない。(4) rules: 戻り先の検査 (isSafeRedirectUrl) を validation として書いた。url と token の両方があるかの確認は、入力が空でないことだけの確認なので rules に書かず、external の call の note に書いた。(4b) レビューの low の指摘 1 件 (router.push(url) の when) を直した: 手前の経路は入力の誤りで打ち切るものだけなので always にした。/ へ移る router.push は、打ち切りの経路そのものなので conditional のまま。(5) 権限の確認・設定は、この画面には無い (page.tsx の 10 行と SSOPage.tsx の 32 行をすべて読んだ)。BASE_PATH は、ルーターが URL の前に付けるだけで、この画面の動きも行き先の入口も変えないので settings に書いていない (boards.create の結果と同じ扱い)。(6) 画面を包む枠 (src/app/layout.tsx) の処理は、枠の入口 (layout_l) の結果にあるので辿っていない。(7) 作業定義に analysis.tests が無いので、テストとの対応は分析していない"
+callstack:
+  - id: page
+    layer: page
+    kind: page
+    name: "sso (src/app/sso/page.tsx)"
+    source: { file: src/app/sso/page.tsx, line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page ('use client' 無し)。SSOPage を Suspense で包んで描くだけ (SSOPage が useSearchParams を使うため)。URL のパラメータ (params) は無い"
+      evidence:
+        - { file: src/app/sso/page.tsx, line: 4 }
+        - { file: src/app/sso/page.tsx, line: 6 }
+        - { file: src/app/sso/page.tsx, line: 7 }
+
+  - id: sso_page
+    layer: component
+    kind: component
+    name: "SSOPage"
+    source: { file: src/app/sso/SSOPage.tsx, line: 13 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/sso/page.tsx, line: 2 }
+        - { file: src/app/sso/page.tsx, line: 7 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。URL のクエリから url と token を読み、読み込み中の表示 (Loading) だけを描く。描画の後の useEffect で、url と token の両方があるときだけ、url が安全な相対パスかを確かめ、そうでなければ / へ移る。安全なら setClientAuthToken で token を localStorage (umami.auth) に保存してから、router.push で url へ移る。url か token が無ければ何もしない"
+      evidence:
+        - { file: src/app/sso/SSOPage.tsx, line: 1 }
+        - { file: src/app/sso/SSOPage.tsx, line: 16 }
+        - { file: src/app/sso/SSOPage.tsx, line: 17 }
+        - { file: src/app/sso/SSOPage.tsx, line: 19 }
+        - { file: src/app/sso/SSOPage.tsx, line: 20 }
+        - { file: src/app/sso/SSOPage.tsx, line: 21 }
+        - { file: src/app/sso/SSOPage.tsx, line: 26 }
+        - { file: src/app/sso/SSOPage.tsx, line: 27 }
+        - { file: src/app/sso/SSOPage.tsx, line: 31 }
+        - { file: src/lib/client.ts, line: 9 }
+        - { file: src/lib/storage.ts, line: 3 }
+        - { file: src/lib/constants.ts, line: 2 }
+    parameters:
+      - name: "url"
+        value: "URL のクエリ url。移る先のパス"
+        status: fact
+        evidence:
+          - { file: src/app/sso/SSOPage.tsx, line: 16 }
+      - name: "token"
+        value: "URL のクエリ token。ブラウザに保存するログインのトークン"
+        status: fact
+        evidence:
+          - { file: src/app/sso/SSOPage.tsx, line: 17 }
+    links:
+      - kind: navigate
+        target: "/"
+        entry_id: root_r
+        status: fact
+        evidence:
+          - { file: src/app/sso/SSOPage.tsx, line: 21 }
+          - { file: src/app/sso/SSOPage.tsx, line: 22 }
+        note: "クエリに url と token があり、url が安全な相対パスでないとき。トークンは保存しない"
+      - kind: navigate
+        target: "url"
+        status: unknown
+        reason: dynamic_dispatch
+        evidence:
+          - { file: src/app/sso/SSOPage.tsx, line: 16 }
+          - { file: src/app/sso/SSOPage.tsx, line: 27 }
+        note: "クエリに url と token があり、url が安全な相対パスのとき、トークンを保存してから移る。行き先はクエリの値で、どの入口かは決まらない。範囲の中に、この画面を url 付きで開く箇所は見つからなかった"
+    rules:
+      - kind: validation
+        value: "移る先の url は、/ で始まり、// で始まらず、: を含まない文字列 (同じサイトの中の相対パス) だけを受け付ける。満たさなければ、トークンを保存せずに / へ移る"
+        status: fact
+        evidence:
+          - { file: src/app/sso/SSOPage.tsx, line: 10 }
+          - { file: src/app/sso/SSOPage.tsx, line: 21 }
+          - { file: src/app/sso/SSOPage.tsx, line: 22 }
+
+  - id: ext_router_push_root
+    layer: external
+    kind: library
+    name: "next/navigation (useRouter の router.push('/'))"
+    source: { file: src/app/sso/SSOPage.tsx, line: 22 }
+    caller: sso_page
+    call:
+      status: fact
+      when: conditional
+      condition: "クエリに url と token の両方があり、url が安全な相対パスでないとき"
+      evidence:
+        - { file: src/app/sso/SSOPage.tsx, line: 20 }
+        - { file: src/app/sso/SSOPage.tsx, line: 21 }
+        - { file: src/app/sso/SSOPage.tsx, line: 22 }
+      note: "router は next/navigation の useRouter から取ったもの (SSOPage.tsx:3、:14)"
+    summary:
+      status: interpretation
+      value: "Next.js のルーター。/ の画面へ移る。データには触れない"
+      evidence:
+        - { file: src/app/sso/SSOPage.tsx, line: 22 }
+
+  - id: ext_router_push_url
+    layer: external
+    kind: library
+    name: "next/navigation (useRouter の router.push(url))"
+    source: { file: src/app/sso/SSOPage.tsx, line: 27 }
+    caller: sso_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/sso/SSOPage.tsx, line: 20 }
+        - { file: src/app/sso/SSOPage.tsx, line: 21 }
+        - { file: src/app/sso/SSOPage.tsx, line: 27 }
+      note: "手前にあるのは、入力の誤りで打ち切る経路だけ (url か token が無ければ何もしない。url が安全な相対パスでなければ / へ移って return する) なので always。router は next/navigation の useRouter から取ったもの (SSOPage.tsx:3、:14)"
+    summary:
+      status: interpretation
+      value: "Next.js のルーター。クエリの url の画面へ移る。データには触れない"
+      evidence:
+        - { file: src/app/sso/SSOPage.tsx, line: 27 }

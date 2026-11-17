@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: websites.websiteId_d.segments
+reviewed_at: "2026-11-17T16:25:13Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    resolved: true
+    where: callstack/q_get_team_user/io/1
+    claim: "team の読み取りは、コードに関連の条件 team: { deletedAt: null } がそのまま書いてあり、表の名前もモデルの @@map(\"team\") で決まる (ほかの Prisma の読み取りを fact にしたのと同じ根拠) のに interpretation になっている。同じ構成の websites.websiteId_d.cohorts では、同じ指摘を受けて fact に直してある"
+    evidence: { file: src/queries/prisma/teamUser.ts, line: 24 }
+    suggestion: "status を fact にし、note の「テーブル名はコードに直接は出ない」を「関連 (TeamUser.team) の条件として読む。表の名前は schema.prisma の @@map で決まる」に改める"
+  - kind: evidence_mismatch
+    severity: medium
+    resolved: true
+    where: callstack/api_values/rules/1
+    claim: "「type がセグメントの種類なら、保存済みのセグメントの名前を返す」を fact にしているが、values の受け口は getWebsiteSegments(websiteId, type) を filters なしで呼び (values/route.ts:49)、getSegments の先頭の const { search } = filters (segment.ts:21) が undefined を分解して例外になるので、名前は返らず、segment の表も読まない (受け口は 500 になる)"
+    evidence: { file: src/queries/prisma/segment.ts, line: 21 }
+    suggestion: "rules/1 と api_values の summary を「この枝は、getWebsiteSegments に filters を渡さないため segment.ts:21 で例外になる (名前を返すつもりの枝)」と直し、q_get_website_segments の call.note にも、この呼び出し元からは読み取りに届かないことを書き足す (I/O は GET …/segments から届くので、そのまま残してよい)"
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/q_get_website_segments/io/0
+    claim: "note に「並べ替えの列は、クエリの orderBy で実行時に決まる」とあるが、この入口の呼び出し元では orderBy が渡らない (GET …/segments は type と search だけのスキーマで orderBy を落とし、values の受け口は filters 自体を渡さない) ので、pagedQuery は並べ替えを付けない"
+    evidence: { file: "src/app/api/websites/[websiteId]/segments/route.ts", line: 13 }
+    suggestion: "note を「この入口の呼び出し元は orderBy を渡さない (受け口のスキーマが落とす) ので、並べ替えの指定は無い」に直す"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/api_segments_get
+    claim: "受け口のスキーマが page / pageSize を落とすため、一覧はいつも最初のページの 20 件 (DEFAULT_PAGE_SIZE) になる、という業務のルールが、入口の summary と api_segments_get の summary にだけあり、rules に無い"
+    evidence: { file: src/lib/prisma.ts, line: 759 }
+    suggestion: "api_segments_get の rules に、kind: calculation で「画面が送るページ番号と件数はスキーマで落とされ、いつも 1 ページ目の 20 件を返す」を、route.ts:13、request.ts:35、prisma.ts:758〜759、constants.ts:31 を根拠に足す"
+notes: "指摘にしなかったこと。(1) WebsiteControls の子 3 つ (WebsiteDateFilter・ExportButton・FilterBar) の unknown + not_analyzed は、note に読んだ範囲 (WebsiteDateFilter.tsx:33、ExportButton.tsx:20、FilterBar.tsx:35 を開いて確かめた) と止めた理由があり、作業の決まりも、名指しされた WebsiteFilterButton 以外の打ち切りを禁じていないので、指摘にしていない。(2) q_get_query_filters と q_get_values の when が always なのは、values/route.ts:52 の else の枝の中だが、分析 skill の「if の中でも、この入口から辿る限り条件がいつも成り立つなら always、理由を note に書く」に当たり、note もあるので受け入れた (events・cohorts とも同じ扱い)。(3) useWebsiteSegmentQuery を、深さ優先で先に着く追加のフォームではなく、届く先のある編集のフォームの下に置いた判断は、結果の notes (5) に理由があり、cohorts と同じなので受け入れた。(4) 画面が送る page と pageSize を受け口のスキーマが落とし、いつも最初の 20 件になる、という主張自体は、request.ts 30〜45 行・prisma.ts 758〜759 行・constants.ts 31 行で確かめた (rules に無いことだけを low で指摘した)。(5) 書き直したフレーム (q_can_view_website_rw1 → q_get_entity_rw1 → q_get_website_rw1、q_parse_request_rw_segment_get → q_check_auth_rw_segment_get、q_get_website_rw_update、q_get_website_rw_delete) は、終端の決まりを満たす最初の段までで、確認・設定・ルールを繰り返していない。(6) canUpdateWebsite / canDeleteWebsite の先頭の if (!user) は、ほかの入口の結果も guards に書いておらず (role・ownership・permission の 3 つ)、そろっているので指摘にしていない。(7) team の読み取りを interpretation にしている入口は、ほかにも多数ある (この確かめでは 66 件) が、このレビューの対象はこの入口だけなので、ここだけを指摘した。(8) 根拠の行は、全フレームの call・summary・parameters・io・links・guards・settings・rules を対象のコードで開いて確かめ、上の指摘のほかに、主張を支えていない行は見つからなかった。設定の名前・確認の値・つながりの綴りは、ほかの入口の結果と分析リポジトリの決まりにそろっている。"

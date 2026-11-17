@@ -1,0 +1,40 @@
+format_version: 1
+entry_id: console.websiteId_d
+reviewed_at: "2026-11-17T11:47:00Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/q_get_client_info/settings
+    claim: "getClientInfo が IP を決めるために呼ぶ補助の関数 getIpAddress (段になっていない) は、環境変数 CLIENT_IP_HEADER があれば、そのヘッダーを先に見て IP を決めるのに、この設定が書かれていない (IP は、場所の判定・セッションの id の計算・IGNORE_IP の判定に使われる)"
+    evidence: { file: src/lib/ip.ts, line: 76 }
+    resolved: true
+    suggestion: "q_get_client_info の settings に CLIENT_IP_HEADER (kind は env) を足し、根拠に src/lib/ip.ts:76 と :78、呼び出しの src/lib/detect.ts:138 を書く (同じファイルの 4 行目の CLOUD_MODE で x-umami-client-ip を先に見ることも、既にある CLOUD_MODE の effect に足すとよい)"
+  - kind: missing_item
+    severity: low
+    where: callstack/q_check_auth/io/0/fields
+    claim: "redis.client.get(authKey) は、保存された JSON (userId / role / pwd) をまるごと取り出すのに、fields は、後でコードが使う userId と pwd だけで、role が無い (列は、取り出した後にどれを使うかではなく、データとやり取りする項目を書く決まり)。ほかの入口の結果では、同じ読み取りが userId / role / pwd (login.yaml) や * (admin.users.yaml など) で書かれていて、綴りも入口ごとに違う"
+    evidence: { file: src/lib/auth.ts, line: 102 }
+    resolved: true
+    suggestion: "取り出す項目として role (use は read) を足す (書き込む側は src/app/api/auth/login/route.ts:57 の userId / role / pwd)。ほかの入口と同じ書き方にそろえる"
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_view_website/guards/1
+    claim: "canViewWebsite の中の、共有トークンにこの id が含まれるかの確認 (website.ts:13-21) の value が canViewWebsite で、すぐ下の持ち主・所属の確認 (kind は ownership) と同じ値になっている。同じ確認が、links.linkId_d.yaml では value が shareToken (kind は other) で書かれていて、入口をまたいで綴りが違う"
+    evidence: { file: src/permissions/website.ts, line: 13 }
+    suggestion: "同じ確認の value を、ほかの入口の結果と 1 つの綴りにそろえる (この段の 2 つの確認が区別できる値にする。条件の説明は note のまま)"
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_view_shared_website/guards/0
+    claim: "共有トークンでの確認 (share.ts の canViewSharedWebsite / canViewSharedWebsiteFilters / canViewWebsiteSection) の value は、この結果と websites.websiteId_d.yaml では関数の名前だが、links.linkId_d.yaml では、同じ canViewWebsiteSection の確認が shareTokenIncludesWebsite と書かれていて、入口をまたいで綴りが違う (この結果の q_can_view_shared_website_filters/guards/0 と q_can_view_website_section/guards/0 も同じ)"
+    evidence: { file: src/permissions/share.ts, line: 85 }
+    suggestion: "確認する関数の名前 (この結果の書き方) にそろえるなら、この結果は直さず、links.linkId_d の側を直す。どちらの綴りにするかを決めて、analysis-conventions.md の表に足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/api_send/settings/4
+    claim: "CLICKHOUSE_URL で createSession を呼ぶかどうかが決まる、という主張は合っているが、根拠が src/lib/db.ts の runQuery の行 (27 / 32 / 38) だけで、この受け口が実際に判定している行 (route.ts:164 と :167 の clickhouse.enabled、その定義の src/lib/clickhouse.ts:38) が無い。runQuery は、この判定では使われていない"
+    evidence: { file: src/app/api/send/route.ts, line: 167 }
+    resolved: true
+    suggestion: "根拠を src/app/api/send/route.ts:164、:167 と src/lib/clickhouse.ts:38 に替える"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。根拠の行は、入口から POST /api/send・POST /api/record・GET recorder・pageviews・events/series までの受け口と、そこから呼ぶ関数 (auth / request / share / website / entity / load / detect / redis / db / kafka、saveEvent / saveSessionData / saveRecording / saveHeatmapEvents / getPageviewStats、tracker と recorder のスクリプト、next.config.ts、rollup の設定) を対象のコードで開いて確かめた。getSessionStats と getEventStats、annotation の問い合わせ、saveEventData / saveRevenue / saveSessionLink / updateSession / createSession の SQL の列は、抜き取りで形だけ確かめ、1 行ずつは照合していない。指摘にしなかった点: (1) GET annotations の経路と saveSessionLink / updateSession は、この入口からは条件が成り立たない (WebsiteChart に showAnnotations を渡さない。Run identify は id を付けず、script タグに data-distinct-id も無い) が、分析の skill が「消さずに conditional で書き、理由を note に書く」と決めているので、そのままでよい。集計では、この画面が annotation と session_link に触れるように見える点だけ、読む側が気を付ける。(2) q_check_auth の CLOUD_MODE (API キーの経路) は、この入口では結果を変えないが、ほかの入口の結果も同じ段に書いているので、指摘にしない。(3) DATABASE_REPLICA_URL の status が interpretation なのは、コードにそのまま書いてある (prisma.ts:738) ので fact でもよいが、ほかの入口も同じ書き方なので、指摘にしない。(4) recorder の COLLECT_API_HOST の根拠 rollup.recorder.config.js:17 は delimiters の行で、置き換えの行は 16 行目 (前後 5 行の内なので指摘にしない)。(5) GET recorder と POST /api/record の call が fact、POST /api/send の call が interpretation なのは、前者はパスが文字列でそのまま読め、後者はパスが作るときの置き換えで決まるためで、妥当と判断した。(6) 画面を包む枠の処理は、決まりどおり見ていない。(7) analyzer.tests が無いので、tests の漏れは見ていない"

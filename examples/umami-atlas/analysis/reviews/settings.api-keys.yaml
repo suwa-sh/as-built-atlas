@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: settings.api-keys
+reviewed_at: "2026-11-17T15:22:05Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/api_api_keys_post/rules/1
+    claim: "「umami_ に 32 文字のランダムな英数字を続けたもの」のうち、英数字であることを示す行が根拠に無い。挙げてある api-key.ts:21 は getRandomChars(API_KEY_LENGTH) を呼ぶだけで、使う文字の集まりは src/lib/generate.ts:10 (getRandomChars の既定の chars) で決まる。主張そのものはコードと合っている"
+    evidence: { file: src/lib/generate.ts, line: 10 }
+    suggestion: "根拠に src/lib/generate.ts:10 を足す"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。全フレームの source と根拠の行を対象のコードで開いて確かめ、上の 1 件のほかは主張を支えていた (書く列・読む列は select / where と schema.prisma の @map に合い、設定の名前は analysis-conventions.md の綴りで、ほかの入口の結果とも同じ。ログイン済みの確認は checkAuth の 1 か所だけ)。指摘にしなかったこと: [1] DELETE の所属の確認の値 deleteApiKey は、確認の専用の関数ではなく、消す問い合わせの where { id, userId } (apiKey.ts:43) と、件数 0 で 404 を返す受け口 (route.ts:21) の組み合わせ。ほかの入口の結果は、関数の無い確認を auth.user.id === userId のように書いているものがあり、決まり (関数の名前だけ) とは別の書き方が混ざっている。同じ確認の別の綴りではないので指摘にしていないが、関数の無い所属の確認をどう書くかは、人が決めてよい。[2] 入口から辿る順では、ApiKeysPage の useConfig (ApiKeysPage.tsx:12) → GET /api/config が先に parseRequest に着く (skipAuth 付き)。この経路はデータに届かないのでフレームにしない、というほかの入口と同じ扱いなので、フレームにした呼び出し元の中で最初の POST /api/me/api-keys の下に parseRequest を置いたのは、決まりに合う。[3] CLOUD_MODE の分かれ道 (画面と 3 つの受け口) を、この画面からは成り立たない側として conditional + note にした扱いは、settings.teams.teamId_d のレビューで確かめた判断と同じ。[4] checkAuth の API キーの経路 (checkApiKeyAuth) を辿っていないのは、ブラウザがログイントークンを付けること (useApi.ts:28) に加え、/api/me/api-keys が API キーでは使えないパス (api-key.ts:13、auth.ts:35) で、api_key を読む前に null を返すので、辿り漏れに数えていない。[5] analyzer.tests が無いので、テストの漏れは見ていない"

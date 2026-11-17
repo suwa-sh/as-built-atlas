@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: admin.users
+reviewed_at: "2026-11-17T11:40:34Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    resolved: true
+    severity: low
+    where: callstack/q_get_users/io/0/fields
+    claim: "user の読み取りの列が「*」(全部の列) になっているが、受け口が omit で password を除いているので、全部の列は取り出さない。関連 (サイトの件数) をたどる条件に使う user_id の filter も無い。同じ getUsers を書いた admin.teams の結果は、password を除いた列を 1 つずつ書いていて、綴りがそろっていない"
+    evidence: { file: src/app/api/admin/users/route.ts, line: 36 }
+    suggestion: "「*」をやめ、admin.teams の結果と同じく、password 以外の列 (user_id は read と filter、username / role / created_at / deleted_at は read と filter、logo_url / display_name / two_factor_required / updated_at は read) を 1 つずつ書く"
+  - kind: evidence_mismatch
+    resolved: true
+    severity: low
+    where: callstack/use_update_query/settings/1
+    claim: "BASE_PATH の effect が「API の URL の前に付く」だけになっているが、API_URL が http(s) で始まる絶対の URL のときは、BASE_PATH は付かない (api-url.ts の 41〜42 行目)。use_users_query と use_delete_query の同じ設定も同じ"
+    evidence: { file: src/lib/api-url.ts, line: 41 }
+    suggestion: "effect を「API の URL の前に付く (API_URL が絶対の URL のときは付かない)」のように直し、3 つの段で同じ文にする"
+notes: "(1) 根拠の行は、すべての段で対象のコードを開いて確かめた。上の 2 件のほかに、主張を支えない根拠は無かった。層と種類、呼び出しの when、読み書きの種類と操作、確認の値 (user.isAdmin)、設定の名前 (CLOUD_MODE / API_URL / BASE_PATH / REDIS_URL)、キャッシュのキーの形 (auth:* / link:* / pixel:*) は、決まりと、ほかの入口の結果の綴りに合っている。つながりの行き先の入口 admin.users.userId_d は、入口の一覧にある。(2) checkAuth の段に CLOUD_MODE の設定が無いことは、指摘にしなかった。この入口の受け口 (/api/users、/api/admin) では、有無で結果が変わらず、分析の skill の「この入口では有無で結果が変わらない設定は書かない」に合う。ただし、admin.websites / admin.teams / layout_l.main_g.admin の結果は、同じ段に CLOUD_MODE を書いている。入口をまたいでどちらにそろえるかは、人が決めるとよい。(3) deleteUser の中のライブラリの呼び出しを、external の段 1 つ (ext_prisma_delete_user) にまとめていることは、結果の notes の (7) に理由があり、読み書きは 1 件ずつ書いてあるので、指摘にしなかった。(4) POST /api/users の id を作る uuid() は、環境変数 USE_UUIDV7 で UUID の版が変わる (crypto.ts の 65 行目)。値の形が変わるだけで、処理の流れも読み書きの相手も変わらないので、設定の書き漏れにはしなかった。(5) getUsers の並べ替えのルールの kind は、この結果では decision、admin.teams の結果では validation。綴りをそろえる決まりの対象ではないので、指摘にしなかった。(6) analyzer.tests が無いので、テストの書き漏れは見ていない。"

@@ -1,0 +1,1442 @@
+format_version: 1
+entry:
+  id: admin.users
+  path: /admin/users
+  name: "users"
+  layer: page
+  source: { file: "src/app/(main)/admin/users/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T11:41:16Z"
+  reviewed:
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T11:40:34Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "管理者向けのユーザーの一覧の画面 (/admin/users)。開くと GET /api/admin/users で、削除されていない user を、持っているサイトの数 (website の件数) 付きで、ページ単位で読む (URL の検索語・ページ・並べ替えを渡す)。「ユーザーを作成」のボタンの小窓から POST /api/users でユーザーを作る (同じユーザー名があれば作れない)。一覧の行のメニューの「削除」から DELETE /api/users/<userId> でユーザーを消す。削除は、環境変数 CLOUD_MODE があれば、ユーザーとサイト・リンク・ピクセルに削除の印を付け、共有とボードを消す。無ければ、ユーザーのサイトとその計測のデータ、持ち主になっているチーム、レポート、共有、リンク、ピクセル、ボードを行ごと消す。Redis が有効なら、消したリンクとピクセルのキャッシュも消す。3 つの受け口は、どれも管理者 (user.isAdmin) だけが使える。一覧のユーザー名と「編集」のメニューは、ユーザーの詳細の画面 (/admin/users/<userId>) へ移る"
+  evidence:
+    - { file: "src/app/(main)/admin/users/page.tsx", line: 5 }
+    - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 17 }
+    - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 20 }
+    - { file: src/components/hooks/queries/useUsersQuery.ts, line: 12 }
+    - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 16 }
+    - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 16 }
+    - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 34 }
+    - { file: src/app/api/admin/users/route.ts, line: 25 }
+    - { file: src/app/api/users/route.ts, line: 37 }
+    - { file: "src/app/api/users/[userId]/route.ts", line: 103 }
+    - { file: src/queries/prisma/user.ts, line: 175 }
+    - { file: src/queries/prisma/user.ts, line: 209 }
+    - { file: src/permissions/user.ts, line: 20 }
+notes: "(1) 画面を包む枠 (ルート、(main)、admin の layout) は別の入口なので辿っていない。この画面を管理者にだけ描く確認 (AdminLayout) も、枠の側にある。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。UsersPage.tsx では UserAddButton (17 行目) が UsersDataTable (20 行目) より先なので、parseRequest → checkAuth → getUser の経路は POST /api/users の下にある。GET /api/admin/users と DELETE /api/users/[userId] も parseRequest を呼ぶが、summary に書くだけにした。(3) 権限を確かめる関数 canCreateUser / canViewUsers / canDeleteUser (src/permissions/user.ts) は、データを読まず user.isAdmin を返すだけなので、段にしていない。確認 (guards) は、それを呼ぶ受け口の段に書き、値は決まりのとおり user.isAdmin にそろえた。(4) フレームにしなかったもの: PageHeader / Panel / DataGrid / LoadingPanel / Pager / MenuButton / ControlledDialog (見た目と、URL の検索語・ページの書き換えだけ)、useApi と getApiUrl (URL とヘッダーを組み立てる小道具)、useModified (ブラウザの中の更新印)、usePagedQuery (URL の検索語などを足して useQuery を呼ぶ小道具)、useNavigation、useMessages (翻訳)、sanitizeSortFilters と prisma.getSearchParameters (条件を組み立てるだけ)、hashPassword / uuid。UserDeleteButton.tsx は、同じフォルダにあるが、どこからも使われていないので辿っていない (useLoginQuery は、この画面からは呼ばれない)。(5) checkAuth の API キーの枝 (auth.ts:74 → checkApiKeyAuth) は、/api/users と /api/admin が API キーを受け付けないパス (api-key.ts:16 / :17) で、getApiKeyByHash より前の auth.ts:35 で null を返すので、api_key の読み書きは書いていない (rules に検証として書いた)。API キーの枝に入るかを決める CLOUD_MODE は、この入口ではどちらでも認証の失敗になり結果が変わらないので、checkAuth の settings に書いていない。(6) getUserByUsername は、getUser と同じ findUser の行 (user.ts:32) でライブラリを呼ぶ。external の段は ext_prisma_user の 1 つだけにし、getUserByUsername には読み取りだけを書いた。(7) deleteUser の中のライブラリの呼び出し (findMany 5 つと、$transaction に渡す更新・削除) は、external の段を 1 つにまとめた (行ごとに段を分けると 20 を超えるため)。同じテーブルの同じ操作が CLOUD_MODE の有無の両方の枝にあるとき (share / board の削除) は、読み書きを 1 件にまとめ、両方の行を根拠にした。(8) 設定の名前は、実行する環境で設定する名前 (CLOUD_MODE / API_URL / BASE_PATH / REDIS_URL) で書いた。DATABASE_REPLICA_URL (Prisma の読み取りを複製へ送る拡張。prisma.ts:861 / :901) は、どの読み取りにも同じように効く接続の設定なので書いていない。(9) UserAddForm と UserDeleteForm は、小窓 (Modal) の中に書かれている。小窓が閉じているときに中身が描かれるかは、UI ライブラリ (@umami/react-zen) の中で決まり、リポジトリからは読めないので、「小窓が開いたとき」の conditional にして、call を interpretation にした。(10) POST /api/users の role ?? ROLES.user (route.ts:41) は、スキーマが role を必須にしている (route.ts:16) ので効かないと読み、ルールに書いていない。(11) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(12) レビューの指摘 2 件 (どちらも low) は、どちらも直した: getUsers の user の読み取りの列を、password を除いた列の 1 つずつにし (admin.teams の結果と同じ綴り)、BASE_PATH の効果に「API_URL が絶対の URL のときは付かない」を足した。"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "admin/users の page (src/app/(main)/admin/users/page.tsx)"
+    source: { file: "src/app/(main)/admin/users/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page ('use client' が無い)。UsersPage を描くだけ。metadata でタイトル (Users) を決める。データは自分では読まない"
+      evidence:
+        - { file: "src/app/(main)/admin/users/page.tsx", line: 2 }
+        - { file: "src/app/(main)/admin/users/page.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/users/page.tsx", line: 7 }
+
+  - id: users_page
+    layer: component
+    kind: component
+    name: "UsersPage (src/app/(main)/admin/users/UsersPage.tsx)"
+    source: { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 9 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/page.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/users/page.tsx", line: 2 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。見出し (PageHeader) の中に「ユーザーを作成」のボタン (UserAddButton) を、その下の枠 (Panel) の中にユーザーの一覧 (UsersDataTable) を描く。UserAddButton に渡す handleSave は何もしない"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 1 }
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 12 }
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 17 }
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 20 }
+
+  # ---------------------------------------------------------------- ユーザーの作成
+  - id: user_add_button
+    layer: component
+    kind: component
+    name: "UserAddButton (src/app/(main)/admin/users/UserAddButton.tsx)"
+    source: { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 6 }
+    caller: users_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 17 }
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 6 }
+    summary:
+      status: interpretation
+      value: "「ユーザーを作成」のボタンと、押すと開く小窓 (DialogTrigger / Modal / Dialog)。小窓の中に UserAddForm を描く。保存に成功すると、保存のお知らせ (toast) を出し、ブラウザの中の更新印 users を進める (touch。一覧の useUsersQuery が読み直す)"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 9 }
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 12 }
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 13 }
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 18 }
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 27 }
+
+  - id: user_add_form
+    layer: component
+    kind: component
+    name: "UserAddForm (src/app/(main)/admin/users/UserAddForm.tsx)"
+    source: { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 15 }
+    caller: user_add_button
+    call:
+      status: interpretation
+      when: conditional
+      condition: "「ユーザーを作成」のボタンを押して、小窓が開いたとき"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 27 }
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 18 }
+        - { file: "src/app/(main)/admin/users/UserAddButton.tsx", line: 25 }
+      note: "小窓 (Modal) が閉じているときに中身が描かれるかは、UI ライブラリの中で決まり、リポジトリからは読めない。開いたときだけ描くと読んだ"
+    summary:
+      status: interpretation
+      value: "ユーザー名・パスワード・役割 (view-only / user / admin) の入力のフォーム。送信すると、useUpdateQuery の mutateAsync で入力を POST /users へ送り、成功すると onSave (お知らせと一覧の読み直し) と onClose (小窓を閉じる) を呼ぶ。失敗の文言はフォームに出す"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 20 }
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 22 }
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 23 }
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 29 }
+    rules:
+      - kind: validation
+        value: "パスワードは 8 文字以上 (ユーザー名・パスワード・役割は、どれも必須)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 42 }
+          - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 33 }
+          - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 41 }
+          - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 47 }
+        note: "ブラウザ側のフォームの検証。サーバー側の検証は、POST /api/users の段にある"
+
+  - id: use_update_query
+    layer: component
+    kind: hook
+    name: "useUpdateQuery"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: user_add_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 12 }
+    summary:
+      status: interpretation
+      value: "受け取ったパス (ここでは /users) へ、入力を POST で送る mutation を作る。URL は useApi の post が getApiUrl で組み立て (既定は basePath + /api)、ヘッダーに localStorage のログイントークンを Bearer で付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/components/hooks/useApi.ts, line: 32 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/client.ts, line: 5 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    parameters:
+      - name: path
+        value: "/users"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 16 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+        note: "読むのは、段にしていない補助の関数 getApiUrl (process.env.apiUrl)。next.config の env が、環境変数 API_URL の値を入れる"
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_users_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/users"
+    source: { file: src/app/api/users/route.ts, line: 11 }
+    caller: use_update_query
+    call:
+      status: fact
+      when: conditional
+      condition: "ユーザーの作成のフォームを送信したとき"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UserAddForm.tsx", line: 20 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で本文を検証し、認証する。管理者でなければ 401。同じユーザー名の user (削除済みも含む) があれば 400 (User already exists)。無ければ、id (無ければ新しい UUID)、小文字にしたユーザー名、ハッシュにしたパスワード、役割で user を作り、id / username / role を返す"
+      evidence:
+        - { file: src/app/api/users/route.ts, line: 19 }
+        - { file: src/app/api/users/route.ts, line: 25 }
+        - { file: src/app/api/users/route.ts, line: 31 }
+        - { file: src/app/api/users/route.ts, line: 34 }
+        - { file: src/app/api/users/route.ts, line: 37 }
+        - { file: src/app/api/users/route.ts, line: 44 }
+    parameters:
+      - name: username
+        value: "本文。255 文字までの文字列"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 14 }
+      - name: password
+        value: "本文。8〜255 文字の文字列"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 15 }
+      - name: role
+        value: "本文。admin / user / view-only のどれか"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 16 }
+          - { file: src/lib/schema.ts, line: 107 }
+      - name: id
+        value: "本文。UUID (任意。画面のフォームは送らない)"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 13 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 25 }
+          - { file: src/permissions/user.ts, line: 4 }
+        note: "canCreateUser が user.isAdmin を返す (段にしていない補助の関数)。満たさなければ 401"
+    rules:
+      - kind: validation
+        value: "ユーザー名は 255 文字まで、パスワードは 8〜255 文字、役割は admin / user / view-only のどれか"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 14 }
+          - { file: src/app/api/users/route.ts, line: 15 }
+          - { file: src/app/api/users/route.ts, line: 16 }
+          - { file: src/lib/schema.ts, line: 107 }
+      - kind: validation
+        value: "同じユーザー名の user が、削除済みのものも含めて既にあれば、作れない (400 User already exists)"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 31 }
+          - { file: src/app/api/users/route.ts, line: 33 }
+          - { file: src/app/api/users/route.ts, line: 34 }
+      - kind: calculation
+        value: "ユーザー名は小文字にし、パスワードはハッシュにして保存する"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 39 }
+          - { file: src/app/api/users/route.ts, line: 40 }
+
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_users_post
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/users/route.ts, line: 19 }
+        - { file: src/app/api/users/route.ts, line: 5 }
+    summary:
+      status: interpretation
+      value: "URL と JSON の本文を読む。スキーマがあれば、GET では URL の値を、それ以外では本文を検証し、合わなければ badRequest (400) のエラーにする。検証を通れば checkAuth で認証し、認証できなければ unauthorized (401) のエラーにする"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 33 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 51 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、この入口の受け口は skipAuth を渡さない (users/route.ts:19 など)。error があるのは、入力の検証に落ちて打ち切るときだけ"
+    summary:
+      status: interpretation
+      value: "Bearer トークンを取り出す。API キーが有効で、トークンが umami_ で始まれば、API キーとして確かめる (/api/users と /api/admin は API キーを受け付けないパスなので、この入口の受け口では null になる)。そうでなければ署名付きトークンを解き、2FA の仮トークンなら拒否する。トークンに userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ、ユーザーを無効にする。ユーザーも共有トークンも無ければ null (認証の失敗)。ユーザーがいればパスワードを消し、role が admin なら isAdmin を付ける (受け口は、この isAdmin で管理者かを確かめる)"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 35 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 98 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 137 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/app/api/users/route.ts, line: 21 }
+        note: "トークンからユーザーが得られず、共有トークンも無ければ null を返す。parseRequest が 401 のエラーにし、受け口がそれを返す"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていて、トークンに userId が無く authKey があるときだけ、Redis からセッションを読む"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+    rules:
+      - kind: validation
+        value: "API キーは、アカウントの資格情報や管理の状態を扱うパス (/api/users、/api/admin など) では認証に使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 35 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 16 }
+          - { file: src/lib/api-key.ts, line: 17 }
+      - kind: validation
+        value: "2FA のログインの途中で出す仮のトークン (type が partial-auth) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+      - kind: validation
+        value: "トークンやセッションが持つパスワードの指紋 (pwd) が、今のパスワードのハッシュと違えば、無効にする (指紋を持たない古いトークンは通す)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーが無く共有トークンだけのときは、共有の文脈を示すヘッダー (x-umami-share-context) が無ければ認証しない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 129 }
+    io:
+      - op: get
+        status: interpretation
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。キーは、トークンから取り出した authKey の値 (auth.ts:91)。auth:<ランダム> の形は、トークンを作る側の saveAuth (auth.ts:150 / :160) から読み取った"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 91 }
+          - { file: src/lib/auth.ts, line: 150 }
+          - { file: src/lib/auth.ts, line: 160 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ。値はまるごと取り出す (redis.ts:37 / :40)"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき。または、Redis から読んだセッションに userId があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 93 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 104 }
+    summary:
+      status: interpretation
+      value: "同じファイルの findUser を通して、id で、削除されていない user を 1 件読む。パスワードの列は includePassword のときだけ取り出す (checkAuth は付けて呼ぶ)。role も読むので、checkAuth が isAdmin を決められる"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+    parameters:
+      - name: userId
+        value: "トークンの userId、または Redis のセッションの userId"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 94 }
+          - { file: src/lib/auth.ts, line: 105 }
+      - name: options.includePassword
+        value: "true (パスワードの指紋を確かめるため)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 94 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where: id と deletedAt null。select: id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "列の名前は schema.prisma の @map のとおり"
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 50 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "checkAuth が呼ぶのは、リポジトリが自前で包んだ get (redis.ts:34)。その中の this.client.get がライブラリの呼び出し"
+
+  - id: q_get_user_by_username
+    layer: query
+    kind: function
+    name: "getUserByUsername (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 60 }
+    caller: api_users_post
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/users/route.ts, line: 31 }
+        - { file: src/app/api/users/route.ts, line: 9 }
+      note: "手前にあるのは、入力の誤り・認証の失敗・権限の不足で打ち切る経路だけ (users/route.ts:21 / :25)"
+    summary:
+      status: interpretation
+      value: "findUser を通して、小文字にしたユーザー名で user を 1 件読む。showDeleted: true で呼ばれるので、削除済みのものも対象にする。パスワードの列は取り出さない。ライブラリの呼び出しは getUser と同じ findUser の行 (user.ts:32) なので、経路はフレーム ext_prisma_user と同じ"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 61 }
+        - { file: src/queries/prisma/user.ts, line: 30 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+    parameters:
+      - name: username
+        value: "本文の username"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 31 }
+      - name: options.showDeleted
+        value: "true (削除済みのユーザーも探す)"
+        status: fact
+        evidence:
+          - { file: src/app/api/users/route.ts, line: 31 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where: username。select: id / username / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read] }
+          - { name: username, use: [read, filter] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 41 }
+          - { file: src/queries/prisma/user.ts, line: 61 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 14 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "showDeleted が true なので、deleted_at の条件は付かない。includePassword が無いので、password は取り出さない"
+
+  - id: q_create_user
+    layer: query
+    kind: function
+    name: "createUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 90 }
+    caller: api_users_post
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/users/route.ts, line: 37 }
+        - { file: src/app/api/users/route.ts, line: 9 }
+      note: "手前にあるのは、入力の誤り・認証の失敗・権限の不足・同じユーザー名があることで打ち切る経路だけ (users/route.ts:21 / :25 / :33)"
+    summary:
+      status: interpretation
+      value: "受け取った id / username / password / role で user を 1 行作り、id / username / role を返す"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 96 }
+        - { file: src/queries/prisma/user.ts, line: 97 }
+        - { file: src/queries/prisma/user.ts, line: 98 }
+    io:
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.create (data: id / username / password / role。select: id / username / role)"
+        fields:
+          - { name: user_id, use: [read, write] }
+          - { name: username, use: [read, write] }
+          - { name: password, use: [write] }
+          - { name: role, use: [read, write] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 96 }
+          - { file: src/queries/prisma/user.ts, line: 97 }
+          - { file: src/queries/prisma/user.ts, line: 98 }
+          - { file: src/app/api/users/route.ts, line: 38 }
+          - { file: src/app/api/users/route.ts, line: 39 }
+          - { file: src/app/api/users/route.ts, line: 40 }
+          - { file: src/app/api/users/route.ts, line: 41 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "書く列は、呼び出し元 (users/route.ts:38-41) が渡す。作った行の id / username / role を返す"
+
+  - id: ext_prisma_user_create
+    layer: external
+    kind: library
+    name: "Prisma Client user.create"
+    source: { file: src/queries/prisma/user.ts, line: 96 }
+    caller: q_create_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 96 }
+
+  # ---------------------------------------------------------------- ユーザーの一覧
+  - id: users_data_table
+    layer: component
+    kind: component
+    name: "UsersDataTable (src/app/(main)/admin/users/UsersDataTable.tsx)"
+    source: { file: "src/app/(main)/admin/users/UsersDataTable.tsx", line: 6 }
+    caller: users_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 20 }
+        - { file: "src/app/(main)/admin/users/UsersPage.tsx", line: 7 }
+    summary:
+      status: interpretation
+      value: "useUsersQuery の結果を DataGrid (検索の欄・ページ送り・読み込み中の表示を持つ見た目の部品) に渡し、データが来たら UsersTable を描く。DataGrid の検索とページ送りは、URL の search / page を書き換えるだけ (書き換わると、useUsersQuery が読み直す)"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersDataTable.tsx", line: 7 }
+        - { file: "src/app/(main)/admin/users/UsersDataTable.tsx", line: 10 }
+        - { file: "src/app/(main)/admin/users/UsersDataTable.tsx", line: 11 }
+        - { file: src/components/common/DataGrid.tsx, line: 82 }
+        - { file: src/components/common/DataGrid.tsx, line: 99 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+
+  - id: use_users_query
+    layer: component
+    kind: hook
+    name: "useUsersQuery"
+    source: { file: src/components/hooks/queries/useUsersQuery.ts, line: 5 }
+    caller: users_data_table
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersDataTable.tsx", line: 7 }
+        - { file: "src/app/(main)/admin/users/UsersDataTable.tsx", line: 3 }
+    summary:
+      status: interpretation
+      value: "usePagedQuery で GET /admin/users を呼ぶ。usePagedQuery が、URL の page / search / orderBy / sortDescending を引数に足す。queryKey に更新印 users と、それらの値を入れるので、作成・削除のあとと、検索・ページ・並べ替えが変わったときに読み直す。URL は useApi の get が getApiUrl で組み立てる (既定は basePath + /api)"
+      evidence:
+        - { file: src/components/hooks/queries/useUsersQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useUsersQuery.ts, line: 9 }
+        - { file: src/components/hooks/queries/useUsersQuery.ts, line: 10 }
+        - { file: src/components/hooks/queries/useUsersQuery.ts, line: 12 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 23 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_admin_users_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/admin/users"
+    source: { file: src/app/api/admin/users/route.ts, line: 8 }
+    caller: use_users_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useUsersQuery.ts, line: 12 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 22 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で URL の値 (page / pageSize / maxResults / search / orderBy / sortDescending) を検証し、認証する。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ。管理者でなければ 401。getUsers に、サイトの数 (削除されていない website の件数) を付けること、password を除くこと、既定の並び (createdAt の降順) を渡して、ユーザーの一覧を返す"
+      evidence:
+        - { file: src/app/api/admin/users/route.ts, line: 9 }
+        - { file: src/app/api/admin/users/route.ts, line: 15 }
+        - { file: src/app/api/admin/users/route.ts, line: 21 }
+        - { file: src/app/api/admin/users/route.ts, line: 25 }
+        - { file: src/app/api/admin/users/route.ts, line: 28 }
+        - { file: src/app/api/admin/users/route.ts, line: 36 }
+        - { file: src/app/api/admin/users/route.ts, line: 39 }
+        - { file: src/app/api/admin/users/route.ts, line: 46 }
+    parameters:
+      - name: page / search / orderBy / sortDescending
+        value: "URL の値。画面の URL の同じ名前の値を、usePagedQuery がそのまま渡す"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+          - { file: src/app/api/admin/users/route.ts, line: 10 }
+          - { file: src/app/api/admin/users/route.ts, line: 11 }
+          - { file: src/app/api/admin/users/route.ts, line: 12 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/users/route.ts, line: 21 }
+          - { file: src/permissions/user.ts, line: 20 }
+        note: "canViewUsers が user.isAdmin を返す (段にしていない補助の関数)。満たさなければ 401"
+
+  - id: q_get_users
+    layer: query
+    kind: function
+    name: "getUsers (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 64 }
+    caller: api_admin_users_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/admin/users/route.ts, line: 25 }
+        - { file: src/app/api/admin/users/route.ts, line: 6 }
+      note: "手前にあるのは、入力の誤り・認証の失敗・権限の不足で打ち切る経路だけ (admin/users/route.ts:17 / :21)"
+    summary:
+      status: interpretation
+      value: "削除されていない user を、検索語をユーザー名に部分一致 (大文字と小文字を区別しない) させて、prisma.pagedQuery でページ単位で読み、件数も数える。受け口が渡した include で、ユーザーごとの削除されていないサイトの数も数える。password は取り出さない"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 68 }
+        - { file: src/queries/prisma/user.ts, line: 76 }
+        - { file: src/queries/prisma/user.ts, line: 77 }
+        - { file: src/queries/prisma/user.ts, line: 80 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+        - { file: src/lib/prisma.ts, line: 817 }
+    rules:
+      - kind: decision
+        value: "並べ替えは username / role / createdAt だけを通す。それ以外や指定なしのときは、createdAt の降順にする"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 11 }
+          - { file: src/queries/prisma/user.ts, line: 68 }
+          - { file: src/queries/prisma/user.ts, line: 69 }
+          - { file: src/queries/prisma/user.ts, line: 70 }
+          - { file: src/lib/sort.ts, line: 11 }
+      - kind: calculation
+        value: "1 ページの件数は、pageSize の指定が無ければ 20 件 (DEFAULT_PAGE_SIZE)"
+        status: fact
+        evidence:
+          - { file: src/lib/prisma.ts, line: 759 }
+          - { file: src/lib/prisma.ts, line: 764 }
+          - { file: src/lib/constants.ts, line: 31 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.pagedQuery('user', …) の findMany と count (where: deletedAt null と、検索語があれば username の部分一致。omit: password。並びは username / role / createdAt のどれか)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read, filter] }
+          - { name: role, use: [read, filter] }
+          - { name: logo_url, use: [read] }
+          - { name: display_name, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: created_at, use: [read, filter] }
+          - { name: updated_at, use: [read] }
+          - { name: deleted_at, use: [read, filter] }
+        evidence:
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 17 }
+          - { file: prisma/schema.prisma, line: 18 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 21 }
+          - { file: src/queries/prisma/user.ts, line: 80 }
+          - { file: src/queries/prisma/user.ts, line: 76 }
+          - { file: src/queries/prisma/user.ts, line: 77 }
+          - { file: src/queries/prisma/user.ts, line: 11 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: src/app/api/admin/users/route.ts, line: 36 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 14 }
+          - { file: prisma/schema.prisma, line: 16 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "列を選ばずに取るが、password だけ omit で除くので、残りの列を 1 つずつ書いた。user_id は、サイトの件数の関連をたどる条件にも使う。username は検索語の条件と並べ替えに、role と created_at は並べ替えに使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "include: _count.select.websites (where: deletedAt null)。ユーザーごとのサイトの件数"
+        fields:
+          - { name: user_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/app/api/admin/users/route.ts, line: 28 }
+          - { file: src/app/api/admin/users/route.ts, line: 30 }
+          - { file: src/app/api/admin/users/route.ts, line: 31 }
+          - { file: prisma/schema.prisma, line: 24 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 108 }
+          - { file: prisma/schema.prisma, line: 113 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "User.websites (Website の user の関連) の件数として読まれる。テーブルの名前は、コードに直接は出ない (schema.prisma の関連と @@map から読んだ)。件数だけを数え、列は取り出さない"
+
+  - id: ext_prisma_paged_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findMany / count (pagedQuery)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_users
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 80 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "pagedQuery は、引数のモデル名 (ここでは user) で client[model] を呼ぶ"
+
+  - id: users_table
+    layer: component
+    kind: component
+    name: "UsersTable (src/app/(main)/admin/users/UsersTable.tsx)"
+    source: { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 14 }
+    caller: users_data_table
+    call:
+      status: fact
+      when: conditional
+      condition: "一覧のデータが読めたとき (DataGrid は、data があるときだけ子を描く)"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersDataTable.tsx", line: 11 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+        - { file: src/components/common/DataGrid.tsx, line: 149 }
+    summary:
+      status: interpretation
+      value: "ユーザーの表。列は、ユーザー名 (詳細の画面へのリンク)、役割、サイトの数 (_count.websites)、作成からの時間、操作のメニュー。ユーザー名・役割・作成の見出しは、並べ替えの切り替え (URL の orderBy を書き換える)。メニューの「編集」は詳細の画面へ移り、「削除」は、その行のユーザーを状態に入れて、削除の確認の小窓 (UserDeleteForm) を開く。showActions は渡されないので、既定の true で操作の列を描く"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 24 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 31 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 34 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 42 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 52 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 60 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 72 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 89 }
+    links:
+      - kind: navigate
+        target: "/admin/users/${row.id}"
+        entry_id: admin.users.userId_d
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 34 }
+          - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 60 }
+          - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 55 }
+        note: "ユーザー名のリンク (34 行目) と、メニューの「編集」の router.push (60 行目。id は row.id) の 2 か所。行き先は同じ"
+
+  # ---------------------------------------------------------------- ユーザーの削除
+  - id: user_delete_form
+    layer: component
+    kind: component
+    name: "UserDeleteForm (src/app/(main)/admin/users/UserDeleteForm.tsx)"
+    source: { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 4 }
+    caller: users_table
+    call:
+      status: interpretation
+      when: conditional
+      condition: "行のメニューの「削除」を選んで、確認の小窓が開いたとき (deleteUser があるとき)"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 90 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 89 }
+        - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 72 }
+      note: "小窓 (Modal isOpen={!!deleteUser}) が閉じているときに中身が描かれるかは、UI ライブラリの中で決まり、リポジトリからは読めない。開いたときだけ描くと読んだ"
+    summary:
+      status: interpretation
+      value: "削除の確認の小窓 (AlertDialog)。確認を押すと、useDeleteQuery の mutateAsync で DELETE /users/<userId> を送り、成功すると更新印 users と users:<userId> を進め (一覧が読み直す)、小窓を閉じる"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 19 }
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 20 }
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 22 }
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 23 }
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 33 }
+    parameters:
+      - name: userId
+        value: "削除を選んだ行のユーザーの id (deleteUser?.id)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/UsersTable.tsx", line: 91 }
+
+  - id: use_delete_query
+    layer: component
+    kind: hook
+    name: "useDeleteQuery"
+    source: { file: src/components/hooks/queries/useDeleteQuery.ts, line: 4 }
+    caller: user_delete_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 2 }
+    summary:
+      status: interpretation
+      value: "受け取ったパス (ここでは /users/<userId>) へ DELETE を送る mutation を作る。URL は useApi の del が getApiUrl で組み立てる (既定は basePath + /api)"
+      evidence:
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 5 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/components/hooks/useApi.ts, line: 63 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    parameters:
+      - name: path
+        value: "/users/${userId}"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 16 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_user_delete
+    layer: api_route
+    kind: route_handler
+    name: "DELETE /api/users/[userId]"
+    source: { file: "src/app/api/users/[userId]/route.ts", line: 83 }
+    caller: use_delete_query
+    call:
+      status: fact
+      when: conditional
+      condition: "削除の確認の小窓で、確認のボタンを押したとき"
+      evidence:
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 16 }
+        - { file: "src/app/(main)/admin/users/UserDeleteForm.tsx", line: 20 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "parseRequest で認証する (スキーマは渡さない)。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ。管理者でなければ 401。消す相手が自分なら 400 (You cannot delete yourself.)。そうでなければ deleteUser でユーザーを消し、ok を返す"
+      evidence:
+        - { file: "src/app/api/users/[userId]/route.ts", line: 87 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 93 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 95 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 99 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 103 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 105 }
+    parameters:
+      - name: userId
+        value: "URL の段 [userId]。消すユーザーの id"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 93 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 95 }
+          - { file: src/permissions/user.ts, line: 36 }
+        note: "canDeleteUser が user.isAdmin を返す (段にしていない補助の関数)。満たさなければ 401"
+    rules:
+      - kind: validation
+        value: "自分自身は削除できない (400 You cannot delete yourself.)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 99 }
+          - { file: "src/app/api/users/[userId]/route.ts", line: 100 }
+
+  - id: q_delete_user
+    layer: query
+    kind: function
+    name: "deleteUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 121 }
+    caller: api_user_delete
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/users/[userId]/route.ts", line: 103 }
+        - { file: "src/app/api/users/[userId]/route.ts", line: 7 }
+      note: "手前にあるのは、認証の失敗・権限の不足・自分自身の削除で打ち切る経路だけ ([userId]/route.ts:89 / :95 / :99)"
+    summary:
+      status: interpretation
+      value: "まず、ユーザーのサイト、ユーザーが持ち主 (team-owner) のチーム、ユーザー (CLOUD_MODE が無ければ、そのチームも) のリンク・ピクセル・ボードを読む。CLOUD_MODE があれば、1 つのトランザクションで、サイトとリンクとピクセルに削除の印 (deleted_at) を付け、ユーザーのユーザー名をランダムな 32 文字に変えて削除の印を付け、共有とボードを消す。無ければ、1 つのトランザクションで、サイトの計測のデータ (event_data / session_data / website_event / session)、チームのメンバーとチーム、レポート、共有、リンク、ピクセル、ボード、サイト、ユーザーを行ごと消す。どちらも、終わった後、Redis が有効なら、まだ削除されていなかったリンクとピクセルのキャッシュ (link:<slug> / pixel:<slug>) を消す"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 123 }
+        - { file: src/queries/prisma/user.ts, line: 125 }
+        - { file: src/queries/prisma/user.ts, line: 135 }
+        - { file: src/queries/prisma/user.ts, line: 148 }
+        - { file: src/queries/prisma/user.ts, line: 150 }
+        - { file: src/queries/prisma/user.ts, line: 166 }
+        - { file: src/queries/prisma/user.ts, line: 175 }
+        - { file: src/queries/prisma/user.ts, line: 176 }
+        - { file: src/queries/prisma/user.ts, line: 204 }
+        - { file: src/queries/prisma/user.ts, line: 209 }
+        - { file: src/queries/prisma/user.ts, line: 270 }
+    parameters:
+      - name: userId
+        value: "消すユーザーの id (URL の段)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/route.ts", line: 103 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "あれば、行を消さずに削除の印を付ける (サイト・ユーザー・リンク・ピクセル。共有とボードは消す)。対象は、ユーザー自身のものだけ。無ければ、ユーザーのデータと、持ち主になっているチームとそのチームのリンク・ピクセル・ボードを、行ごと消す"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 123 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: src/queries/prisma/user.ts, line: 175 }
+      - name: REDIS_URL
+        kind: env
+        effect: "あれば、削除の後、リンクとピクセルのキャッシュのキーを消す"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 167 }
+          - { file: src/lib/redis.ts, line: 106 }
+    rules:
+      - kind: decision
+        value: "ユーザーが持ち主 (team_user の role が team-owner) のチームは、ユーザーと一緒に消す (CLOUD_MODE が無いとき。メンバーの行と、そのチームのリンク・ピクセル・ボードも)"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 140 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: src/queries/prisma/user.ts, line: 222 }
+          - { file: src/queries/prisma/user.ts, line: 236 }
+      - kind: decision
+        value: "Redis のキャッシュを消すのは、まだ削除の印が無い (deletedAt が無い) リンクとピクセルの slug だけ"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 163 }
+          - { file: src/queries/prisma/user.ts, line: 164 }
+      - kind: calculation
+        value: "CLOUD_MODE のときは、削除するユーザーのユーザー名を、ランダムな 32 文字に置き換える"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 185 }
+    io:
+      # ---- 最初の読み取り (どちらの枝でも)
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "client.website.findMany (where: userId)。消すサイトの id を集める"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 125 }
+          - { file: src/queries/prisma/user.ts, line: 126 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 130 }
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "client.team.findMany (where: members.some { userId, role: team-owner })。ユーザーが持ち主のチームの id を集める"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 135 }
+          - { file: src/queries/prisma/user.ts, line: 137 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 249 }
+          - { file: prisma/schema.prisma, line: 260 }
+        note: "team_id は、team_user との関連をたどる条件に使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "関連をたどる条件 members.some { userId, role: ROLES.teamOwner }"
+        fields:
+          - { name: user_id, use: [filter] }
+          - { name: role, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 137 }
+          - { file: src/queries/prisma/user.ts, line: 139 }
+          - { file: src/queries/prisma/user.ts, line: 140 }
+          - { file: prisma/schema.prisma, line: 243 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 256 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) の関連の条件として読まれる。テーブルの名前は、コードに直接は出ない (schema.prisma の関連と @@map から読んだ)"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "client.link.findMany (where: ownedFilter。select: id / slug / deletedAt)"
+        fields:
+          - { name: link_id, use: [read] }
+          - { name: slug, use: [read] }
+          - { name: deleted_at, use: [read] }
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 151 }
+          - { file: src/queries/prisma/user.ts, line: 152 }
+          - { file: src/queries/prisma/user.ts, line: 153 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: prisma/schema.prisma, line: 341 }
+          - { file: prisma/schema.prisma, line: 345 }
+          - { file: prisma/schema.prisma, line: 346 }
+          - { file: prisma/schema.prisma, line: 349 }
+          - { file: prisma/schema.prisma, line: 358 }
+        note: "条件は、CLOUD_MODE があれば user_id だけ。無ければ、user_id か、持ち主のチームの team_id"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "client.pixel.findMany (where: ownedFilter。select: id / slug / deletedAt)"
+        fields:
+          - { name: pixel_id, use: [read] }
+          - { name: slug, use: [read] }
+          - { name: deleted_at, use: [read] }
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 155 }
+          - { file: src/queries/prisma/user.ts, line: 156 }
+          - { file: src/queries/prisma/user.ts, line: 157 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: prisma/schema.prisma, line: 362 }
+          - { file: prisma/schema.prisma, line: 365 }
+          - { file: prisma/schema.prisma, line: 366 }
+          - { file: prisma/schema.prisma, line: 369 }
+          - { file: prisma/schema.prisma, line: 378 }
+        note: "条件は、CLOUD_MODE があれば user_id だけ。無ければ、user_id か、持ち主のチームの team_id"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "client.board.findMany (where: ownedFilter。select: id)"
+        fields:
+          - { name: board_id, use: [read] }
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 159 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: prisma/schema.prisma, line: 382 }
+          - { file: prisma/schema.prisma, line: 387 }
+          - { file: prisma/schema.prisma, line: 388 }
+          - { file: prisma/schema.prisma, line: 398 }
+        note: "条件は、CLOUD_MODE があれば user_id だけ。無ければ、user_id か、持ち主のチームの team_id"
+      # ---- CLOUD_MODE があるとき (削除の印を付ける)
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "client.website.updateMany (data: deletedAt = いまの時刻。where: id in websiteIds)"
+        fields:
+          - { name: deleted_at, use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 177 }
+          - { file: src/queries/prisma/user.ts, line: 179 }
+          - { file: src/queries/prisma/user.ts, line: 181 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 108 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "CLOUD_MODE があるときだけ"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "client.user.update (data: username = ランダムな 32 文字、deletedAt = いまの時刻。where: id)"
+        fields:
+          - { name: username, use: [write] }
+          - { name: deleted_at, use: [write] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 183 }
+          - { file: src/queries/prisma/user.ts, line: 185 }
+          - { file: src/queries/prisma/user.ts, line: 186 }
+          - { file: src/queries/prisma/user.ts, line: 189 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "CLOUD_MODE があるときだけ"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "client.link.updateMany (data: deletedAt = いまの時刻。where: userId と deletedAt null)"
+        fields:
+          - { name: deleted_at, use: [write, filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 194 }
+          - { file: src/queries/prisma/user.ts, line: 195 }
+          - { file: src/queries/prisma/user.ts, line: 196 }
+          - { file: prisma/schema.prisma, line: 345 }
+          - { file: prisma/schema.prisma, line: 349 }
+          - { file: prisma/schema.prisma, line: 358 }
+        note: "CLOUD_MODE があるときだけ。既に削除の印があるものには、付け直さない"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "client.pixel.updateMany (data: deletedAt = いまの時刻。where: userId と deletedAt null)"
+        fields:
+          - { name: deleted_at, use: [write, filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 198 }
+          - { file: src/queries/prisma/user.ts, line: 199 }
+          - { file: src/queries/prisma/user.ts, line: 200 }
+          - { file: prisma/schema.prisma, line: 365 }
+          - { file: prisma/schema.prisma, line: 369 }
+          - { file: prisma/schema.prisma, line: 378 }
+        note: "CLOUD_MODE があるときだけ。既に削除の印があるものには、付け直さない"
+      # ---- どちらの枝にもある削除
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "client.share.deleteMany (where: entityId in entityIds)。消すリンク・ピクセル・ボードの共有"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: entity_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 192 }
+          - { file: src/queries/prisma/user.ts, line: 257 }
+          - { file: src/queries/prisma/user.ts, line: 161 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "CLOUD_MODE があるとき (192 行目) も、無いとき (257 行目) も行う"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: board } }
+        detail: "client.board.deleteMany (CLOUD_MODE があれば where: userId。無ければ where: ownedFilter)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 202 }
+          - { file: src/queries/prisma/user.ts, line: 260 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: prisma/schema.prisma, line: 387 }
+          - { file: prisma/schema.prisma, line: 388 }
+          - { file: prisma/schema.prisma, line: 398 }
+        note: "CLOUD_MODE があるとき (202 行目) も、無いとき (260 行目) も行う。team_id を条件に使うのは、無いときだけ"
+      # ---- CLOUD_MODE が無いとき (行ごと消す)
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: event_data } }
+        detail: "client.eventData.deleteMany (where: websiteId in websiteIds)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 210 }
+          - { file: src/queries/prisma/user.ts, line: 211 }
+          - { file: prisma/schema.prisma, line: 188 }
+          - { file: prisma/schema.prisma, line: 205 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: session_data } }
+        detail: "client.sessionData.deleteMany (where: websiteId in websiteIds)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 213 }
+          - { file: src/queries/prisma/user.ts, line: 214 }
+          - { file: prisma/schema.prisma, line: 210 }
+          - { file: prisma/schema.prisma, line: 229 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website_event } }
+        detail: "client.websiteEvent.deleteMany (where: websiteId in websiteIds)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 216 }
+          - { file: src/queries/prisma/user.ts, line: 217 }
+          - { file: prisma/schema.prisma, line: 135 }
+          - { file: prisma/schema.prisma, line: 183 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: session } }
+        detail: "client.session.deleteMany (where: websiteId in websiteIds)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 219 }
+          - { file: src/queries/prisma/user.ts, line: 220 }
+          - { file: prisma/schema.prisma, line: 57 }
+          - { file: prisma/schema.prisma, line: 84 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "client.teamUser.deleteMany (where: teamId in teamIds か userId)。持ち主のチームの全メンバーと、ユーザー自身の所属"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 222 }
+          - { file: src/queries/prisma/user.ts, line: 226 }
+          - { file: src/queries/prisma/user.ts, line: 231 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "client.team.deleteMany (where: id in teamIds)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 236 }
+          - { file: src/queries/prisma/user.ts, line: 238 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: report } }
+        detail: "client.report.deleteMany (where: websiteId in websiteIds か userId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 243 }
+          - { file: src/queries/prisma/user.ts, line: 247 }
+          - { file: src/queries/prisma/user.ts, line: 252 }
+          - { file: prisma/schema.prisma, line: 270 }
+          - { file: prisma/schema.prisma, line: 271 }
+          - { file: prisma/schema.prisma, line: 286 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: link } }
+        detail: "client.link.deleteMany (where: ownedFilter)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 258 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: prisma/schema.prisma, line: 345 }
+          - { file: prisma/schema.prisma, line: 346 }
+          - { file: prisma/schema.prisma, line: 358 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: pixel } }
+        detail: "client.pixel.deleteMany (where: ownedFilter)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 259 }
+          - { file: src/queries/prisma/user.ts, line: 148 }
+          - { file: prisma/schema.prisma, line: 365 }
+          - { file: prisma/schema.prisma, line: 366 }
+          - { file: prisma/schema.prisma, line: 378 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "client.website.deleteMany (where: id in websiteIds)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 261 }
+          - { file: src/queries/prisma/user.ts, line: 262 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "CLOUD_MODE が無いときだけ"
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "client.user.delete (where: id)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 264 }
+          - { file: src/queries/prisma/user.ts, line: 266 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "CLOUD_MODE が無いときだけ"
+      # ---- Redis のキャッシュ
+      - op: delete
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "link:*" } }
+        detail: "redis.client.del(`link:${slug}`)"
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 169 }
+          - { file: src/queries/prisma/user.ts, line: 167 }
+          - { file: src/queries/prisma/user.ts, line: 163 }
+        note: "Redis が有効 (REDIS_URL あり) で、まだ削除の印が無いリンクがあるときだけ。トランザクションの後に行う"
+      - op: delete
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "pixel:*" } }
+        detail: "redis.client.del(`pixel:${slug}`)"
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 170 }
+          - { file: src/queries/prisma/user.ts, line: 167 }
+          - { file: src/queries/prisma/user.ts, line: 164 }
+        note: "Redis が有効 (REDIS_URL あり) で、まだ削除の印が無いピクセルがあるときだけ。トランザクションの後に行う"
+
+  - id: ext_prisma_delete_user
+    layer: external
+    kind: library
+    name: "Prisma Client (deleteUser の findMany と、$transaction の中の update / updateMany / delete / deleteMany)"
+    source: { file: src/queries/prisma/user.ts, line: 125 }
+    caller: q_delete_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 125 }
+        - { file: src/queries/prisma/user.ts, line: 135 }
+        - { file: src/queries/prisma/user.ts, line: 151 }
+        - { file: src/queries/prisma/user.ts, line: 176 }
+        - { file: src/queries/prisma/user.ts, line: 209 }
+        - { file: src/lib/prisma.ts, line: 844 }
+      note: "deleteUser の中の Prisma の呼び出しを、1 つの段にまとめた。source は、最初の呼び出し (website.findMany) の行。transaction は、prisma.ts:844 の client.$transaction に渡す"
+
+  - id: ext_redis_del
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) del"
+    source: { file: src/lib/redis.ts, line: 57 }
+    caller: q_delete_user
+    call:
+      status: fact
+      when: conditional
+      condition: "Redis が有効 (REDIS_URL あり) で、まだ削除の印が無いリンクかピクセルがあるとき"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 169 }
+        - { file: src/queries/prisma/user.ts, line: 170 }
+        - { file: src/queries/prisma/user.ts, line: 167 }
+        - { file: src/lib/redis.ts, line: 57 }
+      note: "deleteUser が呼ぶのは、リポジトリが自前で包んだ del (redis.ts:54)。その中の this.client.del がライブラリの呼び出し"

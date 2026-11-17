@@ -1,0 +1,151 @@
+format_version: 1
+entry_id: boards.boardId_d
+reviewed_at: '2026-11-17T15:44:53Z'
+reviewer: claude-opus-5-5 (fresh context)
+machine_check: ok
+findings:
+- kind: evidence_mismatch
+  severity: medium
+  where: callstack/q_create_board/io/0
+  claim: 列の根拠と note が、ボードの一覧の作成の受け口 (src/app/api/boards/route.ts の 74〜82 行目。本文をそのまま広げる) を指しているが、この入口の呼び出し元は複製の受け口で、id / type / name / description / parameters / teamId / userId を 1 つずつ明示して渡し (clone/route.ts の 68〜76 行目)、userId も「元のボードの持ち主、無ければ本人」と決め方が違う。note の「name と teamId は、検査済みの本文をそのまま広げた分 (route.ts:75)」はこの入口では成り立たない
+  evidence:
+    file: src/app/api/boards/[boardId]/clone/route.ts
+    line: 68
+  suggestion: 根拠を clone/route.ts の 69〜75 行目に替え、note を、複製の受け口が各列を明示して渡すこと (user_id は teamId が無いときに sourceBoard.userId ?? auth.user.id) に書き直す
+  resolved: true
+- kind: evidence_mismatch
+  severity: low
+  where: callstack/q_can_update_board/guards/0
+  claim: 「満たさなければ、呼び出し元の route が 401 を返す」の根拠が、ボードの更新の受け口 (src/app/api/boards/[boardId]/route.ts の 60〜61 行目) になっている。この入口の呼び出し元は複製の受け口
+  evidence:
+    file: src/app/api/boards/[boardId]/clone/route.ts
+    line: 33
+  suggestion: 根拠を clone/route.ts の 33〜34 行目に替える
+  resolved: true
+- kind: evidence_mismatch
+  severity: low
+  where: callstack/q_can_create_team_website/guards/0
+  claim: 「満たさなければ、呼び出し元の route が 401 を返す」の根拠が、ボードの一覧の作成の受け口 (src/app/api/boards/route.ts の 62〜63 行目) になっている。この入口の呼び出し元は複製の受け口
+  evidence:
+    file: src/app/api/boards/[boardId]/clone/route.ts
+    line: 50
+  suggestion: 根拠を clone/route.ts の 50〜53 行目に替える
+  resolved: true
+- kind: evidence_mismatch
+  severity: low
+  where: callstack/q_can_view_website_section_rw/call
+  claim: condition の補足「(funnel の report は区画 funnels を持つ)」は、ファネルの入口から写した説明で、この段の呼び出し元はゴールの定義の GET の canViewReport。ここで渡る区画は goals (report.ts の 18〜19 行目)
+  evidence:
+    file: src/permissions/report.ts
+    line: 19
+  suggestion: 補足を「(goal の report は区画 goals を持つ)」に直す
+  resolved: true
+- kind: evidence_mismatch
+  severity: low
+  where: callstack/q_realtime_activity/io/2
+  claim: event_data / session_data (io/2・io/3・io/5・io/6) の読み取りを「URL にプロパティの絞り込みがあるときだけ」と書いているが、ボードのリアルタイムの部品が使う useRealtimeQuery は GET /realtime/<websiteId> を引数なしで呼ぶ (URL の絞り込みも期間も送らない) ので、この画面からは条件が成り立たないように見える。そのことが note に無い
+  evidence:
+    file: src/components/hooks/queries/useRealtimeQuery.ts
+    line: 10
+  suggestion: io/2・io/3・io/5・io/6 の note に、useRealtimeQuery が引数を送らないので、この画面からは絞り込み・コホートの条件が付かないように見える、と書き足す
+  resolved: true
+- kind: classification_mismatch
+  severity: low
+  where: callstack/website_filter_button_rw2/call
+  claim: WebsiteControls から WebsiteFilterButton への呼び出しを conditional (共有画面の allowFilter) にしているが、同じ条件 (showFilter = allowFilter && allowShareFilter) の PixelControls / LinkControls からの呼び出しは、共有画面の外なのでいつも真として always にしている。同じ判断がそろっていない
+  evidence:
+    file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+    line: 34
+  suggestion: website_filter_button と同じく always にし、showFilter がこの入口ではいつも真になる理由を note に書く
+  resolved: true
+- kind: evidence_mismatch
+  severity: low
+  where: callstack/website_chart/rules/0
+  claim: 注釈の出し方のルール (rules/0 と rules/1) が、サイトの画面から写したまま残っている。summary のとおり、ボードの部品は showAnnotations を渡さず注釈を読まないので、この入口では効かないように見える
+  evidence:
+    file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 38
+  suggestion: rules/0 と rules/1 に、この画面では注釈を読まない (showAnnotations が渡らない) ので効かないように見える、と note を足す
+  resolved: true
+- kind: classification_mismatch
+  severity: low
+  where: callstack/use_website_query/settings/0
+  claim: このリポジトリの決まり (analysis-conventions.md の「BASE_PATH と API_URL は、その入口で最初に API を呼ぶフレームに 1 回だけ書く」) に反して、API_URL を API を呼ぶフックごと (約 30 か所) に書き、effect の書き方と status (fact / interpretation) もそろっていない。use_active_users には BASE_PATH も書いてある
+  evidence:
+    file: src/lib/api-url.ts
+    line: 38
+  suggestion: API_URL (と BASE_PATH) は、最初に API を呼ぶフレーム use_board_query だけに残し、ほかのフックの settings から消す
+  resolved: true
+- kind: classification_mismatch
+  severity: low
+  where: callstack/q_active/settings/1
+  claim: DATABASE_REPLICA_URL を、ほかの問い合わせ (PostgreSQL のライブラリの段 ext_*_pg に interpretation で書く) と違い、問い合わせの段に fact で書いている。対の ext_prisma_active (と ext_prisma_funnel) には書いていない
+  evidence:
+    file: src/lib/prisma.ts
+    line: 738
+  suggestion: ほかと同じく ext_prisma_active の settings に移し、status をそろえる (ext_prisma_funnel にも足す)
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_get_goal/io/0/fields
+  claim: 期間 (created_at) とイベントの種類 (event_type) の条件を note にだけ書き、fields に無い。同じ形の getWebsiteEventStats や getActiveVisitors は created_at / event_type を filter として fields に書いている (io/4 の ClickHouse も同じ)
+  evidence:
+    file: src/queries/sql/goals/getGoal.ts
+    line: 51
+  suggestion: io/0 と io/4 の fields に created_at と event_type を filter として足す
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_get_utm/io/0/fields
+  claim: ページビュー (event_type = 1) の条件を note にだけ書き、fields に event_type が無い (io/4 の ClickHouse も同じ)
+  evidence:
+    file: src/queries/sql/utm/getUTM.ts
+    line: 35
+  suggestion: io/0 と io/4 の fields に event_type を filter として足す
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_event_metrics/io/0/fields
+  claim: カスタムイベント (event_type = 2) の条件を note にだけ書き、fields に event_type が無い (io/4 の ClickHouse も同じ)
+  evidence:
+    file: src/queries/sql/events/getEventMetrics.ts
+    line: 42
+  suggestion: io/0 と io/4 の fields に event_type を filter として足す
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_revenue_stats/io/0/fields
+  claim: website_event の期間の条件 (created_at) を note にだけ書き、fields に無い (q_revenue_chart の io/0 も同じ)。q_revenue_metrics の io/0 は created_at を filter として書いており、そろっていない
+  evidence:
+    file: src/queries/sql/revenue/getRevenueStats.ts
+    line: 50
+  suggestion: q_revenue_stats と q_revenue_chart の website_event の io の fields に created_at を filter として足す
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_pageview_metrics/io/0/fields
+  claim: ボードの表は type に hostname を選べ (boardComponentRegistry.tsx:91)、そのとき集計する列は hostname になる (getPageviewColumn → FILTER_COLUMNS) のに、hostname を filter だけにしている (io/4 の ClickHouse も同じ。io/5 の集計表は read/filter)
+  evidence:
+    file: src/queries/sql/pageviews/getPageviewMetrics.ts
+    line: 237
+  suggestion: io/0 と io/4 の hostname の use に read を足す
+  resolved: true
+- kind: status_mismatch
+  severity: medium
+  where: callstack/api_metrics/rules/0
+  claim: type による振り分け (セッションの列ならセッションの集計、event ならカスタムイベントの集計、ほかのイベントの列ならページビューの集計、channel なら流入の集計、どれでもなければ 400) は、route.ts の 55〜74 行目にそのまま書いてあるのに interpretation にしている
+  evidence:
+    file: src/app/api/websites/[websiteId]/metrics/route.ts
+    line: 55
+  suggestion: rules/0 の status を fact にする
+  resolved: true
+- kind: evidence_mismatch
+  severity: low
+  where: callstack/q_website_event_stats/rules/0
+  claim: イベント数と種類の数の計算を PostgreSQL の行 (37〜40 行目) だけで支えているが、ClickHouse の集計表を使う経路では、イベント数は sum(length(event_name))、種類の数は uniqArray(event_name) で数え方が違う
+  evidence:
+    file: src/queries/sql/events/getWebsiteEventStats.ts
+    line: 80
+  suggestion: 集計表の経路の数え方を値に書き足し、80〜83 行目を根拠に足す
+  resolved: true
+notes: '機械チェック (validate result) は OK。重点の確認で、次は問題が無かった: 複製の受け口 (POST /api/boards/[boardId]/clone) の検査の順と 401 / 400、canUpdateBoard / canCreateTeamWebsite / canViewBoardEntities / stripInvalidBoardReports / hasValidBoardReports / createBoard の読み書き。events/stats・goals/[goalId] と stats・utm/metrics・realtime・active・revenue/stats・chart・metrics・metrics (getEventMetrics を含む) の受け口の権限の区画 (events / goals / utm / realtime / overview・realtime / revenue)、SQL の表と列 (revenue と website_revenue、website_event_stats_hourly の使い分けを含む)。登録表の 17 種類と、TextBlock をフレームにしない扱い、ピクセル・リンクの対象で Metrics bar だけが種類ごとの部品に替わる扱い、BoardControls の対象の決め方、BoardViewColumn の 401 / 404 の扱い。根拠の行は、全件について、ファイルがあり行が範囲内にあることを機械的に確かめ、重点の段は前後の行を読んで確かめた。指摘にしなかったこと: (1) 一覧の API (teams/[teamId]/websites など) の call を interpretation にしているのは、ボードの teamId で URL が切り替わるので、許容した。(2) canViewBoardEntities の下の canViewPixel / canViewLink、getEntity の下の getBoard は、ほかの呼び出し元の下に書いてあるので漏れにしていない。(3) 複製のボタンは種類が dashboard のボードにも出るが、受け口が 400 を返すことは api_board_clone の rules に書いてある。'

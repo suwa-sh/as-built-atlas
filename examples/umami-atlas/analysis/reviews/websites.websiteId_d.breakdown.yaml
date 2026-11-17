@@ -1,0 +1,42 @@
+format_version: 1
+entry_id: websites.websiteId_d.breakdown
+reviewed_at: "2026-11-17T15:44:57Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_check_auth/io/0
+    claim: "checkAuth が読む Redis のキーは、トークンから取り出した実行時の値 authKey で、auth:* という形はログイン時にキーを作る saveAuth (auth.ts 150 行) から読み取ったものなので、fact ではなく interpretation に当たる (websites.websiteId_d の結果は、同じ読み取りを interpretation にしている)。"
+    evidence: { file: src/lib/auth.ts, line: 102 }
+    suggestion: "status を interpretation にし、note に「キーの形は saveAuth (auth.ts 150 行) から読み取った」と書く。書き直したフレーム q_check_auth_rw の io/0 も同じように直す。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/ext_prisma_breakdown
+    claim: "生の SQL を実行する executeRawQuery は、DATABASE_REPLICA_URL があると読み取りを複製の DB に送るが、この設定が settings に無い (websites.websiteId_d の結果は、生の SQL の external ごとに書いている)。"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "settings に name DATABASE_REPLICA_URL (kind env) を足し、effect に「設定されていると、読み取りの生の SQL を複製の DB に送る」と書く。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/ext_prisma_daterange
+    claim: "getWebsiteDateRange の生の SQL も executeRawQuery を通るので、DATABASE_REPLICA_URL で送り先が変わるが、この設定が settings に無い。"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "ext_prisma_breakdown と同じように、settings に DATABASE_REPLICA_URL を足す。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_get_breakdown/io/3/fields
+    claim: "セッションのプロパティの絞り込みは、どの型でも data_type 列を条件に使う (bool_or(data_key = … and data_type = … and …)) が、fields に data_type が無い。型で変わるのは値の列 (string_value など) だけ。"
+    evidence: { file: src/lib/prisma.ts, line: 691 }
+    suggestion: "fields に {name: data_type, use: [filter]} を足す。ClickHouse の session_data (io/7、clickhouse.ts 652 行) と、event_data の 2 件 (io/2、io/6) も同じように足す。"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/website_filter_button/summary
+    claim: "note が「FilterEditForm が PropertyFilters を描く」根拠に挙げた FilterEditForm.tsx 168 行は、パスが /events で終わるときだけ描くイベントのプロパティの欄で、この画面で描くセッションのプロパティの欄は 178 行にある。"
+    evidence: { file: src/components/input/FilterEditForm.tsx, line: 178 }
+    suggestion: "note の行番号を 168 から 178 に直す (168 行の欄はこの画面では描かないと書き添える)。"
+    resolved: true
+notes: "指摘にしなかったこと。(1) POST /api/websites/[websiteId]/segments の呼び出し (api_segments_create の call) は、SegmentEditForm.tsx 44 行で segmentId の有無により URL が切り替わる書き方だが、この画面の FilterBar は segmentId を渡さないので、届く受け口は 1 つに決まる。fact のままでよいと判断した (websites.websiteId_d の結果は、同じ呼び出しを interpretation にしているので、入口をまたいでそろえるかは人が決める)。(2) segment_filter_fields の source は PropertyFilters.tsx 53 行 (フックを呼ぶ行) で、関数の定義は 32 行。名前が FieldFilters と PropertyFilters の 2 つをまとめているので、どちらにしても代表の行になる。(3) ext_prisma_website は website.findUnique (website.ts 77 行) と share.findFirst (website.ts 304 行) の 2 つのライブラリの呼び出しを 1 つのフレームにまとめている。I/O は両方 q_get_website に書いてあり、経路は切れていない。(4) website_filter_button と segment_filter_fields の unknown + not_analyzed は、note にどこまで読んだかと、止めた理由 (共通の絞り込みの部品で、websites.websiteId_d の結果が辿っている) があるので、指摘にしていない。(5) 根拠の行、呼び出しの条件 (when)、同じ処理を 1 回だけ書く木の形と、終端を満たすための書き直し (_rw のフレーム) は、コードと決まりのとおりだった。"

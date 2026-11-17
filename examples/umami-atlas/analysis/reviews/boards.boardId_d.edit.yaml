@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: boards.boardId_d.edit
+reviewed_at: "2026-11-17T11:46:39Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/board_shares_table/links
+    claim: "共有の URL のリンクは、クラウドモードのとき ${process.env.cloudUrl}/share/${slug} へ向くが、その行き先が links に無く、/share/${slug} の note に書いてあるだけ。同じ部品 (SharedSharesTable) を通る links.linkId_d.edit の結果は、2 件に分けて書いている。"
+    evidence: { file: src/components/share/SharedSharesTable.tsx, line: 29 }
+    suggestion: "target が ${process.env.cloudUrl}/share/${slug} のつながりを 1 件足す (cloudUrl はリポジトリから読めないので unknown。理由は links.linkId_d.edit の結果と同じ not_traceable_in_repo にそろえる)。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/board_shares_table/settings
+    claim: "共有の URL のリンクの行き先を変える設定 (CLOUD_MODE で CLOUD_URL の側へ向く。そうでなければ origin + BASE_PATH) が settings に無い。同じ部品を通る links.linkId_d.edit の結果は、CLOUD_MODE / CLOUD_URL / BASE_PATH を書いているので、入口の間で扱いが分かれている。"
+    evidence: { file: src/components/share/SharedSharesTable.tsx, line: 28 }
+    suggestion: "board_shares_table に CLOUD_MODE (根拠は SharedSharesTable.tsx:24、:28、:29 と src/app/api/config/route.ts:15)、CLOUD_URL、BASE_PATH を、links.linkId_d.edit の結果と同じ綴りで足す。足さないなら、扱いが分かれている理由を notes に書く。"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_get_user_websites/call
+    claim: "when が conditional だが、note は「この入口ではいつもこちらになる」と書いている。この入口から辿る限り条件がいつも成り立つ呼び出しは always にする決まりで、同じ呼び出しを layout_l.main_g の結果は always (note 付き) にしている。"
+    evidence: { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+    suggestion: "when を always にして condition を消し、note はそのまま残す (対になる q_get_all_user_websites の conditional は、そのままでよい)。"
+    resolved: true
+notes: "117 フレームすべての source・call・summary・parameters・io (fields を含む)・links・guards・settings・rules の根拠を、対象のファイルと prisma/schema.prisma で確かめた。根拠の行のずれ、fact と interpretation の取り違え、辿り漏れ、権限の確認と書き込む列の書き漏れは見つからなかった。指摘にしなかったこと: (1) 結果の notes の (6) は、GET /api/config を「ほかの入口の結果でもフレームにしていない」と書くが、websites.websiteId_d の結果にはフレームがある (layout_l.main_g、links.linkId_d.edit、admin.websites.websiteId_d は、フレームにしていない)。この受け口は環境変数を返すだけでデータに届かないので、フレームにしない扱いそのものは妥当。(2) API の URL の前に付く BASE_PATH は、admin.users / admin.teams などの結果では API を呼ぶフックの settings に書いてあり、この結果と layout_l.main_g は書いていない。入口の間で扱いが分かれているので、どちらにそろえるかは人が決めるとよい。(3) checkAuth の API キーの経路 (checkApiKeyAuth → getApiKeyByHash) は辿っていないが、ほかの入口の結果も同じ扱い (settings の CLOUD_MODE と note だけ) なので、漏れに数えていない。(4) website.ts:334 の share.findMany と :304 の share.findFirst は、自分の external のフレームを持たず、ext_prisma_paged_website / ext_prisma_get_website の名前にまとめてある。layout_l.main_g の結果と同じ書き方なので、指摘にしていない。(5) board_shares_table は、BoardSharesTable.tsx と SharedSharesTable.tsx の 2 つのファイルを 1 つのフレームにまとめている (links の根拠は後者)。(6) テストとの対応は、analyzer.tests が無いので見ていない。枠 ((main) の layout) の処理を辿っていないことは、決まりのとおりなので漏れに数えていない。"

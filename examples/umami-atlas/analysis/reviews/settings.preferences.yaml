@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: settings.preferences
+reviewed_at: "2026-11-17T15:18:45Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/q_check_auth
+    claim: "checkAuth の、ユーザーが無く共有トークンだけのとき共有の文脈を示すヘッダー (SHARE_CONTEXT_HEADER) が無ければ認めない、という確認が rules に無い (layout_l.main_g と settings.profile の結果は同じ段に書いている)"
+    evidence: { file: src/lib/auth.ts, line: 127 }
+    suggestion: "q_check_auth の rules に kind validation で、共有トークンだけのときは共有の文脈のヘッダーが無ければ null を返す、を auth.ts:127-132 を根拠に足す"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_check_auth
+    claim: "API キーの経路は、/api/auth の下が API_KEY_BLOCKED_PATHS に入っているので、この受け口では API キーを必ず拒む (読み書きの前に null を返す) が、rules にも note にも書かれず、辿らない理由が『ブラウザがログイントークンを付ける』という推測だけになっている"
+    evidence: { file: src/lib/api-key.ts, line: 15 }
+    suggestion: "q_check_auth の rules に kind validation で、/api/auth の下では API キーを受け付けない (api-key.ts:15、auth.ts:35) を足し、notes [5] と CLOUD_MODE の note の辿らない理由をこの事実に置き換える"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_get_user/io/0
+    claim: "列 username / password / role / created_at / two_factor_required の、モデルの項目から列名への対応の行が evidence に無い (user_id の 13 行目と @@map の 37 行目だけ)"
+    evidence: { file: prisma/schema.prisma, line: 20 }
+    suggestion: "schema.prisma の 14 / 15 / 16 / 19 / 20 行目を evidence に足す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_team_verify/io/1
+    claim: "members のリレーションが TeamUser (team_user) を指すことを示す行が evidence に無い (同じ処理を書いた login の結果は schema.prisma:243 と 260 を挙げている)"
+    evidence: { file: prisma/schema.prisma, line: 243 }
+    suggestion: "schema.prisma の 243 行目 (Team.members TeamUser[]) と 260 行目 (team の relation) を evidence に足す"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。好みの部品 (DateRangeSetting ほか) を段にしないこと、翻訳の JSON を書かないこと、枠 (layout) を辿らず PreferenceSettings 自身の useLoginQuery を画面側に書いたことは、context.md と analysis-conventions.md の決まりどおり。設定の名前 (BASE_PATH / REDIS_URL / CLOUD_MODE) と、認証の確認を checkAuth の段だけに書く書き方は、ほかの入口と同じ。team_user を interpretation にしているのは login / layout_l.main_g と同じ扱いなので指摘にしていない。共有トークンだけで認証が通った場合、verify の route は auth.user.id を読んで落ちる (route.ts:12) が、画面からは起きにくいので指摘にしていない。"

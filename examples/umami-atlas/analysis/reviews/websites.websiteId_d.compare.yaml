@@ -1,0 +1,52 @@
+format_version: 1
+entry_id: "websites.websiteId_d.compare"
+reviewed_at: "2026-11-17T15:46:21Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_frame
+    severity: low
+    where: "callstack/filter_edit_form"
+    claim: "FilterEditForm はイベントのプロパティのタブで PropertyFilters (source: event) を描き (FilterEditForm.tsx:166)、usePropertyFieldsQuery から GET /websites/<id>/event-data/fields に届くが、パスが /events で終わるときだけという理由で段にしていない。この画面から条件が成り立たないように見える呼び出しも消さずに conditional で書く決まり (analysis-conventions.md の木の書き方) と合わない (注釈の API は決まりどおり書いている)"
+    evidence: { file: "src/components/input/FilterEditForm.tsx", line: 166 }
+    suggestion: "PropertyFilters (source: event) から event-data/fields の受け口と、その先の問い合わせまでを conditional の段として足し、この画面のパスでは描かれない理由を note に書く"
+  - kind: missing_frame
+    severity: low
+    where: "callstack/website_controls"
+    claim: "WebsiteControls は allowDownload のときに ExportButton を描き (WebsiteControls.tsx:42)、ExportButton は GET /websites/<id>/export を呼ぶ (ExportButton.tsx:20) が、渡さないという理由で summary と notes (5) で触れるだけで段にしていない。条件が成り立たないように見える呼び出しを消さずに conditional で書く決まりと合わない"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 42 }
+    suggestion: "ExportButton から export の受け口とその先までを conditional の段として足し、この画面が allowDownload を渡さないこと (ComparePage.tsx:12) を note に書く"
+  - kind: missing_frame
+    severity: low
+    where: "callstack/api_values"
+    claim: "GET values は type が segment / cohort のとき getWebsiteSegments を呼ぶ (values/route.ts:49) が、この画面の列に segment / cohort が無いという理由で段にしていない。入口から深さ優先で辿ると getWebsiteSegments に最初に着くのはこの受け口なので、決まりどおりなら q_get_website_segments はここに conditional で置き、GET segments の側が「経路は同じ」と書く形になる"
+    evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 49 }
+    suggestion: "getWebsiteSegments の段を api_values の下に conditional で置き (届かないように見える理由を note に書く)、api_segments_get の summary で同じ経路を指す。置き場を変えないなら、その理由を notes に書く"
+  - kind: classification_mismatch
+    severity: low
+    where: "callstack/q_get_query_filters/call"
+    resolved: true
+    claim: "getQueryFilters は、type が segment / cohort でないときの else の枝 (values/route.ts:48 と :53) で呼ばれる。入力の誤りや権限の不足で打ち切る経路ではなく type による枝分かれなので、when は always ではなく conditional に当たる (note でも枝であることを認めている)"
+    evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 53 }
+    suggestion: "when を conditional にし、condition に「type が segment / cohort でないとき」を書く。この画面ではいつも成り立つことは note に残す"
+  - kind: classification_mismatch
+    severity: low
+    where: "callstack/q_get_values/call"
+    resolved: true
+    claim: "getValues も同じ else の枝 (values/route.ts:54) で呼ばれるので、when は always ではなく conditional に当たる"
+    evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 54 }
+    suggestion: "when を conditional にし、condition に「type が segment / cohort でないとき」を書く"
+  - kind: missing_item
+    severity: low
+    where: "callstack/q_get_values/io/1/fields"
+    claim: "getValues が取り出して検索する列は FILTER_COLUMNS[type] で、type はこの画面では useFields の固定の一覧から event を除いたもの (FieldFilters.tsx:43、FilterEditForm.tsx:61) なので、コードから列挙できる。それでも「実行時に決まる」として fields に書いていない (同じ結果の metrics の段では、この画面の type に当たる列を書いている)。io/0 (session) と io/2 (ClickHouse の website_event) も同じ"
+    evidence: { file: "src/components/hooks/useFields.ts", line: 15 }
+    suggestion: "website_event の io には url_path / url_query / page_title / referrer_domain / utm_source / utm_medium / utm_campaign / utm_content / utm_term / hostname / tag を、session の io には country / region / city / browser / os / device / distinct_id を、use: read と filter で足す (ClickHouse の io には両方)"
+  - kind: evidence_mismatch
+    severity: low
+    where: "callstack/compare_tables/summary"
+    resolved: true
+    claim: "「どちらも MetricsTable (上位 20 件…)」とあるが、列が channel のときは受け口が limit を渡さず (metrics/route.ts:71)、getChannelMetrics にも件数の制限が無いので、流入の種類はすべて返る"
+    evidence: { file: "src/app/api/websites/[websiteId]/metrics/route.ts", line: 71 }
+    suggestion: "上位 20 件は channel 以外の列であることを書き添える"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読まれた)。high と medium の指摘は無い。この入口に固有の段 (ComparePage、CompareTables、WebsiteControls の allowCompare、WebsiteDateFilter の比較の期間の選択、WebsiteMetricsBar と stats の受け口の比較の期間、WebsiteChart と pageviews の受け口の compare、注釈のフックの enabled、MetricsTable の params による期間の上書き、metrics の受け口の 4 つの枝、getEventMetrics / getPageviewMetrics / getSessionMetrics / getChannelMetrics の SQL、Favicon と設定) は、根拠の行をコードと突き合わせ、主張が合っていることを確かめた。FilterBar からセグメントの保存まで (canUpdateWebsite、createSegment) と、checkAuth / canViewWebsiteSection / getQueryFilters / fetchWebsite も確かめた。getWebsiteStats / getPageviewStats / getSessionStats / getSessionDataProperties / getSessionDataValues / getWebsiteDateRange の SQL の列は、抜き取りでしか確かめていない。綴りは、ほかの入口の結果と比べて同じだった (設定の名前、canViewWebsiteSection などの関数の名前、PERMISSIONS.websiteUpdate)。指摘にしなかったが伝えること: (1) canViewWebsite と canUpdateWebsite の中の管理者の確認 (website.ts:9、:137) は note に書くだけで、kind: role の user.isAdmin の確認にしていない。概要の画面 (websites.websiteId_d) の結果と同じ扱いだが、breakdown / funnels / goals などの結果は role の確認として書いている。入口をまたいでそろえるかは人が決めてほしい。(2) DATABASE_REPLICA_URL の status は、この結果では 11 件すべて interpretation。生の SQL を使う多くの入口の結果も interpretation で、fact の結果も少しある。読み取りを複製に送るのはライブラリ ($replica) の動きでもあるので指摘にしていないが、そろえるかは人が決めてほしい。(3) 入口の summary に「ほかの画面への遷移は無い」とあるが、path と referrer の行の FilterLink は、計測している対象のサイトを新しいタブで開く外部リンク (MetricLabel.tsx:152、:188) を持つ。概要の画面の結果と同じく入口ではないので links に書かないのは妥当だが、notes (6) に一言あると親切。(4) useFilterParameters は URL の excludeBounce をそのまま送る (useFilterParameters.ts:37) ので、この画面に「直帰を除く」のチェックは無くても、URL に excludeBounce が残っていれば stats / pageviews / metrics はそれで絞る。結果は直帰を除くルールを q_stats に書いているので、矛盾はない。(5) getQueryFilters は、期間の開始を resetAt と CLOUD_MODE の制限で後ろにずらす。比較の期間 (左の表の startAt / endAt と、stats / pageviews の比較の期間) にも同じずらしが効くので、比較の期間がリセットの日時より前だと、左の表や比較の値が空になる。分析の誤りではないので、伝えるだけにする。"

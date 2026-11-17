@@ -1,0 +1,2078 @@
+format_version: 1
+entry:
+  id: websites
+  path: /websites
+  name: websites
+  layer: page
+  source: { file: "src/app/(main)/websites/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T15:42:25Z"
+  reviewed: { by: "claude-opus-5-5 (fresh context)", at: "2026-11-17T15:41:33Z", findings_open: 0 }
+summary:
+  status: interpretation
+  value: "サイト (website) の一覧の画面。サーバー側の page は WebsitesPage を描くだけで、本体はブラウザ側で動く。個人の URL (/websites) では GET /api/users/[userId]/websites で自分が持つサイトを、チームの URL (/teams/<teamId>/websites。next.config.ts の書き換えでこの画面に届く) では GET /api/teams/[teamId]/websites でそのチームのサイトを、検索 (name / domain)・並べ替え (name / domain / createdAt)・ページ送りを付けて読み (website、持ち主か作成者の user、share)、名前・ドメイン・直近 7 日の訪問者数の小さなグラフ・作成日の表にする。グラフは、一覧にサイトがあれば GET /api/websites/charts で読む (website_event。CLICKHOUSE_URL があれば ClickHouse の website_event_stats_hourly)。各行のドメインのアイコンは、ブラウザが他社のサービス (既定は icons.duckduckgo.com) から読む (PRIVATE_MODE なら読まない)。追加と編集の操作を出すかどうかは画面が決める: 個人の URL では、ログイン中のユーザー (useLoginQuery。ストアに無いときだけ POST /api/auth/verify で user と所属の team を読む) の役割が view-only でないとき。チームの URL では、GET /api/teams/[teamId]/users で読んだメンバー (team_user と user) に自分がいて、役割が team-view-only でないとき。追加ボタンは小窓を開き、名前とドメインを POST /api/websites で送って website を作る (website:create の権限が要る。チームの URL では、そのチームでの権限も要る。CLOUD_MODE では、契約 (Redis の account:* か team:*) で決まる数の上限を、website を数えて確かめる)。CLOUD_MODE では、作った後に小窓が計測タグの表示に替わる。行の名前から /websites/[websiteId] へ、編集ボタンから /websites/[websiteId]/settings へ移る。各 API は、ログイントークンから user を読んで認証する (Redis のセッションを使うときは auth:* も読む)"
+  evidence:
+    - { file: "src/app/(main)/websites/page.tsx", line: 5 }
+    - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 12 }
+    - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 15 }
+    - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 17 }
+    - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 27 }
+    - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 30 }
+    - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 17 }
+    - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 25 }
+    - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 85 }
+    - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 27 }
+    - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 17 }
+    - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 23 }
+    - { file: src/app/api/websites/route.ts, line: 39 }
+    - { file: src/app/api/websites/route.ts, line: 70 }
+    - { file: next.config.ts, line: 253 }
+notes: "[1] 画面を包む枠 ((main) の layout と、そこから描かれる App など) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。ただし、(main) の枠の App が、ログイン中のユーザーとアプリの設定をストアに得てから children を描く (App.tsx:43、:54) ことは、この画面のフックの条件を決めるのに使った。[2] 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser は POST /api/auth/verify (WebsitesPage.tsx:12 の useLoginQuery が最初に着く) の下。canViewTeam → getTeamUser は GET /api/teams/[teamId]/users (WebsitesPage.tsx:15) の下。サイトの一覧の pagedQuery と share.findMany (ライブラリの呼び出し) は、useUserWebsitesQuery の URL の式で最初に書いてある GET /api/teams/[teamId]/websites → getTeamWebsites の下。WebsitesDataTable の useLoginQuery (WebsitesDataTable.tsx:17) は summary で触れるだけにした。[3] この画面からは条件が成り立たないように見える呼び出しも、消さずに conditional で書き、note に理由を書いた: POST /api/auth/verify (枠がユーザーを得てから描く)、GET /api/me/websites (同じ理由で userId がいつもある)、POST /api/websites の createShare (追加のフォームは shareId を送らない)。[4] 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段まで書き直した (id が _rw で終わるフレーム。external の段は書いていない。確認・設定・ルールは繰り返していない): canCreateTeamWebsite の下の getTeamUser、GET /api/me/websites の下の parseRequest → checkAuth。[5] 段にしなかったもの: canCreateWebsite (src/permissions/website.ts:120。データを読まないので、確認は、それを呼ぶ受け口 POST /api/websites に書いた)、getCloudWebsiteLimit (src/lib/subscription.ts:41。計算だけの補助の関数なので、ルールを POST /api/websites に書いた)、getQueryFilters (websiteId を渡さないので、データを読まない)、useConfig → GET /api/config (analysis-conventions.md のとおり。設定 CLOUD_MODE / PRIVATE_MODE / FAVICON_URL は、それを使う WebsiteAddButton と Favicon に書いた)、TrackingCodeStep と WebsiteTrackingCode (設定から計測タグの文字列を組み立てて表示するだけ。settings.websites.websiteId_d の結果と同じ扱い)、DataGrid (検索とページ送りは、同じ画面の URL のクエリを書き換えるだけ)、WebsiteSparkline / DateDistance / SortableLabel / LinkButton / PageHeader / Panel / DialogButton (見た目だけ)、useNavigation (URL を読むだけ)、useMessages、useModified (ブラウザの中の更新印)、useApi。WebsitesHeader は、このフォルダにあるが、この画面からは描かれない。[6] 操作を出すかどうか (showActions) は、画面の出し分けで、先へ進むのを止める確認ではないので、guards ではなく WebsitesPage の rules (decision) に書いた (links、pixels の結果と同じ)。[7] 設定 BASE_PATH は、analysis-conventions.md のとおり、この入口で最初に API を呼ぶ段 (useLoginQuery) に 1 回だけ書いた。API_URL は /auth と /config で始まる URL には効かない (api-url.ts:6、:39) ので、useLoginQuery には書かず、API_URL が効く API を最初に呼ぶ段 (useTeamMembersQuery) に 1 回だけ書いた。DATABASE_URL は書いていない。POST /api/websites の fetchTeam / fetchAccount は、Redis が有効かを確かめずに読む (load.ts:43、:49) ので、REDIS_URL を設定として書いていない (settings.websites.websiteId_d の結果と同じ)。[8] checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。[9] 確認の値は、analysis-conventions.md の綴りにした (役割は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前、ログイン済みは checkAuth の 1 か所だけ)。GET /api/users/[userId]/websites の本人の確認は、関数が無く受け口に直接書いてあるので、ほかの入口の結果と同じ式 (auth.user.id === userId) にした。[10] website と share の書き込みの fields には、Prisma の @updatedAt が自動で書く updated_at を入れた (settings.websites.websiteId_d の結果と同じ)。[11] テストとの対応は、作業定義の analysis.tests が無いので、分析していない。[12] レビューの指摘は medium 2 件と low 1 件で、すべて直した (GET /api/users/[userId]/websites と canViewBatchWebsites の guards に、管理者の素通し user.isAdmin を role として足した。追加のフォームの rules に、名前とドメインが必須であることを足した)。レビューが人の判断に回したこと: 同じ管理者の素通しを guards に書いていない、ほかの入口の結果 (settings.websites、layout_l.main_g、admin.users.userId_d) がある。API_URL を書く段 (API_URL が効く API を最初に呼ぶ段) を analysis-conventions.md に書き足すとよい。"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "websites (src/app/(main)/websites/page.tsx)"
+    source: { file: "src/app/(main)/websites/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page。WebsitesPage を描くだけで、引数もデータの読み取りも無い。ページの題名 (Websites) を metadata で出す"
+      evidence:
+        - { file: "src/app/(main)/websites/page.tsx", line: 5 }
+        - { file: "src/app/(main)/websites/page.tsx", line: 8 }
+
+  - id: websites_page
+    layer: component
+    kind: component
+    name: "WebsitesPage"
+    source: { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 11 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/page.tsx", line: 2 }
+        - { file: "src/app/(main)/websites/page.tsx", line: 5 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。ログイン中のユーザー (useLoginQuery) と、URL から取り出した teamId (useNavigation。/teams/<teamId>/... の形のとき)、チームのメンバー (useTeamMembersQuery) から、追加と編集の操作を出すかどうか (showActions) を決める。見出しに追加ボタン (WebsiteAddButton。showActions のときだけ) を、その下に一覧 (WebsitesDataTable。teamId と showActions を渡す) を描く"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 1 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 12 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 13 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 15 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 17 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 27 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 30 }
+        - { file: src/components/hooks/useNavigation.ts, line: 9 }
+    parameters:
+      - name: teamId
+        value: "URL のパスの /teams/<teamId> の部分 (useNavigation が正規表現で取り出す)。チームの URL (/teams/<teamId>/websites。/teams/<teamId> もここへ転送される) は、next.config.ts の書き換えで、この画面に届く。個人の URL (/websites) では undefined"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 13 }
+          - { file: src/components/hooks/useNavigation.ts, line: 9 }
+          - { file: next.config.ts, line: 164 }
+          - { file: next.config.ts, line: 165 }
+          - { file: next.config.ts, line: 253 }
+          - { file: next.config.ts, line: 254 }
+    rules:
+      - kind: decision
+        value: "追加と編集の操作を出すのは、チームの URL では、読めたメンバーの中に自分がいて、その役割が ROLES.teamViewOnly でないとき。個人の URL では、自分の役割が ROLES.viewOnly でないとき"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 17 }
+          - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 18 }
+          - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 19 }
+          - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 21 }
+          - { file: src/lib/constants.ts, line: 177 }
+          - { file: src/lib/constants.ts, line: 181 }
+        note: "画面の出し分けで、サーバー側の確認ではない (サーバー側の確認は、受け口と権限の関数の guards にある)。管理者でも、チームのメンバーでなければ、チームの URL では操作が出ない"
+
+  # ---- ログイン中のユーザー (認証の経路はここに 1 回だけ書く)
+  - id: use_login_query
+    layer: component
+    kind: hook
+    name: "useLoginQuery"
+    source: { file: src/components/hooks/queries/useLoginQuery.ts, line: 6 }
+    caller: websites_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 6 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 12 }
+    summary:
+      status: interpretation
+      value: "ストアのユーザーを返す。ストアにユーザーが無いとき (enabled: !user) だけ POST /auth/verify を呼び、返ったユーザー (所属チームを含む) をストアに入れる。/auth で始まる URL は API_URL の設定に関わらず basePath + /api に向く。WebsitesDataTable (WebsitesDataTable.tsx:17) も同じフックを呼ぶ。経路はこのフレームと同じ"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 17 }
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く (basePath + /api + /auth/verify。この画面のほかの API にも同じように付く。API_URL が絶対の URL のときは付かない)"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 41 }
+          - { file: src/lib/api-url.ts, line: 44 }
+        note: "analysis-conventions.md のとおり、この入口で最初に API を呼ぶ段に 1 回だけ書いた"
+
+  - id: api_verify
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/verify"
+    source: { file: src/app/api/auth/verify/route.ts, line: 5 }
+    caller: use_login_query
+    call:
+      status: fact
+      when: conditional
+      condition: "ストアにログイン中のユーザーが無いとき (enabled: !user)"
+      evidence:
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 13 }
+        - { file: src/components/hooks/queries/useLoginQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "この画面は (main) の枠の App が、ユーザーを得てから描く (App.tsx:43、:54) ので、この入口からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた"
+    summary:
+      status: interpretation
+      value: "parseRequest で Bearer トークンを検査し、認証できなければ 401。できれば getAllUserTeams で所属チームを読み、ユーザーと所属チームを返す"
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+        - { file: src/app/api/auth/verify/route.ts, line: 14 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi が localStorage のログイントークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+          - { file: src/lib/client.ts, line: 4 }
+
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 1 }
+        - { file: src/app/api/auth/verify/route.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "URL のクエリと JSON の本文を読み、スキーマがあれば検査する (GET はクエリ、それ以外は本文。合わなければ 400)。skipAuth が無いので checkAuth を呼び、認証できなければ 401 のエラーを返す。この画面のほかの API (teams/[teamId]/users の GET、websites の POST、teams/[teamId]/websites の GET、users/[userId]/websites の GET、me/websites の GET、websites/charts の GET) も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた"
+      evidence:
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 33 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、この画面でフレームにした API は skipAuth を渡さず、error はスキーマの検査で落ちたとき (入力の誤りによる打ち切り) だけ"
+    summary:
+      status: interpretation
+      value: "Bearer トークンを解き、userId があれば user を読む。無くて、Redis が有効で authKey があれば、Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。2FA の仮トークンは拒む。ユーザーも共有トークンも無ければ null を返す。ユーザーがいれば、role が admin なら isAdmin を付ける。API キーの経路は、ブラウザがログイントークンを付けるので、この画面からは使わない"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 137 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/auth.ts, line: 124 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+        note: "ユーザーを得られなければ (共有トークンも無ければ) null を返し、呼び出し元の parseRequest が 401 にする"
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されていると、トークンに userId が無く authKey があるとき、Redis のセッション (auth:*) からユーザーを引く"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+        note: "この画面のブラウザはログイントークンを付ける (src/lib/client.ts:4) ので、API キーの経路は辿っていない"
+    rules:
+      - kind: validation
+        value: "2FA のパスワード段階だけを通った仮トークン (PARTIAL_AUTH_TOKEN_TYPE) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+          - { file: src/lib/auth.ts, line: 85 }
+      - kind: validation
+        value: "トークン (またはセッション) にパスワードの指紋があり、今のパスワードのハッシュと合わなければ、そのユーザーを無効にする (パスワードを変える前のトークンを拒む)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "共有トークンは、type が共有用のものだけを受け付ける。利用者がいなくて共有トークンだけのときは、共有画面からの印のヘッダー (SHARE_CONTEXT_HEADER) が無ければ受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 128 }
+          - { file: src/lib/auth.ts, line: 129 }
+          - { file: src/lib/auth.ts, line: 174 }
+      - kind: decision
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/auth.ts, line: 75 }
+          - { file: src/lib/api-key.ts, line: 4 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 33 }
+          - { file: src/lib/auth.ts, line: 35 }
+        note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログイントークンを付ける (useApi.ts:28、client.ts:4) ので、この枝には入らない"
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser / findUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき、または Redis のセッションに userId があったとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 22 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "id で削除されていない user を 1 件読む。checkAuth は includePassword: true で呼ぶので、パスワードの列も読む (パスワードの指紋の照合のため)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: src/lib/auth.ts, line: 94 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get_auth
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get — auth:*"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  - id: q_team_verify
+    layer: query
+    kind: function
+    name: "getAllUserTeams (src/queries/prisma/team.ts)"
+    source: { file: src/queries/prisma/team.ts, line: 92 }
+    caller: api_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/verify/route.ts, line: 3 }
+        - { file: src/app/api/auth/verify/route.ts, line: 12 }
+    summary:
+      status: interpretation
+      value: "ユーザーがメンバーになっている、削除されていない team の id / name / logoUrl を読む"
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+        - { file: src/queries/prisma/team.ts, line: 96 }
+        - { file: src/queries/prisma/team.ts, line: 100 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "prisma.client.team.findMany (deletedAt null, members.some userId。select id / name / logoUrl)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: name, use: [read] }
+          - { name: logo_url, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 93 }
+          - { file: src/queries/prisma/team.ts, line: 95 }
+          - { file: src/queries/prisma/team.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 236 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "リレーションの条件 members.some { userId }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/team.ts, line: 96 }
+          - { file: src/queries/prisma/team.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_team_verify
+    layer: external
+    kind: library
+    name: "Prisma Client team.findMany"
+    source: { file: src/queries/prisma/team.ts, line: 93 }
+    caller: q_team_verify
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/team.ts, line: 93 }
+
+  # ---- チームのメンバー (操作を出すかどうかの判定に使う)
+  - id: use_team_members_query
+    layer: component
+    kind: hook
+    name: "useTeamMembersQuery (usePagedQuery)"
+    source: { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 5 }
+    caller: websites_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 6 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 15 }
+    summary:
+      status: interpretation
+      value: "teamId があるとき GET /teams/<teamId>/users を、URL のクエリの page / search / orderBy / sortDescending を付けて呼ぶ (orderBy / sortDescending は API のスキーマに無いので捨てられる)。teams:members の更新印で読み直す。URL のクエリは、同じ画面のサイトの一覧と共有なので、一覧の検索語とページが、メンバーの読み取りにも付く (検索語が自分の username に合わないときや、2 ページ目以降では、結果に自分が入らず、操作が出なくなると読める。実行しての確認はしていない)"
+      evidence:
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 14 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 19 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く。この画面のほかの API にも同じように効く)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+        note: "/auth/verify には効かないので、API_URL が効く API を、この入口で最初に呼ぶ段に 1 回だけ書いた"
+
+  - id: api_team_users_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/users"
+    source: { file: "src/app/api/teams/[teamId]/users/route.ts", line: 8 }
+    caller: use_team_members_query
+    call:
+      status: fact
+      when: conditional
+      condition: "チームの URL (/teams/<teamId>/websites) で開いたとき (enabled: !!teamId)"
+      evidence:
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 14 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "ページングと検索の引数を検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、canViewTeam でメンバーか管理者かを確かめ (だめなら 401)、getQueryFilters で引数を整え (websiteId が無いのでデータは読まない)、getTeamUsers で、削除されていないユーザーの team_user を、ユーザーの id と username を含めて作成順に読む"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 14 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 22 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 26 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 28 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 20 }
+      - name: page / pageSize / maxResults / search
+        value: "URL のクエリ (pagingParams と searchParams のスキーマ)。フックが付ける orderBy / sortDescending はスキーマに無いので捨てられ、並びは常に作成順 (createdAt の昇順)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 10 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 11 }
+          - { file: src/lib/schema.ts, line: 73 }
+          - { file: src/lib/schema.ts, line: 87 }
+          - { file: src/lib/request.ts, line: 35 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 44 }
+
+  - id: q_can_view_team
+    layer: query
+    kind: function
+    name: "canViewTeam (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 6 }
+    caller: api_team_users_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 5 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 22 }
+    summary:
+      status: interpretation
+      value: "ユーザーが無ければ拒み、管理者なら許す。そうでなければ getTeamUser でそのチームのメンバーかを確かめる。GET /api/teams/[teamId]/websites も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた"
+      evidence:
+        - { file: src/permissions/team.ts, line: 7 }
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 21 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 11 }
+        note: "管理者なら、チームのメンバーかを見ずに許す"
+      - kind: ownership
+        value: "canViewTeam"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 15 }
+        note: "そのチームのメンバー (getTeamUser で team_user がある) なら許す。満たさなければ、呼び出し元の route が 401 を返す"
+
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_view_team
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき (管理者なら、手前で許して返す)"
+      evidence:
+        - { file: src/permissions/team.ts, line: 4 }
+        - { file: src/permissions/team.ts, line: 11 }
+        - { file: src/permissions/team.ts, line: 15 }
+    summary:
+      status: interpretation
+      value: "teamId と userId で、削除されていないチームの team_user を 1 件読む。canCreateTeamWebsite も同じ関数を呼ぶ。入口から辿る順で最初に着く、ここに 1 回だけ書いた"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: src/queries/prisma/teamUser.ts, line: 22 }
+          - { file: src/queries/prisma/teamUser.ts, line: 23 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーションの条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_get_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+
+  - id: q_get_team_users
+    layer: query
+    kind: function
+    name: "getTeamUsers (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 29 }
+    caller: api_team_users_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 6 }
+        - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 28 }
+    summary:
+      status: interpretation
+      value: "受け取った条件に username の部分一致の検索を足し、prisma.pagedQuery('teamUser') でページ分を findMany し、件数を count で数える"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 37 }
+        - { file: src/queries/prisma/teamUser.ts, line: 40 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "client['teamUser'].findMany (where teamId, user.deletedAt null。orderBy createdAt。take / skip) と count"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 41 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 31 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 45 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 257 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "条件と並びの列は、呼び出し元 (route) が渡す。user_id は user との結合に使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { user: { select: id, username } } と、条件 user.deletedAt null、検索 user.username contains"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read, filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 33 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 39 }
+          - { file: "src/app/api/teams/[teamId]/users/route.ts", line: 40 }
+          - { file: src/queries/prisma/teamUser.ts, line: 37 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 14 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "TeamUser.user のリレーションとして読まれる。テーブル名はコードに直接は出ない。username の絞り込みは、検索の語があるときだけ"
+
+  - id: ext_prisma_get_team_users
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findMany / count (pagedQuery の中)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_team_users
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 40 }
+        - { file: src/queries/prisma/teamUser.ts, line: 41 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "リポジトリの pagedQuery がライブラリを包んでいるので、その中の findMany の行を source にした"
+
+  # ---- サイトの追加 (小窓)
+  - id: website_add_button
+    layer: component
+    kind: component
+    name: "WebsiteAddButton"
+    source: { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 10 }
+    caller: websites_page
+    call:
+      status: fact
+      when: conditional
+      condition: "操作を出すと決めたとき (showActions。個人の URL では役割が view-only でない、チームの URL ではメンバーで役割が team-view-only でない)"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 8 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 27 }
+    summary:
+      status: interpretation
+      value: "追加ボタンと、押すと開く小窓 (DialogButton)。小窓に WebsiteAddForm を、teamId を渡して描く。保存に成功したら、websites の更新印を付けて一覧を読み直させる。クラウドモードでなければ小窓を閉じ、クラウドモードなら小窓を閉じずに、作ったサイトの計測タグ (TrackingCodeStep → WebsiteTrackingCode。設定から文字列を組み立てて表示するだけ) に替える。クラウドモードかどうかは useConfig の設定値 (GET /config。フレームにしていない) で決める"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 14 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 18 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 20 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 23 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 40 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 50 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 53 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 71 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定すると (GET /config の cloudMode が真になり)、サイトを作った後に小窓を閉じず、作ったサイトの計測タグの表示に替える。設定されていなければ、保存したら小窓を閉じる"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 14 }
+          - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 23 }
+          - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 24 }
+          - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 57 }
+          - { file: src/app/api/config/route.ts, line: 15 }
+
+  - id: website_add_form
+    layer: component
+    kind: component
+    name: "WebsiteAddForm"
+    source: { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 5 }
+    caller: website_add_button
+    call:
+      status: fact
+      when: conditional
+      condition: "追加ボタンを押して小窓を開いたとき (作ったサイトの計測タグを出している間を除く)"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 8 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 40 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 50 }
+        - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 53 }
+        - { file: src/components/input/DialogButton.tsx, line: 66 }
+        - { file: src/components/input/DialogButton.tsx, line: 70 }
+    summary:
+      status: interpretation
+      value: "サイトの名前とドメインを入れるフォーム。送信で useUpdateQuery の POST /websites を、フォームの値に teamId を足して呼び、返ったサイトを呼び出し元 (WebsiteAddButton) の保存の処理に渡す。closeOnSave (クラウドモードでないとき) なら小窓を閉じる"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 17 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 19 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 20 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 22 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 24 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 30 }
+    parameters:
+      - name: teamId
+        value: "WebsitesPage が URL から取り出した teamId (個人の URL では undefined)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsiteAddButton.tsx", line: 54 }
+          - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 27 }
+    rules:
+      - kind: validation
+        value: "名前とドメインは必須。ドメインは DOMAIN_REGEX の形であること (合わなければ、不正なドメインとして送信させない)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 35 }
+          - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 45 }
+          - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 44 }
+          - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 46 }
+          - { file: src/lib/constants.ts, line: 266 }
+
+  - id: use_update_query
+    layer: component
+    kind: hook
+    name: "useUpdateQuery('/websites')"
+    source: { file: src/components/hooks/queries/useUpdateQuery.ts, line: 6 }
+    caller: website_add_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 2 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 17 }
+    summary:
+      status: interpretation
+      value: "受け取った path (/websites) に、フォームの値と追加の値 (この画面では teamId) を合わせて POST する mutation を作る"
+      evidence:
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 17 }
+
+  - id: api_websites_post
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/websites"
+    source: { file: src/app/api/websites/route.ts, line: 30 }
+    caller: use_update_query
+    call:
+      status: fact
+      when: conditional
+      condition: "フォームの保存ボタンを押して送信したとき"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 19 }
+        - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 20 }
+        - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "本文を検査し、parseRequest で認証する (経路はフレーム q_parse_request と同じ)。クラウドモードでは、teamId があればチームの、無ければ自分の契約を Redis から読み、作れるサイトの数に上限があれば website を数えて、上限に達していれば 401 (Website limit reached.)。teamId があれば canCreateTeamWebsite でそのチームで作れるかを、そのうえで canCreateWebsite (データを読まないので、フレームにしていない) で自分の役割が作れるかを確かめ、だめなら 401。id が無ければ UUID を作り、作成者を自分にし、teamId が無ければ userId も自分にして、createWebsite で website を作る。本文に shareId があれば、createShare で共有を作る"
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 31 }
+        - { file: src/app/api/websites/route.ts, line: 39 }
+        - { file: src/app/api/websites/route.ts, line: 40 }
+        - { file: src/app/api/websites/route.ts, line: 43 }
+        - { file: src/app/api/websites/route.ts, line: 48 }
+        - { file: src/app/api/websites/route.ts, line: 54 }
+        - { file: src/app/api/websites/route.ts, line: 58 }
+        - { file: src/app/api/websites/route.ts, line: 70 }
+        - { file: src/app/api/websites/route.ts, line: 72 }
+        - { file: src/permissions/website.ts, line: 120 }
+    parameters:
+      - name: name / domain / teamId / shareId / id
+        value: "JSON の本文。name / domain はフォームの値、teamId はフックが足す。この画面のフォームは shareId と id を送らない"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/route.ts, line: 37 }
+          - { file: src/app/api/websites/request-schema.ts, line: 28 }
+          - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
+          - { file: "src/app/(main)/websites/WebsiteAddForm.tsx", line: 17 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 125 }
+          - { file: src/app/api/websites/route.ts, line: 54 }
+        note: "確かめるのは canCreateWebsite (src/permissions/website.ts:120。データを読まないので段にしていない)。管理者なら、役割の権限を見ずに許す"
+      - kind: permission
+        value: "PERMISSIONS.websiteCreate"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 129 }
+          - { file: src/app/api/websites/route.ts, line: 54 }
+          - { file: src/app/api/websites/route.ts, line: 55 }
+          - { file: src/lib/constants.ts, line: 193 }
+        note: "canCreateWebsite が、ユーザー自身の役割 (user.role) が website:create を持つかを確かめる。teamId があるときも、チームでの確認 (canCreateTeamWebsite) に加えて、これも満たす必要がある。満たさなければ 401"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、契約 (チームなら Redis の team:*、個人なら account:*) を読み、作れるサイトの数に上限があれば、website を数えて、上限に達していれば 401 を返す"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/route.ts, line: 39 }
+          - { file: src/app/api/websites/route.ts, line: 40 }
+          - { file: src/app/api/websites/route.ts, line: 48 }
+    rules:
+      - kind: validation
+        value: "name は前後の空白を除いて 1 文字以上 100 文字まで、domain は DOMAIN_REGEX の形で 500 文字まで (どちらも必須)。shareId は 50 文字まで、teamId と id は、あれば UUID"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/request-schema.ts, line: 30 }
+          - { file: src/app/api/websites/request-schema.ts, line: 31 }
+          - { file: src/app/api/websites/request-schema.ts, line: 32 }
+          - { file: src/app/api/websites/request-schema.ts, line: 33 }
+          - { file: src/app/api/websites/request-schema.ts, line: 34 }
+      - kind: validation
+        value: "クラウドモードでは、持っているサイト (チームなら、そのチームのサイト) の数が上限以上なら、作れない (401、Website limit reached.)。上限は、契約が無ければ 1、サイトの数が無制限の契約・課金なし・ビジネスの契約なら無し、プロの契約なら 20、それ以外は無し"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/route.ts, line: 41 }
+          - { file: src/app/api/websites/route.ts, line: 43 }
+          - { file: src/app/api/websites/route.ts, line: 48 }
+          - { file: src/app/api/websites/route.ts, line: 49 }
+          - { file: src/lib/subscription.ts, line: 25 }
+          - { file: src/lib/subscription.ts, line: 26 }
+          - { file: src/lib/subscription.ts, line: 42 }
+          - { file: src/lib/subscription.ts, line: 46 }
+          - { file: src/lib/subscription.ts, line: 50 }
+          - { file: src/lib/subscription.ts, line: 54 }
+        note: "上限を決めるのは getCloudWebsiteLimit (src/lib/subscription.ts:41。計算だけの補助の関数なので段にしていない)"
+      - kind: decision
+        value: "teamId があればチームの持ち物として作り (userId を入れない)、無ければ自分 (ログイン中のユーザー) の持ち物として作る。どちらでも、作成者 (createdBy) は自分"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/route.ts, line: 60 }
+          - { file: src/app/api/websites/route.ts, line: 63 }
+          - { file: src/app/api/websites/route.ts, line: 66 }
+          - { file: src/app/api/websites/route.ts, line: 67 }
+
+  - id: q_fetch_team
+    layer: query
+    kind: function
+    name: "fetchTeam (src/lib/load.ts)"
+    source: { file: src/lib/load.ts, line: 48 }
+    caller: api_websites_post
+    call:
+      status: fact
+      when: conditional
+      condition: "CLOUD_MODE が設定されていて、本文に teamId があるとき"
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 3 }
+        - { file: src/app/api/websites/route.ts, line: 39 }
+        - { file: src/app/api/websites/route.ts, line: 40 }
+    summary:
+      status: interpretation
+      value: "チームの契約の情報を、Redis の team:<teamId> から読む"
+      evidence:
+        - { file: src/lib/load.ts, line: 49 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "team:*" } }
+        detail: "redis.client.get(`team:${teamId}`)"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/load.ts, line: 49 }
+          - { file: src/lib/redis.ts, line: 37 }
+
+  - id: ext_redis_get_team
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get — team:*"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_fetch_team
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/load.ts, line: 49 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "フレーム ext_redis_get_auth と同じ行だが、読むキーが違う (team:*) ので別に書いた"
+
+  - id: q_fetch_account
+    layer: query
+    kind: function
+    name: "fetchAccount (src/lib/load.ts)"
+    source: { file: src/lib/load.ts, line: 42 }
+    caller: api_websites_post
+    call:
+      status: fact
+      when: conditional
+      condition: "CLOUD_MODE が設定されていて、本文に teamId が無いとき"
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 3 }
+        - { file: src/app/api/websites/route.ts, line: 39 }
+        - { file: src/app/api/websites/route.ts, line: 40 }
+    summary:
+      status: interpretation
+      value: "ログイン中のユーザーの契約の情報を、Redis の account:<userId> から読む"
+      evidence:
+        - { file: src/lib/load.ts, line: 43 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "account:*" } }
+        detail: "redis.client.get(`account:${userId}`)"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/load.ts, line: 43 }
+          - { file: src/lib/redis.ts, line: 37 }
+
+  - id: ext_redis_get_account
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get — account:*"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_fetch_account
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/load.ts, line: 43 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "フレーム ext_redis_get_auth と同じ行だが、読むキーが違う (account:*) ので別に書いた"
+
+  - id: q_get_team_website_count
+    layer: query
+    kind: function
+    name: "getTeamWebsiteCount (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 294 }
+    caller: api_websites_post
+    call:
+      status: fact
+      when: conditional
+      condition: "CLOUD_MODE が設定されていて、本文に teamId があり、チームの契約に、作れるサイトの数の上限があるとき (websiteLimit !== null)"
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 8 }
+        - { file: src/app/api/websites/route.ts, line: 43 }
+        - { file: src/app/api/websites/route.ts, line: 44 }
+        - { file: src/app/api/websites/route.ts, line: 45 }
+    summary:
+      status: interpretation
+      value: "チームの、削除されていない website を数える"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 295 }
+        - { file: src/queries/prisma/website.ts, line: 297 }
+        - { file: src/queries/prisma/website.ts, line: 298 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.count (where teamId, deletedAt null)"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 295 }
+          - { file: src/queries/prisma/website.ts, line: 297 }
+          - { file: src/queries/prisma/website.ts, line: 298 }
+          - { file: prisma/schema.prisma, line: 104 }
+          - { file: prisma/schema.prisma, line: 108 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "件数を数えるだけなので、読む列は無い"
+
+  - id: ext_prisma_team_website_count
+    layer: external
+    kind: library
+    name: "Prisma Client website.count (teamId)"
+    source: { file: src/queries/prisma/website.ts, line: 295 }
+    caller: q_get_team_website_count
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 295 }
+
+  - id: q_get_website_count
+    layer: query
+    kind: function
+    name: "getWebsiteCount (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 285 }
+    caller: api_websites_post
+    call:
+      status: fact
+      when: conditional
+      condition: "CLOUD_MODE が設定されていて、本文に teamId が無く、自分の契約に、作れるサイトの数の上限があるとき (websiteLimit !== null)"
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 8 }
+        - { file: src/app/api/websites/route.ts, line: 43 }
+        - { file: src/app/api/websites/route.ts, line: 44 }
+        - { file: src/app/api/websites/route.ts, line: 46 }
+    summary:
+      status: interpretation
+      value: "ユーザーが持つ、削除されていない website を数える"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 286 }
+        - { file: src/queries/prisma/website.ts, line: 288 }
+        - { file: src/queries/prisma/website.ts, line: 289 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.count (where userId, deletedAt null)"
+        fields:
+          - { name: user_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 286 }
+          - { file: src/queries/prisma/website.ts, line: 288 }
+          - { file: src/queries/prisma/website.ts, line: 289 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 108 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "件数を数えるだけなので、読む列は無い"
+
+  - id: ext_prisma_website_count
+    layer: external
+    kind: library
+    name: "Prisma Client website.count (userId)"
+    source: { file: src/queries/prisma/website.ts, line: 286 }
+    caller: q_get_website_count
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 286 }
+
+  - id: q_can_create_team_website
+    layer: query
+    kind: function
+    name: "canCreateTeamWebsite (src/permissions/team.ts)"
+    source: { file: src/permissions/team.ts, line: 76 }
+    caller: api_websites_post
+    call:
+      status: fact
+      when: conditional
+      condition: "本文に teamId があるとき (チームの URL で開いた追加の小窓から送ったとき)"
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 7 }
+        - { file: src/app/api/websites/route.ts, line: 54 }
+    summary:
+      status: interpretation
+      value: "ユーザーが無ければ拒み、管理者なら許す。そうでなければ getTeamUser で team_user を読み、その役割が website:create の権限を持つかを hasPermission (定数の表を見るだけ) で確かめる"
+      evidence:
+        - { file: src/permissions/team.ts, line: 77 }
+        - { file: src/permissions/team.ts, line: 81 }
+        - { file: src/permissions/team.ts, line: 85 }
+        - { file: src/permissions/team.ts, line: 87 }
+        - { file: src/lib/auth.ts, line: 164 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 81 }
+        note: "管理者なら、チームのメンバーかを見ずに許す"
+      - kind: ownership
+        value: "canCreateTeamWebsite"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 85 }
+          - { file: src/permissions/team.ts, line: 87 }
+        note: "そのチームのメンバー (getTeamUser が行を返す) であること。満たさなければ、呼び出し元の route が 401 を返す"
+      - kind: permission
+        value: "PERMISSIONS.websiteCreate"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 87 }
+          - { file: src/lib/constants.ts, line: 193 }
+        note: "チームでの役割 (teamUser.role) が website:create を持つこと"
+
+  - id: q_get_team_user_create_rw
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_create_team_website
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき"
+      evidence:
+        - { file: src/permissions/team.ts, line: 81 }
+        - { file: src/permissions/team.ts, line: 85 }
+    summary:
+      status: interpretation
+      value: "teamId と userId で team_user を 1 件読む。呼び出し元 (canCreateTeamWebsite) が終端にならないよう、いちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_get_team_user と同じ"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: src/queries/prisma/teamUser.ts, line: 22 }
+          - { file: src/queries/prisma/teamUser.ts, line: 23 }
+          - { file: prisma/schema.prisma, line: 265 }
+
+  - id: q_create_website
+    layer: query
+    kind: function
+    name: "createWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 187 }
+    caller: api_websites_post
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 8 }
+        - { file: src/app/api/websites/route.ts, line: 70 }
+    summary:
+      status: interpretation
+      value: "受け取った値で website を 1 件作る。書く値は、受け口が組み立てる id / createdBy / name / domain / teamId (と、teamId が無いときの userId)"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 190 }
+        - { file: src/app/api/websites/route.ts, line: 58 }
+    io:
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.create (data: id / createdBy / name / domain / teamId / userId)"
+        fields:
+          - { name: website_id, use: [write] }
+          - { name: created_by, use: [write] }
+          - { name: name, use: [write] }
+          - { name: domain, use: [write] }
+          - { name: team_id, use: [write] }
+          - { name: user_id, use: [write] }
+          - { name: updated_at, use: [write] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 190 }
+          - { file: src/app/api/websites/route.ts, line: 59 }
+          - { file: src/app/api/websites/route.ts, line: 60 }
+          - { file: src/app/api/websites/route.ts, line: 61 }
+          - { file: src/app/api/websites/route.ts, line: 62 }
+          - { file: src/app/api/websites/route.ts, line: 63 }
+          - { file: src/app/api/websites/route.ts, line: 67 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 104 }
+          - { file: prisma/schema.prisma, line: 105 }
+          - { file: prisma/schema.prisma, line: 107 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "列の名前は、呼び出し元 (route) の行で読んだ。user_id を書くのは、teamId が無いときだけ。updated_at は Prisma の @updatedAt が自動で書く"
+
+  - id: ext_prisma_create_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.create"
+    source: { file: src/queries/prisma/website.ts, line: 190 }
+    caller: q_create_website
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 190 }
+
+  - id: q_create_share
+    layer: query
+    kind: function
+    name: "createShare (src/queries/prisma/share.ts)"
+    source: { file: src/queries/prisma/share.ts, line: 56 }
+    caller: api_websites_post
+    call:
+      status: fact
+      when: conditional
+      condition: "本文に shareId があるとき"
+      evidence:
+        - { file: src/app/api/websites/route.ts, line: 8 }
+        - { file: src/app/api/websites/route.ts, line: 72 }
+        - { file: src/app/api/websites/route.ts, line: 73 }
+      note: "この画面の追加のフォームは name と domain だけを送り、フックが足すのも teamId だけ (WebsiteAddForm.tsx:17、useUpdateQuery.ts:9) なので、この入口からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた"
+    summary:
+      status: interpretation
+      value: "作ったサイトの共有 (share) を 1 件作る。slug は本文の shareId、名前はサイトの名前、共有の種類は website、見せる区画は overview と events"
+      evidence:
+        - { file: src/queries/prisma/share.ts, line: 59 }
+        - { file: src/app/api/websites/route.ts, line: 74 }
+        - { file: src/app/api/websites/route.ts, line: 79 }
+    io:
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.create (data: id / entityId / shareType / name / slug / parameters)"
+        fields:
+          - { name: share_id, use: [write] }
+          - { name: entity_id, use: [write] }
+          - { name: share_type, use: [write] }
+          - { name: name, use: [write] }
+          - { name: slug, use: [write] }
+          - { name: parameters, use: [write] }
+          - { name: updated_at, use: [write] }
+        evidence:
+          - { file: src/queries/prisma/share.ts, line: 59 }
+          - { file: src/app/api/websites/route.ts, line: 74 }
+          - { file: src/app/api/websites/route.ts, line: 75 }
+          - { file: src/app/api/websites/route.ts, line: 76 }
+          - { file: src/app/api/websites/route.ts, line: 77 }
+          - { file: src/app/api/websites/route.ts, line: 78 }
+          - { file: src/app/api/websites/route.ts, line: 79 }
+          - { file: prisma/schema.prisma, line: 402 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 405 }
+          - { file: prisma/schema.prisma, line: 409 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "列の名前は、呼び出し元 (route) の行で読んだ。updated_at は Prisma の @updatedAt が自動で書く"
+
+  - id: ext_prisma_create_share
+    layer: external
+    kind: library
+    name: "Prisma Client share.create"
+    source: { file: src/queries/prisma/share.ts, line: 59 }
+    caller: q_create_share
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/share.ts, line: 59 }
+
+  # ---- サイトの一覧
+  - id: websites_data_table
+    layer: component
+    kind: component
+    name: "WebsitesDataTable"
+    source: { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 8 }
+    caller: websites_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 9 }
+        - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 30 }
+    summary:
+      status: interpretation
+      value: "ログイン中のユーザーを useLoginQuery から得て (経路はフレーム use_login_query と同じ)、useUserWebsitesQuery に userId (渡されないので、ログイン中のユーザーの id) と teamId を渡してサイトの一覧を読む。DataGrid (検索欄・読み込み中・空・ページ送りを出す枠) の中に、WebsitesTable を描く。名前の列 (renderLink) には、ドメインのアイコン (Favicon) と、サイトの画面へのリンクを出す"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 17 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 18 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 21 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 24 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 27 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 33 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 35 }
+    links:
+      - kind: navigate
+        target: "/websites/${row.id}"
+        entry_id: websites.websiteId_d
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 27 }
+          - { file: src/components/hooks/useNavigation.ts, line: 34 }
+        note: "各行のサイトの名前のリンク。renderUrl に false を渡すので、URL のクエリは引き継がない。チームの URL で開いたときは、renderUrl が前に /teams/<teamId> を付ける (next.config の書き換えが /teams/:teamId/:path* を /:path* へ回すので、同じ入口)"
+
+  - id: use_user_websites_query
+    layer: component
+    kind: hook
+    name: "useUserWebsitesQuery (usePagedQuery)"
+    source: { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 6 }
+    caller: websites_data_table
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 4 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 18 }
+    summary:
+      status: interpretation
+      value: "引数で URL を選ぶ (teamId があれば /teams/<teamId>/websites、無くて userId があれば /users/<userId>/websites、どちらも無ければ /me/websites)。usePagedQuery が、URL のクエリの page / search / orderBy / sortDescending を引数に足す。queryKey に websites の更新印を入れる (追加ボタンの保存で読み直す)"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 12 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 18 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 20 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 22 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+
+  - id: api_team_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/teams/[teamId]/websites"
+    source: { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 8 }
+    caller: use_user_websites_query
+    call:
+      status: interpretation
+      when: conditional
+      condition: "チームの URL (/teams/<teamId>/websites) で開いたとき (teamId がある)"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 18 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 19 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "URL は引数 (teamId / userId の有無) で切り替わる"
+    summary:
+      status: interpretation
+      value: "引数をスキーマで検査して認証し (parseRequest の経路はフレーム q_parse_request と同じ)、canViewTeam で見てよいかを確かめ (だめなら 401。経路はフレーム q_can_view_team と同じ)、getQueryFilters (websiteId を渡さないので、DB を読まない) で条件を作り、getTeamWebsites でチームのサイトの一覧を返す"
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 9 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 15 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 21 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 22 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 25 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 27 }
+    parameters:
+      - name: teamId
+        value: "URL の動的な段"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 14 }
+      - name: "page / pageSize / search / orderBy / sortDescending"
+        value: "URL のクエリ。スキーマ (pagingParams / searchParams / sortingParams) で検査する"
+        status: fact
+        evidence:
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 10 }
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 11 }
+          - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 12 }
+
+  - id: q_get_team_websites
+    layer: query
+    kind: function
+    name: "getTeamWebsites → getWebsites / attachShareIdToWebsites (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 168 }
+    caller: api_team_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 6 }
+        - { file: "src/app/api/teams/[teamId]/websites/route.ts", line: 27 }
+    summary:
+      status: interpretation
+      value: "teamId のサイトを、作成者 (createUser の id / username) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させて、ページ単位で読む (pagedQuery で件数も数える)。並べ替えは name / domain / createdAt だけを通す。見つかったサイトがあれば、その share を読んで slug を付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 9 }
+        - { file: src/queries/prisma/website.ts, line: 102 }
+        - { file: src/queries/prisma/website.ts, line: 108 }
+        - { file: src/queries/prisma/website.ts, line: 114 }
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/queries/prisma/website.ts, line: 119 }
+        - { file: src/queries/prisma/website.ts, line: 172 }
+        - { file: src/queries/prisma/website.ts, line: 175 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.pagedQuery('website', …) の findMany と count (where teamId, deletedAt null, 検索語)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: created_by, use: [filter] }
+          - { name: name, use: [filter] }
+          - { name: domain, use: [filter] }
+          - { name: created_at, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 117 }
+          - { file: src/queries/prisma/website.ts, line: 172 }
+          - { file: src/queries/prisma/website.ts, line: 114 }
+          - { file: src/queries/prisma/website.ts, line: 110 }
+          - { file: src/queries/prisma/website.ts, line: 112 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 104 }
+          - { file: prisma/schema.prisma, line: 105 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "name / domain は検索語と並べ替え、created_at は並べ替え (URL の orderBy が createdAt のとき。表の作成日の見出しで選ぶ) に使う。created_by は、作成者 (user) との結合に使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { createUser: { select id, username } }"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 175 }
+          - { file: src/queries/prisma/website.ts, line: 177 }
+          - { file: src/queries/prisma/website.ts, line: 178 }
+          - { file: prisma/schema.prisma, line: 114 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "Website.createUser (User) のリレーションの読み込み。テーブル名は、コードに直接は出ない"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findMany (where entityId in サイトの id, distinct entityId, orderBy createdAt desc)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 334 }
+          - { file: src/queries/prisma/website.ts, line: 336 }
+          - { file: src/queries/prisma/website.ts, line: 338 }
+          - { file: src/queries/prisma/website.ts, line: 340 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "サイトが 1 件以上あるときだけ"
+
+  - id: ext_prisma_paged_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.findMany / count (pagedQuery) と share.findMany"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_team_websites
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+      note: "pagedQuery は、引数のモデル名 (ここでは website) で client[model] を呼ぶ。最初に呼ぶ行を source にし、同じフレームから呼ぶ残りの行 (count と share.findMany。share.findMany はサイトが 1 件以上あるときだけ) は evidence に入れた。getUserWebsites (フレーム q_get_user_websites) も、同じ getWebsites → pagedQuery と attachShareIdToWebsites を通るので、ライブラリの呼び出しはここに 1 回だけ書いた"
+
+  - id: api_user_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/users/[userId]/websites"
+    source: { file: "src/app/api/users/[userId]/websites/route.ts", line: 7 }
+    caller: use_user_websites_query
+    call:
+      status: interpretation
+      when: conditional
+      condition: "個人の URL (/websites) で開いたとき (teamId が無く、userId がある)"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 20 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 21 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 18 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "URL は引数 (teamId / userId の有無) で切り替わる。userId は user?.id で、(main) の枠の App がユーザーを得てから描く (App.tsx:54) ので、個人の URL ではいつもこちらになる"
+    summary:
+      status: interpretation
+      value: "クエリをスキーマで検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、管理者でも本人でもなければ 401 (DB は読まない)。getQueryFilters (websiteId を渡さないので DB を読まない) で条件を作り、includeTeams が無ければ getUserWebsites でそのユーザーのサイトの一覧を返す"
+      evidence:
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 8 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 15 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 24 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 27 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 29 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+    parameters:
+      - name: "page / pageSize / search / orderBy / sortDescending"
+        value: "URL のクエリ。スキーマ (pagingParams / searchParams / sortingParams) で検査する"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 9 }
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 10 }
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 11 }
+      - name: userId
+        value: "URL の動的な段 (この画面では、ログイン中のユーザーの id)"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 21 }
+          - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 18 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+        note: "コードの書き方は auth.user.isAdmin。管理者なら、本人でなくても通す"
+      - kind: ownership
+        value: "auth.user.id === userId"
+        status: fact
+        evidence:
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+          - { file: "src/app/api/users/[userId]/websites/route.ts", line: 24 }
+        note: "コードは、!auth.user.isAdmin && auth.user.id !== userId のとき 401 を返す。確認の関数が無く、受け口に直接書いてあるので、ほかの入口の結果と同じく、式を肯定の形で書いた。この画面では userId がログイン中のユーザーの id なので、いつも通る"
+
+  - id: q_get_user_websites
+    layer: query
+    kind: function
+    name: "getUserWebsites → getWebsites / attachShareIdToWebsites (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 149 }
+    caller: api_user_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 5 }
+        - { file: "src/app/api/users/[userId]/websites/route.ts", line: 33 }
+      note: "includeTeams があると別の関数 (getAllUserWebsitesIncludingTeamAccess) へ分かれるが、この画面のフックは includeTeams を渡さない (useUserWebsitesQuery.ts:23、usePagedQuery.ts:24) ので、この入口ではいつもこちら"
+    summary:
+      status: interpretation
+      value: "userId のサイトを、持ち主 (user の username / id) 込みで、削除されていないものだけ、検索語を name / domain に部分一致させて、既定では name の順に、ページ単位で読む (pagedQuery で件数も数える)。見つかったサイトがあれば、その share を読んで slug を付ける。ライブラリの呼び出し (pagedQuery の findMany / count と share.findMany) は、フレーム ext_prisma_paged_website と同じ"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 102 }
+        - { file: src/queries/prisma/website.ts, line: 108 }
+        - { file: src/queries/prisma/website.ts, line: 114 }
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/queries/prisma/website.ts, line: 119 }
+        - { file: src/queries/prisma/website.ts, line: 150 }
+        - { file: src/queries/prisma/website.ts, line: 153 }
+        - { file: src/queries/prisma/website.ts, line: 156 }
+        - { file: src/queries/prisma/website.ts, line: 164 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.pagedQuery('website', …) の findMany と count (where userId, deletedAt null, 検索語。既定の並びは name)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: user_id, use: [filter] }
+          - { name: name, use: [filter] }
+          - { name: domain, use: [filter] }
+          - { name: created_at, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 117 }
+          - { file: src/queries/prisma/website.ts, line: 153 }
+          - { file: src/queries/prisma/website.ts, line: 114 }
+          - { file: src/queries/prisma/website.ts, line: 110 }
+          - { file: src/queries/prisma/website.ts, line: 112 }
+          - { file: src/queries/prisma/website.ts, line: 9 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "name / domain は検索語と並べ替え、created_at は並べ替え (URL の orderBy が createdAt のとき。表の作成日の見出しで選ぶ) に使う。user_id は、持ち主 (user) との結合にも使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { user: { select username, id } }"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 156 }
+          - { file: src/queries/prisma/website.ts, line: 158 }
+          - { file: src/queries/prisma/website.ts, line: 159 }
+          - { file: prisma/schema.prisma, line: 113 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "Website.user (User) のリレーションの読み込み。テーブル名は、コードに直接は出ない"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findMany (where entityId in サイトの id, distinct entityId, orderBy createdAt desc)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 334 }
+          - { file: src/queries/prisma/website.ts, line: 336 }
+          - { file: src/queries/prisma/website.ts, line: 338 }
+          - { file: src/queries/prisma/website.ts, line: 340 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "サイトが 1 件以上あるときだけ"
+
+  - id: api_me_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/me/websites"
+    source: { file: src/app/api/me/websites/route.ts, line: 7 }
+    caller: use_user_websites_query
+    call:
+      status: interpretation
+      when: conditional
+      condition: "teamId も userId も無いとき (ログイン中のユーザーがまだ得られていないとき)"
+      evidence:
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 17 }
+        - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 22 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 18 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+      note: "この画面は (main) の枠の App が、ユーザーを得てから描く (App.tsx:54) ので userId がいつもあり、この入口からは条件が成り立たないように見える。経路はコードにあるので、消さずに書いた"
+    summary:
+      status: interpretation
+      value: "クエリをスキーマ (pagingParams / sortingParams。searchParams は無いので、検索語は捨てられる) で検査して認証し (parseRequest)、getQueryFilters で条件を作り、includeTeams が無ければ getUserWebsites (経路はフレーム q_get_user_websites と同じ) でログイン中のユーザーのサイトの一覧を返す"
+      evidence:
+        - { file: src/app/api/me/websites/route.ts, line: 8 }
+        - { file: src/app/api/me/websites/route.ts, line: 14 }
+        - { file: src/app/api/me/websites/route.ts, line: 20 }
+        - { file: src/app/api/me/websites/route.ts, line: 22 }
+        - { file: src/app/api/me/websites/route.ts, line: 26 }
+
+  - id: q_parse_request_me_rw
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_me_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/me/websites/route.ts, line: 2 }
+        - { file: src/app/api/me/websites/route.ts, line: 14 }
+    summary:
+      status: interpretation
+      value: "呼び出し元 (GET /api/me/websites) の呼び先がすべてほかの呼び出し元の下に書いてあり終端になるので、いちばん早い呼び先を、読み書きを持つ段まで書き直したもの。全体の経路はフレーム q_parse_request と同じ"
+      evidence:
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+
+  - id: q_check_auth_me_rw
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request_me_rw
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 52 }
+    summary:
+      status: interpretation
+      value: "Bearer トークンからユーザーを得る。書き直したもの。全体の経路 (確認・設定・ルール、getUser) はフレーム q_check_auth と同じ"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 102 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ"
+
+  # ---- ドメインのアイコン (名前の列)
+  - id: favicon
+    layer: component
+    kind: component
+    name: "Favicon (WebsitesDataTable の renderLink)"
+    source: { file: src/components/common/Favicon.tsx, line: 9 }
+    caller: websites_data_table
+    call:
+      status: fact
+      when: conditional
+      condition: "サイトの一覧を読み終えて、行が 1 件以上あるとき (行ごとに、名前の列で描く)"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 5 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 24 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 35 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 36 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+      note: "renderLink は WebsitesDataTable に書いてあり、WebsitesTable の名前の列 (DataColumn) が行ごとに呼ぶ。JSX を書いてある段を呼び出し元にした"
+    summary:
+      status: interpretation
+      value: "サイトのドメインのアイコンを img で出す。画像は、ブラウザから他社のサービス (既定は icons.duckduckgo.com) へ、ドメインの名前を URL に入れて取りに行く。アプリの設定 (useConfig。GET /config はフレームにしていない) で、出さない・別の URL にする、を切り替える。ドメインからホスト名が取れなければ何も描かない"
+      evidence:
+        - { file: src/components/common/Favicon.tsx, line: 10 }
+        - { file: src/components/common/Favicon.tsx, line: 12 }
+        - { file: src/components/common/Favicon.tsx, line: 16 }
+        - { file: src/components/common/Favicon.tsx, line: 19 }
+        - { file: src/components/common/Favicon.tsx, line: 21 }
+        - { file: src/lib/constants.ts, line: 21 }
+    settings:
+      - name: PRIVATE_MODE
+        kind: env
+        effect: "設定されていると、アイコンを出さない (他社のサービスへ取りに行かない)"
+        status: fact
+        evidence:
+          - { file: src/components/common/Favicon.tsx, line: 12 }
+          - { file: src/components/common/Favicon.tsx, line: 13 }
+          - { file: src/app/api/config/route.ts, line: 19 }
+        note: "Favicon が読むのはアプリの設定の privateMode。GET /api/config が、環境変数 PRIVATE_MODE から作る"
+      - name: FAVICON_URL
+        kind: env
+        effect: "設定されていると、アイコンを取りに行く先がその URL になる ({{domain}} の部分がドメインの名前に置き換わる)。設定されていなければ icons.duckduckgo.com"
+        status: fact
+        evidence:
+          - { file: src/components/common/Favicon.tsx, line: 16 }
+          - { file: src/components/common/Favicon.tsx, line: 19 }
+          - { file: src/app/api/config/route.ts, line: 16 }
+          - { file: src/lib/constants.ts, line: 21 }
+        note: "Favicon が読むのはアプリの設定の faviconUrl。GET /api/config が、環境変数 FAVICON_URL の値を入れる"
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: icons.duckduckgo.com, path: "/ip3/*.ico" } }
+        fields:
+          - { name: domain, use: [write] }
+        evidence:
+          - { file: src/components/common/Favicon.tsx, line: 16 }
+          - { file: src/components/common/Favicon.tsx, line: 19 }
+          - { file: src/components/common/Favicon.tsx, line: 21 }
+          - { file: src/lib/constants.ts, line: 21 }
+        note: "ブラウザが img の src として取りに行く。サイトのドメインの名前を URL のパスに入れて送る。host と path は既定値 (FAVICON_URL の定数)。環境変数 FAVICON_URL を設定すると、その URL になる。PRIVATE_MODE のときは呼ばない"
+
+  # ---- 一覧の表と、訪問者数の小さなグラフ
+  - id: websites_table
+    layer: component
+    kind: component
+    name: "WebsitesTable"
+    source: { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 16 }
+    caller: websites_data_table
+    call:
+      status: fact
+      when: conditional
+      condition: "サイトの一覧を読み終えて、データがあるとき (DataGrid は data があるときだけ children の関数を呼ぶ)"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 6 }
+        - { file: "src/app/(main)/websites/WebsitesDataTable.tsx", line: 35 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+    summary:
+      status: interpretation
+      value: "サイトの一覧の表 (名前、ドメイン、訪問者数の小さなグラフ、作成日)。名前・ドメイン・作成日の見出しで並べ替えを選べる。一覧のサイトの id を useWebsiteListChartsQuery に渡して、グラフのデータを読む。操作を出すとき (showActions) は、各行に、サイトの設定の画面へ移る編集ボタンを出す"
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 24 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 25 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 33 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 62 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 73 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 79 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 85 }
+    links:
+      - kind: navigate
+        target: "/websites/${websiteId}/settings"
+        entry_id: websites.websiteId_d.settings
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 85 }
+          - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 79 }
+          - { file: "src/app/(main)/websites/WebsitesPage.tsx", line: 30 }
+          - { file: src/components/hooks/useNavigation.ts, line: 34 }
+        note: "各行の編集ボタン。操作を出すとき (showActions。WebsitesPage が決めて渡す) だけ描く。いまの URL のクエリを引き継ぐ。チームの URL で開いたときは、renderUrl が前に /teams/<teamId> を付ける (next.config の書き換えで、同じ入口)"
+
+  - id: use_website_list_charts
+    layer: component
+    kind: hook
+    name: "useWebsiteListChartsQuery (useListChartsQuery)"
+    source: { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 32 }
+    caller: websites_table
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 6 }
+        - { file: "src/app/(main)/websites/WebsitesTable.tsx", line: 25 }
+    summary:
+      status: interpretation
+      value: "同じファイルの useListChartsQuery を通して、サイトの id (重複を除いて並べたもの) とタイムゾーンを引数に GET /websites/charts を呼ぶ。id が 1 つも無ければ呼ばない。5 分間は読み直さない"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 33 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 15 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 23 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 28 }
+
+  - id: api_websites_charts_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/websites/charts"
+    source: { file: src/app/api/websites/charts/route.ts, line: 20 }
+    caller: use_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "一覧にサイトが 1 件以上あるとき (enabled: ids.length > 0)"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 23 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
+        - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 33 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "クエリをスキーマで検査して認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ)、期間を決める (startAt / endAt が無ければ、タイムゾーンでの直近 7 日)。canViewBatchWebsites で、見てよいサイトの id だけに絞り、getWebsiteListCharts でサイトごとの訪問者数の推移と合計を読む"
+      evidence:
+        - { file: src/app/api/websites/charts/route.ts, line: 21 }
+        - { file: src/app/api/websites/charts/route.ts, line: 28 }
+        - { file: src/app/api/websites/charts/route.ts, line: 30 }
+        - { file: src/app/api/websites/charts/route.ts, line: 35 }
+        - { file: src/app/api/websites/charts/route.ts, line: 37 }
+    parameters:
+      - name: ids
+        value: "URL のクエリ。サイトの id をカンマで区切ったもの (この画面では、一覧のいまのページに出ているサイト)"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 11 }
+          - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 24 }
+      - name: timezone
+        value: "URL のクエリ。任意。無ければ UTC"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 17 }
+          - { file: src/app/api/websites/charts/route.ts, line: 27 }
+          - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 25 }
+    rules:
+      - kind: validation
+        value: "ids は UUID で、1 件以上 20 件まで"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 13 }
+          - { file: src/app/api/websites/charts/route.ts, line: 14 }
+      - kind: decision
+        value: "startAt と endAt の両方が無ければ、期間は、タイムゾーンでの直近 7 日 (7day) にする"
+        status: fact
+        evidence:
+          - { file: src/app/api/websites/charts/route.ts, line: 28 }
+          - { file: src/app/api/websites/charts/route.ts, line: 29 }
+          - { file: src/app/api/websites/charts/route.ts, line: 32 }
+        note: "この画面のフックは startAt / endAt を渡さない (useWebsiteListChartsQuery.ts:23) ので、いつも直近 7 日"
+
+  - id: q_can_view_batch_websites
+    layer: query
+    kind: function
+    name: "canViewBatchWebsites (src/permissions/website.ts)"
+    source: { file: src/permissions/website.ts, line: 43 }
+    caller: api_websites_charts_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/websites/charts/route.ts, line: 4 }
+        - { file: src/app/api/websites/charts/route.ts, line: 35 }
+    summary:
+      status: interpretation
+      value: "求められたサイトの id のうち、見てよいものだけを返す。管理者なら、DB を読まずに全部返す。そうでなければ、website を読んで自分が持ち主のものを選び、チームのサイトは team_user を読んで、自分がメンバーのチームのものを選ぶ (共有トークンの対象も足す)"
+      evidence:
+        - { file: src/permissions/website.ts, line: 50 }
+        - { file: src/permissions/website.ts, line: 51 }
+        - { file: src/permissions/website.ts, line: 65 }
+        - { file: src/permissions/website.ts, line: 69 }
+        - { file: src/permissions/website.ts, line: 83 }
+        - { file: src/permissions/website.ts, line: 91 }
+        - { file: src/permissions/website.ts, line: 111 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 50 }
+        note: "管理者なら、DB を読まずに、求められた id を全部返す"
+      - kind: ownership
+        value: "canViewBatchWebsites"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 50 }
+          - { file: src/permissions/website.ts, line: 83 }
+          - { file: src/permissions/website.ts, line: 104 }
+          - { file: src/permissions/website.ts, line: 111 }
+        note: "エラーにはせず、見てよくないサイトの id を結果から外す。管理者 (user.isAdmin) は全部、そうでなければ、持ち主のサイト、メンバーであるチームのサイト、共有トークンの対象だけ"
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findMany (where id in 求められた id。select id / userId / teamId)"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: user_id, use: [read] }
+          - { name: team_id, use: [read] }
+        evidence:
+          - { file: src/permissions/website.ts, line: 69 }
+          - { file: src/permissions/website.ts, line: 71 }
+          - { file: src/permissions/website.ts, line: 76 }
+          - { file: src/permissions/website.ts, line: 77 }
+          - { file: src/permissions/website.ts, line: 78 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 104 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "ログイン中のユーザーが管理者でないときだけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findMany (where userId, teamId in サイトのチーム, team.deletedAt null。select teamId)"
+        fields:
+          - { name: team_id, use: [read, filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/permissions/website.ts, line: 91 }
+          - { file: src/permissions/website.ts, line: 93 }
+          - { file: src/permissions/website.ts, line: 94 }
+          - { file: src/permissions/website.ts, line: 100 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "管理者でなく、求められたサイトの中にチームのサイトがあるときだけ (チームの URL では、一覧がチームのサイトなので読む)"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/permissions/website.ts, line: 97 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない"
+
+  - id: ext_prisma_batch_websites
+    layer: external
+    kind: library
+    name: "Prisma Client website.findMany / teamUser.findMany"
+    source: { file: src/permissions/website.ts, line: 69 }
+    caller: q_can_view_batch_websites
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき (管理者なら、手前で全部を許して返す)"
+      evidence:
+        - { file: src/permissions/website.ts, line: 50 }
+        - { file: src/permissions/website.ts, line: 69 }
+        - { file: src/permissions/website.ts, line: 91 }
+      note: "最初に呼ぶ行を source にし、残りの行 (teamUser.findMany。チームのサイトがあるときだけ) は evidence に入れた"
+
+  - id: q_get_website_list_charts
+    layer: query
+    kind: function
+    name: "getWebsiteListCharts (src/queries/sql/getWebsiteListCharts.ts)"
+    source: { file: src/queries/sql/getWebsiteListCharts.ts, line: 23 }
+    caller: api_websites_charts_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/websites/charts/route.ts, line: 8 }
+        - { file: src/app/api/websites/charts/route.ts, line: 37 }
+    summary:
+      status: interpretation
+      value: "サイトごとに、期間の中の訪問者数 (セッションの数) を 12 時間ごとに数え、サイトごとの合計も出す。見てよいサイトが 1 件も無ければ、問い合わせずに空を返す。PostgreSQL 用 (website_event) と ClickHouse 用 (website_event_stats_hourly) の SQL を両方持ち、runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 37 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 41 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 43 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 48 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 89 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+        - { file: src/lib/db.ts, line: 27 }
+    settings:
+      - name: CLICKHOUSE_URL
+        kind: env
+        effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+        status: fact
+        evidence:
+          - { file: src/lib/db.ts, line: 27 }
+          - { file: src/lib/db.ts, line: 32 }
+          - { file: src/lib/db.ts, line: 38 }
+    rules:
+      - kind: calculation
+        value: "訪問者数は、12 時間ごと (BUCKET_HOURS) の、重複を除いたセッションの数。カスタムイベントとパフォーマンスのイベント (EVENT_TYPE.customEvent / EVENT_TYPE.performance) は数えない。サイトごとの合計は、期間全体で重複を除いた数 (12 時間ごとの数の足し算ではない)"
+        status: fact
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 10 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 66 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 89 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 100 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 119 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 138 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 188 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website_event } }
+        detail: "select website_id, 12 時間ごとの区切り, count(distinct session_id) from website_event where website_id = any(…) and event_type not in (…) and created_at between …"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: session_id, use: [read] }
+          - { name: created_at, use: [read, filter] }
+          - { name: event_type, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 95 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 92 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 94 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 96 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 66 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 71 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 98 }
+          - { file: prisma/schema.prisma, line: 183 }
+        note: "CLICKHOUSE_URL が設定されていないとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: clickhouse, table: website_event_stats_hourly } }
+        detail: "select website_id, 12 時間ごとの区切り, uniq(session_id) from website_event_stats_hourly where website_id in … and event_type not in (…) and created_at between …"
+        fields:
+          - { name: website_id, use: [read, filter] }
+          - { name: session_id, use: [read] }
+          - { name: created_at, use: [read, filter] }
+          - { name: event_type, use: [filter] }
+        evidence:
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 134 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 131 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 133 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 135 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 119 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 120 }
+          - { file: src/queries/sql/getWebsiteListCharts.ts, line: 137 }
+          - { file: db/clickhouse/schema.sql, line: 113 }
+        note: "CLICKHOUSE_URL が設定されているとき。時間ごとの集計表を読む"
+
+  - id: ext_charts_pg
+    layer: external
+    kind: library
+    name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+    source: { file: src/lib/prisma.ts, line: 746 }
+    caller: q_get_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 43 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 84 }
+        - { file: src/lib/db.ts, line: 38 }
+        - { file: src/lib/prisma.ts, line: 746 }
+    settings:
+      - name: DATABASE_REPLICA_URL
+        kind: env
+        effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+        status: fact
+        evidence:
+          - { file: src/lib/prisma.ts, line: 738 }
+          - { file: src/lib/prisma.ts, line: 55 }
+          - { file: src/lib/prisma.ts, line: 861 }
+
+  - id: ext_charts_ch
+    layer: external
+    kind: library
+    name: "ClickHouse client (@clickhouse/client) query"
+    source: { file: src/lib/clickhouse.ts, line: 721 }
+    caller: q_get_website_list_charts
+    call:
+      status: fact
+      when: conditional
+      condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+      evidence:
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 48 }
+        - { file: src/queries/sql/getWebsiteListCharts.ts, line: 128 }
+        - { file: src/lib/db.ts, line: 32 }
+        - { file: src/lib/clickhouse.ts, line: 721 }

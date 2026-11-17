@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: websites.websiteId_d.journeys
+reviewed_at: '2026-11-17T16:03:55Z'
+reviewer: claude-opus-5-5 (fresh context)
+machine_check: ok
+findings:
+- kind: classification_mismatch
+  severity: low
+  where: callstack/q_get_segment/call
+  claim: q_get_segment は api_values の下 (q_get_query_filters 経由) に置かれ、条件は「URL に segment があるとき」だが、values の受け口に届く問い合わせには segment / cohort が付かない。useWebsiteValuesQuery は type・startAt・endAt・search だけを送り (URL
+    の絞り込みを足さない)、getQueryFilters が見るのは受け口の問い合わせ (params.segment) なので、この呼び出し元からは条件が成り立たない。analysis-conventions.md は、そう見える呼び出しも conditional のフレームにし、理由を note に書くと決めているが、note が無い
+  evidence:
+    file: src/components/hooks/queries/useWebsiteValuesQuery.ts
+    line: 54
+  suggestion: q_get_segment の call に note を足し「values の受け口の問い合わせには segment / cohort が付かない (useWebsiteValuesQuery.ts 54 から 59 行) ので、この呼び出し元からは届かない。URL の絞り込みを送る journeys・session-data の受け口から同じ getQueryFilters
+    を通るときに呼ぶ」と書く (条件の文も「受け口の問い合わせに segment があるとき」に直す)
+  resolved: true
+- kind: evidence_mismatch
+  severity: low
+  where: callstack/journeys_page/summary
+  claim: summary の「同じ部品なので、フレームは始めの段の 1 つだけに書いた」は、フレーム website_value_combobox と食い違う。そのフレームは名前が「始めの段・終わりの段の入力欄」で、call の根拠に 58 行と 70 行の両方を挙げ、2 つの入力欄を 1 つのフレームで表している
+  evidence:
+    file: src/app/(main)/websites/[websiteId]/(reports)/journeys/JourneysPage.tsx
+    line: 70
+  suggestion: journeys_page の summary を「同じ部品なので、2 つの入力欄を 1 つのフレーム (website_value_combobox) で表した」に直す
+  resolved: true
+notes: '確かめた範囲: この画面に固有のフレーム (page、journeys_page、website_value_combobox、use_values_rw1、api_values_rw1、q_parse_request_rw2、q_check_auth_rw2、journey、use_journey_query、api_journeys、q_get_journey、ext_prisma_journey、ext_clickhouse_journey)
+  は、根拠の行を対象のコードで開いて確かめ、上の指摘のほかは主張を支えていた (getJourney.ts の PostgreSQL / ClickHouse の両方の SQL、startStep / endStep の条件、parseResult の続けて同じ名前をまとめる処理、Journey.tsx の EVENT_TYPES、journeyQuerySchema と journeyReportSchema
+  の検査、FILTER_COLUMNS の eventType と prisma.ts 183 行・clickhouse.ts 155 行の常に and で付く扱い、runQuery の切り替え)。WebsiteControls の下の木は websites.websiteId_d.attribution の結果を写したもので、要所だけを確かめた (WebsiteControls・FilterEditForm・FilterBar
+  の条件、values の受け口、getValues、share.ts と website.ts の権限の確認、getQueryFilters)。前回の attribution のレビューで直した点 (API_URL と BASE_PATH を use_values に 1 回だけ、DATABASE_REPLICA_URL、checkAuth の API キーの rules、入口の summary
+  の Redis への書き込み) は、この結果にも反映されている。指摘にしなかったが伝えること: (1) 結果の先頭の notes (4) の「同じ URL の期間なので、値は同じになる」は、厳密には違う。入力欄の候補は JourneysPage の useDateRange() (タイムゾーンを渡さない) の期間を送り、集計は useDateParameters が useDateRange({
+  timezone }) と toUtc で直した期間を送る (useDateParameters.ts 16・18 行) ので、利用者のタイムゾーンを設定していると、ずれることがある。フレームの主張 (Journey の summary) は正しいので指摘にしていない。(2) values の受け口が渡すセクションの一覧 (route.ts 27 から 35 行) に journeys が無い。ログインせず、セクションごとの可否がある共有トークンで
+  journeys だけを許すと、始めの段・終わりの段の候補は 401 になる。この入口はログインした画面なので、影響は小さい。(3) 入力欄は、打った文字ごとに onChange で startStep / endStep を変える (WebsiteValueComboBox.tsx 79 行) ので、集計の問い合わせは文字を打つたびに走る (候補の検索だけが 300 ミリ秒待つ)。(4) startStep
+  / endStep の既定値は空の文字で、useAnalyticsQuery は undefined だけを除くので、空のまま送られる。getJourney は空なら条件を付けない (getJourney.ts 86・92 行) ので、結果は変わらない。(5) getQueryFilters の excludeBounce (request.ts 172 行) は、getJourney が excludeBounceQuery
+  を使わないので、この画面の集計には効かない。'

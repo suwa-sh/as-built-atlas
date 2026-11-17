@@ -1,0 +1,1242 @@
+format_version: 1
+entry:
+  id: admin.websites
+  path: /admin/websites
+  name: "websites"
+  layer: page
+  source: { file: "src/app/(main)/admin/websites/page.tsx", line: 4 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T11:40:49Z"
+  reviewed:
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T11:39:59Z"
+    findings_open: 1
+summary:
+  status: interpretation
+  value: "管理者が、すべてのサイトを一覧で見る画面。GET /api/admin/websites を呼び、管理者 (user.isAdmin) のときだけ、削除されていない website を、持ち主の user、チーム (team) とそのオーナー (team_user) 込みで、ページ単位で読む (検索語は name / domain に部分一致。並びは既定で作成日の新しい順、name / domain / createdAt に替えられる)。読んだサイトには share の slug を付ける。検索・並べ替え・ページ送りは、URL のクエリを書き換えて同じ API を呼び直す。行の名前と編集のメニューは /admin/websites/[websiteId] へ、持ち主の欄は /admin/teams/[teamId] か /admin/users/[userId] へ移る。行の削除のメニューは確認の小窓を開き、DELETE と入力して確定すると DELETE /api/websites/[websiteId] を呼ぶ。この API は、管理者か、持ち主か、website:delete の権限を持つチームのメンバーのときだけ、サイトに属する計測のデータ (session_replay_saved / session_replay / heatmap_event / revenue / event_data / session_data / session_link / website_event / session) と report / segment / annotation / share を消し、website を消す (CLOUD_MODE のときは、website を消さずに deleted_at を入れ、Redis の website:* を消す)。各 API の認証は、ログイントークンから user を読む (Redis のセッションを使うときは auth:* も読む)"
+  evidence:
+    - { file: "src/app/(main)/admin/websites/page.tsx", line: 5 }
+    - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 6 }
+    - { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 13 }
+    - { file: src/app/api/admin/websites/route.ts, line: 22 }
+    - { file: src/app/api/admin/websites/route.ts, line: 26 }
+    - { file: src/queries/prisma/website.ts, line: 117 }
+    - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 25 }
+    - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 99 }
+    - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 16 }
+    - { file: "src/app/api/websites/[websiteId]/route.ts", line: 121 }
+    - { file: "src/app/api/websites/[websiteId]/route.ts", line: 125 }
+    - { file: src/queries/prisma/website.ts, line: 236 }
+notes: "(1) 画面を包む枠 (ルート、(main)、admin の layout) の処理 (ログインの確認、管理者でなければ描かない、CLOUD_MODE では描かない) は、枠の入口の結果にあるので、ここでは辿っていない。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた: parseRequest → checkAuth → getUser は GET /api/admin/websites の下。DELETE /api/websites/[websiteId] も parseRequest を呼ぶが、ほかの呼び先 (canDeleteWebsite、deleteWebsite) があり終端にならないので、書き直していない。(3) 管理者の確認 canViewAllWebsites (src/permissions/website.ts:116) は、user.isAdmin を返すだけで、データにもライブラリにも届かない。フレームにすると終端の決まりを満たせないので、フレームにせず、確認は、それを呼ぶ受け口 (api_admin_websites_get) に書いた。指示書は、設定とルールについて「段になっていない補助の関数にあるときは、それを呼ぶ段に書く」と決めているが、権限の確認については決めていない。同じ考え方を当てはめた。(4) canDeleteWebsite の、管理者でないときの枝 (getWebsite と getTeamUser) は、消さずに conditional で書いた。この画面は、admin の枠が管理者にだけ描く (AdminLayout.tsx:9) ので、画面からの呼び出しでは管理者の早い return で終わると読めるが、受け口そのものは管理者でなくても呼べる。(5) deleteWebsite の CLOUD_MODE の枝 (website の update と、Redis の website:* の削除) も、消さずに書いた。admin の枠は、ビルド時に埋め込んだ process.env.cloudMode があると何も描かない (src/app/(main)/admin/layout.tsx:5) ので、この画面からは届かないと読めるが、サーバーの側は実行時の process.env.CLOUD_MODE を見るので、指示書の「条件が成り立たないように見える呼び出しは、消さずに conditional で書く」に従った。(6) checkAuth の API キーの枝 (auth.ts:74) は、辿っていない。ブラウザが付けるのは localStorage のログイントークン (src/lib/client.ts:5) で、/api/admin は API キーを受け付けないパスでもある (src/lib/api-key.ts:17)。設定 (CLOUD_MODE) とルールにだけ書いた。(7) フレームにしなかったもの: DataGrid (検索の欄、表示の切り替え、ページ送り。URL のクエリを書き換えるだけで、表示の切り替えは localStorage に残す)、usePagedQuery (URL のクエリの page / search / orderBy / sortDescending を queryFn に渡す小道具)、SortableLabel (並べ替えのクエリを書き換える)、TypeConfirmationForm (確認の入力欄)、PageHeader / Panel / Link / MenuButton (見た目の部品)、useApi と getApiUrl (URL とヘッダーを組み立てる小道具)。検索・並べ替え・ページ送りの router.push は、同じ画面のクエリを替えるだけなので、links に書いていない。(8) リンクの行き先 /admin/websites/${row.id} は、名前の欄 (AdminWebsitesTable.tsx:25) と編集のメニュー (同 :69。こちらは `/admin/websites/${id}` と書いてあり、id は row.id を取り出したもの) の 2 か所にある。同じ行き先なので、1 件にまとめた。(9) 削除の小窓 (WebsiteDeleteForm) は、JSX ではいつも書いてあるが、Modal が isOpen のときだけ中身を描くと読んで conditional にした (Modal は @umami/react-zen の部品で、ソースは範囲に無い)。(10) deleteWebsite の中のライブラリの呼び出しは 15 か所ある。external のフレームは 1 つにまとめ (source は、ほかの入口の結果に合わせて、トランザクションの中で最初に呼ぶ行 website.ts:21)、Redis の削除だけ分けた。(11) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(12) DATABASE_URL (getSchema が schema の名前を読む。website.ts:43) は、決まりどおり settings に書いていない。Link の prefetch を変える CLOUD_MODE (src/components/common/Link.tsx:5) は、処理の流れも読み書きの相手も変えないので、書いていない。(13) レビューの指摘 2 件のうち、low の 1 件 (検索が大文字と小文字を区別しないことの根拠の行) は直した。medium の 1 件 (checkAuth の API キーの枝に、フレームも api_key の読み書きも無い) は、直していない。理由: ほかの入口の結果 (layout_l.main_g、layout_l.main_g.websites.websiteId_d、settings.teams.teamId_d など) が、どれも同じ枝を「ブラウザはログイントークンを付けるので、画面からは使わない」として辿っておらず、この入口だけ辿ると、同じ checkAuth の読み書きが入口によって違ってしまう。辿るかどうかは、入口をまたいで 1 つに決めること (analysis-conventions.md に書くこと) なので、人の判断に残した。レビューが添えた、トランザクションの external のフレームの source の違いは、ほかの入口に合わせて直した"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "websites (src/app/(main)/admin/websites/page.tsx)"
+    source: { file: "src/app/(main)/admin/websites/page.tsx", line: 4 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page ('use client' が無い)。AdminWebsitesPage を描くだけ。metadata でタイトル (Websites) を決める。データは自分では読まない"
+      evidence:
+        - { file: "src/app/(main)/admin/websites/page.tsx", line: 5 }
+        - { file: "src/app/(main)/admin/websites/page.tsx", line: 7 }
+        - { file: "src/app/(main)/admin/websites/page.tsx", line: 8 }
+
+  # ---------------------------------------------------------------- 画面の本体
+  - id: admin_websites_page
+    layer: component
+    kind: component
+    name: "AdminWebsitesPage"
+    source: { file: "src/app/(main)/admin/websites/AdminWebsitesPage.tsx", line: 8 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/websites/page.tsx", line: 2 }
+        - { file: "src/app/(main)/admin/websites/page.tsx", line: 5 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。見出し (PageHeader) と、Panel の中に AdminWebsitesDataTable を描く"
+      evidence:
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesPage.tsx", line: 1 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesPage.tsx", line: 13 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesPage.tsx", line: 15 }
+
+  - id: admin_websites_data_table
+    layer: component
+    kind: component
+    name: "AdminWebsitesDataTable"
+    source: { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 5 }
+    caller: admin_websites_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesPage.tsx", line: 6 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesPage.tsx", line: 15 }
+    summary:
+      status: interpretation
+      value: "useWebsitesQuery で一覧を読み、その結果を DataGrid (検索の欄とページ送り付き) に渡す。DataGrid は、データがあるときだけ、子の AdminWebsitesTable を描く。DataGrid の検索とページ送りは、URL のクエリ (search / page) を書き換えるだけで、それを usePagedQuery が読んで同じ API を呼び直す"
+      evidence:
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 6 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 9 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 10 }
+        - { file: src/components/common/DataGrid.tsx, line: 82 }
+        - { file: src/components/common/DataGrid.tsx, line: 99 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+
+  # ---- 一覧の読み込み
+  - id: use_websites_query
+    layer: component
+    kind: hook
+    name: "useWebsitesQuery"
+    source: { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 6 }
+    caller: admin_websites_data_table
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 2 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 6 }
+    summary:
+      status: interpretation
+      value: "GET /admin/websites を呼ぶ。usePagedQuery が、URL のクエリの page / search / orderBy / sortDescending を引数に足す。queryKey に websites の更新印 (useModified) を入れるので、サイトを削除したあと読み直す。URL の前には、useApi の getApiUrl が接頭辞 (既定は basePath + /api) を付け、ヘッダーには localStorage のログイントークンを Bearer で付ける"
+      evidence:
+        - { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 8 }
+        - { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 10 }
+        - { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 11 }
+        - { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 13 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/components/hooks/useApi.ts, line: 32 }
+        - { file: src/components/hooks/useApi.ts, line: 42 }
+        - { file: src/lib/client.ts, line: 5 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_admin_websites_get
+    layer: api_route
+    kind: route_handler
+    name: "GET /api/admin/websites"
+    source: { file: src/app/api/admin/websites/route.ts, line: 9 }
+    caller: use_websites_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 13 }
+        - { file: src/components/hooks/usePagedQuery.ts, line: 22 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (API_URL 無し) では basePath + /api/admin/websites。フックは enabled などの条件を渡されない (AdminWebsitesDataTable.tsx:6) ので、描画のたびに問い合わせが有効"
+    summary:
+      status: interpretation
+      value: "parseRequest でクエリ (ページ・検索・並べ替え) を検査して認証し (だめならエラーを返す)、canViewAllWebsites で管理者かを確かめ (だめなら 401)、getWebsites で、持ち主の user (id / username)、チームとそのオーナーのメンバー込みで、作成日の新しい順を既定にして読んで返す"
+      evidence:
+        - { file: src/app/api/admin/websites/route.ts, line: 10 }
+        - { file: src/app/api/admin/websites/route.ts, line: 16 }
+        - { file: src/app/api/admin/websites/route.ts, line: 22 }
+        - { file: src/app/api/admin/websites/route.ts, line: 23 }
+        - { file: src/app/api/admin/websites/route.ts, line: 26 }
+        - { file: src/app/api/admin/websites/route.ts, line: 51 }
+    parameters:
+      - name: "page / pageSize / maxResults / search / orderBy / sortDescending"
+        value: "URL のクエリ。zod のスキーマ (pagingParams / searchParams / sortingParams) で検査する。画面が送るのは page / search / orderBy / sortDescending"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/websites/route.ts, line: 11 }
+          - { file: src/app/api/admin/websites/route.ts, line: 12 }
+          - { file: src/app/api/admin/websites/route.ts, line: 13 }
+          - { file: src/lib/schema.ts, line: 73 }
+          - { file: src/lib/schema.ts, line: 87 }
+          - { file: src/lib/schema.ts, line: 93 }
+          - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/websites/route.ts, line: 22 }
+          - { file: src/permissions/website.ts, line: 116 }
+          - { file: src/permissions/website.ts, line: 117 }
+          - { file: src/lib/auth.ts, line: 137 }
+        note: "判定するのは、段にしていない補助の関数 canViewAllWebsites (データを読まず、user.isAdmin を返すだけ)。満たさなければ、この受け口が 401 を返す (route.ts:23)"
+
+  # ---- 認証 (この画面の 2 つの API が最初に呼ぶ。先に着くこの受け口の下に 1 回だけ書く)
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_admin_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/admin/websites/route.ts, line: 3 }
+        - { file: src/app/api/admin/websites/route.ts, line: 16 }
+    summary:
+      status: interpretation
+      value: "URL と JSON 本文を読む。スキーマがあれば検査し (GET はクエリ。合わなければ 400 のエラー)、検査で誤りが無ければ、skipAuth が無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す。DELETE /api/websites/[websiteId] は、スキーマ無しで同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 27 }
+        - { file: src/lib/request.ts, line: 30 }
+        - { file: src/lib/request.ts, line: 33 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 113 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 3 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+      note: "if (!options?.skipAuth && !error) の中にある。この画面の 2 つの受け口は skipAuth を渡さず (admin/websites/route.ts:16、websites/[websiteId]/route.ts:113)、error があるのは入力の誤りで打ち切るときだけなので、always にした"
+    summary:
+      status: interpretation
+      value: "Bearer のトークンを解く。2FA の途中の仮のトークンなら拒否する。トークンに userId があれば getUser で user を読み、無くて Redis が有効で authKey があれば Redis からセッションを読んでから getUser で user を読む (auth.ts:105 でも getUser を呼ぶ。経路はフレーム q_get_user と同じ)。パスワードの指紋が今のパスワードと合わなければ、ユーザーを無効にする。共有トークンのヘッダーも解く。ユーザーも共有トークンも無ければ null (認証できない)。ユーザーがいればパスワードを消し、role が admin なら isAdmin を付ける (この画面の 2 つの受け口は、この isAdmin で管理者かを見る)。API キーの経路 (auth.ts:74) は、ブラウザがログイントークンを付けるので、この画面からは使わないと読んで、辿っていない"
+      evidence:
+        - { file: src/lib/auth.ts, line: 72 }
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 78 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 88 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 98 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/auth.ts, line: 105 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 137 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/auth.ts, line: 124 }
+          - { file: src/lib/request.ts, line: 54 }
+          - { file: src/lib/request.ts, line: 55 }
+        note: "有効なユーザーも共有トークンも無ければ null を返し、parseRequest が unauthorized にする"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "あれば、API キーでの認証を受け付けない (無ければ、umami_ で始まるトークンを API キーとして確かめる)"
+        status: fact
+        evidence:
+          - { file: src/lib/api-key.ts, line: 41 }
+          - { file: src/lib/auth.ts, line: 74 }
+      - name: REDIS_URL
+        kind: env
+        effect: "あれば、トークンに userId が無く authKey があるとき、Redis のセッションからユーザーを引く"
+        status: fact
+        evidence:
+          - { file: src/lib/redis.ts, line: 106 }
+          - { file: src/lib/auth.ts, line: 101 }
+    rules:
+      - kind: validation
+        value: "API キーは、アカウントの資格情報や管理の状態を扱うパス (/api/admin など) では認証に使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 35 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 17 }
+          - { file: src/lib/api-key.ts, line: 37 }
+        note: "checkAuth が呼ぶ、同じファイルの checkApiKeyAuth の中の検証。GET /api/admin/websites はこれに当たる。DELETE /api/websites/[websiteId] は当たらない"
+      - kind: validation
+        value: "2FA の途中で出す仮のトークン (type が partial-auth) は、ログイン済みとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+          - { file: src/lib/auth.ts, line: 85 }
+      - kind: validation
+        value: "トークン (または Redis のセッション) にパスワードの指紋 (pwd) があり、今のパスワードのハッシュと合わなければ、そのログインを無効にする"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: validation
+        value: "ユーザーがいなくて共有トークンだけのときは、共有の画面からの呼び出しの印 (x-umami-share-context のヘッダー) が無ければ受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 127 }
+          - { file: src/lib/auth.ts, line: 129 }
+          - { file: src/lib/constants.ts, line: 12 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: userId, use: [read] }
+          - { name: pwd, use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 104 }
+          - { file: src/lib/auth.ts, line: 108 }
+          - { file: src/lib/auth.ts, line: 150 }
+        note: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、authKey が入っているときだけ"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser / findUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が入っているとき (無くて Redis のセッションに userId があるときは、auth.ts:105 で同じ関数を呼ぶ)"
+      evidence:
+        - { file: src/lib/auth.ts, line: 22 }
+        - { file: src/lib/auth.ts, line: 93 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "user を id で 1 件読む (削除済みは除く。checkAuth からはパスワードも含めて読む)。role も読むので、checkAuth が isAdmin を決められる"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+        - { file: src/queries/prisma/user.ts, line: 42 }
+        - { file: src/queries/prisma/user.ts, line: 50 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null。select id / username / password / role / createdAt / twoFactorRequired)"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: src/lib/auth.ts, line: 94 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+        note: "password は、includePassword: true で呼ばれたとき (checkAuth) だけ読む"
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+      note: "checkAuth が呼ぶのは、リポジトリが自前で包んだ get (redis.ts:34)。その中の this.client.get がライブラリの呼び出し"
+
+  # ---- サイトの一覧
+  - id: q_get_websites
+    layer: query
+    kind: function
+    name: "getWebsites (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 98 }
+    caller: api_admin_websites_get
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/admin/websites/route.ts, line: 7 }
+        - { file: src/app/api/admin/websites/route.ts, line: 26 }
+      note: "手前にあるのは、入力の誤り・認証できない・管理者でないときの早い return だけ (route.ts:19 / :23)"
+    summary:
+      status: interpretation
+      value: "受け取った条件に、検索語の name / domain への部分一致 (大文字と小文字を区別しない) と、削除されていないこと (deletedAt null) を足し、prisma.pagedQuery('website') でページ分を findMany し、件数を count で数える。並べ替えは name / domain / createdAt だけを通す。読んだサイトが 1 件以上あれば、同じファイルの attachShareIdToWebsites が、それらの share を読み、サイトごとに最新の slug を shareId として付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 102 }
+        - { file: src/queries/prisma/website.ts, line: 108 }
+        - { file: src/queries/prisma/website.ts, line: 114 }
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/queries/prisma/website.ts, line: 119 }
+        - { file: src/queries/prisma/website.ts, line: 327 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+        - { file: src/lib/prisma.ts, line: 828 }
+    parameters:
+      - name: criteria
+        value: "include: user (deletedAt null。select username / id) と team (deletedAt null。include members where role が ROLES.teamOwner)。orderBy: createdAt desc"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/websites/route.ts, line: 28 }
+          - { file: src/app/api/admin/websites/route.ts, line: 29 }
+          - { file: src/app/api/admin/websites/route.ts, line: 38 }
+          - { file: src/app/api/admin/websites/route.ts, line: 45 }
+          - { file: src/app/api/admin/websites/route.ts, line: 51 }
+      - name: filters
+        value: "検査を通ったクエリ (page / pageSize / search / orderBy / sortDescending)"
+        status: fact
+        evidence:
+          - { file: src/app/api/admin/websites/route.ts, line: 55 }
+    rules:
+      - kind: validation
+        value: "並べ替えに使える列は name / domain / createdAt だけ。それ以外の指定は捨て、受け口が決めた既定の並び (createdAt の新しい順) のままにする"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 9 }
+          - { file: src/queries/prisma/website.ts, line: 102 }
+          - { file: src/lib/sort.ts, line: 11 }
+          - { file: src/app/api/admin/websites/route.ts, line: 51 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "client['website'].findMany (where deletedAt null、検索語があれば name / domain の部分一致。orderBy は createdAt desc か、指定の name / domain / createdAt。take / skip) と count"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: deleted_at, use: [filter] }
+          - { name: name, use: [filter] }
+          - { name: domain, use: [filter] }
+          - { name: created_at, use: [filter] }
+          - { name: user_id, use: [filter] }
+          - { name: team_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 117 }
+          - { file: src/queries/prisma/website.ts, line: 110 }
+          - { file: src/queries/prisma/website.ts, line: 112 }
+          - { file: src/queries/prisma/website.ts, line: 114 }
+          - { file: src/lib/prisma.ts, line: 761 }
+          - { file: src/lib/prisma.ts, line: 775 }
+          - { file: src/app/api/admin/websites/route.ts, line: 52 }
+          - { file: prisma/schema.prisma, line: 8 }
+          - { file: prisma/schema.prisma, line: 103 }
+          - { file: prisma/schema.prisma, line: 104 }
+          - { file: prisma/schema.prisma, line: 106 }
+          - { file: prisma/schema.prisma, line: 108 }
+          - { file: prisma/schema.prisma, line: 113 }
+          - { file: prisma/schema.prisma, line: 115 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "name / domain の絞り込みは、検索語があるときだけ。並べ替えの列は name / domain / created_at のどれか。user_id と team_id は、持ち主の user とチームを付ける (include) 結合に使う"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "include: { user: { where deletedAt null, select username / id } }"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/app/api/admin/websites/route.ts, line: 29 }
+          - { file: src/app/api/admin/websites/route.ts, line: 31 }
+          - { file: src/app/api/admin/websites/route.ts, line: 34 }
+          - { file: src/app/api/admin/websites/route.ts, line: 35 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+          - { file: prisma/schema.prisma, line: 113 }
+        note: "Website.user のリレーションとして読まれる。テーブル名はコードに直接は出ない。条件と列は、呼び出し元 (route) が渡す"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "include: { team: { where deletedAt null, include members } }"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/app/api/admin/websites/route.ts, line: 38 }
+          - { file: src/app/api/admin/websites/route.ts, line: 40 }
+          - { file: prisma/schema.prisma, line: 115 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+        note: "Website.team のリレーションとして読まれる。テーブル名はコードに直接は出ない。条件は、呼び出し元 (route) が渡す"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "include: { members: { where role が ROLES.teamOwner } }"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: role, use: [filter] }
+        evidence:
+          - { file: src/app/api/admin/websites/route.ts, line: 43 }
+          - { file: src/app/api/admin/websites/route.ts, line: 45 }
+          - { file: src/lib/constants.ts, line: 178 }
+          - { file: prisma/schema.prisma, line: 243 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 256 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "Team.members (TeamUser) のリレーションとして読まれる。テーブル名はコードに直接は出ない。チームのオーナーの行だけ"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findMany (where entityId in 読んだサイトの id。distinct entityId。orderBy createdAt desc)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 334 }
+          - { file: src/queries/prisma/website.ts, line: 336 }
+          - { file: src/queries/prisma/website.ts, line: 338 }
+          - { file: src/queries/prisma/website.ts, line: 340 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 408 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "読んだサイトが 1 件以上あるときだけ (website.ts:327)"
+
+  - id: ext_prisma_paged_website
+    layer: external
+    kind: library
+    name: "Prisma Client website.findMany / count (pagedQuery の中)"
+    source: { file: src/lib/prisma.ts, line: 761 }
+    caller: q_get_websites
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 117 }
+        - { file: src/lib/prisma.ts, line: 761 }
+        - { file: src/lib/prisma.ts, line: 775 }
+      note: "リポジトリの pagedQuery がライブラリを包んでいるので、その中の findMany の行を source にした。pagedQuery は、引数のモデル名 (ここでは website) で client[model] を呼ぶ"
+
+  - id: ext_prisma_share_find_many
+    layer: external
+    kind: library
+    name: "Prisma Client share.findMany"
+    source: { file: src/queries/prisma/website.ts, line: 334 }
+    caller: q_get_websites
+    call:
+      status: fact
+      when: conditional
+      condition: "読んだサイトが 1 件以上あるとき"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 119 }
+        - { file: src/queries/prisma/website.ts, line: 327 }
+        - { file: src/queries/prisma/website.ts, line: 334 }
+
+  # ---- 一覧の表と、行の操作
+  - id: admin_websites_table
+    layer: component
+    kind: component
+    name: "AdminWebsitesTable"
+    source: { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 14 }
+    caller: admin_websites_data_table
+    call:
+      status: fact
+      when: conditional
+      condition: "一覧の読み込みが終わり、データがあるとき (DataGrid は data があるときだけ子を描く)"
+      evidence:
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 3 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesDataTable.tsx", line: 10 }
+        - { file: src/components/common/DataGrid.tsx, line: 105 }
+        - { file: src/components/common/DataGrid.tsx, line: 149 }
+    summary:
+      status: interpretation
+      value: "サイトを表にして出す (名前、ドメイン、持ち主、作成日)。名前・ドメイン・作成日の見出しは、押すと並べ替えのクエリを書き換える。名前は、そのサイトの管理の画面へのリンク。持ち主の欄は、チームのサイトならチームの管理の画面、そうでなければユーザーの管理の画面へのリンク。行のメニューには、編集 (サイトの管理の画面へ移る) と削除 (そのサイトの id を覚えて、確認の小窓を開く) がある。小窓の中に WebsiteDeleteForm を描く"
+      evidence:
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 21 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 22 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 25 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 34 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 69 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 81 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 97 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 99 }
+        - { file: src/components/common/SortableLabel.tsx, line: 34 }
+    links:
+      - kind: navigate
+        target: "/admin/websites/${row.id}"
+        entry_id: admin.websites.websiteId_d
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 25 }
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 64 }
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 69 }
+        note: "名前のリンクと、行のメニューの編集 (router.push。コードの書き方は /admin/websites/${id} で、id は row.id を取り出したもの)"
+      - kind: navigate
+        target: "/admin/teams/${row?.team?.id}"
+        entry_id: admin.teams.teamId_d
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 34 }
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 41 }
+        note: "持ち主の欄。チームのサイト (row.team あり) のとき"
+      - kind: navigate
+        target: "/admin/users/${row?.user?.id}"
+        entry_id: admin.users.userId_d
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 48 }
+        note: "持ち主の欄。チームのサイトでないとき"
+
+  # ---- サイトの削除
+  - id: website_delete_form
+    layer: component
+    kind: component
+    name: "WebsiteDeleteForm"
+    source: { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 6 }
+    caller: admin_websites_table
+    call:
+      status: interpretation
+      when: conditional
+      condition: "行のメニューで削除を選んだとき (deleteWebsite に id が入り、小窓が開く)"
+      evidence:
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 4 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 81 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 97 }
+        - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 99 }
+      note: "JSX にはいつも書いてある (:99)。Modal が isOpen (:97) のときだけ中身を描くと読んだ (Modal は @umami/react-zen の部品で、ソースは範囲に無い)"
+    summary:
+      status: interpretation
+      value: "useDeleteQuery で /websites/<websiteId> を消す mutation を作り、確認の入力欄 (TypeConfirmationForm) を出す。DELETE と入力して確定すると mutation を実行し、成功したら websites と websites:<id> の更新印を付け (一覧の useWebsitesQuery が読み直す)、小窓を閉じる"
+      evidence:
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 16 }
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 19 }
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 21 }
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 22 }
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 24 }
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 30 }
+        - { file: src/components/hooks/queries/useWebsitesQuery.ts, line: 8 }
+    parameters:
+      - name: websiteId
+        value: "削除のメニューを選んだ行の id (deleteWebsite の状態)"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 81 }
+          - { file: "src/app/(main)/admin/websites/AdminWebsitesTable.tsx", line: 99 }
+    rules:
+      - kind: validation
+        value: "確認の欄に DELETE と入力しなければ、削除を確定できない"
+        status: fact
+        evidence:
+          - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 4 }
+          - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 31 }
+          - { file: src/components/common/TypeConfirmationForm.tsx, line: 43 }
+        note: "検証するのは、段にしていない部品 TypeConfirmationForm"
+
+  - id: use_delete_query
+    layer: component
+    kind: hook
+    name: "useDeleteQuery"
+    source: { file: src/components/hooks/queries/useDeleteQuery.ts, line: 4 }
+    caller: website_delete_form
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 2 }
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 16 }
+    summary:
+      status: interpretation
+      value: "受け取った path に DELETE する mutation を作る (useApi の del。URL の前に接頭辞を付け、ログイントークンを Bearer で付ける)。更新印を付ける touch も返す"
+      evidence:
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 5 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 9 }
+        - { file: src/components/hooks/useApi.ts, line: 63 }
+    settings:
+      - name: API_URL
+        kind: env
+        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 14 }
+          - { file: next.config.ts, line: 215 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 39 }
+      - name: BASE_PATH
+        kind: env
+        effect: "API の URL の前に付く"
+        status: fact
+        evidence:
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+
+  - id: api_website_delete
+    layer: api_route
+    kind: route_handler
+    name: "DELETE /api/websites/[websiteId]"
+    source: { file: "src/app/api/websites/[websiteId]/route.ts", line: 109 }
+    caller: use_delete_query
+    call:
+      status: fact
+      when: conditional
+      condition: "確認の欄に DELETE と入力して、削除のボタンを押したとき"
+      evidence:
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 16 }
+        - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteDeleteForm.tsx", line: 19 }
+        - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
+        - { file: src/lib/api-url.ts, line: 39 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "既定 (API_URL 無し) では basePath + /api/websites/<websiteId>"
+    summary:
+      status: interpretation
+      value: "parseRequest で認証し (parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ。だめならエラーを返す)、canDeleteWebsite で消してよいかを確かめ (だめなら 401)、deleteWebsite でサイトと、それに属するデータを消して ok を返す"
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 113 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 116 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 121 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 122 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 125 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 127 }
+    parameters:
+      - name: websiteId
+        value: "URL の段 [websiteId]"
+        status: fact
+        evidence:
+          - { file: "src/app/api/websites/[websiteId]/route.ts", line: 119 }
+
+  - id: q_can_delete_website
+    layer: query
+    kind: function
+    name: "canDeleteWebsite (src/permissions/website.ts)"
+    source: { file: src/permissions/website.ts, line: 160 }
+    caller: api_website_delete
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 7 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 121 }
+      note: "手前にあるのは、認証できないときの早い return だけ (route.ts:116)"
+    summary:
+      status: interpretation
+      value: "ユーザーがいなければ許さない。管理者なら、読まずに許す。そうでなければ getWebsite でサイトを読み (無ければ許さない)、持ち主 (userId) があれば本人のときだけ許す。持ち主が無くチームのもの (teamId あり) なら、getTeamUser で自分の team_user を読み、その役割が website:delete の権限を持つかを hasPermission (定数の表を見るだけ) で確かめる。どれでもなければ許さない"
+      evidence:
+        - { file: src/permissions/website.ts, line: 161 }
+        - { file: src/permissions/website.ts, line: 165 }
+        - { file: src/permissions/website.ts, line: 169 }
+        - { file: src/permissions/website.ts, line: 171 }
+        - { file: src/permissions/website.ts, line: 175 }
+        - { file: src/permissions/website.ts, line: 179 }
+        - { file: src/permissions/website.ts, line: 180 }
+        - { file: src/permissions/website.ts, line: 182 }
+        - { file: src/permissions/website.ts, line: 185 }
+        - { file: src/lib/auth.ts, line: 164 }
+    guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 165 }
+          - { file: src/permissions/website.ts, line: 166 }
+          - { file: src/lib/auth.ts, line: 137 }
+        note: "この 3 つの確認は、どれか 1 つを満たせば通る。管理者は、ほかの確認もデータの読み取りもせずに通る。満たさなければ、呼び出し元の受け口が 401 を返す (route.ts:122)"
+      - kind: ownership
+        value: "canDeleteWebsite"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 175 }
+          - { file: src/permissions/website.ts, line: 176 }
+        note: "サイトに持ち主 (website.userId) があるときは、本人 (user.id === website.userId) かどうかだけで決まる (チームの確認へ進まない)"
+      - kind: permission
+        value: "PERMISSIONS.websiteDelete"
+        status: fact
+        evidence:
+          - { file: src/permissions/website.ts, line: 179 }
+          - { file: src/permissions/website.ts, line: 180 }
+          - { file: src/permissions/website.ts, line: 182 }
+          - { file: src/lib/constants.ts, line: 195 }
+        note: "持ち主が無くチームのサイトのとき。そのチームのメンバー (team_user がある) で、役割が website:delete の権限を持つこと"
+
+  - id: q_get_website
+    layer: query
+    kind: function
+    name: "getWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 80 }
+    caller: q_can_delete_website
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でないとき"
+      evidence:
+        - { file: src/permissions/website.ts, line: 6 }
+        - { file: src/permissions/website.ts, line: 165 }
+        - { file: src/permissions/website.ts, line: 169 }
+      note: "この画面は、admin の枠が管理者にだけ描く (AdminLayout.tsx:9) ので、画面からの呼び出しでは、管理者の早い return (website.ts:166) で終わり、この枝には入らないと読める。受け口そのものは管理者でなくても呼べるので、消さずに書いた"
+    summary:
+      status: interpretation
+      value: "id が uuid の形でなければ読まずに null。website を id で 1 件読み (deletedAt の条件は付けない)、見つかればその website の最新の share の slug を shareId として付ける"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 81 }
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 95 }
+        - { file: src/queries/prisma/website.ts, line: 303 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "prisma.client.website.findUnique (where id)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 77 }
+          - { file: src/queries/prisma/website.ts, line: 87 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "管理者でないときだけ (この画面からは届かないと読める)"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "prisma.client.share.findFirst (where entityId, createdAt desc, select slug)"
+        fields:
+          - { name: slug, use: [read] }
+          - { name: entity_id, use: [filter] }
+          - { name: created_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 304 }
+          - { file: src/queries/prisma/website.ts, line: 306 }
+          - { file: src/queries/prisma/website.ts, line: 309 }
+          - { file: src/queries/prisma/website.ts, line: 312 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 406 }
+          - { file: prisma/schema.prisma, line: 408 }
+          - { file: prisma/schema.prisma, line: 412 }
+        note: "website が見つかったときだけ。管理者でないときだけ (この画面からは届かないと読める)"
+
+  - id: ext_prisma_website_find
+    layer: external
+    kind: library
+    name: "Prisma Client website.findUnique"
+    source: { file: src/queries/prisma/website.ts, line: 77 }
+    caller: q_get_website
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 85 }
+        - { file: src/queries/prisma/website.ts, line: 77 }
+      note: "手前にあるのは、id が uuid の形でないときの早い return だけ (website.ts:81)"
+
+  - id: ext_prisma_share_find
+    layer: external
+    kind: library
+    name: "Prisma Client share.findFirst"
+    source: { file: src/queries/prisma/website.ts, line: 304 }
+    caller: q_get_website
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 95 }
+        - { file: src/queries/prisma/website.ts, line: 304 }
+      note: "手前にあるのは、website が見つからないときの早い return だけ (website.ts:91)"
+
+  - id: q_get_team_user
+    layer: query
+    kind: function
+    name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+    source: { file: src/queries/prisma/teamUser.ts, line: 19 }
+    caller: q_can_delete_website
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン中のユーザーが管理者でなく、サイトに持ち主 (userId) が無く、チームのもの (teamId あり) のとき"
+      evidence:
+        - { file: src/permissions/website.ts, line: 6 }
+        - { file: src/permissions/website.ts, line: 165 }
+        - { file: src/permissions/website.ts, line: 175 }
+        - { file: src/permissions/website.ts, line: 179 }
+        - { file: src/permissions/website.ts, line: 180 }
+      note: "getWebsite と同じく、この画面からの呼び出し (管理者) では、この枝には入らないと読める"
+    summary:
+      status: interpretation
+      value: "teamId と自分の userId で、削除されていないチームの team_user を 1 件読む"
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+        - { file: src/queries/prisma/teamUser.ts, line: 24 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team_user } }
+        detail: "prisma.client.teamUser.findFirst (where teamId, userId, team.deletedAt null)"
+        fields:
+          - { name: "*", use: [read] }
+          - { name: team_id, use: [filter] }
+          - { name: user_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 20 }
+          - { file: src/queries/prisma/teamUser.ts, line: 22 }
+          - { file: src/queries/prisma/teamUser.ts, line: 23 }
+          - { file: prisma/schema.prisma, line: 254 }
+          - { file: prisma/schema.prisma, line: 255 }
+          - { file: prisma/schema.prisma, line: 265 }
+        note: "管理者でないときだけ (この画面からは届かないと読める)"
+      - op: read
+        status: interpretation
+        resource: { kind: rdb, levels: { dbms: postgresql, table: team } }
+        detail: "リレーションの条件 team: { deletedAt: null }"
+        fields:
+          - { name: team_id, use: [filter] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/teamUser.ts, line: 24 }
+          - { file: prisma/schema.prisma, line: 233 }
+          - { file: prisma/schema.prisma, line: 240 }
+          - { file: prisma/schema.prisma, line: 249 }
+          - { file: prisma/schema.prisma, line: 260 }
+        note: "TeamUser.team のリレーション条件として読まれる。テーブル名はコードに直接は出ない。管理者でないときだけ (この画面からは届かないと読める)"
+
+  - id: ext_prisma_get_team_user
+    layer: external
+    kind: library
+    name: "Prisma Client teamUser.findFirst"
+    source: { file: src/queries/prisma/teamUser.ts, line: 20 }
+    caller: q_get_team_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/teamUser.ts, line: 20 }
+
+  - id: q_delete_website
+    layer: query
+    kind: function
+    name: "deleteWebsite (src/queries/prisma/website.ts)"
+    source: { file: src/queries/prisma/website.ts, line: 236 }
+    caller: api_website_delete
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 11 }
+        - { file: "src/app/api/websites/[websiteId]/route.ts", line: 125 }
+      note: "手前にあるのは、認証できない・消す権限が無いときの早い return だけ (route.ts:116 / :122)"
+    summary:
+      status: interpretation
+      value: "1 つのトランザクション (時間切れは 30 秒) で、同じファイルの deleteWebsiteDependentData が、サイトに属する計測のデータ (session_replay_saved、session_replay、heatmap_event、revenue、event_data、session_data、session_link、website_event、session) を順に消す。event_data は、website_id での削除のあと、website_event を通して当たる行も生の SQL で消す (website_id がずれた古い行の後始末)。続けて report、segment、annotation、share を消し、最後に website を消す。CLOUD_MODE があるときは、website を消す代わりに deleted_at を入れ (論理削除)、トランザクションのあとに Redis の website:<id> のキャッシュを消す"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 20 }
+        - { file: src/queries/prisma/website.ts, line: 41 }
+        - { file: src/queries/prisma/website.ts, line: 49 }
+        - { file: src/queries/prisma/website.ts, line: 238 }
+        - { file: src/queries/prisma/website.ts, line: 240 }
+        - { file: src/queries/prisma/website.ts, line: 242 }
+        - { file: src/queries/prisma/website.ts, line: 260 }
+        - { file: src/queries/prisma/website.ts, line: 267 }
+        - { file: src/queries/prisma/website.ts, line: 274 }
+        - { file: src/queries/prisma/website.ts, line: 277 }
+    parameters:
+      - name: websiteId
+        value: "URL の段 [websiteId]"
+        status: fact
+        evidence:
+          - { file: "src/app/api/websites/[websiteId]/route.ts", line: 125 }
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、website を消す代わりに deleted_at を入れ (論理削除)、Redis の website:<id> のキャッシュを消す。設定されていなければ、website の行を消し、Redis には触らない"
+        status: fact
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 238 }
+          - { file: src/queries/prisma/website.ts, line: 260 }
+          - { file: src/queries/prisma/website.ts, line: 277 }
+        note: "admin の枠は、ビルド時に埋め込んだ process.env.cloudMode があると何も描かない (src/app/(main)/admin/layout.tsx:5) ので、この画面からは、設定されている側の枝には届かないと読める。サーバーの側は実行時の値を見るので、消さずに書いた"
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: session_replay_saved } }
+        detail: "tx.sessionReplaySaved.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 21 }
+          - { file: src/queries/prisma/website.ts, line: 22 }
+          - { file: prisma/schema.prisma, line: 442 }
+          - { file: prisma/schema.prisma, line: 453 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: session_replay } }
+        detail: "tx.sessionReplay.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 25 }
+          - { file: src/queries/prisma/website.ts, line: 26 }
+          - { file: prisma/schema.prisma, line: 417 }
+          - { file: prisma/schema.prisma, line: 436 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: heatmap_event } }
+        detail: "tx.heatmapEvent.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 29 }
+          - { file: src/queries/prisma/website.ts, line: 30 }
+          - { file: prisma/schema.prisma, line: 458 }
+          - { file: prisma/schema.prisma, line: 480 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: revenue } }
+        detail: "tx.revenue.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 33 }
+          - { file: src/queries/prisma/website.ts, line: 34 }
+          - { file: prisma/schema.prisma, line: 322 }
+          - { file: prisma/schema.prisma, line: 337 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: event_data } }
+        detail: "tx.eventData.deleteMany (where websiteId) と、生の SQL: delete from event_data using website_event where event_data.website_event_id = website_event.event_id and website_event.website_id = $1"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+          - { name: website_event_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 37 }
+          - { file: src/queries/prisma/website.ts, line: 38 }
+          - { file: src/queries/prisma/website.ts, line: 51 }
+          - { file: src/queries/prisma/website.ts, line: 53 }
+          - { file: prisma/schema.prisma, line: 188 }
+          - { file: prisma/schema.prisma, line: 205 }
+        note: "website_event_id は、生の SQL の結合の条件。schema の名前が接続先の URL にあれば、生の SQL の前に search_path を切り替える (website.ts:46)"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website_event } }
+        detail: "生の SQL の using website_event (event_data を消す行を決める結合の相手)"
+        fields:
+          - { name: event_id, use: [filter] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 52 }
+          - { file: src/queries/prisma/website.ts, line: 53 }
+          - { file: src/queries/prisma/website.ts, line: 54 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: session_data } }
+        detail: "tx.sessionData.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 59 }
+          - { file: src/queries/prisma/website.ts, line: 60 }
+          - { file: prisma/schema.prisma, line: 210 }
+          - { file: prisma/schema.prisma, line: 229 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: session_link } }
+        detail: "tx.sessionLink.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 63 }
+          - { file: src/queries/prisma/website.ts, line: 64 }
+          - { file: prisma/schema.prisma, line: 88 }
+          - { file: prisma/schema.prisma, line: 95 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website_event } }
+        detail: "tx.websiteEvent.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 67 }
+          - { file: src/queries/prisma/website.ts, line: 68 }
+          - { file: prisma/schema.prisma, line: 135 }
+          - { file: prisma/schema.prisma, line: 183 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: session } }
+        detail: "tx.session.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 71 }
+          - { file: src/queries/prisma/website.ts, line: 72 }
+          - { file: prisma/schema.prisma, line: 57 }
+          - { file: prisma/schema.prisma, line: 84 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: report } }
+        detail: "tx.report.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 244 }
+          - { file: src/queries/prisma/website.ts, line: 245 }
+          - { file: prisma/schema.prisma, line: 271 }
+          - { file: prisma/schema.prisma, line: 286 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: segment } }
+        detail: "tx.segment.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 248 }
+          - { file: src/queries/prisma/website.ts, line: 249 }
+          - { file: prisma/schema.prisma, line: 307 }
+          - { file: prisma/schema.prisma, line: 317 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: annotation } }
+        detail: "tx.annotation.deleteMany (where websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 252 }
+          - { file: src/queries/prisma/website.ts, line: 253 }
+          - { file: prisma/schema.prisma, line: 291 }
+          - { file: prisma/schema.prisma, line: 302 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: share } }
+        detail: "tx.share.deleteMany (where entityId が websiteId)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: entity_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 256 }
+          - { file: src/queries/prisma/website.ts, line: 257 }
+          - { file: prisma/schema.prisma, line: 403 }
+          - { file: prisma/schema.prisma, line: 412 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "tx.website.delete (where id)"
+        fields:
+          - { name: "*", use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 267 }
+          - { file: src/queries/prisma/website.ts, line: 268 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "CLOUD_MODE が設定されていないときだけ"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: website } }
+        detail: "tx.website.update (data: deletedAt に今の時刻。where id)"
+        fields:
+          - { name: deleted_at, use: [write] }
+          - { name: website_id, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 261 }
+          - { file: src/queries/prisma/website.ts, line: 263 }
+          - { file: src/queries/prisma/website.ts, line: 265 }
+          - { file: prisma/schema.prisma, line: 99 }
+          - { file: prisma/schema.prisma, line: 108 }
+          - { file: prisma/schema.prisma, line: 130 }
+        note: "CLOUD_MODE が設定されているときだけ (この画面からは届かないと読める。admin の枠がクラウドモードでは何も描かない)"
+      - op: delete
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "website:*" } }
+        detail: "redis.client.del(`website:${websiteId}`)"
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: src/queries/prisma/website.ts, line: 277 }
+          - { file: src/queries/prisma/website.ts, line: 278 }
+        note: "CLOUD_MODE が設定されているときだけ (この画面からは届かないと読める。admin の枠がクラウドモードでは何も描かない)。キーをまるごと消す"
+
+  - id: ext_prisma_transaction
+    layer: external
+    kind: library
+    name: "Prisma Client $transaction (中で tx.<model>.deleteMany、tx.$executeRawUnsafe、tx.website.update / delete)"
+    source: { file: src/queries/prisma/website.ts, line: 21 }
+    caller: q_delete_website
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 237 }
+        - { file: src/queries/prisma/website.ts, line: 240 }
+        - { file: src/queries/prisma/website.ts, line: 242 }
+        - { file: src/queries/prisma/website.ts, line: 21 }
+        - { file: src/lib/prisma.ts, line: 844 }
+      note: "リポジトリの transaction (prisma.ts:843) がライブラリの $transaction を包んでいる。source は、ほかの入口の結果に合わせて、トランザクションの中で最初に呼ぶ行 (website.ts:21) にした。中の 15 か所のライブラリの呼び出し (website.ts:21〜71、:244〜:267) は、この 1 つにまとめた"
+
+  - id: ext_redis_del
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) del"
+    source: { file: src/lib/redis.ts, line: 57 }
+    caller: q_delete_website
+    call:
+      status: fact
+      when: conditional
+      condition: "環境変数 CLOUD_MODE が設定されているとき"
+      evidence:
+        - { file: src/queries/prisma/website.ts, line: 277 }
+        - { file: src/queries/prisma/website.ts, line: 278 }
+        - { file: src/lib/redis.ts, line: 57 }
+      note: "deleteWebsite が呼ぶのは、リポジトリが自前で包んだ del (redis.ts:54)。その中の this.client.del がライブラリの呼び出し。この画面からは届かないと読める (admin の枠がクラウドモードでは何も描かない)"

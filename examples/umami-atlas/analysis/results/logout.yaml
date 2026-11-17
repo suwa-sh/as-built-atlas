@@ -1,0 +1,377 @@
+format_version: 1
+entry:
+  id: logout
+  path: /logout
+  name: logout
+  layer: page
+  source: { file: src/app/logout/page.tsx, line: 6 }
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile: { id: ui-nextjs, version: "0.4.0" }
+  skill_version: "0.4.0"
+  model: "claude-fable-5-2"
+  analyzed_at: "2026-11-17T14:56:14Z"
+  reviewed:
+    by: "claude-fable-5-2 (fresh context)"
+    at: "2026-11-17T14:58:33Z"
+    findings_open: 2
+notes: "迷った点と選んだ扱い: (1) LogoutPage は useApi の post を直接呼ぶ (API を呼ぶ専用のフックをはさまない) ので、POST /api/auth/logout の受け口は LogoutPage の下に書いた。useApi は URL とヘッダーを組み立てるだけの小道具としてフレームにしていない (login の結果と同じ扱い)。(2) LogoutPage は、API を呼ぶ前に localStorage のトークンを消すが (LogoutPage.tsx:19)、authorization ヘッダーは描画のときに useApi が組み立て済み (useApi.ts:28) なので、消す前のトークンが送られると読んだ (interpretation として summary に書いた)。(3) /login への移動は、await post の後ろにあり (LogoutPage.tsx:14、16)、API が失敗すると (トークンが無い・無効で 401 など) post が reject して移動の行に届かない。links の note に書いた。(4) call.when: POST /api/auth/logout は、描画の後の useEffect で必ず呼ぶので always。parseRequest → checkAuth は if の中にあるが、この受け口は schema も options も渡さないので always (note に理由)。Redis の del は、設定 (REDIS_URL) と authKey の有無で決まるので conditional。(5) checkAuth の guards / settings / rules と、その先の getUser・Redis の get は、login の結果 (POST /api/auth/verify の下) と同じ綴りで書いた。この入口の中では checkAuth に着く呼び出し元は 1 つだけ。(6) 設定: REDIS_URL は、受け口 (del をするかどうか) と checkAuth (セッションを Redis から読むかどうか) の両方に書いた。BASE_PATH は、API の URL と /login への移動先の両方に効くので LogoutPage に書いた。API_URL は /auth で始まる URL には使われない (api-url.ts:6、39) ので書いていない。APP_SECRET と DATABASE_URL は、分析リポジトリの決まりのとおり書いていない。(7) localStorage のトークンの削除と、ブラウザのストアの user を null にする処理は、ブラウザの中の保存なので I/O に書かず、summary に書いた。(8) Redis が無効のときは、サーバー側で消すものが無く (署名付きトークンは無効にならない)、ブラウザのトークンを消すだけになる。業務のルールというより設定による分かれ道なので、rules ではなく settings (REDIS_URL) と summary に書いた。(9) KVS の auth:* の削除は、キーをまるごと消すので fields は * (write)。作業定義に analysis.tests が無いので、tests は書いていない。直さなかったレビューの指摘 (どちらも low): (a) checkAuth が読む Redis の auth:* の項目が、ほかの 7 つの入口では * になっている件。この結果の書き方 (userId / role / pwd) は分析の指示書の決まり (値の中の項目がコードから読めれば、項目の名前を書く) に合い、login の結果とも同じ綴り。そろえるなら相手の側で、ほかの入口のファイルはこの作業では書き換えられないので、そのままにした。(b) checkAuth の共有トークンの検証 (共有のヘッダーが無ければ拒否、type が share のトークンだけ受け付ける) が rules に無い件。同じ checkAuth を書いた login の結果にも無く、片方だけに足すと入口の間で食い違う。この画面は共有の画面から来ない限り共有のヘッダーを付けないので、guards の note で触れるだけにした。足すかどうかは、checkAuth を持つ入口をまとめて人が決める"
+summary:
+  status: interpretation
+  value: "ログアウトする画面。何も描かず、表示されるとすぐに、ブラウザの localStorage のログイントークンを消し、ストアの user を null にして、POST /api/auth/logout を呼ぶ (authorization ヘッダーは、消す前のトークンで組み立て済み)。受け口は、トークンを検査し (user を読み、Redis が有効でトークンに authKey があれば Redis の auth:* キーからセッションを読む)、認証できなければ 401、できれば Redis が有効で authKey があるときだけ auth:* キーを消して ok を返す。Redis が無効なら、サーバー側で消すものは無い。API が成功すると /login へ移る。環境変数 DISABLE_LOGIN か CLOUD_MODE があれば page は何も描かず、API も呼ばない"
+  evidence:
+    - { file: src/app/logout/page.tsx, line: 7 }
+    - { file: src/app/logout/page.tsx, line: 11 }
+    - { file: src/app/logout/LogoutPage.tsx, line: 14 }
+    - { file: src/app/logout/LogoutPage.tsx, line: 16 }
+    - { file: src/app/logout/LogoutPage.tsx, line: 19 }
+    - { file: src/app/logout/LogoutPage.tsx, line: 20 }
+    - { file: src/app/logout/LogoutPage.tsx, line: 24 }
+    - { file: src/app/api/auth/logout/route.ts, line: 6 }
+    - { file: src/app/api/auth/logout/route.ts, line: 12 }
+    - { file: src/app/api/auth/logout/route.ts, line: 13 }
+    - { file: src/lib/client.ts, line: 13 }
+    - { file: src/lib/storage.ts, line: 23 }
+callstack:
+  - id: page
+    layer: page
+    kind: page
+    name: "logout (src/app/logout/page.tsx)"
+    source: { file: src/app/logout/page.tsx, line: 6 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "サーバー側で動く page。DISABLE_LOGIN か CLOUD_MODE が設定されていれば null を返し、そうでなければ LogoutPage を描く。URL のパラメータは無い"
+      evidence:
+        - { file: src/app/logout/page.tsx, line: 7 }
+        - { file: src/app/logout/page.tsx, line: 11 }
+    settings:
+      - name: DISABLE_LOGIN
+        kind: env
+        effect: "設定されていると、ログアウトの処理をしない (null を返し、LogoutPage を描かない)"
+        status: fact
+        evidence:
+          - { file: src/app/logout/page.tsx, line: 7 }
+          - { file: src/app/logout/page.tsx, line: 8 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていると、ログアウトの処理をしない (null を返し、LogoutPage を描かない)"
+        status: fact
+        evidence:
+          - { file: src/app/logout/page.tsx, line: 7 }
+          - { file: src/app/logout/page.tsx, line: 8 }
+
+  - id: logout_page
+    layer: component
+    kind: component
+    name: "LogoutPage"
+    source: { file: src/app/logout/LogoutPage.tsx, line: 8 }
+    caller: page
+    call:
+      status: fact
+      when: conditional
+      condition: "環境変数 DISABLE_LOGIN と CLOUD_MODE のどちらも設定されていないとき"
+      evidence:
+        - { file: src/app/logout/page.tsx, line: 2 }
+        - { file: src/app/logout/page.tsx, line: 7 }
+        - { file: src/app/logout/page.tsx, line: 11 }
+    summary:
+      status: interpretation
+      value: "ブラウザ側で動く ('use client')。何も描かない (null を返す)。描画の後の useEffect で、localStorage のログイントークン (umami.auth) を消し、ストアの user を null にしてから、useApi の post で POST /auth/logout を呼び、成功したら window.location.href で /login へ移る。authorization ヘッダーは、描画のときに useApi が localStorage のトークンで組み立てるので、消す前のトークンが送られる。URL には getApiUrl が /api を前に付ける (/auth で始まる URL は apiUrl の設定に関わらず basePath + /api)"
+      evidence:
+        - { file: src/app/logout/LogoutPage.tsx, line: 1 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 10 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 12 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 14 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 16 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 19 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 20 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 24 }
+        - { file: src/lib/client.ts, line: 13 }
+        - { file: src/lib/constants.ts, line: 2 }
+        - { file: src/store/app.ts, line: 40 }
+        - { file: src/components/hooks/useApi.ts, line: 28 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+    links:
+      - kind: navigate
+        target: "/login"
+        entry_id: login
+        status: fact
+        evidence:
+          - { file: src/app/logout/LogoutPage.tsx, line: 14 }
+          - { file: src/app/logout/LogoutPage.tsx, line: 16 }
+        note: "POST /auth/logout が成功した後、window.location.href で移る。前に basePath が付く。API が失敗すると (401 など) post が reject し、この行には届かない"
+    settings:
+      - name: BASE_PATH
+        kind: env
+        effect: "呼ぶ API の URL の前に付く (basePath + /api + /auth/logout)。ログアウトの後の移動先 (basePath + /login) の前にも付く。next.config が process.env.basePath として埋め込む"
+        status: fact
+        evidence:
+          - { file: src/lib/api-url.ts, line: 38 }
+          - { file: src/lib/api-url.ts, line: 44 }
+          - { file: src/app/logout/LogoutPage.tsx, line: 16 }
+          - { file: next.config.ts, line: 15 }
+          - { file: next.config.ts, line: 216 }
+
+  - id: api_logout
+    layer: api_route
+    kind: route_handler
+    name: "POST /api/auth/logout"
+    source: { file: src/app/api/auth/logout/route.ts, line: 5 }
+    caller: logout_page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/logout/LogoutPage.tsx, line: 14 }
+        - { file: src/app/logout/LogoutPage.tsx, line: 21 }
+        - { file: src/components/hooks/useApi.ts, line: 49 }
+        - { file: src/lib/api-url.ts, line: 6 }
+        - { file: src/lib/api-url.ts, line: 44 }
+      note: "利用者の操作を待たず、LogoutPage の描画の後の useEffect で必ず呼ぶ"
+    summary:
+      status: interpretation
+      value: "parseRequest (skipAuth なし) で Bearer トークンを検査し、認証できなければ 401。できれば、Redis が有効で、認証の結果に authKey (Redis に保存したセッションのキー) があるときだけ、そのキーを Redis から消す。最後に ok を返す。Redis が無効のとき (トークンが userId を直接持つとき) は、サーバー側では何も消さない"
+      evidence:
+        - { file: src/app/api/auth/logout/route.ts, line: 6 }
+        - { file: src/app/api/auth/logout/route.ts, line: 8 }
+        - { file: src/app/api/auth/logout/route.ts, line: 12 }
+        - { file: src/app/api/auth/logout/route.ts, line: 13 }
+        - { file: src/app/api/auth/logout/route.ts, line: 16 }
+    parameters:
+      - name: authorization
+        value: "Bearer トークン (useApi がブラウザに保存したトークンを付ける)"
+        status: fact
+        evidence:
+          - { file: src/components/hooks/useApi.ts, line: 28 }
+    settings:
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されている (redis.enabled) ときだけ、トークンの authKey に当たるセッションを Redis から消す。無ければ、サーバー側では何も消さない"
+        status: fact
+        evidence:
+          - { file: src/app/api/auth/logout/route.ts, line: 12 }
+          - { file: src/app/api/auth/logout/route.ts, line: 13 }
+          - { file: src/lib/redis.ts, line: 106 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.del(auth.authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: src/app/api/auth/logout/route.ts, line: 13 }
+          - { file: src/lib/auth.ts, line: 142 }
+          - { file: src/lib/auth.ts, line: 150 }
+          - { file: src/lib/redis.ts, line: 57 }
+        note: "Redis が有効 (REDIS_URL あり) で、認証の結果に authKey があるときだけ"
+
+  - id: q_parse_request
+    layer: query
+    kind: function
+    name: "parseRequest (src/lib/request.ts)"
+    source: { file: src/lib/request.ts, line: 16 }
+    caller: api_logout
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/app/api/auth/logout/route.ts, line: 6 }
+    summary:
+      status: interpretation
+      value: "URL と JSON 本文を読み、skipAuth が無いので checkAuth で認証する。認証できなければ unauthorized のエラーを返す"
+      evidence:
+        - { file: src/lib/request.ts, line: 21 }
+        - { file: src/lib/request.ts, line: 23 }
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/lib/request.ts, line: 55 }
+
+  - id: q_check_auth
+    layer: query
+    kind: function
+    name: "checkAuth (src/lib/auth.ts)"
+    source: { file: src/lib/auth.ts, line: 71 }
+    caller: q_parse_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/request.ts, line: 51 }
+        - { file: src/lib/request.ts, line: 52 }
+        - { file: src/app/api/auth/logout/route.ts, line: 6 }
+      note: "if (!options?.skipAuth && !error) の中にあるが、POST /api/auth/logout は schema も options も渡さないので (logout/route.ts:6)、入力の検査のエラーは起きず、条件はいつも成り立つ"
+    summary:
+      status: interpretation
+      value: "トークンが umami_ で始まる API キーなら checkApiKeyAuth へ進むが、/api/auth は API キーを拒否するパスなので、API キーの経路 (api_key の読み書き) はここでは働かない。それ以外は署名付きトークンを解き、2FA の仮トークンなら拒否する。userId があれば user を読み、無くて authKey があれば (Redis が有効なとき) Redis からセッションを読んでから user を読む。パスワードの指紋が今のパスワードと合わなければ無効にする。ユーザーも共有トークンも無ければ null を返す (呼び出し元が 401 にする)。返す値に authKey を入れる (受け口が、消すキーとして使う)"
+      evidence:
+        - { file: src/lib/auth.ts, line: 74 }
+        - { file: src/lib/auth.ts, line: 35 }
+        - { file: src/lib/api-key.ts, line: 15 }
+        - { file: src/lib/auth.ts, line: 83 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 108 }
+        - { file: src/lib/auth.ts, line: 122 }
+        - { file: src/lib/auth.ts, line: 142 }
+    guards:
+      - kind: authentication
+        status: interpretation
+        evidence:
+          - { file: src/lib/auth.ts, line: 72 }
+          - { file: src/lib/auth.ts, line: 78 }
+          - { file: src/lib/auth.ts, line: 122 }
+          - { file: src/lib/auth.ts, line: 124 }
+          - { file: src/lib/request.ts, line: 54 }
+        note: "authorization ヘッダーの Bearer トークン (署名付きトークン) から、削除されていない user を特定できること。満たさなければ null を返し、parseRequest が 401 (unauthorized) にする。共有トークンでも通る分かれ道があるが (auth.ts:127)、共有のヘッダーが付くのは、ブラウザのストアに共有の情報があるときだけ (useApi.ts:22)"
+    settings:
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていないときだけ、umami_ で始まるトークンを API キーとして扱う"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+      - name: REDIS_URL
+        kind: env
+        effect: "設定されている (redis.enabled) ときだけ、トークンの authKey で Redis からセッションを読む"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 101 }
+          - { file: src/lib/redis.ts, line: 106 }
+    rules:
+      - kind: validation
+        value: "2 段階認証の仮トークン (type が partial-auth) は、セッションとして受け付けない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 83 }
+          - { file: src/lib/auth.ts, line: 85 }
+          - { file: src/lib/constants.ts, line: 15 }
+      - kind: validation
+        value: "トークン (またはセッション) が持つパスワードの指紋が、今のパスワードのハッシュと違えば無効にする (指紋を持たない古いトークンは通す)"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 98 }
+          - { file: src/lib/auth.ts, line: 108 }
+      - kind: calculation
+        value: "isAdmin は、user の role が admin のとき true"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 137 }
+          - { file: src/lib/constants.ts, line: 175 }
+    io:
+      - op: get
+        status: fact
+        resource: { kind: kvs, levels: { key_pattern: "auth:*" } }
+        detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
+        fields:
+          - { name: userId, use: [read] }
+          - { name: role, use: [read] }
+          - { name: pwd, use: [read] }
+        evidence:
+          - { file: src/lib/auth.ts, line: 102 }
+          - { file: src/lib/auth.ts, line: 104 }
+          - { file: src/lib/auth.ts, line: 108 }
+          - { file: src/lib/auth.ts, line: 150 }
+          - { file: src/app/api/auth/login/route.ts, line: 57 }
+        note: "トークンに userId が無く、Redis が有効 (REDIS_URL あり) で、トークンに authKey が入っているときだけ。項目の名前は、保存する側 (login/route.ts:57) が書く JSON のキー"
+
+  - id: q_get_user
+    layer: query
+    kind: function
+    name: "getUser (src/queries/prisma/user.ts)"
+    source: { file: src/queries/prisma/user.ts, line: 49 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId があるとき、または Redis から読んだセッションに userId があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 93 }
+        - { file: src/lib/auth.ts, line: 94 }
+        - { file: src/lib/auth.ts, line: 104 }
+        - { file: src/lib/auth.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "findUser を通して、id で削除されていない user を 1 件読む (パスワードの列は includePassword のときだけ。checkAuth は付けて呼ぶ)"
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+        - { file: src/queries/prisma/user.ts, line: 36 }
+        - { file: src/queries/prisma/user.ts, line: 41 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: postgresql, table: user } }
+        detail: "prisma.client.user.findUnique (where id, deletedAt null)。select は id / username / password / role / createdAt / twoFactorRequired"
+        fields:
+          - { name: user_id, use: [read, filter] }
+          - { name: username, use: [read] }
+          - { name: password, use: [read] }
+          - { name: role, use: [read] }
+          - { name: created_at, use: [read] }
+          - { name: two_factor_required, use: [read] }
+          - { name: deleted_at, use: [filter] }
+        evidence:
+          - { file: src/queries/prisma/user.ts, line: 32 }
+          - { file: src/queries/prisma/user.ts, line: 36 }
+          - { file: src/queries/prisma/user.ts, line: 38 }
+          - { file: src/queries/prisma/user.ts, line: 53 }
+          - { file: src/lib/auth.ts, line: 94 }
+          - { file: prisma/schema.prisma, line: 13 }
+          - { file: prisma/schema.prisma, line: 19 }
+          - { file: prisma/schema.prisma, line: 20 }
+          - { file: prisma/schema.prisma, line: 22 }
+          - { file: prisma/schema.prisma, line: 37 }
+          - { file: prisma/schema.prisma, line: 8 }
+
+  - id: ext_prisma_user
+    layer: external
+    kind: library
+    name: "Prisma Client user.findUnique"
+    source: { file: src/queries/prisma/user.ts, line: 32 }
+    caller: q_get_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/queries/prisma/user.ts, line: 50 }
+        - { file: src/queries/prisma/user.ts, line: 32 }
+
+  - id: ext_redis_get
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) get"
+    source: { file: src/lib/redis.ts, line: 37 }
+    caller: q_check_auth
+    call:
+      status: fact
+      when: conditional
+      condition: "トークンに userId が無く、Redis が有効で、トークンに authKey があるとき"
+      evidence:
+        - { file: src/lib/auth.ts, line: 101 }
+        - { file: src/lib/auth.ts, line: 102 }
+        - { file: src/lib/redis.ts, line: 37 }
+
+  - id: ext_redis_del
+    layer: external
+    kind: library
+    name: "redis (node-redis クライアント) del"
+    source: { file: src/lib/redis.ts, line: 57 }
+    caller: api_logout
+    call:
+      status: fact
+      when: conditional
+      condition: "Redis が有効 (REDIS_URL あり) で、認証の結果に authKey があるとき"
+      evidence:
+        - { file: src/app/api/auth/logout/route.ts, line: 12 }
+        - { file: src/app/api/auth/logout/route.ts, line: 13 }
+        - { file: src/lib/redis.ts, line: 57 }
+      note: "手前に、認証できないときに打ち切る経路 (logout/route.ts:8) がある"

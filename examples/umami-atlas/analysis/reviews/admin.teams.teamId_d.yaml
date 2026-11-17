@@ -1,0 +1,27 @@
+format_version: 1
+entry_id: admin.teams.teamId_d
+reviewed_at: "2026-11-17T11:45:37Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/use_team_query/settings
+    resolved: true
+    claim: "API を呼ぶフックの settings に API_URL だけがあり、API の URL の前に付く BASE_PATH が無い。getApiUrl は basePath も読み (api-url.ts:38、:41、:44)、ほかの入口の結果 (admin.teams、admin.users、admin.users.userId_d、admin.security など) は、同じフックに BASE_PATH を書いている。同じ漏れが、use_delete_team_user / use_update_team / use_add_team_user / use_users_query / use_team_members_query / use_update_team_user / use_two_factor_status / use_update_team_2fa / use_delete_team と、/auth を呼ぶ use_login_query にもある"
+    evidence: { file: src/lib/api-url.ts, line: 38 }
+    suggestion: "API を呼ぶ各フックの settings に、name が BASE_PATH の設定を足す (根拠は next.config.ts:15、:216 と api-url.ts:38、:41、:44。効果の文は、ほかの入口の結果と同じにする)。use_login_query には BASE_PATH だけを書く"
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_get_users/io/0/fields
+    resolved: true
+    claim: "user の読み取りの列を「*」と書いているが、呼び出し元が omit で password を外している (route.ts:37) ので、全部の列ではない。同じ読み取りを、ほかの入口の結果 (admin.users、admin.teams) は、password を除いた列を 1 つずつ書いていて、綴りが合っていない。並びに使える role も、列として出ていない"
+    evidence: { file: src/app/api/admin/users/route.ts, line: 37 }
+    suggestion: "「*」をやめて、password を除く列 (user_id / username / role / logo_url / display_name / two_factor_required / created_at / updated_at / deleted_at) を 1 つずつ書き、絞り込みと並びに使う列 (username / role / created_at / deleted_at / user_id) に filter を付ける"
+  - kind: missing_frame
+    severity: low
+    where: callstack/q_check_auth
+    claim: "checkAuth の API キーの枝 (auth.ts:74 → checkApiKeyAuth → getApiKeyByHash / getUser / updateApiKeyLastUsed) を辿っていない。/api/teams で始まる受け口は API キーを断るパス (api-key.ts:11) に入っていないので、コードの上では api_key の読み書きに届く。この結果は、ほかの「この入口からは成り立たないように見える」枝 (退出ボタン、管理者でないときの getTeamUser、クラウドモードの deleteTeam) を conditional で残しているのに、この枝だけは消していて、扱いがそろっていない。枝を辿らないのに、枝に入るかを決める CLOUD_MODE だけを settings に書いている点も、食い違う"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    suggestion: "checkApiKeyAuth 以下を conditional のフレームとして足し、note に「ブラウザはログイントークンを付けるので、この入口からは成り立たないように見える」と書く。辿らないことにするなら、分析の癖 (analysis-conventions.md) にその決まりを足したうえで、checkAuth の settings から CLOUD_MODE を外す (この入口では有無で結果が変わらない設定になるため)"
+notes: "機械チェックは OK (プロファイルも読めている)。主張の根拠の行は、全フレームについて対象のコードと schema.prisma を開いて確かめ、食い違いは見つからなかった (high / medium の指摘は無い)。同じ処理の置き場 (parseRequest、getTeamUser、canUpdateTeam、useLoginQuery、メンバーの DELETE、useTeamMembersQuery) は、入口から辿る順のとおりだった。書き直しのフレーム (id が _rw で終わるもの) も、分析の癖の決まり (読み書きを持つ最初の段まで。確認・設定・ルールを繰り返さない) のとおり。指摘にしなかったが、入口をまたいで食い違っている点: (1) checkAuth の Redis の読み取り (auth:*) は、ここでは status が interpretation で列が「*」。ほかの入口には、fact で userId / pwd を書いた結果と、fact で「*」の結果がある。(2) deleteTeam のクラウドモードの枝の読み書き (team / link / pixel の論理削除) は、ここには書いてあり、同じ部品を通る settings.teams.teamId_d には無い。分析の skill の決まり (成り立たないように見える枝も消さずに書く) には、こちらの書き方が合っている。(3) API キーの枝を辿らない扱いは、ほかの入口の結果にも共通している。3 件目の指摘は、この入口だけを直すのではなく、決まりにするかどうかを人が決めるのがよい。(4) 小窓の中の部品 (TeamLeaveForm、TeamMemberAddForm、TeamMemberEditForm、TeamDeleteForm) の call は fact で、条件は「小窓を開いたとき」。開くまで中身を描かないかどうかは UI ライブラリの中で決まるので、admin.users の結果は同じ形の呼び出しを interpretation にしている。"

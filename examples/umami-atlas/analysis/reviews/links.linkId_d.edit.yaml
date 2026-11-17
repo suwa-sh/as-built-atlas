@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: links.linkId_d.edit
+reviewed_at: "2026-11-17T11:42:06Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: medium
+    resolved: true
+    where: callstack/q_create_share/io/0/fields
+    claim: "share の作成で書く列に updated_at が無い。Share.updatedAt は @updatedAt なので、Prisma は作成のときにも値を書く。同じ結果の中で、link と share の更新には updated_at を書いていて、扱いがそろっていない。"
+    evidence: { file: prisma/schema.prisma, line: 409 }
+    suggestion: "fields に updated_at (use: write) を足し、根拠に prisma/schema.prisma:409 を入れて、note に @updatedAt が自動で書くことを書く。書かないと決めるなら、その理由を結果の notes に書く。"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/q_check_auth/rules
+    claim: "checkAuth の業務のルールに、共有トークンの扱い (type が共有用のものだけを受け付ける。ユーザーが無く共有トークンだけのときは、共有の文脈のヘッダーが無ければ認めない) が無い。ほかの入口の結果 (links.linkId_d、layout_l.main_g など) は、同じ関数にこのルールを書いている。この入口では、canViewLink が共有トークンで許す経路を持つので、関係がある。"
+    evidence: { file: src/lib/auth.ts, line: 127 }
+    suggestion: "q_check_auth の rules に、validation として 1 件足す (根拠は src/lib/auth.ts の 127〜132 行と、parseShareToken の 174 行)。"
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/share_edit_form/call
+    claim: "「編集ボタンを押して、小窓を開いたとき」だけ描くという条件の根拠が、SimpleShareEditButton の 2 行だけ。小窓として開く仕組み (DialogTrigger と Modal の中に children を置く) は DialogButton にあり、その行が根拠に無い。開くまで中身を描かないこと自体は UI ライブラリの動きで、リポジトリからは読めない。"
+    evidence: { file: src/components/input/DialogButton.tsx, line: 85 }
+    suggestion: "call の evidence に src/components/input/DialogButton.tsx の 81 行と 85 行を足し、note に「開くまで描かないのは UI ライブラリ (@umami/react-zen) の動き」と書く。"
+notes: "主張はおおむねコードと合っていた。根拠の行は、対象の 30 ほどのファイルで 1 つずつ開いて確かめ、食い違いは無かった。指摘にしなかったこと: (1) useConfig が呼ぶ GET /api/config を段にしていないのは、(main) の枠の結果と同じ扱いで、終端の決まりを満たせないという理由も notes に書いてあるので、漏れに数えていない。(2) LINKS_URL は表示する文字だけを変える設定だが、links.linkId_d の結果も同じように書いているので、そのままでよい。一方、SimpleShareEditForm の共有の URL (CLOUD_MODE / CLOUD_URL / BASE_PATH) は「表示だけ」として設定に書いていない。表示だけの設定を書くかどうかの扱いが、同じ結果の中で分かれている。どちらかにそろえるかは、人が決めるとよい。(3) ext_prisma_get_website と ext_prisma_paged_share は、ライブラリを呼ぶ 2 つの行を 1 つの段にまとめている (note に説明がある)。(4) src/lib/schema.ts の pagingParams (page / pageSize は正の整数) は、型の確認に近いので、ルールの漏れにしていない。(5) share/id/[shareId] の GET と DELETE に、共有が無いときの確認が無いことは、結果の notes と summary に書いてある (対象のコードの側の性質で、分析の誤りではない)。(6) 名前と値の綴り (user.isAdmin、PERMISSIONS.websiteUpdate、API_URL、CLOUD_MODE、BASE_PATH、${process.env.cloudUrl} で始まる行き先) は、analysis-conventions.md と、ほかの入口の結果に合っていた。"

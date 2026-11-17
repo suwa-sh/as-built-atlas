@@ -471,12 +471,13 @@ callstack:
         - { file: src/permissions/share.ts, line: 85 }
     guards:
       - kind: other
-        value: "auth.user が無いときは、shareTokenIncludesWebsite(auth, websiteId) (共有トークンの websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じ)"
+        value: "canViewSharedWebsite"
         status: fact
         evidence:
           - { file: src/permissions/share.ts, line: 85 }
           - { file: src/permissions/share.ts, line: 40 }
           - { file: "src/app/api/websites/[websiteId]/route.ts", line: 31 }
+        note: "auth.user が無いときは、shareTokenIncludesWebsite(auth, websiteId) (共有トークンの websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じ)"
 
   - id: q_can_view_website
     layer: query
@@ -505,32 +506,34 @@ callstack:
         - { file: src/permissions/website.ts, line: 40 }
     guards:
       - kind: role
-        value: "user.isAdmin (user.role === ROLES.admin)"
+        value: "user.isAdmin"
         status: fact
         evidence:
           - { file: src/permissions/website.ts, line: 9 }
           - { file: src/lib/auth.ts, line: 137 }
-        note: "この 4 つの確認は、どれか 1 つを満たせば通る。管理者は、ほかの確認もデータの読み取りもせずに通る"
+        note: "この 4 つの確認は、どれか 1 つを満たせば通る。管理者は、ほかの確認もデータの読み取りもせずに通る。user.isAdmin は user.role === ROLES.admin で決まる"
       - kind: other
-        value: "shareToken の websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じ"
+        value: "canViewWebsite"
         status: fact
         evidence:
           - { file: src/permissions/website.ts, line: 13 }
           - { file: src/permissions/website.ts, line: 21 }
+        note: "shareToken の websiteId / pixelId / linkId / websiteIds / pixelIds / linkIds のどれかが、この id と同じ"
       - kind: ownership
-        value: "user.id === entity.userId"
+        value: "canViewWebsite"
         status: fact
         evidence:
           - { file: src/permissions/website.ts, line: 30 }
           - { file: src/permissions/website.ts, line: 31 }
-        note: "対象に持ち主 (userId) があるときは、この結果だけで決まる (チームの確認へ進まない)"
+        note: "対象に持ち主 (userId) があるときは、この結果だけで決まる (チームの確認へ進まない)。user.id === entity.userId"
       - kind: ownership
-        value: "getTeamUser(entity.teamId, user.id) が当たる (対象のチームのメンバー)"
+        value: "canViewWebsite"
         status: fact
         evidence:
           - { file: src/permissions/website.ts, line: 34 }
           - { file: src/permissions/website.ts, line: 35 }
           - { file: src/permissions/website.ts, line: 37 }
+        note: "getTeamUser(entity.teamId, user.id) が当たる (対象のチームのメンバー)"
 
   - id: q_get_entity
     layer: query
@@ -987,7 +990,7 @@ callstack:
         - { file: src/permissions/share.ts, line: 77 }
     guards:
       - kind: other
-        value: "auth.user が無いときは、共有トークンがあり、shareTokenIncludesWebsite(auth, websiteId) で、区画の指定 (parameters の真偽値) があるなら ['overview', 'realtime'] のどれかが true"
+        value: "canViewWebsiteSection"
         status: fact
         evidence:
           - { file: src/permissions/share.ts, line: 64 }
@@ -995,6 +998,7 @@ callstack:
           - { file: src/permissions/share.ts, line: 77 }
           - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 18 }
           - { file: "src/app/api/websites/[websiteId]/active/route.ts", line: 19 }
+        note: "auth.user が無いときは、共有トークンがあり、shareTokenIncludesWebsite(auth, websiteId) で、区画の指定 (parameters の真偽値) があるなら ['overview', 'realtime'] のどれかが true"
 
   - id: q_can_view_website_rw
     layer: query
@@ -1121,15 +1125,6 @@ callstack:
           - { file: src/lib/db.ts, line: 27 }
           - { file: src/lib/db.ts, line: 32 }
           - { file: src/queries/sql/getActiveVisitors.ts, line: 12 }
-      - name: DATABASE_URL
-        kind: env
-        effect: "CLICKHOUSE_URL が無いとき、URL の種類が postgres のときだけ PostgreSQL 用の問い合わせが動く (ほかの種類では、何も動かさない)。URL の schema の指定があれば、問い合わせの前に search_path をそれに切り替える"
-        status: fact
-        evidence:
-          - { file: src/lib/db.ts, line: 12 }
-          - { file: src/lib/db.ts, line: 37 }
-          - { file: src/lib/prisma.ts, line: 848 }
-          - { file: src/lib/prisma.ts, line: 743 }
       - name: DATABASE_REPLICA_URL
         kind: env
         effect: "あれば、PostgreSQL 用の読み取りの生 SQL を、複製 (replica) へ送る"

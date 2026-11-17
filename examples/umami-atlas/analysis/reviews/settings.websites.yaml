@@ -1,0 +1,41 @@
+format_version: 1
+entry_id: settings.websites
+reviewed_at: "2026-11-17T15:28:07Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/api_user_websites_get/call
+    claim: "useUserWebsitesQuery は URL を引数の三項演算 (teamId があれば /teams/<teamId>/websites、無くて userId があれば /users/<userId>/websites、どちらも無ければ /me/websites) で選んでいる。この入口でいつも /users/<userId>/websites になるのは、page の params に [teamId] の段が無いことと、枠の App がユーザーを得てから描くことからの読み取りなのに、call が fact になっている。context.md は「URL が引数で組み立てられ、候補が複数ある」ときを interpretation と決めていて、同じフックを書いたほかの入口の結果 (layout_l.main_g / boards / boards.boardId_d.edit / dashboard.edit) も interpretation にしている"
+    evidence: { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 18 }
+    suggestion: "call.status を interpretation にし、note の理由 (teamId がいつも undefined、userId がいつもある) はそのまま残す"
+    resolved: true
+  - kind: missing_frame
+    severity: low
+    where: callstack/use_user_websites_query
+    claim: "useUserWebsitesQuery の、ほかの 2 つの行き先 (GET /api/teams/[teamId]/websites と GET /api/me/websites) のフレームが無い。この結果は、この入口からは条件が成り立たないように見える POST /api/auth/verify と GET /api/config を、分析の skill の決まりのとおり消さずに conditional で書いているのに、この 2 つだけは notes (3) で省いていて、同じ結果の中で扱いが食い違う。context.md も「候補が有限で全部読めるなら、それぞれフレームにする」と決めている"
+    evidence: { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 19 }
+    suggestion: "use_user_websites_query の下に、GET /api/teams/[teamId]/websites と GET /api/me/websites を when conditional (teamId があるとき / userId が無いとき) で足し、この入口からは成り立たないように見える理由を note に書く (boards の結果の書き方)。省くままにするなら、扱いを analysis-conventions.md に決めて書く"
+  - kind: missing_item
+    severity: low
+    where: callstack/use_user_websites_query
+    claim: "BASE_PATH の設定が無い。getApiUrl は、API_URL が無ければ basePath + /api を、API_URL が相対の URL なら basePath + API_URL を前に付ける (api-url.ts:43、:44) ので、BASE_PATH は /auth と /config だけでなく、このフックの GET /users/<userId>/websites の行き先も変える。notes (7) の「/auth/verify と /config には API_URL が効かないので BASE_PATH を書いた」は、BASE_PATH がそこだけに効くように読める"
+    evidence: { file: src/lib/api-url.ts, line: 44 }
+    suggestion: "use_user_websites_query の settings に BASE_PATH (kind env、根拠は api-url.ts:38、:43、:44 と next.config.ts:15、:216) を足す (links / admin.websites の結果の書き方)"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/use_website_list_charts
+    claim: "BASE_PATH の設定が無い。GET /websites/charts の行き先も、getApiUrl が basePath を前に付ける (api-url.ts:43、:44) ので、BASE_PATH で変わる"
+    evidence: { file: src/lib/api-url.ts, line: 44 }
+    suggestion: "use_website_list_charts の settings に BASE_PATH を足す (links の結果の use_link_list_charts_query と同じ書き方)"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の概要の「どの API も最初にログインの確認 (user。REDIS_URL があれば Redis の auth:*) を行う」は言い過ぎで、GET /api/config は parseRequest を skipAuth で呼ぶのでログインの確認をしない。フレーム api_config の summary は正しく書いてあり、表現だけの問題"
+    evidence: { file: src/app/api/config/route.ts, line: 8 }
+    suggestion: "「/api/config を除くどの API も」と書く (links.linkId_d / pixels.pixelId_d の概要の書き方)"
+    resolved: true
+notes: "根拠の行 (page / WebsitesSettingsPage / WebsitesDataTable / WebsitesTable / useLoginQuery / useUserWebsitesQuery / usePagedQuery / useWebsiteListChartsQuery / useConfig / Favicon / useApi / useNavigation / api-url / DataGrid / App.tsx / next.config.ts / auth/verify・users/[userId]/websites・websites/charts・config の route / request.ts / auth.ts / api-key.ts / redis.ts / user.ts / team.ts / website.ts / permissions/website.ts / getWebsiteListCharts.ts / db.ts / prisma.ts / clickhouse.ts / constants.ts / response.ts / schema.prisma / clickhouse の schema.sql) は、どれも主張を支えていた。辿り漏れの元になる部品 (Link、DataGrid、useTimezone、useModified、WebsiteSparkline、SectionHeader) は API を呼ばないので、フレームにしないのは context.md の決まりどおり。権限の確認の値 (canViewBatchWebsites、auth.user.id === userId) と、ログイン済みの確認を checkAuth の段だけに value 無しで書く形は、analysis-conventions.md とほかの入口の結果 (admin.users.userId_d など) にそろっている。指摘にしなかったこと: (1) checkAuth の CLOUD_MODE は、この入口では API キーの経路を辿らないので有無で結果が変わらないとも言えるが、前のレビューで指摘され、全部の入口でそろえるために残す扱いになっている (admin.websites.websiteId_d の notes) ので、繰り返さない。(2) DATABASE_REPLICA_URL は ext_charts_pg にだけ書かれているが、prisma.ts は replica があるとき readReplicas の拡張で ORM の読み取り (user.findUnique、team.findMany、website.findMany など) も複製の DB へ送る (prisma.ts:900)。ほかの入口の結果も生の SQL の段にだけ書いているので、入口をまたいだ扱いとして analysis-conventions.md で決めるのがよい。(3) BASE_PATH を API を呼ぶフックごとに書くかは、入口の結果ごとに割れている (links / admin.websites はどのフックにも書き、admin.users.userId_d は /auth のフックにだけ書く。boards.boardId_d.edit の notes も人の判断に回している)。上の 2 件の指摘は、この結果の notes (7) の理由づけが事実と合わないことを主にしたもので、そろえ方は analysis-conventions.md で決めるのがよい。(4) 編集ボタンの行き先 (WebsitesTable.tsx:85) は renderUrl に false を渡さないので、いまの URL のクエリ (page / search / orderBy など) を引き継ぐ。links の note には書かれていないが、行き先の入口は変わらないので指摘にしなかった"

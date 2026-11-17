@@ -1,0 +1,41 @@
+format_version: 1
+entry_id: admin.websites.websiteId_d
+reviewed_at: "2026-11-17T11:47:41Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/api_shares_get/parameters/0
+    claim: "search を、filterParams と pagingParams のスキーマで受けるクエリとして fact で書いているが、どちらのスキーマにも search が無い (search は別の searchParams にある)。z.object は知らないキーを落とし、parseRequest が戻すのは数字で終わるキーなどだけなので、route.ts:27 の search は、いつも undefined になる"
+    evidence: { file: "src/app/api/websites/[websiteId]/shares/route.ts", line: 16 }
+    suggestion: "parameters の名前を page / pageSize にし、search は取り出しているがスキーマに無いので届かないことを note に書く (根拠に src/lib/schema.ts:45、:73、:87 を足す)"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_get_user_teams/io/0
+    claim: "note の「name は、検索の語があるときの部分一致にも使う」と根拠の team.ts:41 は、この入口の経路では成り立たない。GET /api/users/[userId]/teams のスキーマは pagingParams と sortingParams だけで search を受けないので、getTeams の search はいつも undefined になり、getSearchParameters は条件を足さない"
+    evidence: { file: "src/app/api/users/[userId]/teams/route.ts", line: 8 }
+    suggestion: "name の filter は並びの指定 (orderBy) だけを理由にし、note から検索の部分一致を外すか「この受け口からは検索の語が届かない」と書く"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/shares_table/links
+    claim: "SharesTable が描く SharedSharesTable (見た目だけとしてフレームにしていない) は、共有 URL を別タブで開くリンク (/share/<slug>) を出す。行き先は入口 share.slug_d.path_o だが、links に書かれていない (同じ扱いの WebsiteSettingsHeader の戻るリンクは、親の段の links に書いてある)"
+    evidence: { file: "src/components/share/SharedSharesTable.tsx", line: 109 }
+    suggestion: "shares_table の links に、kind: navigate、target: \"/share/${slug}\"、entry_id: share.slug_d.path_o を足す (根拠は SharedSharesTable.tsx:34、:109。クラウドモードでは cloudUrl の側を開くことを note に書く)"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_check_auth/settings/0
+    claim: "CLOUD_MODE の効き目は API キーでの認証を受け付けるかどうかだけだが、結果は API キーの経路 (auth.ts:74-76 の checkApiKeyAuth) を「この画面からは使わない」として書いていない。この入口では有無で結果が変わらない設定は書かない決まりと食い違う"
+    evidence: { file: "src/lib/auth.ts", line: 74 }
+    suggestion: "API キーの経路を conditional のフレーム (この入口からは成り立たないように見える理由を note に書く) として足すか、checkAuth の settings から CLOUD_MODE を外す。どちらにするかを analysis-conventions.md に決めて、ほかの入口とそろえる"
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/website_replay_settings/links/0
+    claim: "links は、ほかの入口へのつながりを書く場所だが、この行き先はクラウドの請求の画面で、このリポジトリの入口ではない (entry_id も無い)。行き先のホストは環境変数 (process.env.cloudUrl) で決まり、静的には読めないのに status が fact になっている"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteReplaySettings.tsx", line: 130 }
+    suggestion: "links から外して summary の説明だけにするか、残すなら status を unknown (reason: out_of_scope) にして、ホストが CLOUD_URL で決まることを note に書く"
+    resolved: true
+notes: "112 フレームの call / summary / parameters / io / guards / settings / rules / links を、根拠の行と対象のファイルで確かめた。根拠の行は、どれも主張を支えていた (行のずれは無い)。層と種類、when、fact / interpretation の付け方、データの当てはめ、終端の決まりを満たすための書き直し (id が _rw で終わるフレーム) の範囲、同じ関数を最初に着いた呼び出し元の下に 1 回だけ書く置き場も、決まりのとおりだった。権限の確認の値と設定の名前の綴りは、analysis-conventions.md の表に合っている (本人の確認 auth.user.id === userId は、ほかの入口の結果にも同じ綴りがある)。指摘にしなかったこと: (1) API キーの経路 (checkApiKeyAuth → api_key の読み取りと最終利用時刻の更新) を書いていないのは、分析の skill の「成り立たないように見える呼び出しは、消さずに conditional で書く」に沿わないが、理由が結果の notes (9) に書いてあり、ほかの入口の結果も同じ扱いにそろっているので、missing_frame にはしていない。analysis-conventions.md に扱いを明記するとよい。(2) Prisma の読み取りを複製へ送る DATABASE_REPLICA_URL を settings に書いていないのは、ほかの入口と同じ扱い (どの読み取りにも同じように効く接続の設定)。(3) リレーション経由のテーブル (team、team_user、user、website) の読み取りを interpretation にしているのは、テーブル名がコードに直接は出ないという理由が note にあり、妥当と見た。(4) 戻るリンクの target は、コードの書き方 (/websites/${website.id}) ではなく /websites/${websiteId} だが、ほかの入口の結果の多い方の綴りに合わせてあり、理由が note にある。(5) deleteWebsiteDependentData は、スキーマがあるとき SET search_path を実行する (website.ts:43-47) が、データの読み書きではないので書かれていなくてよい。"

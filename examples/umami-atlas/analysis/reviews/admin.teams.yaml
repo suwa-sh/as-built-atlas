@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: admin.teams
+reviewed_at: "2026-11-17T11:41:57Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/use_update_teams/settings/0
+    claim: "API を呼ぶフックの settings に API_URL だけがあり、同じ行で読む BASE_PATH (API の URL の前に付く) が無い。同じ getApiUrl を通るほかの入口の結果 (admin.users、admin.websites など) は、フックの settings に BASE_PATH も書いているので、入口をまたいで設定の一覧がそろわない。use_users_query、use_team_members_query、use_teams_query、use_delete_team も同じ"
+    evidence: { file: src/lib/api-url.ts, line: 38 }
+    resolved: true
+    suggestion: "API を呼ぶ 5 つのフックの settings に、name が BASE_PATH、kind が env の項目を足す (根拠は next.config.ts の 15 行目と 216 行目、src/lib/api-url.ts の 38 行目と 44 行目。綴りと effect は admin.users の結果に合わせる)"
+notes: "全 44 フレームの call、summary、parameters、io、links、guards、settings、rules の根拠の行を、対象のファイルを開いて確かめた。上の 1 件のほかに、根拠と主張の食い違いは見つからなかった。指摘にしなかったこと: [1] checkAuth の API キーの経路 (src/lib/auth.ts:74 の checkApiKeyAuth から getApiKeyByHash など) は、フレームにしていない。分析の skill は「条件が成り立たないように見える呼び出しも、消さずに conditional で書く」としているが、この分析リポジトリのほかの入口の結果もすべて同じ扱い (設定 CLOUD_MODE に書くだけ) なので、この入口だけの漏れとはせず、指摘にしていない。辿るかどうかは、分析リポジトリ全体の決まりとして人が決めるのがよい。[2] getQueryFilters (src/lib/request.ts:118) は、websiteId を受け取らない呼び出しではデータを読まないので、フレームにしていないのは妥当。[3] canCreateTeam、canViewAllTeams、canViewUsers をフレームにせず、確認を受け口の段に書いているのは、終端の決まりを満たせないための扱いで、妥当。[4] 確認の値 (user.isAdmin、PERMISSIONS.teamCreate、PERMISSIONS.teamDelete、canViewTeam) と設定の名前 (CLOUD_MODE、REDIS_URL、API_URL) は、決まりの綴りで、ほかの入口の結果とも同じ。[5] 管理の枠 (src/app/(main)/admin/layout.tsx:5) がクラウドモードで何も描かないことは、コードで確かめた。クラウドモードの枝を conditional で残し、note に理由を書いているのは、分析の skill の決まりのとおり。[6] 同じ行 (src/lib/prisma.ts:761、src/lib/redis.ts:37) を source にする external のフレームが複数あるが、読むテーブルやキーが違うので、届く先ごとに書く決まりに合う"

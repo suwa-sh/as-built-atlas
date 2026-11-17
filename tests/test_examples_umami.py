@@ -48,7 +48,7 @@ def test_entry_list_is_valid_and_wraps_every_page():
 def test_results_and_reviews_pass_checks_that_need_no_target():
     el, results = _load(AN / "entry-list.yaml"), _results()
     by_id = {e["id"]: e for e in el["entries"]}
-    assert len(results) == 10
+    assert len(results) == len(by_id) == 66  # 入口はすべて分析済み
     layouts = {i for i, r in results.items() if r["entry"]["layer"] == "layout"}
     assert layouts == {i for i, e in by_id.items() if e["layer"] == "layout"}, "枠は 6 つとも分析済み"
     for eid, r in results.items():
@@ -141,7 +141,7 @@ def built(tmp_path_factory) -> Path:
 
 def test_marts_show_pages_and_the_layouts_that_wrap_them(built: Path):
     with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
-        assert con.execute("select count(*), sum(analyzed::int) from mart.mart_entry_overview").fetchone() == (66, 10)
+        assert con.execute("select count(*), sum(analyzed::int) from mart.mart_entry_overview").fetchone() == (66, 66)
         wrap = con.execute("select within_path from mart.mart_entry_within where path = '/settings/teams/[teamId]' order by ord").fetchall()
         assert [w for (w,) in wrap] == ["/(layout)", "/(layout)/(main)", "/(layout)/(main)/settings"]
         (inner,) = con.execute("select count(*) from mart.mart_entry_within where within_path = '/(layout)/(main)' and layer = 'page'").fetchone()
@@ -150,6 +150,7 @@ def test_marts_show_pages_and_the_layouts_that_wrap_them(built: Path):
         assert {"rdb", "kvs"} <= kinds
         dbms = {d for (d,) in con.execute("select distinct lv_dbms from staging.stg_io where kind = 'rdb'").fetchall()}
         assert {"postgresql", "clickhouse"} <= dbms, "同じ処理に 2 つの DB 向けの実装がある (両方を読み書きに書く)"
-        # 枠の読み書きは枠の入口に 1 回だけあり、枠を通る画面の行には出ない (2 段階認証の表は、ログイン後の枠だけが触る)
+        # 枠の読み書きは枠の入口にあり、枠を通るだけの画面の行には出ない (2 段階認証の表は、ログイン後の枠と、2 段階認証を自分で扱う画面だけが触る)
         owners = {p for (p,) in con.execute("select distinct path from mart.mart_data_access where resource_path like '%two_factor_backup_code'").fetchall()}
-        assert owners == {"/(layout)/(main)"}, owners
+        assert "/(layout)/(main)" in owners and len(owners) <= 6, owners
+        assert not owners & {"/settings/teams/[teamId]", "/websites/[websiteId]", "/dashboard"}, "枠を通るだけの画面には、枠の読み書きを写さない"

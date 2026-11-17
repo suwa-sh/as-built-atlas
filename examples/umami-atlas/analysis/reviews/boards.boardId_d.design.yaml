@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: boards.boardId_d.design
+reviewed_at: "2026-11-17T15:30:31Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_view_website_rw_section/call
+    claim: "canViewWebsiteSection から canViewWebsite へ入る枝 (auth.user があるとき) を conditional にしているが、同じ結果の中の、canViewSharedWebsite から canViewWebsite へ入る同じ形の枝 (q_can_view_website_rw) は、この画面ではいつもログイン中なので always にしている。同じ条件の枝の扱いが、1 つの結果の中で分かれている。"
+    evidence: { file: src/permissions/share.ts, line: 58 }
+    suggestion: "q_can_view_website_rw と同じく when を always にし、condition を消して「この画面では、ブラウザがログイントークンを付けるので、いつもこちらになる」の note を付ける。"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/rc_website_metrics_bar/summary
+    claim: "部品の一覧 (boardComponentRegistry.tsx) の定義は 17 種類 (文字の TextBlock と、それ以外の 16 種類) だが、rc_ で始まる 18 のフレームの note は「ボードに置ける部品は 16 種類」、結果の notes の (5)(b) は「16 種類のうち文字以外の 15 種類」と書いている。入口の summary の「16 種類 ... と文字」とも食い違う (フレームの数 18 = 文字以外の 16 種類 + ピクセル・リンク向けの差し替え 2 つ、は合っている)。"
+    evidence: { file: "src/app/(main)/boards/boardComponentRegistry.tsx", line: 389 }
+    suggestion: "rc_ のフレームの note と結果の notes の (5)(b) を「部品の一覧は 17 種類 (文字以外の 16 種類と文字)」にそろえる。"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。boards.boardId_d.edit の結果と同じ処理 (ボードの読み込み・更新、権限の確認、対象の読み込み、選択欄) のフレームは、レビュー済みの中身と同じであることを確かめ、根拠の行は主なものだけを見直した。この入口に固有のフレーム (page、BoardDesignPage、BoardProvider、BoardDesignHeader、BoardControls、BoardEditBody、BoardEditRow、BoardEditColumn、useBoardEntityAvailability、BoardComponentRenderer、BoardComponentSelect、POST /api/boards とその下、GET /api/websites/[websiteId]/funnels・goals とその下、部品の 18 のフレーム) は、source・call・summary・rules・links・guards の根拠を対象のファイルで確かめた。辿る順 (BoardProvider → BoardDesignHeader → BoardControls → BoardEditBody、列では useBoardEntityAvailability → BoardComponentRenderer → BoardComponentSelect、小窓では報告の一覧 → PixelSelect → LinkSelect → WebsiteSelect) もコードの順と合っている。指摘にしなかったこと: (1) WebsiteControls / PixelControls / LinkControls と部品の 18 のフレームの not_analyzed は、note に読んだ所と止めた理由があり、作業の決まりも打ち切りを禁じていないので、指摘にしていない (続きを分析するかは人が決める)。ただし、部品の note の「同じ部品の経路は、サイトのイベントの画面 / ゴールの画面 / UTM の画面 / リアルタイムの画面 / 売上の画面 / セッションの画面 の結果にある」は、入口の一覧には当たる入口 (websites.websiteId_d.events / goals / utm / realtime / revenue / sessions) があるが、いまは analysis/results/ にまだ結果が無い。note を入口の id で書くと、辿りやすくなる。なお、「フレーム <id> と同じ」と書いた参照は、すべてこの結果の中にあるフレームを指している (確かめた)。(2) BoardProvider の、作成のあとの router.push (BoardProvider.tsx:138) は、自分の external のフレームを持たず、ext_router_push の note で触れているだけ。つながり (links) には書いてあり、終端の決まりも満たしているので、漏れに数えていない。(3) q_check_auth_rw_pixel などの書き直しは、checkAuth の段の Redis の読み書きを繰り返さず、getUser の段まで書いている。boards.boardId_d.edit の結果と同じ書き方で、そちらのレビューでも指摘されていないので、ここでも指摘にしていない。(4) canViewWebsiteSection から canViewWebsite へ入る枝の when は、入口の間でも分かれている (websites.websiteId_d.funnels は conditional、dashboard.edit は always)。どちらにそろえるかは人が決めるとよい。(5) テストとの対応は、analyzer.tests が無いので見ていない。"

@@ -1,0 +1,20 @@
+format_version: 1
+entry_id: admin.websites
+reviewed_at: "2026-11-17T11:39:59Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_frame
+    severity: medium
+    where: callstack/q_check_auth/summary
+    claim: "checkAuth の API キーの枝 (auth.ts:74-75 の checkApiKeyAuth から、getApiKeyByHash、getUser、updateApiKeyLastUsed へ進む) にフレームも読み書き (api_key の read / update) も無い。この画面からは条件が成り立たないように見える呼び出しは、消さずに conditional で書く決まりで、同じ結果の中の、管理者でないときの枝 (q_get_website、q_get_team_user) と CLOUD_MODE の枝は、その決まりで残している。DELETE /api/websites/[websiteId] は API キーを受け付けないパスにも当たらない (結果の rules の note も、そう書いている)"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    suggestion: "API キーの枝を、q_check_auth の下に conditional のフレーム (getApiKeyByHash と、その先の Prisma の呼び出し) として足し、note に、この画面からは届かないと読める理由を書く。辿らない扱いをこのリポジトリの決まりにするなら、analysis-conventions.md に書く (ほかの入口の結果も、同じ枝を辿っていない)"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_get_websites/summary
+    claim: "検索語の部分一致が「大文字と小文字を区別しない」という主張を支える行が、根拠に無い。挙げてある website.ts:108 は getSearchParameters を呼ぶ行で、区別しないことを決めているのは、その中の mode: 'insensitive' (src/lib/prisma.ts:828)"
+    evidence: { file: src/lib/prisma.ts, line: 828 }
+    suggestion: "summary の evidence に src/lib/prisma.ts:828 を足す"
+    resolved: true
+notes: "指摘にしなかったこと。(1) 根拠の行は、全部を対象のコードで開いて確かめた。上の 1 件のほかは、主張を支えていた。(2) deleteWebsite の中のライブラリの呼び出し 15 か所を、external のフレーム 1 つ (ext_prisma_transaction。source は src/lib/prisma.ts:844) にまとめている。読み書きは 16 件とも io に書いてあるので、漏れにしなかった。ただし、ほかの入口の結果 (admin.teams、admin.users、layout_l.main_g、login.two-factor、settings.teams.teamId_d) は、トランザクションの中で最初に呼ぶ行を source にしていて、この結果だけ、包んでいる関数の行を source にしている。フレームの照合は、層と source のファイルで行うので、どちらにそろえるかを人が決めるとよい。(3) 管理者の確認を、判定する関数 canViewAllWebsites ではなく、それを呼ぶ受け口 (api_admin_websites_get) に書いている。関数がデータにもライブラリにも届かず、フレームにすると終端の決まりを満たせないためで、結果の notes に理由がある。妥当と見た。(4) getWebsite の「id が uuid の形でなければ読まない」は、rules に無い。layout_l.share.slug_d の結果だけが rules に書いていて、ほかの入口の結果は summary に書くだけなので、指摘にしなかった。(5) 画面を包む枠 (admin の layout) の処理は、枠の入口の結果にあるので、見ていない。(6) guards の値 (user.isAdmin、canDeleteWebsite、PERMISSIONS.websiteDelete)、settings の名前 (API_URL、BASE_PATH、CLOUD_MODE、REDIS_URL)、links の行き先は、ほかの入口の結果と同じ綴りだった。links の entry_id の 3 件は、入口の一覧にある"

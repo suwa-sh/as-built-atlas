@@ -39,7 +39,7 @@ summary:
     line: 34
   - file: "src/app/(main)/websites/[websiteId]/WebsitePage.tsx"
     line: 35
-notes: "(1) プロファイル 0.4.0 / 指示書 0.4.0 で分析し直した。前の版 (0.3.0) の結果を出発点にし、根拠の行と内容は対象のコードで確かめ直した。足した観点: 呼び出しの条件 (when)、読み書きの列 (fields)、権限の確認 (guards)、設定 (settings)、業務のルール (rules)。(2) 同じ処理の置き場を、プロファイルの決まり (入口から、コードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に書く) に合わせて直した。前の版は呼び出し行のファイルのパス順で決めていたので、木が変わった。parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は、最初に着く GET values (WebsiteControls → WebsiteFilterButton → FilterEditForm → FieldFilters → FilterRecord → useWebsiteValuesQuery) の下。FieldFilters と PropertyFilters は FilterEditForm の下 (SegmentEditForm からも描く)。canViewSharedWebsiteFilters は GET segments の下。canUpdateWebsite は POST segments の下。useWebsiteAnnotationsQuery は WebsiteChart の下。AnnotationsModal は AnnotationsButton の下 (WebsitePage.tsx:31 が :44 より先)。useWebsiteMetricsQuery は MetricsTable の下。(3) 呼び先がすべて他の呼び出し元の下に書いた処理で、そのままでは終端になる呼び出し元の下には、決まりどおり、いちばん早い呼び出しを I/O を持つフレームまで書き直した (id の末尾が _rw<数字>)。canViewSharedWebsiteFilters / canViewSharedWebsite / canUpdateWebsite の下の getWebsite まで、GET segments/[segmentId] と WorldMap の下の parseRequest → checkAuth まで。書き直したフレームには、権限の確認・設定・ルールを繰り返して書いていない (元のフレームに 1 回だけ書いた)。I/O は、終端の決まりを満たすために書いた。(4) 同じ関数でも届く先が違うものは、まとめずに書いた。useUpdateQuery は SegmentEditForm (POST segments) と AnnotationEditForm (POST annotations / annotations/[annotationId])。生の SQL の external (src/lib/prisma.ts:746、src/lib/clickhouse.ts:721) は、問い合わせの関数ごとに渡す SQL (読む表の組み合わせ) が違うので関数ごと。Redis の get (src/lib/redis.ts:37) はキー (auth:* / website:* / account:*) ごと。pagedQuery の findMany / count (src/lib/prisma.ts:761 / :775) は表 (segment / annotation) ごと。(5) 辿らなかったもの。checkAuth の API キーの経路 (src/lib/auth.ts:75 の checkApiKeyAuth): 画面のフックはログインのトークンを付ける (src/components/hooks/useApi.ts:28) ので、umami_ で始まる API キーは届かないと読んだ。GET values の getWebsiteSegments の枝 (route.ts:48): FieldFilters の項目 (useFields) に segment / cohort が無い。GET metrics の getEventMetrics (route.ts:64): この画面の表は type に event を渡さない (拡大表示の getEventExpandedMetrics は、メニューに event があるので届く)。FilterEditForm のイベントのプロパティの欄 (PropertyFilters の source: event。FilterEditForm.tsx:166): パスが /events で終わるときだけ。ExportButton と MonthFilter (WebsiteControls.tsx:42 / :43): この画面は allowDownload / allowMonthFilter を渡さない。UnitFilter、DateFilter、PageviewsChart、MetricCard、WebsiteExpandedMenu、MetricLabel / FilterLink は、見た目か、同じ画面の URL のクエリを書き換えるだけなので、フレームにしていない。(6) links は 1 件も無い。この画面からの router.push と Link は、どれも updateParams / replaceParams で同じ画面の URL のクエリを書き換えるもの。FilterLink の外部リンクは、計測している対象のサイトの URL で、入口ではない。(7) 迷った点と選んだ扱い。(a) Tabs / TabPanel の中の部品 (SegmentFilters、PropertyFilters、MetricsTable) を、タブを選ぶまで描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードの条件 (この画面ではいつも成り立つ) だけを見て always にし、note に書いた。(b) 早い return のうち、管理者なら確認を飛ばす (canViewWebsite / canUpdateWebsite) のような業務の分かれ道の後ろにある呼び出しは conditional、入力の誤り・見つからない・権限の不足で打ち切るだけのものの後ろは always にした。(c) 直帰を除くフィルターの定義 (src/lib/prisma.ts:236 / src/lib/clickhouse.ts:205 の getExcludeBounceQuery) は、段になっていない共通の関数にあり、ほとんどの問い合わせが使う。ルールとしては、入口から辿る順で最初に使う getWebsiteStats に 1 回だけ書いた。(d) 設定は、読んで使っている段に書いた: CLICKHOUSE_URL は runQuery を呼ぶ問い合わせの関数ごと、DATABASE_REPLICA_URL と DATABASE_URL (schema) は生の SQL を実行する external ごと、API_URL は API を呼ぶフックごと、REDIS_URL は checkAuth と fetchWebsite、CLOUD_MODE は checkAuth と getQueryFilters (setWebsiteDate)。Prisma のモデルのメソッドを呼ぶ external (user.findUnique など) の接続先も DATABASE_URL で決まるが、クライアントを作る共通の場所 (src/lib/prisma.ts:860) で読むので、段には書いていない。BASE_PATH (URL の前に付く置き場のパス) と LOG_QUERY (ログだけ) も書いていない。(e) 集計する列が type で決まる問い合わせ (metrics / metrics/expanded) の fields には、この画面が渡す type に当たる列を書いた。URL のフィルターで決まる列は書かず、note に書いた。(f) guards は、確認を実際に行う関数 (checkAuth、canViewWebsiteSection、canViewWebsite、canViewSharedWebsite、canViewSharedWebsiteFilters、canUpdateWebsite) の段に書き、それを呼んで 401 を返すだけの受け口には書いていない。(8) レビューへの対応。1 回目 (high 1 件、low 1 件) は両方直した: getPageviewExpandedMetrics が直帰と滞在時間を数えず 0 を返すこと、getEventExpandedMetrics 自身もカスタムイベントに絞る条件を足すこと。2 回目 (high 0 件、medium 3 件、low 3 件) も全部直した: リファラーの行のアイコン (Favicon) がブラウザから他社のサービスへ取りに行く経路を足した (favicon → use_config → api_config。GET /api/config はデータに届かないので、Response.json を external として閉じた)。URL が引数で切り替わる呼び出し (POST segments、session-data/properties、session-data/values) の状態を interpretation にした。Redis の auth:* の読み取りを interpretation にした (キーの形は saveAuth から読み取ったもの)。getPageviewMetrics のリファラーのルールに ClickHouse の集計表の例外を足し、getPageviewExpandedMetrics と getEventExpandedMetrics にルールを足した。直さなかった指摘は無い"
+notes: "(1) プロファイル 0.4.0 / 指示書 0.4.0 で分析し直した。前の版 (0.3.0) の結果を出発点にし、根拠の行と内容は対象のコードで確かめ直した。足した観点: 呼び出しの条件 (when)、読み書きの列 (fields)、権限の確認 (guards)、設定 (settings)、業務のルール (rules)。(2) 同じ処理の置き場を、プロファイルの決まり (入口から、コードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に書く) に合わせて直した。前の版は呼び出し行のファイルのパス順で決めていたので、木が変わった。parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は、最初に着く GET values (WebsiteControls → WebsiteFilterButton → FilterEditForm → FieldFilters → FilterRecord → useWebsiteValuesQuery) の下。FieldFilters と PropertyFilters は FilterEditForm の下 (SegmentEditForm からも描く)。canViewSharedWebsiteFilters は GET segments の下。canUpdateWebsite は POST segments の下。useWebsiteAnnotationsQuery は WebsiteChart の下。AnnotationsModal は AnnotationsButton の下 (WebsitePage.tsx:31 が :44 より先)。useWebsiteMetricsQuery は MetricsTable の下。(3) 呼び先がすべて他の呼び出し元の下に書いた処理で、そのままでは終端になる呼び出し元の下には、決まりどおり、いちばん早い呼び出しを I/O を持つフレームまで書き直した (id の末尾が _rw<数字>)。canViewSharedWebsiteFilters / canViewSharedWebsite / canUpdateWebsite の下の getWebsite まで、GET segments/[segmentId] と WorldMap の下の parseRequest → checkAuth まで。書き直したフレームには、権限の確認・設定・ルールを繰り返して書いていない (元のフレームに 1 回だけ書いた)。I/O は、終端の決まりを満たすために書いた。(4) 同じ関数でも届く先が違うものは、まとめずに書いた。useUpdateQuery は SegmentEditForm (POST segments) と AnnotationEditForm (POST annotations / annotations/[annotationId])。生の SQL の external (src/lib/prisma.ts:746、src/lib/clickhouse.ts:721) は、問い合わせの関数ごとに渡す SQL (読む表の組み合わせ) が違うので関数ごと。Redis の get (src/lib/redis.ts:37) はキー (auth:* / website:* / account:*) ごと。pagedQuery の findMany / count (src/lib/prisma.ts:761 / :775) は表 (segment / annotation) ごと。(5) 辿らなかったもの。checkAuth の API キーの経路 (src/lib/auth.ts:75 の checkApiKeyAuth): 画面のフックはログインのトークンを付ける (src/components/hooks/useApi.ts:28) ので、umami_ で始まる API キーは届かないと読んだ。GET values の getWebsiteSegments の枝 (route.ts:48): FieldFilters の項目 (useFields) に segment / cohort が無い。GET metrics の getEventMetrics (route.ts:64): この画面の表は type に event を渡さない (拡大表示の getEventExpandedMetrics は、メニューに event があるので届く)。FilterEditForm のイベントのプロパティの欄 (PropertyFilters の source: event。FilterEditForm.tsx:166): パスが /events で終わるときだけ。ExportButton と MonthFilter (WebsiteControls.tsx:42 / :43): この画面は allowDownload / allowMonthFilter を渡さない。UnitFilter、DateFilter、PageviewsChart、MetricCard、WebsiteExpandedMenu、MetricLabel / FilterLink は、見た目か、同じ画面の URL のクエリを書き換えるだけなので、フレームにしていない。(6) links は 1 件も無い。この画面からの router.push と Link は、どれも updateParams / replaceParams で同じ画面の URL のクエリを書き換えるもの。FilterLink の外部リンクは、計測している対象のサイトの URL で、入口ではない。(7) 迷った点と選んだ扱い。(a) Tabs / TabPanel の中の部品 (SegmentFilters、PropertyFilters、MetricsTable) を、タブを選ぶまで描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードの条件 (この画面ではいつも成り立つ) だけを見て always にし、note に書いた。(b) 早い return のうち、管理者なら確認を飛ばす (canViewWebsite / canUpdateWebsite) のような業務の分かれ道の後ろにある呼び出しは conditional、入力の誤り・見つからない・権限の不足で打ち切るだけのものの後ろは always にした。(c) 直帰を除くフィルターの定義 (src/lib/prisma.ts:236 / src/lib/clickhouse.ts:205 の getExcludeBounceQuery) は、段になっていない共通の関数にあり、ほとんどの問い合わせが使う。ルールとしては、入口から辿る順で最初に使う getWebsiteStats に 1 回だけ書いた。(d) 設定は、読んで使っている段に書いた: CLICKHOUSE_URL は runQuery を呼ぶ問い合わせの関数ごと、DATABASE_REPLICA_URL は生の SQL を実行する external ごと (DATABASE_URL は、分析リポジトリの決まりに従って settings に書いていない)、API_URL は API を呼ぶフックごと、REDIS_URL は checkAuth と fetchWebsite、CLOUD_MODE は checkAuth と getQueryFilters (setWebsiteDate)。Prisma のモデルのメソッドを呼ぶ external (user.findUnique など) の接続先も DATABASE_URL で決まるが、クライアントを作る共通の場所 (src/lib/prisma.ts:860) で読むので、段には書いていない。BASE_PATH (URL の前に付く置き場のパス) と LOG_QUERY (ログだけ) も書いていない。(e) 集計する列が type で決まる問い合わせ (metrics / metrics/expanded) の fields には、この画面が渡す type に当たる列を書いた。URL のフィルターで決まる列は書かず、note に書いた。(f) guards は、確認を実際に行う関数 (checkAuth、canViewWebsiteSection、canViewWebsite、canViewSharedWebsite、canViewSharedWebsiteFilters、canUpdateWebsite) の段に書き、それを呼んで 401 を返すだけの受け口には書いていない。(8) レビューへの対応。1 回目 (high 1 件、low 1 件) は両方直した: getPageviewExpandedMetrics が直帰と滞在時間を数えず 0 を返すこと、getEventExpandedMetrics 自身もカスタムイベントに絞る条件を足すこと。2 回目 (high 0 件、medium 3 件、low 3 件) も全部直した: リファラーの行のアイコン (Favicon) がブラウザから他社のサービスへ取りに行く経路を足した (favicon → use_config → api_config。GET /api/config はデータに届かないので、Response.json を external として閉じた)。URL が引数で切り替わる呼び出し (POST segments、session-data/properties、session-data/values) の状態を interpretation にした。Redis の auth:* の読み取りを interpretation にした (キーの形は saveAuth から読み取ったもの)。getPageviewMetrics のリファラーのルールに ClickHouse の集計表の例外を足し、getPageviewExpandedMetrics と getEventExpandedMetrics にルールを足した。直さなかった指摘は無い"
 callstack:
 - id: "page"
   layer: "page"
@@ -666,7 +666,7 @@ callstack:
       line: 77
   guards:
   - kind: "other"
-    value: "ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと。共有の設定にセクションごとの可否があれば、受け口が渡したセクション (この受け口では overview / events / sessions / compare / breakdown / utm / attribution) のどれかが true であること"
+    value: "canViewWebsiteSection"
     status: "interpretation"
     evidence:
     - file: "src/permissions/share.ts"
@@ -679,6 +679,7 @@ callstack:
       line: 73
     - file: "src/permissions/share.ts"
       line: 77
+    note: "ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと。共有の設定にセクションごとの可否があれば、受け口が渡したセクション (この受け口では overview / events / sessions / compare / breakdown / utm / attribution) のどれかが true であること"
 - id: "q_can_view_website"
   layer: "query"
   kind: "function"
@@ -712,7 +713,7 @@ callstack:
       line: 35
   guards:
   - kind: "ownership"
-    value: "管理者 (user.isAdmin) か、共有トークンの対象か、対象の持ち主 (user.id === entity.userId) であること。対象がチームのもの (entity.teamId) なら、そのチームのメンバー (team_user に行がある) であること"
+    value: "canViewWebsite"
     status: "interpretation"
     evidence:
     - file: "src/permissions/website.ts"
@@ -731,6 +732,7 @@ callstack:
       line: 35
     - file: "src/permissions/website.ts"
       line: 37
+    note: "管理者 (user.isAdmin) か、共有トークンの対象か、対象の持ち主 (user.id === entity.userId) であること。対象がチームのもの (entity.teamId) なら、そのチームのメンバー (team_user に行がある) であること"
 - id: "q_get_entity"
   layer: "query"
   kind: "function"
@@ -1679,19 +1681,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_values_ch"
   layer: "external"
   kind: "library"
@@ -1836,13 +1825,14 @@ callstack:
       line: 98
   guards:
   - kind: "other"
-    value: "ログインした利用者がいないときは、共有トークンが対象のサイトを含み、共有の設定の allowFilter が false でないこと"
+    value: "canViewSharedWebsiteFilters"
     status: "interpretation"
     evidence:
     - file: "src/permissions/share.ts"
       line: 40
     - file: "src/permissions/share.ts"
       line: 98
+    note: "ログインした利用者がいないときは、共有トークンが対象のサイトを含み、共有の設定の allowFilter が false でないこと"
 - id: "q_can_view_website_rw1"
   layer: "query"
   kind: "function"
@@ -2494,19 +2484,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_session_data_properties_ch"
   layer: "external"
   kind: "library"
@@ -2970,19 +2947,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_session_data_values_ch"
   layer: "external"
   kind: "library"
@@ -3130,13 +3094,14 @@ callstack:
       line: 85
   guards:
   - kind: "other"
-    value: "ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと"
+    value: "canViewSharedWebsite"
     status: "interpretation"
     evidence:
     - file: "src/permissions/share.ts"
       line: 40
     - file: "src/permissions/share.ts"
       line: 85
+    note: "ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと"
 - id: "q_can_view_website_rw2"
   layer: "query"
   kind: "function"
@@ -3380,19 +3345,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_daterange_ch"
   layer: "external"
   kind: "library"
@@ -3759,16 +3711,8 @@ callstack:
     - file: "src/permissions/website.ts"
       line: 154
   guards:
-  - kind: "authentication"
-    status: "fact"
-    evidence:
-    - file: "src/permissions/website.ts"
-      line: 133
-    - file: "src/permissions/website.ts"
-      line: 134
-    note: "ログインした利用者がいること (共有トークンだけでは書き換えられない)"
   - kind: "ownership"
-    value: "管理者 (user.isAdmin) か、サイトの持ち主 (user.id === website.userId) であること"
+    value: "canUpdateWebsite"
     status: "interpretation"
     evidence:
     - file: "src/permissions/website.ts"
@@ -3777,8 +3721,9 @@ callstack:
       line: 147
     - file: "src/permissions/website.ts"
       line: 148
+    note: "管理者 (user.isAdmin) か、サイトの持ち主 (user.id === website.userId) であること。この確認の前に、ログインした利用者がいること (共有トークンだけでは書き換えられない)"
   - kind: "permission"
-    value: "website:update (チームのサイトのとき、チームでの役割がこの権限を持つこと)"
+    value: "PERMISSIONS.websiteUpdate"
     status: "interpretation"
     evidence:
     - file: "src/permissions/website.ts"
@@ -3789,6 +3734,7 @@ callstack:
       line: 154
     - file: "src/lib/constants.ts"
       line: 194
+    note: "website:update (チームのサイトのとき、チームでの役割がこの権限を持つこと)"
 - id: "q_get_website_rw3"
   layer: "query"
   kind: "function"
@@ -4501,19 +4447,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_stats_ch"
   layer: "external"
   kind: "library"
@@ -5181,19 +5114,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_pageview_stats_ch"
   layer: "external"
   kind: "library"
@@ -5552,19 +5472,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_session_stats_ch"
   layer: "external"
   kind: "library"
@@ -6829,19 +6736,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_session_metrics_ch"
   layer: "external"
   kind: "library"
@@ -7308,19 +7202,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_pageview_metrics_ch"
   layer: "external"
   kind: "library"
@@ -7786,19 +7667,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_channel_metrics_ch"
   layer: "external"
   kind: "library"
@@ -8574,19 +8442,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_weekly_ch"
   layer: "external"
   kind: "library"
@@ -9271,19 +9126,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_session_expanded_metrics_ch"
   layer: "external"
   kind: "library"
@@ -9654,19 +9496,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_event_expanded_metrics_ch"
   layer: "external"
   kind: "library"
@@ -10178,19 +10007,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_pageview_expanded_metrics_ch"
   layer: "external"
   kind: "library"
@@ -10640,19 +10456,6 @@ callstack:
       line: 55
     - file: "src/lib/prisma.ts"
       line: 861
-  - name: "DATABASE_URL"
-    kind: "env"
-    effect: "接続先の DB を決める。URL に schema のパラメータがあれば、問い合わせの前に search_path をそのスキーマにする"
-    status: "interpretation"
-    evidence:
-    - file: "src/lib/prisma.ts"
-      line: 725
-    - file: "src/lib/prisma.ts"
-      line: 742
-    - file: "src/lib/prisma.ts"
-      line: 848
-    - file: "src/lib/prisma.ts"
-      line: 856
 - id: "ext_channel_expanded_metrics_ch"
   layer: "external"
   kind: "library"

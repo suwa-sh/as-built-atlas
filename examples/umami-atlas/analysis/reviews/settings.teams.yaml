@@ -1,0 +1,13 @@
+format_version: 1
+entry_id: settings.teams
+reviewed_at: "2026-11-17T15:24:07Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_frame
+    severity: medium
+    where: callstack/q_check_auth
+    claim: "checkAuth の API キーの枝 (auth.ts:74-75 の checkApiKeyAuth から、getApiKeyByHash、getUser、updateApiKeyLastUsed へ進む) に、フレームも読み書き (api_key の read / update) も無い。この画面が呼ぶ POST /api/teams と POST /api/teams/join は、API キーを断るパス (api-key.ts:11-18 の /api/auth、/api/users など) に当たらないので、コードの上では api_key の読み書きに届く。同じ結果の中で、クラウドモードの枝 (fetchAccount、getUserOwnedTeamCount、team:* の set) は「この画面からは届かないように見える」として conditional で残しているのに、この枝だけは消していて、扱いがそろっていない"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    suggestion: "checkApiKeyAuth 以下を q_check_auth の下に conditional のフレーム (getApiKeyByHash と updateApiKeyLastUsed、その先の Prisma の呼び出し) として足し、note に「ブラウザはログイントークンを付けるので、この画面からは成り立たないように見える」と書く。辿らない扱いをこのリポジトリの決まりにするなら、analysis-conventions.md に書く (ほかの入口の結果も、同じ枝を辿っていない)"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。全フレームの source と、call / summary / parameters / io (fields を含む) / links / guards / settings / rules の根拠の行を、対象のコードと prisma/schema.prisma を開いて確かめ、どれも主張を支えていた。指摘にしなかったこと: [1] 同じ処理の置き場 (useLoginQuery は TeamsHeader の下、parseRequest は POST /api/auth/verify の下) は、入口から辿る順 (TeamsSettingsPage.tsx:10 の見出しが :12 の一覧より前、TeamsHeader.tsx:16、verify/route.ts:6) のとおり。POST /api/auth/verify は /api/auth が API キーを断るパスなので、この置き場の q_check_auth から API キーの枝を辿らない理由にはなるが、ほかの受け口 (/api/teams、/api/teams/join) からは届くので、上の指摘にした。/api/users/[userId]/teams は断るパスに入っている。[2] 確認の値 (user.isAdmin、PERMISSIONS.teamCreate、checkAuth の authentication) と設定の名前 (API_URL、BASE_PATH、CLOUD_MODE、REDIS_URL) は、analysis-conventions.md の綴りで、admin.teams / teams の結果とも同じ。GET /api/users/[userId]/teams の ownership の値 auth.user.id === userId は関数の名前ではないが、確かめる関数が無く、ほかの入口の結果 6 件と同じ綴りなので、指摘にしなかった。[3] use_login_query の settings に API_URL が無く BASE_PATH だけなのは、/auth で始まる URL が API_URL を使わない (api-url.ts:6、:39) ためで、正しい。[4] links の行き先 /settings/teams/${row.id} は、式を、この入口の pathname で解いた形。teams の結果と同じ綴りで、entry_id settings.teams.teamId_d は入口の一覧にある。[5] ext_prisma_create_team は、トランザクションの中の 2 つの呼び出し (team.ts:134 と :137) を 1 つの external のフレームにまとめ、source を最初の行にしている。読み書きは 2 件とも q_create_team の io にあり、ほかの入口の結果と同じ書き方なので、指摘にしなかった。[6] q_check_auth の Redis の読み取り (auth:*) は fact で fields が *。入口によって interpretation や userId / pwd の列で書いた結果もあり、そろえるかは人が決めるとよい。[7] 入口の summary の「並べ替えは name / createdAt を URL のクエリで行う」は、受け口が許す列 (team.ts:11) としては正しいが、画面の表で並べ替えの見出しを持つのは名前の列だけ (TeamsTable.tsx:16)。[8] q_create_team の when は always。手前のクラウドモードの上限での打ち切りは、上限という業務の条件による打ち切りなので、決まりのとおり。[9] テストとの対応は、analyzer.tests が無いので見ていない。画面を包む枠 (settings の layout) の処理を辿っていないことは、決まりのとおりなので漏れに数えていない"

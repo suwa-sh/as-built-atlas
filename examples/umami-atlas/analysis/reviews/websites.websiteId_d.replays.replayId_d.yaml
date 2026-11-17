@@ -1,0 +1,26 @@
+format_version: 1
+entry_id: "websites.websiteId_d.replays.replayId_d"
+reviewed_at: "2026-11-17T16:05:38Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: "callstack/q_can_update_website/guards/2"
+    claim: "PERMISSIONS.websiteUpdate はコードにそのまま書いてある (hasPermission(teamUser.role, PERMISSIONS.websiteUpdate)) のに interpretation になっている。同じ書き方の q_can_delete_website の PERMISSIONS.websiteDelete は fact で、同じ結果の中で揃っていない"
+    evidence: { file: "src/permissions/website.ts", line: 154 }
+    suggestion: "status を fact にする。"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: "callstack/q_linked_distinct_ids/call"
+    claim: "手前の打ち切り (セッションが見つからなければ 404) は、入力の誤りや権限の不足ではなく、データが無いときの分かれ道なので、when は always ではなく conditional に当たる"
+    evidence: { file: "src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts", line: 29 }
+    suggestion: "when を conditional にし、condition に「getWebsiteSession でセッションが見つかったとき」と書く。"
+  - kind: classification_mismatch
+    severity: low
+    where: "callstack/ext_prisma_share/call"
+    claim: "サイトが見つからなければ attachShareIdToWebsite を呼ばずに null を返す。これはデータが無いときの分かれ道で、入力の誤りや権限の不足ではないので、when は conditional に当たる"
+    evidence: { file: "src/queries/prisma/website.ts", line: 91 }
+    suggestion: "when を conditional にし、condition に「website の行が見つかったとき」と書く (io の note と同じ内容)。"
+notes: "(1) 根拠の行は、主張ごとに対象のコードで開いて確かめ、食い違いは見つからなかった (page / ReplayPlayback / ReplaySaveForm / 3 つの route / request.ts / auth.ts / permissions / queries / prisma.ts:746 / clickhouse.ts:721 / next.config.ts / schema)。(2) 同じ処理の置き場 (入口から深さ優先で最初に着いた呼び出し元) と、終端の決まりのための書き直し (_rw の段) は、プロファイルと analysis-conventions の決まりどおり。書き直した段に確認・設定・ルールの繰り返しも無い。(3) ReplayPlayer (rrweb-player)、SessionInfo、Avatar はデータに届かない。SessionInfo が使う useLocale / useCountryNames が読むのは同じサーバーの翻訳の JSON だけで、決まりにより段にしない。辿り漏れは無い。(4) ownership の確認の status が、canDeleteWebsite では fact、canUpdateWebsite と canViewWebsite では interpretation と揃っていない。値は関数の名前で、条件の中身は読み取りなので、どちらとも取れるため指摘にはしていない。(5) q_can_delete_website の確認 (role / ownership / permission) は、この GET では止めずに canDelete を返すだけ。note にそう書いてあるので指摘にはしていない。(6) analyzer.tests が無いので、tests の漏れは見ていない。"

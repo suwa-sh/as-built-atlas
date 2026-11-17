@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: admin.security
+reviewed_at: "2026-11-17T11:36:35Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/ext_prisma_app_setting_upsert/call
+    claim: "condition が CLOUD_MODE だけを挙げているが、upsert の手前には、設定 TWO_FACTOR_ENCRYPTION_KEY が無いか不正で required が true のときに 503 で打ち切る経路もあり、設定で決まる打ち切りが条件から漏れている (同じ結果の ext_prisma_user_required は、暗号鍵の設定を条件に入れている)"
+    evidence: { file: src/app/api/admin/2fa/global/route.ts, line: 27 }
+    suggestion: "when は conditional のまま、condition を「CLOUD_MODE が無く、required が false か、暗号鍵 (TWO_FACTOR_ENCRYPTION_KEY) が設定済みのとき」のように書き足す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "「画面が使うのは、返った isConfigured と globalRequired だけ」は合っているが、その 2 つを取り出す行 (AdminSecurityPage.tsx の 14 行目と 15 行目) が根拠に無い"
+    evidence: { file: "src/app/(main)/admin/security/AdminSecurityPage.tsx", line: 14 }
+    suggestion: "入口の summary の evidence に、AdminSecurityPage.tsx の 14 行目と 15 行目を足す"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。根拠の行はすべて開いて確かめ、schema.prisma の @map / @@map の行も主張と合っていた。フレームの層と種類、呼び出しの when、読み書きの種類と列、権限の確認 (api_global_post の user.isAdmin、checkAuth の authentication)、設定の名前の綴り (API_URL / BASE_PATH / CLOUD_MODE / REDIS_URL / TWO_FACTOR_ENCRYPTION_KEY) は、コードと決まりに合っている。GET /api/2fa/status の読み書きの列と設定の綴りは、同じ受け口を書いた layout_l.main_g の結果と同じだった。辿り漏れは無い (parseShareToken、isTwoFactorConfigured、canEnforceTwoFactorAuthForEveryone、getApiUrl は、読み書きを持たない補助の関数。checkApiKeyAuth は、/api/2fa と /api/admin では getApiKeyByHash の前に null を返す)。指摘にしなかったこと: (1) admin_security_page の rules は「isConfigured が偽」と書いているが、コードは !isConfigured なので、状態を読めなかったとき (status が undefined) もスイッチは操作できない。(2) q_parse_request の summary の「POST /api/admin/2fa/global も同じ関数を呼ぶ」の根拠の行 (global/route.ts の 15 行目) は、そのフレームの evidence には無いが、api_global_post の summary の evidence にある。"

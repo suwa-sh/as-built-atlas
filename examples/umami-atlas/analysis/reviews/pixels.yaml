@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: pixels
+reviewed_at: "2026-11-17T15:06:38Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/api_pixels_get/call
+    claim: "呼び出しの URL は usePixelsQuery.ts:17 の三項演算子 (teamId ? `/teams/${teamId}/pixels` : '/pixels') で、引数 teamId によって 2 つの受け口に切り替わるのに、status が fact になっている。context.md は、URL が引数で組み立てられ候補が複数あるときは、それぞれフレームにして interpretation (note に「引数で切り替わる」) と決めている。同じ形の切り替えを、ほかの入口の結果 (boards、layout_l.main_g の GET /api/teams/[teamId]/pixels など) は interpretation で書いている"
+    evidence: { file: src/components/hooks/queries/usePixelsQuery.ts, line: 17 }
+    suggestion: "call.status を interpretation にし、note に「引数 teamId で切り替わる (無いときはこちら)」と書く"
+    resolved: true
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/api_team_pixels_get/call
+    claim: "呼び出しの URL は usePixelsQuery.ts:17 の三項演算子で、引数 teamId によって 2 つの受け口に切り替わるのに、status が fact になっている (context.md の決まりでは interpretation。ほかの入口の結果は、同じ受け口への同じ形の呼び出しを interpretation で書いている)"
+    evidence: { file: src/components/hooks/queries/usePixelsQuery.ts, line: 17 }
+    suggestion: "call.status を interpretation にし、note に「引数 teamId で切り替わる (あるときはこちら)」と書く"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_team
+    claim: "canViewTeam は team.ts:11 で user.isAdmin なら所属を見ずに許すが、guards に kind: role / value: user.isAdmin が無い (ownership の note に触れているだけ)。同じ結果の中で、同じ形の canCreateTeamWebsite・canViewPixel・canDeletePixel には role の確認を別に書いているので、この段だけ管理者の確認が集計から漏れる"
+    evidence: { file: src/permissions/team.ts, line: 11 }
+    suggestion: "q_can_view_team の guards に kind: role、value: user.isAdmin (根拠 team.ts:11) を足す"
+    resolved: true
+notes: "機械チェックは OK (プロファイルも自動で読めた)。全フレームの source と、call・summary・parameters・io・links・guards・settings・rules の根拠の行を対象のコードで開いて確かめ、上の 3 件のほかは主張と合っていた (深さ優先の置き場、終端の書き直し 2 か所、列の名前と schema.prisma の対応、ClickHouse の表の列も確認した)。指摘にしなかったこと: (1) useConfig → GET /api/config をフレームにしていないのは、ほかの入口の結果 (layout_l.main_g、pixels.pixelId_d.edit など) と同じ扱いで、受け口は skipAuth で環境変数を返すだけ (config/route.ts:8、:14) なので、漏れに数えなかった。(2) canViewTeam の role の確認は、ほかの入口の結果 (settings.teams.teamId_d、layout_l.main_g) にも無い。この入口だけ直すと入口の間で綴りがずれるので、そろえ方は人が決めてほしい。(3) Redis の auth:* の fields は、この結果を含む多くの入口が「*」で、admin.websites.websiteId_d だけが userId / pwd と書いている (auth.ts:104、:108 で値の項目は読める)。どちらにそろえるかは未決。(4) POST /api/pixels の call は、URL が pixelId の三項演算子 (PixelEditForm.tsx:35) だが、この入口では pixelId を渡さず行き先が 1 つに決まるので、fact のままで妥当とした。(5) checkAuth の設定 CLOUD_MODE は、この画面のブラウザがログイントークンを送る限り結果を変えないが、ほかの入口と同じ書き方なので指摘にしていない。(6) テストとの対応は、analyzer.tests が無いので見ていない。"

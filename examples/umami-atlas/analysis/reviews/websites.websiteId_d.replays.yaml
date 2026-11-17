@@ -1,0 +1,61 @@
+format_version: 1
+entry_id: websites.websiteId_d.replays
+reviewed_at: '2026-11-17T16:10:42Z'
+reviewer: claude-opus-5-5 (fresh context)
+machine_check: ok
+findings:
+- kind: status_mismatch
+  severity: medium
+  where: callstack/q_can_update_website/guards/2
+  claim: PERMISSIONS.websiteUpdate はコードにそのまま書いてある (hasPermission(teamUser.role, PERMISSIONS.websiteUpdate)) のに interpretation になっている。同じ書き方の q_can_delete_website の PERMISSIONS.websiteDelete (website.ts 182 行) は fact で、同じ結果の中で揃っていない
+  evidence:
+    file: src/permissions/website.ts
+    line: 154
+  suggestion: status を fact にする (websites.websiteId_d.replays.replayId_d の結果では、同じ指摘を受けて fact に直している)。
+  resolved: true
+- kind: classification_mismatch
+  severity: low
+  where: callstack/q_linked_distinct_ids/call
+  claim: 手前の打ち切り (getWebsiteSession でセッションが見つからなければ 404) は、入力の誤りや権限の不足ではなく、データが無いときの分かれ道なので、when は always ではなく conditional に当たる
+  evidence:
+    file: src/app/api/websites/[websiteId]/sessions/[sessionId]/route.ts
+    line: 29
+  suggestion: when を conditional にし、condition に「getWebsiteSession でセッションが見つかったとき」と書く。
+  resolved: true
+- kind: classification_mismatch
+  severity: low
+  where: callstack/ext_prisma_share/call
+  claim: サイトが見つからなければ attachShareIdToWebsite を呼ばずに null を返す。これはデータが無いときの分かれ道で、入力の誤りや権限の不足ではないので、when は always ではなく conditional に当たる (note にもそう書いてある)
+  evidence:
+    file: src/queries/prisma/website.ts
+    line: 91
+  suggestion: when を conditional にし、condition に「website の行が見つかったとき」と書く (q_get_website の io/1 の note と同じ内容)。
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_session_replays
+  claim: PostgreSQL の実装でも、URL にイベントのプロパティの絞り込み (eventPropertyFilters) があれば、parseFilters が filterQuery に event_data の副問い合わせ (website_event.event_id in (select website_event_id from event_data ...)) を足すので event_data を読むが、PostgreSQL の event_data の読み取りが io に無い。ClickHouse の側 (io/6) には event_data があり、同じ結果の中で揃っていない
+  evidence:
+    file: src/lib/prisma.ts
+    line: 576
+  suggestion: 'op: read、dbms: postgresql、table: event_data の io を足す (fields は website_event_id: read、website_id / created_at / data_key / data_type: filter。note に「イベントのプロパティで絞るときだけ」)。根拠は prisma.ts 309 行と 574〜581 行、schema.prisma の @@map("event_data")。'
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_session_replays/io/2/fields
+  claim: イベントのプロパティで絞るときの条件は website_event.event_id in (...) なので、website_event の event_id が filter に使われるが、PostgreSQL の website_event (io/2) にも ClickHouse の website_event (io/5) にも event_id が無い
+  evidence:
+    file: src/lib/prisma.ts
+    line: 574
+  suggestion: 'io/2 と io/5 の fields に event_id (use: filter) を足し、根拠に prisma.ts 574 行と clickhouse.ts 538 行を足す。'
+  resolved: true
+- kind: missing_item
+  severity: low
+  where: callstack/q_session_replays/io/0/fields
+  claim: PostgreSQL の session_replay の visit_id は、絞り込みがあるときの副問い合わせとの結合の条件 (website_event.visit_id = sr.visit_id) に使われるが、use が read だけになっている。ClickHouse の側 (io/4) は read と filter で、揃っていない
+  evidence:
+    file: src/queries/sql/replays/getSessionReplays.ts
+    line: 38
+  suggestion: io/0 の visit_id の use に filter を足し、根拠に getSessionReplays.ts 38 行を足す。
+  resolved: true
+notes: '次は指摘にしなかった。(1) 根拠の行は、全 180 フレームの summary / call / parameters / io / links / guards / settings / rules について、対象のコードの行を開いて突き合わせ、ファイルや行の範囲の外れは無く、主張を支えない行も見つからなかった。(2) 同じ処理の置き場 (ReplaysPage の中の順 useSubscription → WebsiteControls → ReplaysDataTable → SavedReplaysDataTable → SessionModal → ReplayModal で、深さ優先で最初に着いた呼び出し元) と、終端の決まりのための書き直し (_rw の段。api_session_replays、ReplaySaveForm、ReplayModal、canViewAuthenticatedWebsite、canUpdateWebsite、canDeleteWebsite の下) は、プロファイルと analysis-conventions の決まりどおり。書き直した段に確認・設定・ルールの繰り返しも無い。ReplayPlayback の useWebsiteSessionQuery (38 行) の省略も、summary に経路が書いてある。(3) クラウドモードでの打ち切りの後ろの 5 つを conditional にしたこと、タブ (TabPanel) の選択を条件に含めないこと、イベントのプロパティのタブを conditional のフレームとして残したことは、heatmaps の結果や分析リポジトリの決まりと揃っている。(4) values の受け口の getQueryFilters / getValues は else の枝 (route.ts 52 行) だが、この画面の列には segment / cohort が無いことが note に書いてあるので always のままでよい。(5) ownership の確認の status が、canDeleteWebsite では fact、canUpdateWebsite と canViewWebsite では interpretation と揃っていない。値は関数の名前で、条件の中身は読み取りなので、どちらとも取れるため指摘にはしていない (replays.replayId_d のレビューと同じ扱い)。(6) canViewAuthenticatedWebsite の確認 (kind: other、value: auth?.user) の綴りは、replays.replayId_d と modal_s.replays.sessionId_d の結果と同じ。(7) 録画の再生 (ReplayPlayer の rrweb-player) は、記録したページの DOM を iframe に描き直す。記録側 (src/recorder/index.js 480 行) は inlineStylesheet: true だけで画像を埋め込まないので、再生のときにブラウザが記録したサイトの画像を取りに行くと考えられる。ただし、これはライブラリの動きで、リポジトリのコードからは読み切れず、同じ ReplayPlayback を描くほかの入口の結果も書いていないので、指摘にはしていない。書くなら、分析リポジトリの決まり (ブラウザから他社へ取りに行く処理は external_api) に当てはめるかを、人が決める。(8) analyzer.tests が無いので、tests の漏れは見ていない。'

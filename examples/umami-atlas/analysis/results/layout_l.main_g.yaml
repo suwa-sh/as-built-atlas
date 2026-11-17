@@ -499,22 +499,15 @@ callstack:
     - {file: "src/components/input/UserButton.tsx", line: 151}
     note: "クラウドモードのとき、UserButton の /settings・/settings/support・/logout は前に cloudUrl (環境変数 CLOUD_URL) が付き、ページごと移る。値はリポジトリからは読めない"
   guards:
-  - kind: "authentication"
-    status: "interpretation"
-    evidence:
-    - {file: "src/app/(main)/App.tsx", line: 47}
-    - {file: "src/app/(main)/App.tsx", line: 48}
-    - {file: "src/app/(main)/App.tsx", line: 54}
-    - {file: "src/app/(main)/App.tsx", line: 55}
-    note: "ログインの確認 (useLoginQuery の POST /auth/verify) がエラーならログイン画面へ移し、ユーザーが無ければ何も描かない。トークンの検査そのものは、サーバー側のフレーム q_check_auth が行う"
   - kind: "other"
-    value: "2 段階認証が必須 (twoFactorStatus.isRequired) なのに有効でない (isEnabled が偽) ユーザーは、設定を終えるまで、包まれる画面を操作できない (pointerEvents: none と、閉じられない設定用の小窓)"
+    value: "twoFactorStatus?.isRequired && !twoFactorStatus?.isEnabled"
     status: "interpretation"
     evidence:
     - {file: "src/app/(main)/App.tsx", line: 26}
     - {file: "src/app/(main)/App.tsx", line: 78}
     - {file: "src/app/(main)/App.tsx", line: 79}
     - {file: "src/app/(main)/App.tsx", line: 84}
+    note: "2 段階認証が必須 (twoFactorStatus.isRequired) なのに有効でない (isEnabled が偽) ユーザーは、設定を終えるまで、包まれる画面を操作できない (pointerEvents: none と、閉じられない設定用の小窓)"
   settings:
   - name: "CLOUD_MODE"
     kind: "env"
@@ -991,12 +984,13 @@ callstack:
     - {file: "src/permissions/team.ts", line: 15}
   guards:
   - kind: "ownership"
-    value: "user.isAdmin か、チームのメンバー (getTeamUser(teamId, user.id) が行を返す)"
+    value: "canViewTeam"
     status: "fact"
     evidence:
     - {file: "src/permissions/team.ts", line: 7}
     - {file: "src/permissions/team.ts", line: 11}
     - {file: "src/permissions/team.ts", line: 15}
+    note: "user.isAdmin か、チームのメンバー (getTeamUser(teamId, user.id) が行を返す)"
 - id: "q_get_team_user"
   layer: "query"
   kind: "function"
@@ -1590,7 +1584,7 @@ callstack:
     - {file: "src/permissions/website.ts", line: 35}
   guards:
   - kind: "ownership"
-    value: "user.isAdmin、共有トークンの対象、entity.userId が本人 (user.id === entity.userId)、または entity.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
+    value: "canViewWebsite"
     status: "fact"
     evidence:
     - {file: "src/permissions/website.ts", line: 9}
@@ -1599,6 +1593,7 @@ callstack:
     - {file: "src/permissions/website.ts", line: 31}
     - {file: "src/permissions/website.ts", line: 35}
     - {file: "src/permissions/website.ts", line: 37}
+    note: "user.isAdmin、共有トークンの対象、entity.userId が本人 (user.id === entity.userId)、または entity.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
 - id: "q_get_entity"
   layer: "query"
   kind: "function"
@@ -2090,11 +2085,12 @@ callstack:
     - {file: "src/app/api/users/[userId]/websites/route.ts", line: 21}
   guards:
   - kind: "ownership"
-    value: "auth.user.isAdmin か、本人 (auth.user.id === userId)"
+    value: "auth.user.id === userId"
     status: "fact"
     evidence:
     - {file: "src/app/api/users/[userId]/websites/route.ts", line: 23}
     - {file: "src/app/api/users/[userId]/websites/route.ts", line: 24}
+    note: "auth.user.isAdmin か、本人 (auth.user.id === userId)"
 - id: "q_get_user_websites"
   layer: "query"
   kind: "function"
@@ -2310,7 +2306,7 @@ callstack:
     - {file: "src/permissions/link.ts", line: 34}
   guards:
   - kind: "ownership"
-    value: "user.isAdmin、共有トークンの対象、link.userId が本人 (user.id === link.userId)、または link.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
+    value: "canViewLink"
     status: "fact"
     evidence:
     - {file: "src/permissions/link.ts", line: 7}
@@ -2319,6 +2315,7 @@ callstack:
     - {file: "src/permissions/link.ts", line: 30}
     - {file: "src/permissions/link.ts", line: 34}
     - {file: "src/permissions/link.ts", line: 36}
+    note: "user.isAdmin、共有トークンの対象、link.userId が本人 (user.id === link.userId)、または link.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
 - id: "q_get_link_rw"
   layer: "query"
   kind: "function"
@@ -2699,7 +2696,7 @@ callstack:
     - {file: "src/permissions/pixel.ts", line: 34}
   guards:
   - kind: "ownership"
-    value: "user.isAdmin、共有トークンの対象、pixel.userId が本人 (user.id === pixel.userId)、または pixel.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
+    value: "canViewPixel"
     status: "fact"
     evidence:
     - {file: "src/permissions/pixel.ts", line: 7}
@@ -2708,6 +2705,7 @@ callstack:
     - {file: "src/permissions/pixel.ts", line: 30}
     - {file: "src/permissions/pixel.ts", line: 34}
     - {file: "src/permissions/pixel.ts", line: 36}
+    note: "user.isAdmin、共有トークンの対象、pixel.userId が本人 (user.id === pixel.userId)、または pixel.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
 - id: "q_get_pixel_rw"
   layer: "query"
   kind: "function"
@@ -3077,7 +3075,7 @@ callstack:
     - {file: "src/permissions/board.ts", line: 178}
   guards:
   - kind: "ownership"
-    value: "user.isAdmin、共有トークンの対象、board.userId が本人 (user.id === board.userId)、または board.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
+    value: "canViewBoard"
     status: "fact"
     evidence:
     - {file: "src/permissions/board.ts", line: 155}
@@ -3086,6 +3084,7 @@ callstack:
     - {file: "src/permissions/board.ts", line: 174}
     - {file: "src/permissions/board.ts", line: 178}
     - {file: "src/permissions/board.ts", line: 180}
+    note: "user.isAdmin、共有トークンの対象、board.userId が本人 (user.id === board.userId)、または board.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
 - id: "q_get_board_rw"
   layer: "query"
   kind: "function"

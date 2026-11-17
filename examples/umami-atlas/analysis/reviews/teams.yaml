@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: teams
+reviewed_at: "2026-11-17T15:27:16Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/api_user_teams_get/parameters/1
+    claim: "クエリの引数を「page / pageSize / orderBy / sortDescending (pagingParams と sortingParams のスキーマ)」と書いているが、pagingParams には maxResults もあり (schema.ts:90)、一覧から落ちている。同じ結果の GET /api/admin/users と GET /api/teams/[teamId]/users の引数には maxResults を書いていて、そろっていない"
+    evidence: { file: src/lib/schema.ts, line: 90 }
+    suggestion: "name を page / pageSize / maxResults / orderBy / sortDescending にし、根拠に src/lib/schema.ts:87 と 93 を足す"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。全フレームの source と、主張ごとの根拠の行を対象のコードで開いて確かめ、上の 1 件のほかは主張を支えていた。指摘にしなかったこと: [1] 同じ関数を 1 回だけ書く置き場 (parseRequest と checkAuth と getUser は POST /api/auth/verify の下、getTeamUser は POST /api/teams/join の下) は、入口から深さ優先でコードの順に辿った順 (TeamsPage.tsx:12 → TeamsHeader.tsx:16 / 21 / 22 → TeamAddForm.tsx:22 / 40) と合っていた。終端を避けるための書き直し q_get_team_user_rw も、読み書きを持つ段で止まり、確認・設定・ルールを繰り返していない。[2] 画面を包む枠の App (src/app/(main)/App.tsx:21、43-55) が useLoginQuery でユーザーを読み終えてから中身を描くので、実際には画面の useLoginQuery の enabled: !user が成り立たず、POST /api/auth/verify は画面からは呼ばれないことが多い。結果は conditional と条件を正しく書いているので、指摘にしていない。[3] 結果の notes [5] の、枠がクラウドモードでも中身を描くという判断は、App.tsx で確かめられた (クラウドモードで変わるのはログインへの転送先だけ)。[4] checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth の api_key の読み取りと更新) を辿っていないのは、ブラウザがログイントークンを付けるためで、ほかの入口の結果と同じ扱い。analysis-conventions.md に書いておくと、レビューで迷わない。[5] 確認がコードに直接書いてあり関数が無い ownership (auth.user.id === userId) は、settings.teams と settings.websites.websiteId_d の結果と同じ綴りだった。analysis-conventions.md の「関数の名前だけ」に当てはまらない場合の書き方として、決まりに足しておくとよい。[6] 入口をまたいだ書き方の違い (人が決めること): canViewTeam の管理者の素通し (permissions/team.ts:11) を、この結果と admin.teams は ownership の canViewTeam 1 件の note に書き、settings.websites.websiteId_d は role の user.isAdmin と ownership の canViewTeam の 2 件に分けて書いている。canCreateTeam の管理者の素通し (team.ts:23) も note だけ。綴りは同じで決まりにも反しないので指摘にしていないが、analysis-conventions.md でどちらかに決めると、権限の確認の一覧がそろう。[7] 作成ボタンを view-only のときに出さない画面の出し分け (TeamsHeader.tsx:22) を rules の decision に書いているのは、links / pixels / settings.teams の結果と同じ扱い。[8] 招待コードが見つからない・既にメンバー、の早い return の後ろにある getTeamUser と createTeamUser を always にしているのは、入力の誤りによる打ち切りと見て、取り違えにしていない。[9] 行の名前のリンクの行き先 /teams/${row.id} を入口 websites にしたのは、next.config.ts:164-165 の転送と 253-254 の書き換えで確かめられ、入口の一覧に websites (entry-list.yaml:893) がある"

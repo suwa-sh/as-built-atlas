@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: admin.users.userId_d
+reviewed_at: "2026-11-17T11:43:07Z"
+reviewer: "claude-fable-5-2 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/ext_charts_pg/settings/0
+    claim: "DATABASE_REPLICA_URL の設定が interpretation になっているが、環境変数を読む行 (useReplica: !!process.env.DATABASE_REPLICA_URL) と、それで複製のクライアントを選ぶ行 (prisma.ts:55) がコードにそのまま書いてあり、根拠にも両方の行がある。ほかの入口の結果 (layout_l.main_g.websites.websiteId_d) は、同じ設定を fact で書いている"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "status を fact にする (書く段も、ほかの入口と同じく、rawQuery を呼ぶ query の段 q_get_website_list_charts にそろえるかを確かめる)"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/api_user_websites_get/guards/0
+    claim: "同じ受け口の同じ確認 (route.ts:23) が、ほかの入口の結果 (boards.boardId_d.edit) では value が auth.user.id === userId (管理者が通ることは note) で書かれていて、この結果の !auth.user.isAdmin && auth.user.id !== userId と綴りが違う。この綴りは、401 にする側の条件で、管理者の確認 (決まりでは user.isAdmin にそろえる) も 1 つの値に混ざっている"
+    evidence: { file: "src/app/api/users/[userId]/websites/route.ts", line: 23 }
+    suggestion: "入口をまたいで 1 つの綴りにそろえる (例: value は auth.user.id === userId にし、管理者は本人でなくても通ることを note に書く)"
+    resolved: true
+notes: "(1) 根拠の行は、全フレームの call / summary / parameters / io / links / guards / settings / rules を対象のコードと schema.prisma で開いて確かめ、上の 2 件のほかに食い違いは無かった。辿り漏れも見つからなかった (UserHeader、DataGrid、WebsiteSparkline、TypeConfirmationForm、getQueryFilters、parseShareToken、hashPassword、isTwoFactorConfigured は、データにもライブラリにも届かない)。(2) 指摘にしなかったこと: POST /api/users/[userId] の、役割とユーザー名を変えられるのは管理者だけという確認 (route.ts:61 と :65 の auth.user.isAdmin) は、rules の decision にだけ書いてあり、guards (kind: role、user.isAdmin) には無い。要求を断らず、送られた値を無視するだけの確認なので、ルールとして書くのも筋が通る。guards にも書くかどうかは、入口をまたいで決めること。(3) checkAuth の API キーの枝を辿っていないことは、ほかの入口の結果と同じ扱いなので、指摘にしていない。(4) 入口の summary の「どの API も最初にログインの確認を行う」は、/api/admin の 3 つの受け口では CLOUD_MODE の確認が先 (2fa/route.ts:10、:32、:61) で、厳密には順が違う。同じ summary の末尾に CLOUD_MODE で 404 を返すことが書いてあるので、指摘にしていない。(5) GET /api/users/[userId]/websites の parameters の 1 件目は、name に 5 つの名前 (page / pageSize / search / orderBy / sortDescending) をまとめて書いている。ほかの入口の結果 (boards.boardId_d.edit) も同じ行を根拠にまとめているので、指摘にしていない"
