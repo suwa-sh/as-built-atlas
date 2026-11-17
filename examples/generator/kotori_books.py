@@ -445,6 +445,11 @@ JOB="${1:?job name}"
 shift
 cd "$(dirname "$0")/.."
 ''')
+    run_job.add('# 実行ユーザーの確認: KOTORI_RUN_USER が設定されていれば、そのユーザーでなければ動かさない')
+    run_job.add('if [ -n "${KOTORI_RUN_USER:-}" ] && [ "$(id -un)" != "$KOTORI_RUN_USER" ]; then', mark="run_user")
+    run_job.add('  echo "run_job.sh: ${KOTORI_RUN_USER} で実行してください" >&2')
+    run_job.add('  exit 77')
+    run_job.add('fi')
     run_job.add('ENV_FILE="config/${KOTORI_ENV:-prod}.env"', mark="env_file")
     run_job.add('# shellcheck disable=SC1090')
     run_job.add('source "$ENV_FILE"', mark="source_env")
@@ -754,6 +759,19 @@ def peek(topic: str, limit: int = 1000) -> list[dict]:
     notify.add('    requests.post(url, json={"text": text}, timeout=(5, 10)).raise_for_status()', mark="post")
     write(target, "jobs/lib/notify.py", notify.text())
     srcs["jobs/lib/notify.py"] = notify
+    test_notify = Src()
+    test_notify.add('"""jobs.lib.notify の単体テスト (pytest)。"""')
+    test_notify.add("from jobs.lib import notify")
+    test_notify.add("")
+    test_notify.add("")
+    test_notify.add("def test_post_without_webhook_does_nothing(monkeypatch):", mark="test")
+    test_notify.add('    monkeypatch.delenv("KOTORI_CHAT_WEBHOOK", raising=False)')
+    test_notify.add("    calls = []")
+    test_notify.add('    monkeypatch.setattr(notify.requests, "post", lambda *a, **k: calls.append(a))')
+    test_notify.add('    notify.post("hello")')
+    test_notify.add("    assert calls == []  # URL が無ければ、何も送らない")
+    write(target, "tests/test_notify.py", test_notify.text())
+    srcs["tests/test_notify.py"] = test_notify
 
     write(target, "config/prod.env", "\n".join([
         "# 本番の設定 (秘密は含めない。パスワード・トークンは実行環境の環境変数で渡す)",
@@ -1053,6 +1071,7 @@ def gen_job(target: Path, f: Flow) -> tuple[Src, list[dict]]:
             last_rows = f"rows_{n}"
             if f.checks:
                 name = (io["detail"] or "").split(":")[0].replace("検査 ", "")
+                s.marks.setdefault("check_rule", len(s.lines) + 1)
                 s.add(f'    checks.append({{"checked_at": dt.datetime.now(), "check_name": "{name}", "status": "ok" if rows_{n} else "ng", "detail": f"{{len(rows_{n})}} 行"}})')
                 last_rows = "checks"
             for t, line in zip(tables, lines):
@@ -1382,8 +1401,12 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
     frames.append({
         "id": fid("run_job"), "layer": "shell", "kind": "script", "name": "scripts/run_job.sh", "source": {"file": "scripts/run_job.sh", "line": 1}, "caller": fid("flow"),
         "call": called(claim("fact", None, ev(flow_file, flow_src.marks["command"]))),
+        "guards": [{"kind": "other", "value": "$(id -un) = $KOTORI_RUN_USER", "status": "fact", "evidence": ev("scripts/run_job.sh", rj.marks["run_user"]),
+                    "note": "実行ユーザーの確認。KOTORI_RUN_USER が設定されているときだけ行い、違えば 77 で終わる"}],
         "settings": [{"name": "KOTORI_ENV", "kind": "env", "effect": "読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)", "status": "fact",
-                      "evidence": ev("scripts/run_job.sh", rj.marks["env_file"])}],
+                      "evidence": ev("scripts/run_job.sh", rj.marks["env_file"])},
+                     {"name": "KOTORI_RUN_USER", "kind": "env", "effect": "設定されていれば、実行ユーザーを確かめる。未設定なら確かめない", "status": "fact",
+                      "evidence": ev("scripts/run_job.sh", rj.marks["run_user"])}],
         "summary": claim("interpretation", "config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー", ev("scripts/run_job.sh", 2, rj.marks["python"])),
         "parameters": [
             {"name": "JOB", "value": f"{f.id} (第 1 引数。実行するモジュール jobs.{f.id} とログ名になる)", "status": "fact", "evidence": ev(flow_file, flow_src.marks["command"]) + ev("scripts/run_job.sh", 5)},
@@ -1403,6 +1426,9 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
     for iid, typ, help_ in f.inputs:
         params.append({"name": "--" + iid.replace("_", "-"), "value": f"{help_} (Flow の inputs.{iid} から)", "status": "fact", "evidence": ev(job_file, job_src.marks[f"arg:{iid}"])})
     job_frame["parameters"] = params
+    if "check_rule" in job_src.marks:
+        job_frame["rules"] = [{"kind": "validation", "value": "検査ごとに、読んだ行が 1 件でもあれば ok、1 件も無ければ ng とする", "status": "fact",
+                               "evidence": ev(job_file, job_src.marks["check_rule"])}]
     job_frame["io"] = []
     for t in truth_io:
         evidence = [{"file": e[0], "line": e[1]} if isinstance(e, tuple) else {"file": job_file, "line": e} for e in t["evidence"]]
@@ -1432,6 +1458,8 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
                        "caller": fid("job"), "call": called(claim("fact", None, ev(job_file, job_src.marks["notify"])), *("conditional", "--dry-run が付いていないとき")),
                        "settings": [{"name": "KOTORI_CHAT_WEBHOOK", "kind": "env", "effect": "通知の送り先。未設定なら、何も送らない", "status": "fact",
                                      "evidence": ev("jobs/lib/notify.py", nt.marks["url"])}],
+                       "tests": [{"name": "test_post_without_webhook_does_nothing", "kind": "unit", "status": "fact",
+                                  "evidence": ev("tests/test_notify.py", common["tests/test_notify.py"].marks["test"])}],
                        "summary": claim("interpretation", "運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない", ev("jobs/lib/notify.py", nt.marks["url"], nt.marks["post"])),
                        "io": [{"op": "call", "status": "unknown", "reason": "not_traceable_in_repo", "resource": {"kind": "external_api", "levels": {}},
                                "detail": "チャットの Webhook (POST, JSON の text)", "note": "URL は環境変数 KOTORI_CHAT_WEBHOOK で、リポジトリに無い", "evidence": ev("jobs/lib/notify.py", nt.marks["url"])}]})
@@ -1456,7 +1484,7 @@ def result_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
         "format_version": 1,
         "entry": {"id": f.full_id, "path": "/" + f.ns.replace(".", "/") + "/" + f.id, "name": f.id, "layer": "scheduler", "source": {"file": f.flow_file, "line": 1}},
         "target": target_meta,
-        "analyzer": {"profile": {"id": PROFILE_ID, "version": PROFILE_VERSION}, "skill_version": SKILL_VERSION, "analyzed_at": ANALYZED_AT, "analyst": ANALYST},
+        "analyzer": {"profile": {"id": PROFILE_ID, "version": PROFILE_VERSION}, "skill_version": SKILL_VERSION, "analyzed_at": ANALYZED_AT, "analyst": ANALYST, "tests": True},
         "summary": claim("interpretation", f.desc, ev_summary),
         "callstack": frames,
         "notes": "正解データ。対象と同じ仕様から生成したので、根拠の行はすべて実在する。Subflow で呼ぶ Flow の処理は親の結果にも展開してある (共有している処理として集計に出る)",
@@ -1501,6 +1529,7 @@ scripts/run_job.sh              共通ランナー。設定を読み、python3 -
 scripts/db_snapshot.sh, rotate_logs.sh   シェルだけで完結するジョブ
 jobs/<job>.py                   ジョブ本体 (PostgreSQL / Redis / S3 / 外部 API / キュー を読み書きする)
 jobs/lib/                       共有の薄いラッパー (db / cache / storage / http / mq / notify)
+tests/                          単体テスト (pytest。通知の部品だけ)
 jobs/settings.py                接続先の既定値とバケット名・ディレクトリ
 config/prod.env                 本番の設定 (秘密は含まない)。config/digests.yaml はダイジェストの対象
 sql/reports/*.sql.j2            実行時に組み立てる SQL のテンプレート
@@ -1573,7 +1602,7 @@ def main(argv=None) -> int:
     target_meta = {"repo": f"as-built-atlas/examples/{TARGET_NAME}", "clone_path": f"../{TARGET_NAME}", "scope": ".", "commit": commit}
     work_target = {"repo": target_meta["repo"], "name": "ことり書店 バッチ", **{k: v for k, v in target_meta.items() if k != "repo"}}
     write(atlas, "analysis/work-definition.yaml", yaml.safe_dump(
-        {"format_version": 1, "target": work_target, "profile": {"id": PROFILE_ID, "dir": f".abatlas/profiles/{PROFILE_ID}"}}, allow_unicode=True, sort_keys=False))
+        {"format_version": 1, "target": work_target, "profile": {"id": PROFILE_ID, "dir": f".abatlas/profiles/{PROFILE_ID}"}, "analysis": {"tests": True}}, allow_unicode=True, sort_keys=False))
 
     # 入口一覧: プロファイルの既定の抽出器をそのまま実行して作る (決定的)。全件を承認済みにする
     profile_path = OSS_ROOT / "profiles" / PROFILE_ID / "profile.yaml"

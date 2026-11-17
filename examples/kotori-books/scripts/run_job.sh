@@ -5,6 +5,11 @@ set -euo pipefail
 JOB="${1:?job name}"
 shift
 cd "$(dirname "$0")/.."
+# 実行ユーザーの確認: KOTORI_RUN_USER が設定されていれば、そのユーザーでなければ動かさない
+if [ -n "${KOTORI_RUN_USER:-}" ] && [ "$(id -un)" != "$KOTORI_RUN_USER" ]; then
+  echo "run_job.sh: ${KOTORI_RUN_USER} で実行してください" >&2
+  exit 77
+fi
 ENV_FILE="config/${KOTORI_ENV:-prod}.env"
 # shellcheck disable=SC1090
 source "$ENV_FILE"

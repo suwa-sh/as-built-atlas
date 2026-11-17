@@ -322,7 +322,13 @@ def test_aspect_marts_match_the_results(built: Path):
         assert {e: (b, f) for e, b, f in q("select entry_id, branch_count, failure_path_count from mart.mart_entry_complexity")} == branches
         assert q("select count(*) from mart.mart_entry_access where authentication")[0][0] == 0, "見本は、権限の確認を持たない"
         assert q("select count(*) from mart.mart_entry_access")[0][0] == len(docs), "観点を分析した結果は、権限のまとめに 1 行ずつ出る"
-        assert q("select count(*) from mart.mart_test_coverage")[0][0] == 0, "テストとの対応は、選んだときだけ"
+        tested = {(e, f) for e, f in q("select entry_id, frame_name from mart.mart_test_coverage where test_count > 0")}
+        assert tested == {(d["entry"]["id"], f["name"]) for d in docs for f in d["callstack"] if f.get("tests")} and tested, "テストのある処理だけが、数を持つ"
+        assert q("select count(*) from mart.mart_test_coverage where layer = 'external'")[0][0] == 0, "外との境の処理は、テストの対象に数えない"
+        guards = {(e, v) for e, v in q("select entry_id, value from mart.mart_entry_guards")}
+        assert guards == {(d["entry"]["id"], g["value"]) for d in docs for f in d["callstack"] for g in f.get("guards", [])} and guards
+        rules = q("select count(*) from mart.mart_rules")[0][0]
+        assert rules == sum(len(f.get("rules", [])) for d in docs for f in d["callstack"]) and rules
         assert q("select count(*) from mart.mart_sensitive_data")[0][0] == 0, "辞書が無ければ、空"
 
 

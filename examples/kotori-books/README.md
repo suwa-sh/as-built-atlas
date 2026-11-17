@@ -14,6 +14,7 @@ scripts/run_job.sh              共通ランナー。設定を読み、python3 -
 scripts/db_snapshot.sh, rotate_logs.sh   シェルだけで完結するジョブ
 jobs/<job>.py                   ジョブ本体 (PostgreSQL / Redis / S3 / 外部 API / キュー を読み書きする)
 jobs/lib/                       共有の薄いラッパー (db / cache / storage / http / mq / notify)
+tests/                          単体テスト (pytest。通知の部品だけ)
 jobs/settings.py                接続先の既定値とバケット名・ディレクトリ
 config/prod.env                 本番の設定 (秘密は含まない)。config/digests.yaml はダイジェストの対象
 sql/reports/*.sql.j2            実行時に組み立てる SQL のテンプレート

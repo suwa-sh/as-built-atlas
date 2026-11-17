@@ -12,7 +12,7 @@ target:
   repo: as-built-atlas/examples/kotori-books
   clone_path: ../kotori-books
   scope: .
-  commit: d2f13cdcd58d99a9d44029edf472a50a8b2e9aa8
+  commit: caf558fcb98cfcb8afd9e8b4a3b9ea7dde626634
 analyzer:
   profile:
     id: batch-kestra
@@ -20,6 +20,7 @@ analyzer:
   skill_version: 0.4.0
   analyzed_at: '2026-11-08T12:00:00+09:00'
   analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
+  tests: true
 summary:
   status: interpretation
   value: 週次の締め。コホート分析と仕入先向け明細を Subflow で呼ぶ。失敗時は lib.notify_failure に通知する
@@ -134,6 +135,14 @@ callstack:
     evidence:
     - file: flows/weekly/cohort_retention.yaml
       line: 24
+  guards:
+  - kind: other
+    value: $(id -un) = $KOTORI_RUN_USER
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 9
+    note: 実行ユーザーの確認。KOTORI_RUN_USER が設定されているときだけ行い、違えば 77 で終わる
   settings:
   - name: KOTORI_ENV
     kind: env
@@ -141,7 +150,14 @@ callstack:
     status: fact
     evidence:
     - file: scripts/run_job.sh
-      line: 8
+      line: 13
+  - name: KOTORI_RUN_USER
+    kind: env
+    effect: 設定されていれば、実行ユーザーを確かめる。未設定なら確かめない
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 9
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -149,7 +165,7 @@ callstack:
     - file: scripts/run_job.sh
       line: 2
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
   parameters:
   - name: JOB
     value: cohort_retention (第 1 引数。実行するモジュール jobs.cohort_retention とログ名になる)
@@ -166,7 +182,7 @@ callstack:
     - file: flows/weekly/cohort_retention.yaml
       line: 22
     - file: scripts/run_job.sh
-      line: 8
+      line: 13
   io:
   - op: read
     status: fact
@@ -178,7 +194,7 @@ callstack:
     detail: source で読む (接続先・バケット名)
     evidence:
     - file: scripts/run_job.sh
-      line: 10
+      line: 15
   - op: append
     status: fact
     resource:
@@ -189,9 +205,9 @@ callstack:
     detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
     evidence:
     - file: scripts/run_job.sh
-      line: 14
+      line: 19
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
 - id: cohort_retention__job
   layer: program
   kind: module
@@ -205,7 +221,7 @@ callstack:
     when: always
     evidence:
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
     note: JOB=cohort_retention なので jobs.cohort_retention が動く
   summary:
     status: interpretation
@@ -429,6 +445,14 @@ callstack:
     evidence:
     - file: flows/weekly/supplier_statements.yaml
       line: 24
+  guards:
+  - kind: other
+    value: $(id -un) = $KOTORI_RUN_USER
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 9
+    note: 実行ユーザーの確認。KOTORI_RUN_USER が設定されているときだけ行い、違えば 77 で終わる
   settings:
   - name: KOTORI_ENV
     kind: env
@@ -436,7 +460,14 @@ callstack:
     status: fact
     evidence:
     - file: scripts/run_job.sh
-      line: 8
+      line: 13
+  - name: KOTORI_RUN_USER
+    kind: env
+    effect: 設定されていれば、実行ユーザーを確かめる。未設定なら確かめない
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 9
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -444,7 +475,7 @@ callstack:
     - file: scripts/run_job.sh
       line: 2
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
   parameters:
   - name: JOB
     value: supplier_statements (第 1 引数。実行するモジュール jobs.supplier_statements とログ名になる)
@@ -461,7 +492,7 @@ callstack:
     - file: flows/weekly/supplier_statements.yaml
       line: 22
     - file: scripts/run_job.sh
-      line: 8
+      line: 13
   io:
   - op: read
     status: fact
@@ -473,7 +504,7 @@ callstack:
     detail: source で読む (接続先・バケット名)
     evidence:
     - file: scripts/run_job.sh
-      line: 10
+      line: 15
   - op: append
     status: fact
     resource:
@@ -484,9 +515,9 @@ callstack:
     detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
     evidence:
     - file: scripts/run_job.sh
-      line: 14
+      line: 19
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
 - id: supplier_statements__job
   layer: program
   kind: module
@@ -500,7 +531,7 @@ callstack:
     when: always
     evidence:
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
     note: JOB=supplier_statements なので jobs.supplier_statements が動く
   summary:
     status: interpretation
@@ -736,6 +767,14 @@ callstack:
     evidence:
     - file: flows/lib/notify_failure.yaml
       line: 25
+  guards:
+  - kind: other
+    value: $(id -un) = $KOTORI_RUN_USER
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 9
+    note: 実行ユーザーの確認。KOTORI_RUN_USER が設定されているときだけ行い、違えば 77 で終わる
   settings:
   - name: KOTORI_ENV
     kind: env
@@ -743,7 +782,14 @@ callstack:
     status: fact
     evidence:
     - file: scripts/run_job.sh
-      line: 8
+      line: 13
+  - name: KOTORI_RUN_USER
+    kind: env
+    effect: 設定されていれば、実行ユーザーを確かめる。未設定なら確かめない
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 9
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -751,7 +797,7 @@ callstack:
     - file: scripts/run_job.sh
       line: 2
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
   parameters:
   - name: JOB
     value: notify_failure (第 1 引数。実行するモジュール jobs.notify_failure とログ名になる)
@@ -768,7 +814,7 @@ callstack:
     - file: flows/lib/notify_failure.yaml
       line: 23
     - file: scripts/run_job.sh
-      line: 8
+      line: 13
   io:
   - op: read
     status: fact
@@ -780,7 +826,7 @@ callstack:
     detail: source で読む (接続先・バケット名)
     evidence:
     - file: scripts/run_job.sh
-      line: 10
+      line: 15
   - op: append
     status: fact
     resource:
@@ -791,9 +837,9 @@ callstack:
     detail: 開始・終了の行と、ジョブの標準出力 (tee -a)
     evidence:
     - file: scripts/run_job.sh
-      line: 14
+      line: 19
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
 - id: notify_failure__job
   layer: program
   kind: module
@@ -807,7 +853,7 @@ callstack:
     when: always
     evidence:
     - file: scripts/run_job.sh
-      line: 16
+      line: 21
     note: JOB=notify_failure なので jobs.notify_failure が動く
   summary:
     status: interpretation
@@ -860,6 +906,13 @@ callstack:
     evidence:
     - file: jobs/lib/notify.py
       line: 10
+  tests:
+  - name: test_post_without_webhook_does_nothing
+    kind: unit
+    status: fact
+    evidence:
+    - file: tests/test_notify.py
+      line: 5
   summary:
     status: interpretation
     value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
