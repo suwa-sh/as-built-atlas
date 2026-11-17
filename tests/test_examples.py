@@ -22,6 +22,7 @@ import yaml
 
 from abatlas import ANALYSIS_DIR, REPO_ROOT, duckdb_path
 from abatlas.build import build_repo
+from abatlas.schemas import vocab
 from abatlas.enumerate import enumerate_entries
 from abatlas.etl import run_etl
 from abatlas.evaluate import compare_entry, evaluate, exit_code, format_report, io_key, load_results
@@ -230,3 +231,61 @@ def test_marts_are_populated(built: Path):
         assert analyzed == len(list(RESULTS.glob("*.yaml")))
         (n_data,) = con.execute("select count(distinct resource_path) from mart.mart_data_access").fetchone()
         assert n_data >= 80
+
+
+def test_complexity_counts_match_the_results(built: Path):
+    """複雑度の表の数を、分析結果の YAML から数え直して突き合わせる (1 つの点数にまとめず、数を並べる)。"""
+    docs = {p.stem: yaml.safe_load(p.read_text(encoding="utf-8")) for p in RESULTS.glob("*.yaml")}
+
+    def key(f: dict) -> tuple:
+        return (f["source"]["file"], f["name"], f["layer"])
+
+    users: dict[tuple, set[str]] = {}
+    for d in docs.values():
+        for f in d["callstack"]:
+            if f.get("caller"):
+                users.setdefault(key(f), set()).add(d["entry"]["id"])
+    shared = {k: v for k, v in users.items() if len(v) >= 2}
+    expected = {}
+    for d in docs.values():
+        frames = {f["id"]: f for f in d["callstack"]}
+
+        def depth(f: dict) -> int:
+            return 1 if not f.get("caller") else 1 + depth(frames[f["caller"]])
+
+        mine = {key(f) for f in frames.values() if f.get("caller") and key(f) in shared}
+        expected[d["entry"]["id"]] = (
+            len(frames),
+            max(depth(f) for f in frames.values()),
+            sum(1 for f in frames.values() if f.get("caller") and f["layer"] != frames[f["caller"]]["layer"]),
+            len(mine),
+            len(set().union(*(shared[k] for k in mine)) - {d["entry"]["id"]}) if mine else 0,
+        )
+    with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
+        rows = con.execute("select entry_id, frame_count, max_depth, layer_crossings, shared_frame_count, sharing_entry_count from mart.mart_entry_complexity").fetchall()
+        assert {r[0]: tuple(r[1:]) for r in rows} == expected
+        # データの数も、分析結果の YAML から数え直す (集計の SQL と同じ条件を使わない)。外部の接続先は、データに数えない
+        out_ops = {(k, o["id"]) for k, v in vocab("resource-kinds")["kinds"].items() for o in v["ops"] if o["direction"] == "out"}
+        want = {}
+        for d in docs.values():
+            data, written, external = set(), set(), set()
+            for f in d["callstack"]:
+                for io in f.get("io", []):
+                    res = io["resource"]
+                    one = (res["kind"], tuple(sorted((res.get("levels") or {}).items())))
+                    if res["kind"] == "external_api":
+                        external.add(one)
+                        continue
+                    data.add(one)
+                    if (res["kind"], io["op"]) in out_ops:
+                        written.add(one)
+            want[d["entry"]["id"]] = (len(data), len(written), len(external))
+        got = {r[0]: tuple(r[1:]) for r in con.execute("select entry_id, datastore_count, written_datastore_count, external_count from mart.mart_entry_complexity").fetchall()}
+        assert got == want
+        assert all(w <= n for n, w, _ in got.values()) and any(w < n for n, w, _ in got.values()) and any(x > 0 for _, _, x in got.values())
+        # 並びは、直すときに一緒に確かめるものが多い順
+        order = con.execute("select sharing_entry_count, written_datastore_count, frame_count from mart.mart_entry_complexity").fetchall()
+        assert order == sorted(order, reverse=True)
+        cols = {c[0] for c in con.execute("describe mart.mart_entry_overview").fetchall()}
+        assert "complexity" not in cols, "1 つにまとめた仮の指標は、置かない"
+

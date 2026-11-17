@@ -50,7 +50,7 @@ models:
         keys: { id: entry_id, path: path, label: name, summary: summary }
         show: [layer, path, name, summary, analyzed, io_count, unknown_count, status]
         labels: { path: "{entry}", name: "{name}", summary: "{summary}", analyzed: "{analyzed}", io_count: "{data_access}", unknown_count: "{unknown}", layer: "{entry_layer}", status: "{approval}", frame_count: "{frame}",
-                  claim_count: "{claim}", fact_count: "{fact}", interpretation_count: "{interpretation}", complexity: "{complexity}", run_cost_usd: "{cost} (USD)", run_duration_s: "{duration} (s)",
+                  claim_count: "{claim}", fact_count: "{fact}", interpretation_count: "{interpretation}", run_cost_usd: "{cost} (USD)", run_duration_s: "{duration} (s)",
                   analyzed_at: "{analyzed_at}", target_commit: "{target_commit}", reviewed_findings_open: "{open_findings}",
                   profile_version: "{profile_version}", profile_stale: "{stale}" }
         filters:
@@ -58,6 +58,27 @@ models:
           - { label: "{not_analyzed}", where: { analyzed: "false" } }
           - { label: "{has_unknown}", where: { unknown_count__min: 1 } }
           - { label: "{stale}", where: { profile_stale: "true" } }
+    columns:
+      - name: entry_id
+        tests: [not_null, unique]
+
+  - name: mart_entry_complexity
+    description: "{entry} ごとの {complexity}。1 つの点数にまとめず、数を並べる: {frame} の数、{call_depth}、{layer_crossing}、{datastore} の数 (うち {write} するもの)、{external} の数、{shared_frame} の数と {sharing_entry} の数、{unknown} の数。{analyzed} の {entry} だけ"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{complexity}"
+        hint: "1 行が {analyzed} の {entry} 1 件。直すときに一緒に確かめるものが多い順 ({sharing_entry} → {write} する {datastore} → {frame})。同じものは 1 回だけ数える"
+        attach: any
+        tags: [monitor]
+        keys: { id: entry_id, path: path, label: name }
+        show: [path, sharing_entry_count, shared_frame_count, written_datastore_count, datastore_count, external_count, frame_count, max_depth, layer_crossings]   # unknown_count は出さない (すぐ下の {unknown} の表にある。列は API で読める)
+        labels: { path: "{entry}", name: "{name}", layer: "{entry_layer}", frame_count: "{frame}", max_depth: "{call_depth}", layer_crossings: "{layer_crossing}",
+                  datastore_count: "{datastore}", written_datastore_count: "{datastore} ({write})", external_count: "{external}",
+                  shared_frame_count: "{shared_frame}", sharing_entry_count: "{sharing_entry}", unknown_count: "{unknown}" }
     columns:
       - name: entry_id
         tests: [not_null, unique]

@@ -25,9 +25,7 @@ select
   coalesce(c.claim_count, 0) as claim_count,
   coalesce(c.fact_count, 0) as fact_count,
   coalesce(c.interpretation_count, 0) as interpretation_count,
-  coalesce(c.unknown_count, 0) as unknown_count,
-  -- 複雑度の仮の指標: フレーム数 + I/O 数 (段階 2 では置き場だけ用意する)
-  coalesce(r.frame_count, 0) + coalesce(i.io_count, 0) as complexity
+  coalesce(c.unknown_count, 0) as unknown_count
 from {{ ref('stg_entries') }} e
 left join {{ ref('stg_results') }} r using (entry_id)
 left join io_counts i using (entry_id)
