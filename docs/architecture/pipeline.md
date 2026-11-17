@@ -95,6 +95,16 @@ flowchart LR
 | `mart_external_if` | 表 | 外部 API のホストごとに、呼んでいる入口 |
 | `mart_shared_frames` | 表 | 2 件以上の入口から呼ばれる同じ処理 |
 | `mart_entry_within` | 表 | 入口を包む入口。1 行 = 包まれる入口 × 包む入口 |
+| `mart_field_access` | 表 | 列の単位の読み書き。入口 × データ × 列ごとに、使い方 (R = 読む、W = 書く、F = 絞り込みに使う) |
+| `mart_state_changes` | 表 | 状態の変化。決まった値を書く列ごとに、その値と、書く入口と処理 |
+| `mart_entry_links` | 表 | 入口から、ほかの入口へのつながり。行き先が入口の一覧と結べたかも持つ |
+| `mart_entry_access` | 表 | 入口ごとの権限のまとめ。認証の確認があるか、求める役割と権限 |
+| `mart_entry_guards` | 表 | 権限の確認の一覧。入口を包む入口の確認も、その入口の行として出す |
+| `mart_call_conditions` | 表 | いつも起きるとは限らない呼び出し (条件つき、失敗のときだけ) と、その条件 |
+| `mart_settings` | 表 | 設定への依存。設定 × 入口ごとに、使う処理と、動きへの影響 |
+| `mart_rules` | 表 | 業務のルールの一覧。内容と、根拠の場所 |
+| `mart_test_coverage` | 表 | 処理ごとの、それを直接呼ぶテストの数と名前。テストとの対応を分析した結果だけ |
+| `mart_sensitive_data` | 表 | 個人情報などの流れ。データの辞書で承認した列を使う入口と、同じ入口が呼ぶ外部の接続先 |
 
 補足です。
 
@@ -104,6 +114,20 @@ flowchart LR
 | `mart_data_access` | `kind` 列が種類。`ops` は、種類ごとの操作の 1 文字を語彙の並び順に連ねたもの (RDB なら C / R / U / D、ファイルなら R / W / A / D / L) |
 | `mart_dataflow` | 向きは語彙の `direction` (in = 読む側、out = 書く側) |
 | `mart_entry_within` | `ord` が外側からの順。入口の一覧の `within` から作る。包む関係を持たないプロファイルでは 0 行 |
+
+### 足した観点の集計表
+
+`mart_field_access` から下の 10 個は、分析結果の観点 ([formats.md](formats.md)) から作ります。
+
+| 決まり | 内容 |
+|---|---|
+| 置き場 | 区分は、分析の状況 (`subject: analysis`)。分析の状況のページに並び、入口のページでは、その入口に絞ったタブとして出る |
+| 前の版の結果 | 観点を書く前の版 (分析の skill が 0.4.0 より前) の結果は、その項目を持たないので、これらの表に自分の行を出さない。例外は `mart_entry_guards` で、包む入口が新しい版で分析されていれば、その確認が、前の版の包まれる入口の行としても出る。`mart_entry_access` は、観点を分析した結果だけを 1 行ずつ出すので、「分析していない」と「確認が無い」を区別できる |
+| 確かめられなかったテスト | `status` が `unknown` のテストは、`mart_test_coverage` の数と名前に入れない。数は `unknown_test_count` に出す |
+| 確かめられなかった確認 | `status` が `unknown` の確認は、`mart_entry_access` の `authentication` に数えず、求める役割と権限にも並べない。数は `unknown_guard_count` に出す |
+| 包む入口の確認 | `mart_entry_guards` は、入口を包む入口 (枠) の確認も、包まれる入口の行として出す (`inherited`)。包む入口がまだ分析されていないと数えられないので、`mart_entry_access` の `enclosing_not_analyzed` で分かるようにしている |
+| 全部の列 | 列が `*` の読み書きは、`mart_sensitive_data` では、そのデータの、辞書にある列すべてを使うものとして数える |
+| 個人情報の流れの粗さ | `mart_sensitive_data` の外部の接続先は、「同じ入口が呼ぶもの」。その列の値が実際に送られるかは、追っていない |
 
 ### 複雑度
 
@@ -119,9 +143,11 @@ flowchart LR
 | `frame_count` | 処理の段の数 |
 | `max_depth` | 入口から、いちばん深い処理までの段の数 |
 | `layer_crossings` | 呼び出し元と層が違う呼び出しの数 |
+| `branch_count` | 条件つきの呼び出しの数 (分岐) |
+| `failure_path_count` | 失敗のときだけの呼び出しの数 |
 | `unknown_count` | 確かめられなかった主張の数 |
 
-分岐の数は、数えていません。分析結果が、分岐を持たないためです。
+`branch_count` と `failure_path_count` は、呼び出しの条件 (`call.when`) から数えます。この観点を書く前の版の結果では、どちらも 0 です。画面の表には出していません (列は API で読めます)。
 
 ## 集計表の宣言
 

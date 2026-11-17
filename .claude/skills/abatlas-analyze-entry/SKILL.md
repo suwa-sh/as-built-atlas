@@ -21,7 +21,7 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
 ## 前提
 
 - 対象は `target.clone_path` に `target.commit` で checkout 済み (違えば止める)。分析リポジトリでは `.env` の `ABATLAS_TARGET` が同じ場所を指している (コンテナには `/ws/target` として見える)
-- 冪等: `analysis/results/<file>` が既にあり、その `target.commit`・`analyzer.profile.version`・`analyzer.skill_version` が今回と同じなら、何もせず「skip」と報告して終わる。どれかが違えば、分析し直して、結果とレビューのファイルを置き換える
+- 冪等: `analysis/results/<file>` が既にあり、その `target.commit`・`analyzer.profile.version`・`analyzer.skill_version` が今回と同じで、テストとの対応の選択も同じ (作業定義の `analysis.tests` が `true` なら結果の `analyzer.tests` も `true`、そうでなければ結果に `analyzer.tests` が無いか `false`) なら、何もせず「skip」と報告して終わる。どれかが違えば、分析し直して、結果とレビューのファイルを置き換える
 
 ## 手順
 
@@ -30,7 +30,20 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
 3. 入口を特定する: `analysis/entry-list.yaml` の該当 entry の `source` と `attributes` を読む。`source.file` を開き、入口のフレーム (`caller: null`) を書く
 4. 層の連鎖に沿って辿る。各フレームで次を決める:
    - `layer` (プロファイルの層 id)、`kind`、`name`、`source` (定義場所。`role: boundary` の層のフレームはリポジトリに定義が無いので、リポジトリの中でそれを使っている箇所。どの行にするかは `context.md` の決まりに従う)、`caller` (呼び出し元フレームの id)
-   - `call`: 呼び出しが成立する根拠 (呼び出し箇所の file と line を evidence に)
+   - `call`: 呼び出しが成立する根拠 (呼び出し箇所の file と line を evidence に)。`when` に、その呼び出しがいつ起きるかを書く
+
+     | `when` | いつ | `condition` |
+     |---|---|---|
+     | `always` | 呼び出し元が動けば、必ず呼ぶ | 書かない |
+     | `conditional` | 条件を満たすときだけ呼ぶ (if、繰り返しの中の絞り込み、設定や引数による切り替え、利用者の操作) | 条件を 1 文で書く |
+     | `on_failure` | 呼び出し元の処理が失敗したときだけ呼ぶ (例外の処理、失敗の通知、後片付け、やり直し) | 何が失敗したときかを 1 文で書く |
+
+     - 入口のフレーム (`caller: null`) には `call` が無いので、書かない。成功しても失敗しても動く後片付け (finally) は `always`
+     - `always` は、「呼び出し元が、途中で打ち切られずに進めば、必ず呼ぶ」の意味。呼び出しの手前に、入力の誤りや権限の不足で打ち切る経路 (早い return、例外) があるだけなら `always` (打ち切りは、`rules` や `guards` に書く)
+     - 業務の分かれ道 (ある場合だけ行う処理) の中にある呼び出しは `conditional`
+     - if の中にあっても、この入口から辿る限り条件がいつも成り立つ呼び出しは `always`。そう判断した理由を `note` に書く
+     - 利用者の操作 (ボタン、送信) で動く処理は、その操作で最初に動く段を `conditional` にし、`condition` に操作を書く。描画のたびに動く準備の呼び出し (フックや composable の呼び出し) は `always`
+     - 親が、子を描くかどうかを条件で決めるときは、子の段を `conditional` にする
    - `summary`: 何をする処理か (interpretation。読んだ範囲の代表行を evidence に)
    - `parameters`: 入力 (分かる範囲)
    - `io`: 読み書きするデータ。`resource.kind` と `levels`、そして `op`。**操作は種類ごとに決まっている** (`resource-kinds.yaml` の `kinds.<kind>.ops[].id`)。段の名前も同じファイルのとおり。分からない段は書かず、主張全体を `unknown` + `reason` にする
@@ -43,6 +56,21 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
      | filesystem | read / write / append / delete / list |
      | object_storage | get / put / delete / list |
      | external_api | call |
+   - `io[].fields`: その読み書きが触る列 (RDB の列、KVS やファイルの中の項目、外部 API へ送る・受け取る項目)。コードから読める範囲で書く
+     - `name` は、データの側の名前 (ORM の属性名と列名の対応が範囲の中で読めれば、列名。読めなければ属性名のまま)
+     - `use` は、`read` (値を読む) / `write` (値を書く) / `filter` (絞り込み・結合・並べ替えの条件に使う) のうち、当てはまるものすべて
+     - 書くのは、**その読み書きがデータとやり取りする列** (問い合わせが取り出す列、書き込む列、条件に使う列)。取り出した後に、コードがどの列を使うかは見ない
+     - 全部の列をやり取りするとき (`select *`、列を選ばずに行をまるごと取る ORM の呼び出し、行の削除) は、`name: "*"` を 1 つ書く。条件に使う列は、別に `filter` で書く
+     - 結合や、関連をたどる条件で使う列は、その列を持つデータの読み書きに `filter` で書く (関連の先のデータにも読み書きがあれば、そちらにも書く)
+     - 列の名前が、この段ではなく呼び出し元でしか読めないとき (受け取った値をそのまま書く段) は、呼び出し元の行を根拠にしてよい
+     - 状態を表す列に、決まった値を書くとき (例: `status = 'shipped'`) は、`set_to` にその値を書く
+     - 列が読めないとき (動的に組み立てる SQL など) は、`fields` を書かず、`note` に理由を書く
+   - `links`: この段から、**ほかの入口**へのつながり。`kind` は `navigate` (画面の遷移) / `trigger` (別のジョブ・フロー・処理の起動) / `overlay` (いまの画面に重ねて開く画面)。`target` は、コードに書いてあるとおり (ルートの名前、URL の形、フローの id)。行き先が式で決まるときは、値が読める行き先を 1 件ずつ書き、読めない分は、式をそのまま `target` に書いて `unknown` にする。行き先が `analysis/entry-list.yaml` のどの入口かが分かれば、`entry_id` も書く。同じリポジトリの中の関数の呼び出しは、ここではなく `caller` で表す。外部の API は `io` に書く。呼び先を辿るか (フレームにするか) は、プロファイルの `context.md` の決まりのまま
+   - `guards`: この段で行う権限の確認 (満たさなければ先へ進めない確認)。`kind` は `authentication` (ログイン済みか) / `role` (役割) / `permission` (操作の許可) / `ownership` (持ち主・所属か) / `other`。`value` に、求める値 (役割や権限の名前、持ち主の条件) をコードのとおりに書く。`role` / `permission` / `ownership` では、`unknown` でなければ必ず書く。`authentication` のように求める値が無い確認では、`value` を書かない。確認を**実際に行っている段**に書く (呼び出し元ごとに繰り返さない)。ログインの処理そのもの (パスワードの照合) は、確認ではなく `rules` (`validation`) に書く。「ログイン済みなら別の画面へ移す」のような、先へ進むのを止めない分かれ道も、確認に書かない (`links` に書く)
+   - `settings`: この段の動きを変える設定 (環境変数、機能の切り替え、設定ファイルの値)。`name`、`kind` (`env` / `feature_flag` / `config_file` / `remote` / `other`)、`effect` (動きがどう変わるか。`unknown` でなければ必ず書く)。設定を**読んで使っている段**に書く。値を右から左へ渡すだけの段には書かない。設定を読む関数が段になっていないとき (小さな補助の関数) は、その結果で動きを変える段に書く。同じ設定で動きが変わる段が複数あれば、段ごとに書いてよい (集計が、入口ごとにまとめる)。書くのは、処理の流れや、読み書きの相手 (接続先、置き場) を変える設定。値を与えるだけの秘密 (署名の鍵、パスワード) は書かない。名前は、実行する環境で設定する名前 (環境変数の名前) で書く
+   - `rules`: この段にある業務のルール。`kind` は `calculation` (計算) / `validation` (入力や状態の検証) / `decision` (処理を分ける判定)。`value` に内容を 1 文で書き (`unknown` でなければ必ず書く)、式や条件の行を根拠にする。業務の意味を持つものだけを書く (null の確認、型の変換、表示の整形、入力が空でないことだけの確認は書かない)。設定で分かれる処理は、`settings` だけに書く (`rules` に重ねない)。ルールが、段になっていない補助の関数にあるときは、それを呼ぶ段に書く
+   - `tests`: `analysis/work-definition.yaml` の `analysis.tests` が `true` のときだけ。この段 (`source` の関数やスクリプト) を直接呼ぶテストを範囲の中で探し、`name` と `kind` (`unit` / `integration` / `e2e`) を書く。根拠は、テストの行。見つからなければ書かない。このとき、`analyzer.tests: true` を書く
+   - 上の 5 つ (`links` / `guards` / `settings` / `rules` / `tests`) と `fields` は、見て無ければ書かない (空の並びを書かない)
    - 次の層の呼び出しを見つけたら、新しいフレームを足して `caller` で指す。`role: boundary` の層 (外部ライブラリ・SDK・CLI) に達したらそこで閉じる
 5. 辿れないところは **unknown + reason** で明示する (`context.md` の典型例に従う)。推測で埋めない
    - `not_analyzed` (手順がそこまで届いていない) で止めるときは、`note` に「どこまで読んだか」と「なぜ止めたか」を書く (続きを分析するかを、人が決められるように)。打ち切ってよい範囲を、分析リポジトリの `analysis-conventions.md` やプロファイルの `context.md` が決めていれば、それに従う
@@ -52,7 +80,7 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
    - `analyzer.run` (コスト・所要時間) は**書かない**。実行中のセッションは自身のコストを知れない。呼び出した側が後で書く
 7. 機械チェック: `<abatlas> validate result analysis/results/<file> --work analysis/work-definition.yaml` (プロファイルは、作業定義の `profile.dir` から自動で読まれる。出力に「プロファイルを自動で読めない」と出たら、OK でも完了にしない (プロファイルとの突き合わせが省かれている)。`analysis/work-definition.yaml` の `profile.dir` と、その場所の `profile.yaml` を確かめて直す)
    - NG なら指摘に従って YAML を直す (根拠の行番号の誤りは実ファイルで確かめて直す)。OK になるまで繰り返す
-8. レビュー: **フレッシュなサブエージェント**に `abatlas-review-entry` を同じ入口 id で実行させ、`analysis/reviews/<file>` を `<abatlas> validate review ... --result ...` で確かめてから指摘を読む (読めない YAML なら、サブエージェントに直させる)
+8. レビュー: **フレッシュなサブエージェント**に `abatlas-review-entry` を同じ入口 id で実行させ、`analysis/reviews/<file>` を `<abatlas> validate review analysis/reviews/<file> --result analysis/results/<file>` で確かめてから指摘を読む (読めない YAML なら、サブエージェントに直させる)
    - `severity: high` 以上の指摘は、必ず直す。medium と low は、直すか、直さない理由を結果の `notes` に書く
    - 直した指摘には、レビューのファイルの該当の指摘に `resolved: true` を書く (分析の側がレビューのファイルに書いてよいのは、この項目だけ。指摘の文や `where` は書き換えない。直した後に `where` の指す場所が動いても、そのままでよい)
    - 直したら、7 (機械チェック) をやり直す
@@ -76,7 +104,8 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
 ## 参照
 
 - 形式: `<oss>/schema/analysis-result.schema.json`、説明: `<oss>/docs/architecture/formats.md` (文書の地図は同じ場所の `README.md`)
-- skill_version: 0.3.0
+- skill_version: 0.4.0
+  - 0.4.0: 分析する観点を足した。呼び出しの条件 (`call.when` / `condition`)、I/O が触る列 (`io[].fields`)、ほかの入口へのつながり (`links`)、権限の確認 (`guards`)、設定 (`settings`)、業務のルール (`rules`)、テスト (`tests`。作業定義で選んだときだけ)。0.3.0 の結果は形式の上ではそのまま読めるが、これらの観点を持たないので、再分析の対象になる
   - 0.3.0: I/O の操作 (`op`) をデータの種類ごとの語彙にした (ファイルは read / write / append / delete / list、KVS は get / set / delete / expire、キューは publish / consume、オブジェクトストレージは get / put / delete / list)。0.2.0 の結果はファイルの `create` / `update` を `write` に読み替えれば移せるが、再分析の対象になる
   - 0.2.0: 分析リポジトリの `.agents/memory/desired-state/analysis-conventions.md` を最初に読み、`context.md` より優先する手順を追加。`analyzer.run` は書かない規則を明記。結果ファイル名 `<file>` の規則を明記 (0.1.0 の結果は再分析の対象になる)
   - 0.1.0: 最初の版

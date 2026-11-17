@@ -12,6 +12,9 @@ flowchart TB
   C -->|caller で親を指す| C
   C --> IO["io[]<br>読み書き"]
   C --> PR[パラメータ]
+  C --> AS["links / guards / settings / rules / tests<br>観点ごとの主張"]
+  IO --> FL["fields[]<br>列"]
+  AS --> CL
   IO --> CL[主張<br>status + 根拠 か 理由]
   C --> CL
 ```
@@ -58,6 +61,74 @@ flowchart TB
 - 機械チェックと ETL が、種類と操作の組み合わせを検査します。
 - プロファイルの層が `io` を宣言していれば、その層の段の読み書きは、その種類に限られます。
 
+## 呼び出しの条件 (`call.when`)
+
+呼び出しの主張は、その呼び出しがいつ起きるかを持ちます。
+
+| `when` | いつ | `condition` |
+|---|---|---|
+| `always` | 呼び出し元が動けば、必ず呼ぶ | 書かない |
+| `conditional` | 条件を満たすときだけ呼ぶ | 必ず書く (1 文)。`when` を書かずに `condition` だけを書くことはできない |
+| `on_failure` | 呼び出し元の処理が失敗したときだけ呼ぶ (例外の処理、失敗の通知、後片付け、やり直し) | 必ず書く (何が失敗したときか) |
+
+- 入口の段は、呼び出し元が無いので、書きません。
+- `when` が無い呼び出しは、「分析していない」です (この観点を書く前の版の結果)。
+- 失敗したときの動きは、この `on_failure` で表します。まとめて取り消される範囲や、やり直しの安全さは、持ちません。
+
+## 列 (`io[].fields`)
+
+読み書きは、触る列を持てます。
+
+| 項目 | 内容 |
+|---|---|
+| `name` | 列の名前。データの側の名前で書く。全部の列は `*` |
+| `use` | 使い方の並び。`read` (値を読む)、`write` (値を書く)、`filter` (絞り込み・結合・並べ替えの条件に使う) |
+| `set_to` | 書く値が決まっているときの値 (状態の列に書く値)。`use` に `write` があるときだけ |
+
+- 同じ読み書きの中で、同じ列を 2 回書きません (使い方は `use` にまとめます)。
+- 列が読めないときは、`fields` を書きません。
+- 列ごとの区分 (個人情報など) は、ここには書きません。下の「データの辞書」に書きます。
+
+## 観点ごとの主張 (処理の段)
+
+処理の段は、次の並びを持てます。どれも主張なので、`status` と、根拠か理由を持ちます。見て無かったときは、並びごと書きません。
+
+| 並び | 書くこと | 主な項目 |
+|---|---|---|
+| `links` | ほかの入口へのつながり | `kind` (`navigate` = 画面の遷移 / `trigger` = 起動 / `overlay` = 重ねて開く画面)、`target` (コードに書いてあるとおりの行き先)、`entry_id` (行き先の入口が分かるとき) |
+| `guards` | 権限の確認 | `kind` (`authentication` / `role` / `permission` / `ownership` / `other`)、`value` (求める値。役割・権限・持ち主の確認では、不明でなければ必ず書く) |
+| `settings` | 動きを変える設定 | `name`、`kind` (`env` / `feature_flag` / `config_file` / `remote` / `other`)、`effect` (動きがどう変わるか。不明でなければ必ず書く) |
+| `rules` | 業務のルール | `kind` (`calculation` / `validation` / `decision`)、`value` (内容。不明でなければ必ず書く) |
+| `tests` | この段 (関数やスクリプト) を直接呼ぶテスト | `name`、`kind` (`unit` / `integration` / `e2e`) |
+
+- 同じリポジトリの中の関数の呼び出しは、`links` ではなく `caller` で表します。外部の API は、`io` に書きます。
+- つながりの行き先は、集計が、入口の一覧と突き合わせます (`entry_id` があればそれ、無ければ `target` が入口の id か階層パスと一致するもの)。
+- 権限の確認は、確認を実際に行っている段に書きます。入口ごとの「認証が要るか」は、集計が、その入口を包む入口の確認と合わせて出します。
+- `tests` は、作業定義の `analysis.tests` が `true` のときだけ分析します。分析した結果は、`analyzer.tests: true` を持ちます (これが無い結果で `tests` が空でも、「テストが無い」とは言えません)。
+
+## データの辞書 (`analysis/data-dictionary.yaml`)
+
+列ごとの区分 (個人情報、認証の情報など) は、分析結果ではなく、分析リポジトリに 1 つある辞書に書きます。同じ列の区分が、入口ごとにぶれないようにするためです。形式の正本は `schema/data-dictionary.schema.json`、区分の語彙は `schema/vocab/data-categories.yaml` です。
+
+```mermaid
+flowchart LR
+  R[分析結果の列] -->|abatlas dictionary| C[辞書の行<br>candidate、区分なし]
+  C -->|エージェントが案を書く| P[candidate、区分あり]
+  P -->|人が確かめる| A[approved]
+  A -->|集計| M[個人情報の流れの表]
+```
+
+| 項目 | 内容 |
+|---|---|
+| `resource` | データを 1 本のパスにしたもの (`/` + 種類 + 分かっている段の値)。集計表の `resource_path` と同じ |
+| `field` | 列の名前 (分析結果と同じ綴り) |
+| `category` | 区分。語彙の key。無ければ、まだ区分していない |
+| `status` | `candidate` (案) か `approved` (人が確かめた)。集計は、`approved` だけを使う |
+
+- 列を足すのは、コマンド `abatlas dictionary` だけです。既にある行の値は変えません。列を足すときにファイルを書き直すので、手で書いたコメントは残りません (メモは `note` に書きます)。
+- 区分の案は、skill `abatlas-classify-data` が書きます。承認は、人がします。
+- 区分 `none` は、「確かめた結果、どれにも当てはまらない」です。
+
 ## 根拠の実在
 
 `validate result` に `--work` (作業定義) を渡すと、次を検査します。
@@ -74,11 +145,12 @@ flowchart TB
 | `profile` | `id`<br>`version` | 分析に使ったプロファイル | 分析 skill |
 | `skill_version` | — | 分析 skill の版 | 分析 skill |
 | `model` | — | モデル | 分析 skill |
+| `tests` | — | テストとの対応を分析したか。作業定義で選んだときだけ `true` | 分析 skill |
 | `analyzed_at` | — | 分析した日時 | 分析 skill |
 | `reviewed` | `by`<br>`at`<br>`findings_open` | レビューの記録 | レビューの後 |
 | `run` | `cost_usd`<br>`duration_s`<br>`by` | 費用と時間。任意 | エージェントを呼び出した側 |
 
-**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致する結果があるとき。判定は、運用側のランナーが行います (コアは項目を持つだけです)。
+**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致し、テストとの対応の選択 (作業定義の `analysis.tests` と、結果の `analyzer.tests`) も同じ結果があるとき。判定は、運用側のランナーが行います (コアは項目を持つだけです)。
 
 | 決まり | 理由 |
 |---|---|

@@ -47,6 +47,7 @@ OSS 所有のパスは、`abatlas upgrade` が配布物の内容で置き換え�
 | `entry-list.yaml` | 入口の一覧 (承認の状態、階層パス付き) | 管理する |
 | `results/<file>` | 分析結果。入口 1 件 = 1 ファイル | 管理する |
 | `reviews/<file>` | レビューの指摘 | 管理する |
+| `data-dictionary.yaml` | データの辞書。列ごとの区分 (個人情報など)。無くてもよい | 管理する |
 | `dbt/models/repo/` | この分析リポジトリ独自の集計表 | 管理する |
 | `data/` | 派生物。`abatlas.duckdb` (集計表と宣言) と、合成した dbt プロジェクト | 管理しない (作り直せる) |
 
@@ -85,6 +86,7 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 | 入口を列挙する | `docker compose run --rm abatlas enumerate analysis/entry-list.yaml` |
 | 対象のコードを、構文で探す | `docker compose run --rm abatlas code-search analysis/work-definition.yaml --language <言語> --files <glob> --pattern '<コードの形>'` |
 | 分析結果を検査する | `docker compose run --rm abatlas validate result analysis/results/<file> --work analysis/work-definition.yaml` |
+| 分析結果に出てきた列を、データの辞書に足す | `docker compose run --rm abatlas dictionary .` (区分は決めない。案は skill `abatlas-classify-data` が書き、人が承認する) |
 | 集計する | `docker compose run --rm abatlas build .` |
 | 画面・API・MCP を起動する | `docker compose up -d api` (画面は <http://localhost:8765>、MCP は <http://localhost:8765/mcp>) |
 | 配布物を更新する | `docker compose pull && docker compose run --rm abatlas upgrade . && docker compose up -d --force-recreate api` |
@@ -111,6 +113,7 @@ claude mcp add --transport http abatlas http://localhost:8765/mcp
 | `target.commit` | ○ | 対象のコミット。列挙と分析は、このコミットで行う |
 | `profile.id` | ○ | プロファイルの id |
 | `profile.dir` | | プロファイルの置き場所。[profiles.md](profiles.md) の「ツールが読むプロファイル」 |
+| `analysis.tests` | | `true` にすると、処理の段を通るテストも分析する。範囲 (`target.scope`) にテストのコードが入っているときだけ使う。既定は `false` |
 
 ## このリポジトリの構成 (配布物になるもの)
 
