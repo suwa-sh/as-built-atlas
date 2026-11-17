@@ -17,7 +17,7 @@ analyzer:
   profile:
     id: batch-kestra
     version: 0.1.0
-  skill_version: 0.3.0
+  skill_version: 0.4.0
   analyzed_at: '2026-11-08T12:00:00+09:00'
   analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
 summary:
@@ -72,9 +72,18 @@ callstack:
   caller: flow
   call:
     status: fact
+    when: always
     evidence:
     - file: flows/daily/sales/sales_report.yaml
       line: 24
+  settings:
+  - name: KOTORI_ENV
+    kind: env
+    effect: 読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 8
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -135,6 +144,7 @@ callstack:
   caller: run_job
   call:
     status: fact
+    when: always
     evidence:
     - file: scripts/run_job.sh
       line: 16
@@ -217,6 +227,10 @@ callstack:
     evidence:
     - file: jobs/sales_report.py
       line: 39
+    fields:
+    - name: '*'
+      use:
+      - write
   - op: create
     status: fact
     resource:
@@ -231,6 +245,22 @@ callstack:
     evidence:
     - file: jobs/sales_report.py
       line: 42
+    fields:
+    - name: sales_date
+      use:
+      - write
+    - name: product_id
+      use:
+      - write
+    - name: category_id
+      use:
+      - write
+    - name: quantity
+      use:
+      - write
+    - name: amount
+      use:
+      - write
   - op: write
     status: fact
     resource:
@@ -263,6 +293,7 @@ callstack:
   caller: job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/sales_report.py
       line: 11
@@ -282,6 +313,7 @@ callstack:
   caller: lib_db
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/db.py
       line: 13
@@ -295,6 +327,7 @@ callstack:
   caller: job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/sales_report.py
       line: 11
@@ -314,6 +347,7 @@ callstack:
   caller: lib_storage
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/storage.py
       line: 12
@@ -327,9 +361,19 @@ callstack:
   caller: job
   call:
     status: fact
+    when: conditional
+    condition: --dry-run が付いていないとき
     evidence:
     - file: jobs/sales_report.py
       line: 55
+  settings:
+  - name: KOTORI_CHAT_WEBHOOK
+    kind: env
+    effect: 通知の送り先。未設定なら、何も送らない
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
   summary:
     status: interpretation
     value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
@@ -360,6 +404,8 @@ callstack:
   caller: lib_notify
   call:
     status: fact
+    when: conditional
+    condition: KOTORI_CHAT_WEBHOOK が設定されているとき
     evidence:
     - file: jobs/lib/notify.py
       line: 13

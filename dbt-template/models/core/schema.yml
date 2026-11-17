@@ -78,7 +78,8 @@ models:
         show: [path, sharing_entry_count, shared_frame_count, written_datastore_count, datastore_count, external_count, frame_count, max_depth, layer_crossings]   # unknown_count は出さない (すぐ下の {unknown} の表にある。列は API で読める)
         labels: { path: "{entry}", name: "{name}", layer: "{entry_layer}", frame_count: "{frame}", max_depth: "{call_depth}", layer_crossings: "{layer_crossing}",
                   datastore_count: "{datastore}", written_datastore_count: "{datastore} ({write})", external_count: "{external}",
-                  shared_frame_count: "{shared_frame}", sharing_entry_count: "{sharing_entry}", unknown_count: "{unknown}" }
+                  shared_frame_count: "{shared_frame}", sharing_entry_count: "{sharing_entry}", unknown_count: "{unknown}",
+                  branch_count: "{branch}", failure_path_count: "{failure_path}" }
     columns:
       - name: entry_id
         tests: [not_null, unique]
@@ -234,3 +235,167 @@ models:
         keys: { id: name, label: name, members: entries, source: source_file }
         show: [layer, name, source_file, entry_count]
         labels: { name: "{shared_frame}", layer: "{layer}", source_file: "{source}", entry_count: "{referenced_by}", entries: "{entry}" }
+
+  - name: mart_field_access
+    description: "{field} の単位の {data_access}。{entry} × {datastore} × {field} ごとに、{field_use} (R = {read}、W = {write}、F = {filter}) と、{write} する値 ({set_to})。{field} が * の行は、すべての {field}"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{field} {data_access}"
+        hint: "1 行が {entry} × {datastore} × {field}。{field_use} は R = {read}、W = {write}、F = {filter}。* はすべての {field}"
+        attach: any
+        keys: { id: field_key, path: path, label: field }
+        show: [kind, resource_path, field, uses, set_to, path]
+        labels: { kind: "{kind}", resource_path: "{datastore}", field: "{field}", uses: "{field_use}", set_to: "{set_to}", path: "{entry}", io_count: "{call_sites}", has_unknown: "{has_unknown}" }
+        filters:
+          - { label: "{write}", where: { uses__contains: "W" } }
+
+  - name: mart_state_changes
+    description: "{state_change}。決まった値を {write} する {field} ごとに、その値と、{write} する {entry} と {frame}"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{state_change}"
+        hint: "1 行が {datastore} の {field} に、決まった値 ({set_to}) を {write} する {frame} 1 つ"
+        attach: any
+        keys: { id: change_key, path: path, label: field }
+        show: [resource_path, field, set_to, path, frame_name, call_when]
+        labels: { resource_path: "{datastore}", field: "{field}", set_to: "{set_to}", path: "{entry}", frame_name: "{frame}", layer: "{layer}", call_when: "{when}", io_count: "{call_sites}" }
+
+  - name: mart_entry_links
+    description: "{entry} から、ほかの {entry} への {link} ({kind}: navigate / trigger / overlay)。{link_to} は、{entry} の一覧と結べたときだけ入る"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{link}"
+        hint: "1 行が {entry} から行き先 1 つへの {link}。{link_to} が空の行は、行き先が {entry} の一覧に無い ({link_target} は、コードに書いてあるとおり)"
+        attach: any
+        keys: { id: link_key, path: path, label: target }
+        show: [path, kind, to_path, target, frames]
+        labels: { path: "{entry}", kind: "{kind}", to_path: "{link_to}", target: "{link_target}", frames: "{frame}", link_count: "{call_sites}", resolved: "{resolved}", has_unknown: "{has_unknown}" }
+        filters:
+          - { label: "{unresolved}", where: { resolved: "false" } }
+
+  - name: mart_entry_access
+    description: "{entry} ごとの {access_control}。{authentication} の {guard} があるか、{guard} の数、求める {role} と {permission}。{enclosing} の {guard} も数える"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{access_control}"
+        hint: "1 行が {analyzed} の {entry} 1 件。{authentication} が false の行は、{authentication} の {guard} が見つからなかった {entry}。{unknown} の {guard} は、{authentication} に数えない。{enclosing} が {not_analyzed} なら、そこにある {guard} は数えられていない"
+        attach: any
+        keys: { id: entry_id, path: path, label: name }
+        show: [path, authentication, roles, permissions, guard_count, unknown_guard_count, enclosing_not_analyzed]
+        labels: { path: "{entry}", name: "{name}", layer: "{entry_layer}", authentication: "{authentication}", roles: "{role}", permissions: "{permission}", guard_count: "{guard}", unknown_guard_count: "{guard} ({unknown})",
+                  enclosing_not_analyzed: "{enclosing} ({not_analyzed})" }
+        filters:
+          - { label: "{no_authentication}", where: { authentication: "false" } }
+    columns:
+      - name: entry_id
+        tests: [not_null, unique]
+
+  - name: mart_entry_guards
+    description: "{guard} の一覧。{entry} × {guard} 1 つ。{via} は、その {guard} を行う {entry} (自分か、{enclosing})"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{guard}"
+        hint: "1 行が {entry} に効く {guard} 1 つ。{via} が自分でない行は、{enclosing} が行う {guard}"
+        attach: any
+        keys: { id: guard_key, path: path, label: value }
+        show: [path, kind, value, via, frame_name]
+        labels: { path: "{entry}", kind: "{kind}", value: "{guard}", via: "{via}", frame_name: "{frame}", inherited: "{enclosing}", status: "{status}" }
+
+  - name: mart_call_conditions
+    description: "{conditional_call}。いつも起きるとは限らない {call} ({when}: conditional = {condition} を満たすとき、on_failure = 失敗したとき) と、その {condition}"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{conditional_call}"
+        hint: "1 行が {call} 1 つ。on_failure は、{caller} が失敗したときだけ動く {frame} (通知、後片付け、やり直し)"
+        attach: any
+        keys: { id: call_key, path: path, label: frame_name }
+        show: [path, call_when, caller_name, frame_name, call_condition]
+        labels: { path: "{entry}", call_when: "{when}", caller_name: "{caller}", frame_name: "{frame}", call_condition: "{condition}", layer: "{layer}" }
+        filters:
+          - { label: "{failure_path}", where: { call_when: "on_failure" } }
+
+  - name: mart_settings
+    description: "{setting} への依存。{setting} × {entry} ごとに、それを使う {frame} と、動きへの {effect}"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{setting}"
+        hint: "1 行が {setting} × {entry}。{effect} は、その {setting} で動きがどう変わるか"
+        attach: any
+        keys: { id: setting_key, path: path, label: setting }
+        show: [kind, setting, path, frames, effect]
+        labels: { kind: "{kind}", setting: "{setting}", path: "{entry}", frames: "{frame}", effect: "{effect}", has_unknown: "{has_unknown}" }
+
+  - name: mart_rules
+    description: "{rule} の一覧 ({kind}: calculation / validation / decision)。{entry} × {frame} ごとに、内容と {source}"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{rule}"
+        hint: "1 行が {rule} 1 つ。{source} は、式や条件のある行"
+        attach: any
+        keys: { id: rule_key, path: path, label: rule, source: source }
+        show: [path, kind, rule, frame_name, source]
+        labels: { path: "{entry}", kind: "{kind}", rule: "{rule}", frame_name: "{frame}", layer: "{layer}", source: "{source}", status: "{status}" }
+
+  - name: mart_test_coverage
+    description: "{test} との対応。{frame} ごとに、それを直接呼ぶ {test} の数と名前。{test} との対応を分析した結果だけ"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{test}"
+        hint: "1 行が {frame} 1 つ。{test} の数が 0 の行は、直接呼ぶ {test} が見つからなかった"
+        attach: any
+        keys: { id: frame_key, path: path, label: frame_name, source: source }
+        show: [path, layer, frame_name, test_count, unknown_test_count, test_kinds, tests]
+        labels: { path: "{entry}", layer: "{layer}", frame_name: "{frame}", source: "{source}", test_count: "{test}", unknown_test_count: "{test} ({unknown})", test_kinds: "{kind}", tests: "{name}" }
+        filters:
+          - { label: "{no_test}", where: { test_count: "0" } }
+
+  - name: mart_sensitive_data
+    description: "{sensitive_data} の流れ。{dictionary} で {approved} の {field} のうち、気を付ける {category} のものを使う {entry}。{external} は、同じ {entry} が呼ぶもの (その値が実際に送られるかまでは追っていない)"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: entry
+        subject: analysis
+        title: "{sensitive_data}"
+        hint: "1 行が {entry} × {datastore} × {field}。{external} は、同じ {entry} が呼ぶ {host}。{dictionary} で {approved} にした {field} だけが出る"
+        attach: any
+        keys: { id: field_key, path: path, label: field }
+        show: [category_label, resource_path, field, uses, path, externals]
+        labels: { category_label: "{category}", category: "{category}", resource_path: "{datastore}", field: "{field}", uses: "{field_use}", path: "{entry}", externals: "{external}", external_count: "{external}" }

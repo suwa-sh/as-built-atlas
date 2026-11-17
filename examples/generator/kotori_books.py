@@ -33,7 +33,7 @@ TARGET_NAME = "kotori-books"
 ATLAS_NAME = "kotori-books-atlas"
 PROFILE_ID = "batch-kestra"
 PROFILE_VERSION = "0.1.0"
-SKILL_VERSION = "0.3.0"
+SKILL_VERSION = "0.4.0"
 ANALYZED_AT = "2026-11-08T12:00:00+09:00"
 ANALYST = "as-built-atlas examples/generator (対象と同じ仕様から生成した正解)"
 
@@ -68,6 +68,22 @@ def rdb_read(*tables: str, detail: str | None = None, unknown: str | None = None
 def rdb(op: str, table: str, cols: str, detail: str | None = None, params: tuple | None = None) -> dict:
     """update の params は SET の %s に渡す行のキー (省略時は代入先の列名)。"""
     return {"kind": "rdb", "op": op, "table": table, "cols": cols, "detail": detail, "params": params}
+
+
+def rdb_fields(op: str, cols: str) -> list[dict]:
+    """書き込みの SQL が触る列 (分析結果の io[].fields)。create は列の並び、update は SET の代入先と WHERE の id、delete は行ごと。"""
+    if op == "create":
+        return [{"name": c.strip(), "use": ["write"]} for c in cols.split(",")]
+    if op == "delete":
+        return [{"name": "*", "use": ["write"]}]
+    out = []
+    for part in cols.split(","):
+        name, _, value = (x.strip() for x in part.partition("="))
+        fl: dict = {"name": name, "use": ["write"]}
+        if value.startswith("'") and value.endswith("'"):
+            fl["set_to"] = value.strip("'")  # 決まった値を書く列 (状態の変化)
+        out.append(fl)
+    return out + [{"name": "id", "use": ["filter"]}]
 
 
 def kvs(op: str, key: str, detail: str, ttl: str = "36 * 3600") -> dict:
@@ -1072,7 +1088,7 @@ def gen_job(target: Path, f: Flow) -> tuple[Src, list[dict]]:
                 s.add("    if not args.dry_run:")
                 line = s.add(f'        db.execute("DELETE FROM {io["table"]} WHERE {io["cols"]}", {params})')
             truth_io.append({"kind": kind, "op": op, "levels": {**DB, "schema": schema, "table": table}, "detail": io["detail"],
-                             "status": "fact", "evidence": [line]})
+                             "status": "fact", "evidence": [line], "fields": rdb_fields(op, io["cols"])})
         elif kind == "kvs":
             key = io["key"]
             expr = pyexpr(key, f.inputs)
@@ -1267,6 +1283,15 @@ def ev(file: str, *lines: int) -> list[dict]:
     return [{"file": file, "line": n} for n in lines]
 
 
+def called(c: dict, when: str = "always", condition: str | None = None) -> dict:
+    """呼び出しの主張に、いつ起きるか (when) を足す。項目の並びは status → when → condition → 残り。"""
+    out = {"status": c["status"], "when": when}
+    if condition:
+        out["condition"] = condition
+    out.update({k: v for k, v in c.items() if k != "status"})
+    return out
+
+
 def claim(status: str, value: str | None, evidence: list[dict] | None = None, **extra) -> dict:
     c: dict = {"status": status}
     if value is not None:
@@ -1278,7 +1303,7 @@ def claim(status: str, value: str | None, evidence: list[dict] | None = None, **
 
 
 def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict], common: dict[str, Src], prefix: str = "", caller: str | None = None,
-               call_ev: list[dict] | None = None) -> list[dict]:
+               call_ev: list[dict] | None = None, call_when: tuple = ("always",)) -> list[dict]:
     """1 つの Flow のフレーム列。prefix を付けると Subflow として親の結果に埋め込める。"""
     fid = lambda x: f"{prefix}{x}"  # noqa: E731
     flow_file = f.flow_file
@@ -1288,7 +1313,7 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
         "source": {"file": flow_file, "line": 1}, "caller": caller,
     }
     if caller:
-        flow_frame["call"] = claim("fact", None, call_ev, note="Subflow として呼ばれる (wait: true)")
+        flow_frame["call"] = called(claim("fact", None, call_ev, note="Subflow として呼ばれる (wait: true)"), *call_when)
     flow_frame["summary"] = claim("interpretation", f.desc, ev(flow_file, flow_src.marks["description"]))
     params = []
     if f.cron:
@@ -1307,7 +1332,11 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
             child = FLOW_BY_ID[sub]
             child_flow_src, child_job_src, child_truth = ARTIFACTS[sub]
             note_ev = ev(flow_file, flow_src.marks[f"subflow:{sub}"])
-            frames += frames_for(child, child_flow_src, child_job_src, child_truth, common, prefix=f"{prefix}{child.id}__", caller=fid("flow"), call_ev=note_ev)
+            when = ("on_failure", "この Flow のいずれかのタスク (Subflow) が失敗したとき (errors)") if sub == f.on_error else ("always",)
+            frames += frames_for(child, child_flow_src, child_job_src, child_truth, common, prefix=f"{prefix}{child.id}__", caller=fid("flow"), call_ev=note_ev,
+                                 call_when=when)
+            # 呼ぶ Flow は、それ自体も入口。処理は下に展開してあるが、入口どうしのつながりとしても書く
+            flow_frame.setdefault("links", []).append({"kind": "trigger", "target": sub, "entry_id": sub, "status": "fact", "evidence": note_ev})
         return frames
 
     if f.kind == "shell":
@@ -1315,7 +1344,7 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
         sh = common[script]
         frame = {
             "id": fid("script"), "layer": "shell", "kind": "script", "name": script, "source": {"file": script, "line": 1}, "caller": fid("flow"),
-            "call": claim("fact", None, ev(flow_file, flow_src.marks["command"])),
+            "call": called(claim("fact", None, ev(flow_file, flow_src.marks["command"]))),
             "summary": claim("interpretation", f.desc, ev(script, 2)),
         }
         if f.id == "db_snapshot":
@@ -1332,9 +1361,9 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
             ]
             frames.append(frame)
             frames.append({"id": fid("pg_dump"), "layer": "external", "kind": "cli", "name": "pg_dump", "source": {"file": script, "line": sh.marks["pg_dump"]},
-                           "caller": fid("script"), "call": claim("fact", None, ev(script, sh.marks["pg_dump"]))})
+                           "caller": fid("script"), "call": called(claim("fact", None, ev(script, sh.marks["pg_dump"])))})
             frames.append({"id": fid("aws_cli"), "layer": "external", "kind": "cli", "name": "aws s3 cp", "source": {"file": script, "line": sh.marks["aws_cp"]},
-                           "caller": fid("script"), "call": claim("fact", None, ev(script, sh.marks["aws_cp"])),
+                           "caller": fid("script"), "call": called(claim("fact", None, ev(script, sh.marks["aws_cp"]))),
                            "io": [{"op": "put", "status": "fact", "resource": {"kind": "object_storage", "levels": {"bucket": BUCKETS["BACKUPS_BUCKET"], "prefix": "db/{yyyymmdd}/"}},
                                    "detail": "ダンプを日付のプレフィックスに置く。バケット名は config/prod.env の BACKUPS_BUCKET", "evidence": ev(script, sh.marks["aws_cp"])}]})
         else:  # rotate_logs
@@ -1352,7 +1381,9 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
     job_file = f"jobs/{f.id}.py"
     frames.append({
         "id": fid("run_job"), "layer": "shell", "kind": "script", "name": "scripts/run_job.sh", "source": {"file": "scripts/run_job.sh", "line": 1}, "caller": fid("flow"),
-        "call": claim("fact", None, ev(flow_file, flow_src.marks["command"])),
+        "call": called(claim("fact", None, ev(flow_file, flow_src.marks["command"]))),
+        "settings": [{"name": "KOTORI_ENV", "kind": "env", "effect": "読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)", "status": "fact",
+                      "evidence": ev("scripts/run_job.sh", rj.marks["env_file"])}],
         "summary": claim("interpretation", "config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー", ev("scripts/run_job.sh", 2, rj.marks["python"])),
         "parameters": [
             {"name": "JOB", "value": f"{f.id} (第 1 引数。実行するモジュール jobs.{f.id} とログ名になる)", "status": "fact", "evidence": ev(flow_file, flow_src.marks["command"]) + ev("scripts/run_job.sh", 5)},
@@ -1365,7 +1396,7 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
     })
     job_frame: dict = {
         "id": fid("job"), "layer": "program", "kind": "module", "name": f"jobs.{f.id}", "source": {"file": job_file, "line": 1}, "caller": fid("run_job"),
-        "call": claim("fact", None, ev("scripts/run_job.sh", rj.marks["python"]), note=f"JOB={f.id} なので jobs.{f.id} が動く"),
+        "call": called(claim("fact", None, ev("scripts/run_job.sh", rj.marks["python"]), note=f"JOB={f.id} なので jobs.{f.id} が動く")),
         "summary": claim("interpretation", f.desc, ev(job_file, job_src.marks["doc"], job_src.marks["main"])),
     }
     params = [{"name": "--dry-run", "value": "書き込みと外部呼び出しをせず件数だけ出す", "status": "fact", "evidence": ev(job_file, job_src.marks["arg:dry_run"])}]
@@ -1380,6 +1411,8 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
             io["reason"] = t["reason"]
         if t.get("note"):
             io["note"] = t["note"]
+        if t.get("fields"):
+            io["fields"] = t["fields"]
         job_frame["io"].append(io)
     frames.append(job_frame)
     kinds_used = {t["kind"] for t in truth_io}
@@ -1389,22 +1422,24 @@ def frames_for(f: Flow, flow_src: Src, job_src: Src | None, truth_io: list[dict]
         lib_id, lib_file, ext, _ = LIBS[kind]
         lib_src = common[lib_file]
         frames.append({"id": fid(lib_id), "layer": "program", "kind": "module", "name": lib_file.removesuffix(".py").replace("/", "."), "source": {"file": lib_file, "line": 1},
-                       "caller": fid("job"), "call": claim("fact", None, ev(job_file, job_src.marks["import_libs"])),
+                       "caller": fid("job"), "call": called(claim("fact", None, ev(job_file, job_src.marks["import_libs"]))),
                        "summary": claim("interpretation", lib_src.lines[0].strip('"'), ev(lib_file, 1))})
         frames.append({"id": fid(ext), "layer": "external", "kind": "library", "name": ext, "source": {"file": lib_file, "line": lib_src.marks["import"]},
-                       "caller": fid(lib_id), "call": claim("fact", None, ev(lib_file, lib_src.marks["connect"] if "connect" in lib_src.marks else lib_src.marks["post"]))})
+                       "caller": fid(lib_id), "call": called(claim("fact", None, ev(lib_file, lib_src.marks["connect"] if "connect" in lib_src.marks else lib_src.marks["post"])))})
     if "notify" in f.io or "notify_failure" in f.io:
         nt = common["jobs/lib/notify.py"]
         frames.append({"id": fid("lib_notify"), "layer": "program", "kind": "module", "name": "jobs.lib.notify", "source": {"file": "jobs/lib/notify.py", "line": 1},
-                       "caller": fid("job"), "call": claim("fact", None, ev(job_file, job_src.marks["notify"])),
+                       "caller": fid("job"), "call": called(claim("fact", None, ev(job_file, job_src.marks["notify"])), *("conditional", "--dry-run が付いていないとき")),
+                       "settings": [{"name": "KOTORI_CHAT_WEBHOOK", "kind": "env", "effect": "通知の送り先。未設定なら、何も送らない", "status": "fact",
+                                     "evidence": ev("jobs/lib/notify.py", nt.marks["url"])}],
                        "summary": claim("interpretation", "運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない", ev("jobs/lib/notify.py", nt.marks["url"], nt.marks["post"])),
                        "io": [{"op": "call", "status": "unknown", "reason": "not_traceable_in_repo", "resource": {"kind": "external_api", "levels": {}},
                                "detail": "チャットの Webhook (POST, JSON の text)", "note": "URL は環境変数 KOTORI_CHAT_WEBHOOK で、リポジトリに無い", "evidence": ev("jobs/lib/notify.py", nt.marks["url"])}]})
         frames.append({"id": fid("requests_notify"), "layer": "external", "kind": "library", "name": "requests", "source": {"file": "jobs/lib/notify.py", "line": nt.marks["import"]},
-                       "caller": fid("lib_notify"), "call": claim("fact", None, ev("jobs/lib/notify.py", nt.marks["post"]))})
+                       "caller": fid("lib_notify"), "call": called(claim("fact", None, ev("jobs/lib/notify.py", nt.marks["post"])), "conditional", "KOTORI_CHAT_WEBHOOK が設定されているとき")})
     if f.binary:
         frames.append({"id": fid("legacy_pricing"), "layer": "program", "kind": "binary", "name": "bin/legacy_pricing", "source": {"file": "bin/legacy_pricing", "line": 1},
-                       "caller": fid("job"), "call": claim("fact", None, ev(job_file, job_src.marks["binary"])),
+                       "caller": fid("job"), "call": called(claim("fact", None, ev(job_file, job_src.marks["binary"])), *("conditional", "--dry-run が付いていないとき")),
                        "summary": claim("unknown", None, reason="binary_or_vendored", note="ソースの無いコンパイル済み成果物 (のつもりで置いた代替ファイル)。var/tmp/pricing.out に価格表を書くことは呼び出し側の読み取りから分かるが、何を読むかは外から読めない")})
     return frames
 

@@ -17,7 +17,7 @@ analyzer:
   profile:
     id: batch-kestra
     version: 0.1.0
-  skill_version: 0.3.0
+  skill_version: 0.4.0
   analyzed_at: '2026-11-08T12:00:00+09:00'
   analyst: as-built-atlas examples/generator (対象と同じ仕様から生成した正解)
 summary:
@@ -60,6 +60,35 @@ callstack:
     evidence:
     - file: flows/daily/close_day.yaml
       line: 13
+  links:
+  - kind: trigger
+    target: daily.sales.settle_orders
+    entry_id: daily.sales.settle_orders
+    status: fact
+    evidence: &id001
+    - file: flows/daily/close_day.yaml
+      line: 20
+  - kind: trigger
+    target: daily.sales.sales_report
+    entry_id: daily.sales.sales_report
+    status: fact
+    evidence: &id002
+    - file: flows/daily/close_day.yaml
+      line: 28
+  - kind: trigger
+    target: daily.inventory.reconcile_stock
+    entry_id: daily.inventory.reconcile_stock
+    status: fact
+    evidence: &id003
+    - file: flows/daily/close_day.yaml
+      line: 36
+  - kind: trigger
+    target: lib.notify_failure
+    entry_id: lib.notify_failure
+    status: fact
+    evidence: &id004
+    - file: flows/daily/close_day.yaml
+      line: 45
 - id: settle_orders__flow
   layer: scheduler
   kind: subflow
@@ -70,9 +99,8 @@ callstack:
   caller: flow
   call:
     status: fact
-    evidence:
-    - file: flows/daily/close_day.yaml
-      line: 20
+    when: always
+    evidence: *id001
     note: 'Subflow として呼ばれる (wait: true)'
   summary:
     status: interpretation
@@ -109,9 +137,18 @@ callstack:
   caller: settle_orders__flow
   call:
     status: fact
+    when: always
     evidence:
     - file: flows/daily/sales/settle_orders.yaml
       line: 25
+  settings:
+  - name: KOTORI_ENV
+    kind: env
+    effect: 読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 8
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -172,6 +209,7 @@ callstack:
   caller: settle_orders__run_job
   call:
     status: fact
+    when: always
     evidence:
     - file: scripts/run_job.sh
       line: 16
@@ -251,6 +289,17 @@ callstack:
     evidence:
     - file: jobs/settle_orders.py
       line: 39
+    fields:
+    - name: status
+      use:
+      - write
+      set_to: settled
+    - name: settled_at
+      use:
+      - write
+    - name: id
+      use:
+      - filter
   - op: create
     status: fact
     resource:
@@ -265,6 +314,22 @@ callstack:
     evidence:
     - file: jobs/settle_orders.py
       line: 44
+    fields:
+    - name: order_id
+      use:
+      - write
+    - name: kind
+      use:
+      - write
+    - name: amount
+      use:
+      - write
+    - name: provider_ref
+      use:
+      - write
+    - name: created_at
+      use:
+      - write
   - op: publish
     status: fact
     resource:
@@ -286,6 +351,7 @@ callstack:
   caller: settle_orders__job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/settle_orders.py
       line: 8
@@ -305,6 +371,7 @@ callstack:
   caller: settle_orders__lib_db
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/db.py
       line: 13
@@ -318,6 +385,7 @@ callstack:
   caller: settle_orders__job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/settle_orders.py
       line: 8
@@ -337,6 +405,7 @@ callstack:
   caller: settle_orders__lib_http
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/http.py
       line: 23
@@ -350,6 +419,7 @@ callstack:
   caller: settle_orders__job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/settle_orders.py
       line: 8
@@ -369,6 +439,7 @@ callstack:
   caller: settle_orders__lib_mq
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/mq.py
       line: 13
@@ -382,9 +453,8 @@ callstack:
   caller: flow
   call:
     status: fact
-    evidence:
-    - file: flows/daily/close_day.yaml
-      line: 28
+    when: always
+    evidence: *id002
     note: 'Subflow として呼ばれる (wait: true)'
   summary:
     status: interpretation
@@ -421,9 +491,18 @@ callstack:
   caller: sales_report__flow
   call:
     status: fact
+    when: always
     evidence:
     - file: flows/daily/sales/sales_report.yaml
       line: 24
+  settings:
+  - name: KOTORI_ENV
+    kind: env
+    effect: 読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 8
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -484,6 +563,7 @@ callstack:
   caller: sales_report__run_job
   call:
     status: fact
+    when: always
     evidence:
     - file: scripts/run_job.sh
       line: 16
@@ -566,6 +646,10 @@ callstack:
     evidence:
     - file: jobs/sales_report.py
       line: 39
+    fields:
+    - name: '*'
+      use:
+      - write
   - op: create
     status: fact
     resource:
@@ -580,6 +664,22 @@ callstack:
     evidence:
     - file: jobs/sales_report.py
       line: 42
+    fields:
+    - name: sales_date
+      use:
+      - write
+    - name: product_id
+      use:
+      - write
+    - name: category_id
+      use:
+      - write
+    - name: quantity
+      use:
+      - write
+    - name: amount
+      use:
+      - write
   - op: write
     status: fact
     resource:
@@ -612,6 +712,7 @@ callstack:
   caller: sales_report__job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/sales_report.py
       line: 11
@@ -631,6 +732,7 @@ callstack:
   caller: sales_report__lib_db
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/db.py
       line: 13
@@ -644,6 +746,7 @@ callstack:
   caller: sales_report__job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/sales_report.py
       line: 11
@@ -663,6 +766,7 @@ callstack:
   caller: sales_report__lib_storage
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/storage.py
       line: 12
@@ -676,9 +780,19 @@ callstack:
   caller: sales_report__job
   call:
     status: fact
+    when: conditional
+    condition: --dry-run が付いていないとき
     evidence:
     - file: jobs/sales_report.py
       line: 55
+  settings:
+  - name: KOTORI_CHAT_WEBHOOK
+    kind: env
+    effect: 通知の送り先。未設定なら、何も送らない
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
   summary:
     status: interpretation
     value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
@@ -709,6 +823,8 @@ callstack:
   caller: sales_report__lib_notify
   call:
     status: fact
+    when: conditional
+    condition: KOTORI_CHAT_WEBHOOK が設定されているとき
     evidence:
     - file: jobs/lib/notify.py
       line: 13
@@ -722,9 +838,8 @@ callstack:
   caller: flow
   call:
     status: fact
-    evidence:
-    - file: flows/daily/close_day.yaml
-      line: 36
+    when: always
+    evidence: *id003
     note: 'Subflow として呼ばれる (wait: true)'
   summary:
     status: interpretation
@@ -761,9 +876,18 @@ callstack:
   caller: reconcile_stock__flow
   call:
     status: fact
+    when: always
     evidence:
     - file: flows/daily/inventory/reconcile_stock.yaml
       line: 25
+  settings:
+  - name: KOTORI_ENV
+    kind: env
+    effect: 読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 8
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -824,6 +948,7 @@ callstack:
   caller: reconcile_stock__run_job
   call:
     status: fact
+    when: always
     evidence:
     - file: scripts/run_job.sh
       line: 16
@@ -892,6 +1017,16 @@ callstack:
     evidence:
     - file: jobs/reconcile_stock.py
       line: 37
+    fields:
+    - name: on_hand
+      use:
+      - write
+    - name: updated_at
+      use:
+      - write
+    - name: id
+      use:
+      - filter
   - op: create
     status: fact
     resource:
@@ -906,6 +1041,19 @@ callstack:
     evidence:
     - file: jobs/reconcile_stock.py
       line: 42
+    fields:
+    - name: snapshot_date
+      use:
+      - write
+    - name: sku
+      use:
+      - write
+    - name: on_hand
+      use:
+      - write
+    - name: reserved
+      use:
+      - write
   - op: set
     status: fact
     resource:
@@ -928,6 +1076,7 @@ callstack:
   caller: reconcile_stock__job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/reconcile_stock.py
       line: 8
@@ -947,6 +1096,7 @@ callstack:
   caller: reconcile_stock__lib_db
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/db.py
       line: 13
@@ -960,6 +1110,7 @@ callstack:
   caller: reconcile_stock__job
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/reconcile_stock.py
       line: 8
@@ -979,6 +1130,7 @@ callstack:
   caller: reconcile_stock__lib_cache
   call:
     status: fact
+    when: always
     evidence:
     - file: jobs/lib/cache.py
       line: 17
@@ -992,9 +1144,9 @@ callstack:
   caller: flow
   call:
     status: fact
-    evidence:
-    - file: flows/daily/close_day.yaml
-      line: 45
+    when: on_failure
+    condition: この Flow のいずれかのタスク (Subflow) が失敗したとき (errors)
+    evidence: *id004
     note: 'Subflow として呼ばれる (wait: true)'
   summary:
     status: interpretation
@@ -1031,9 +1183,18 @@ callstack:
   caller: notify_failure__flow
   call:
     status: fact
+    when: always
     evidence:
     - file: flows/lib/notify_failure.yaml
       line: 25
+  settings:
+  - name: KOTORI_ENV
+    kind: env
+    effect: 読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)
+    status: fact
+    evidence:
+    - file: scripts/run_job.sh
+      line: 8
   summary:
     status: interpretation
     value: config/<env>.env を読み、python3 -m jobs.<job> を実行して標準出力をジョブごとのログに追記する共通ランナー
@@ -1094,6 +1255,7 @@ callstack:
   caller: notify_failure__run_job
   call:
     status: fact
+    when: always
     evidence:
     - file: scripts/run_job.sh
       line: 16
@@ -1136,9 +1298,19 @@ callstack:
   caller: notify_failure__job
   call:
     status: fact
+    when: conditional
+    condition: --dry-run が付いていないとき
     evidence:
     - file: jobs/notify_failure.py
       line: 22
+  settings:
+  - name: KOTORI_CHAT_WEBHOOK
+    kind: env
+    effect: 通知の送り先。未設定なら、何も送らない
+    status: fact
+    evidence:
+    - file: jobs/lib/notify.py
+      line: 10
   summary:
     status: interpretation
     value: 運用チャットの Webhook に文字列を POST する。URL が未設定なら何もしない
@@ -1169,6 +1341,8 @@ callstack:
   caller: notify_failure__lib_notify
   call:
     status: fact
+    when: conditional
+    condition: KOTORI_CHAT_WEBHOOK が設定されているとき
     evidence:
     - file: jobs/lib/notify.py
       line: 13

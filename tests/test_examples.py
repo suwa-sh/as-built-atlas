@@ -289,3 +289,68 @@ def test_complexity_counts_match_the_results(built: Path):
         cols = {c[0] for c in con.execute("describe mart.mart_entry_overview").fetchall()}
         assert "complexity" not in cols, "1 つにまとめた仮の指標は、置かない"
 
+
+
+def test_aspect_marts_match_the_results(built: Path):
+    """足した観点の表 (条件つきの呼び出し、列、状態の変化、つながり、設定) を、分析結果の YAML から数え直して突き合わせる。"""
+    docs = [yaml.safe_load(p.read_text(encoding="utf-8")) for p in RESULTS.glob("*.yaml")]
+    cond, fields, states, links, settings = set(), set(), 0, set(), set()
+    branches: dict[str, tuple[int, int]] = {}
+    for d in docs:
+        eid = d["entry"]["id"]
+        whens = [(f.get("call") or {}).get("when") for f in d["callstack"]]
+        branches[eid] = (whens.count("conditional"), whens.count("on_failure"))
+        for f in d["callstack"]:
+            if (f.get("call") or {}).get("when") in ("conditional", "on_failure"):
+                cond.add((eid, f["id"]))
+            links |= {(eid, ln["kind"], ln["target"]) for ln in f.get("links", [])}
+            settings |= {(s["name"], eid) for s in f.get("settings", [])}
+            for io in f.get("io", []):
+                table = (io["resource"].get("levels") or {}).get("table", "")
+                for fl in io.get("fields", []):
+                    fields.add((eid, table, fl["name"]))
+                    states += "set_to" in fl
+    assert cond and fields and states and links and settings, "見本が、どの観点も 1 つは持つ"
+    with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
+        q = lambda sql: con.execute(sql).fetchall()  # noqa: E731
+        assert {tuple(r[0].split("|")) for r in q("select call_key from mart.mart_call_conditions")} == cond
+        assert {(e, p.rsplit("/", 1)[1], f) for e, p, f in q("select entry_id, resource_path, field from mart.mart_field_access")} == fields
+        assert q("select count(*) from mart.mart_state_changes")[0][0] == states
+        assert {(e, k, t) for e, k, t in q("select entry_id, kind, target from mart.mart_entry_links")} == links
+        assert q("select count(*) from mart.mart_entry_links where not resolved")[0][0] == 0, "見本のつながりの行き先は、すべて入口の一覧にある"
+        assert {(s, e) for s, e in q("select setting, entry_id from mart.mart_settings")} == settings
+        assert {e: (b, f) for e, b, f in q("select entry_id, branch_count, failure_path_count from mart.mart_entry_complexity")} == branches
+        assert q("select count(*) from mart.mart_entry_access where authentication")[0][0] == 0, "見本は、権限の確認を持たない"
+        assert q("select count(*) from mart.mart_entry_access")[0][0] == len(docs), "観点を分析した結果は、権限のまとめに 1 行ずつ出る"
+        assert q("select count(*) from mart.mart_test_coverage")[0][0] == 0, "テストとの対応は、選んだときだけ"
+        assert q("select count(*) from mart.mart_sensitive_data")[0][0] == 0, "辞書が無ければ、空"
+
+
+def test_the_data_dictionary_feeds_the_sensitive_data_mart(tmp_path: Path):
+    """辞書のコマンドが列を candidate で足し、人が approved にした列だけが、個人情報の表に出る。"""
+    from abatlas.dictionary import FILE, update_dictionary
+
+    shutil.copytree(TARGET, tmp_path / "kotori-books")
+    shutil.copytree(ATLAS, tmp_path / "kotori-books-atlas")
+    repo = tmp_path / "kotori-books-atlas"
+    init_repo(repo, "batch-kestra", targets="claude-code")
+    path = repo / ANALYSIS_DIR / FILE
+    assert update_dictionary(repo, dry_run=True)["added"] > 0 and not path.exists(), "dry-run では書かない"
+    rep = update_dictionary(repo)
+    assert rep["added"] == rep["fields"] == rep["candidate"] == rep["unclassified"] > 0
+    assert update_dictionary(repo)["added"] == 0, "2 回目は、何も足さない"
+    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert all(f["field"] != "*" for f in doc["fields"]), "全部の列 (*) は、辞書に入れない"
+    first, second = doc["fields"][0], doc["fields"][1]
+    first.update({"category": "personal", "status": "approved"})
+    second.update({"category": "personal"})  # candidate のまま: 集計に出ない
+    path.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    build_repo(repo)
+    with duckdb.connect(str(duckdb_path(repo)), read_only=True) as con:
+        rows = con.execute("select distinct resource_path, field, category from mart.mart_sensitive_data").fetchall()
+    assert rows == [(first["resource"], first["field"], "personal")]
+    # 語彙に無い区分は、集計の前に止まる
+    first["category"] = "secret"
+    path.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    with pytest.raises(SystemExit, match="語彙に無い"):
+        build_repo(repo)

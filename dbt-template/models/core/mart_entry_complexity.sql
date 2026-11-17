@@ -42,6 +42,12 @@ with recursive frames as (
     count(distinct case when kind <> 'external_api' and op_direction = 'out' then kind || ':' || resource_path end) as written_datastore_count,
     count(distinct case when kind = 'external_api' then resource_path end) as external_count
   from {{ ref('stg_io') }} group by entry_id
+), cond as (
+  -- 条件つきの呼び出しの数 (分岐) と、失敗のときだけの呼び出しの数。分析 skill がこの観点を書く前の結果では、どちらも 0
+  select entry_id,
+    count(*) filter (where call_when = 'conditional') as branch_count,
+    count(*) filter (where call_when = 'on_failure') as failure_path_count
+  from {{ ref('stg_frames') }} group by entry_id
 ), claims as (
   select entry_id, count(*) filter (where status = 'unknown') as unknown_count
   from {{ ref('stg_claims') }} group by entry_id
@@ -56,6 +62,8 @@ select
   coalesce(i.external_count, 0) as external_count,
   coalesce(s.shared_frame_count, 0) as shared_frame_count,
   coalesce(n.sharing_entry_count, 0) as sharing_entry_count,
+  coalesce(b.branch_count, 0) as branch_count,
+  coalesce(b.failure_path_count, 0) as failure_path_count,
   coalesce(c.unknown_count, 0) as unknown_count
 from {{ ref('stg_entries') }} e
 join {{ ref('stg_results') }} r using (entry_id)
@@ -64,5 +72,6 @@ left join crossing x using (entry_id)
 left join io i using (entry_id)
 left join shared s using (entry_id)
 left join neighbors n using (entry_id)
+left join cond b using (entry_id)
 left join claims c using (entry_id)
 order by coalesce(n.sharing_entry_count, 0) desc, coalesce(i.written_datastore_count, 0) desc, coalesce(r.frame_count, 0) desc, e.path
