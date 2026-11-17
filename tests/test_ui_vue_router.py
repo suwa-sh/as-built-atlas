@@ -47,7 +47,8 @@ FILES = {
     "src/router/index.ts": ROUTER_TS,
     "src/orders/orderRoutes.ts": 'export const ORDER_PARENT = "orders/view"\nexport const ORDER_ROUTE = {name: "orders/list", path: "/orders", component: () => import("./Orders.vue")}\n',
     "src/admin/routes.ts": "export function makeAdminRoutes() { return [] }\n",
-    "src/App.vue": "<template><router-view /></template>\n<script setup>\nimport {useAuthStore} from './stores/auth'\nuseAuthStore().load()\n</script>\n",
+    "src/App.vue": "<template><TopBar /><router-view /></template>\n<script setup>\nimport TopBar from './layout/TopBar.vue'\nimport {useAuthStore} from './stores/auth'\nuseAuthStore().load()\n</script>\n",
+    "src/layout/TopBar.vue": "<template><header /></template>\n<script setup>\nimport {useNoticeStore} from '../stores/notice'\nuseNoticeStore().load()\n</script>\n",
     "src/main.ts": 'import {createApp} from "vue"\nimport App from "./App.vue"\ncreateApp(App).mount("#app")\n',
 }
 
@@ -139,12 +140,14 @@ def test_agent_adds_screens_and_the_shell_per_layer(app: Path, tmp_path_factory)
         ]),
         listed("agent-listed-shell", "shell", [
             {"id": "shell_s.app", "path": "/(shell)/app", "name": "App.vue", "source": {"file": "src/App.vue", "line": 1}, "reason": "createApp に渡している根のコンポーネント。ログインの確認を読み込む"},
+            {"id": "shell_s.part.TopBar", "path": "/(shell)/part/TopBar", "name": "TopBar.vue", "source": {"file": "src/layout/TopBar.vue", "line": 1}, "reason": "App.vue が描く共通の部品。通知を読み込む"},
         ]),
     ])
     out = enumerate_entries(path, PROFILE)
     assert validate_entry_list(out, _profile()) == []
     layers = {e["id"]: e["layer"] for e in out["entries"]}
-    assert layers["orders"] == "screen" and layers["orders.id_d"] == "screen" and layers["shell_s.app"] == "shell" and len(layers) == 9
+    assert layers["orders"] == "screen" and layers["orders.id_d"] == "screen" and layers["shell_s.app"] == "shell" and len(layers) == 10
+    assert layers["shell_s.part.TopBar"] == "shell", "枠が描く共通の部品は、部品ごとに別の入口"
     assert all("within" not in e for e in out["entries"])
     # 入口の層でない層に足そうとしたら、検査が落とす
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))
