@@ -176,6 +176,7 @@ flowchart TB
 | [docs/architecture/](docs/architecture/README.md) | 仕組みの説明。全体像、設計の考え方、仕組みに入れていないものと、主題ごとの 7 つの文書への地図 |
 | [docs/rules/](docs/rules/README.md) | 開発で守ること |
 | [docs/adr/](docs/adr/README.md) | 決定の経緯 |
+| [CHANGELOG.md](CHANGELOG.md) | 版ごとの変更と、更新で気を付けること |
 | [docs/brand.md](docs/brand.md) | コンセプト、名前の由来、声と見た目 |
 | [DESIGN.md](DESIGN.md) | 画面の見た目の決まり |
 | [examples/kotori-books/](examples/kotori-books/README.md) | サンプルの対象システムの説明と、正解に入れてある「不明」の見どころ |
