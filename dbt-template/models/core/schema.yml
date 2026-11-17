@@ -7,7 +7,7 @@ version: 2
 #   view:    table | matrix | graph | layers | sequence | tree | stat   (表示の種類。コアで固定した 7 つ)
 #   level:   entry | path  (入口ごとの表か、階層パスで畳める表か)
 #   subject: 任意。この表が「何について」の表か。webapp のナビの区分になる (その区分の表が 1 つも無ければ区分は出ない)
-#              entry = 入口 / data = データ (読み書き) / external = 外部接続 / frame = 共有処理 (部品) / analysis = 分析の状態
+#              entry = 入口 / data = データ (読み書き) / external = 外部接続 / frame = 共有処理 (部品) / aspect = 分析の観点 (入口をまたいで見る表。観点のページのタブと、入口のページのタブに出る) / analysis = 分析の状態
 #   title:   任意。人向けの論理名 (見出しに出る。無ければ物理名)
 #   hint:    任意。「この図の読み方」の 1 行 (無ければ表示の種類ごとの既定文)
 #   show:    任意。表に出す列とその順 (無ければ全部の列)。左から概念を絞り込む順に並べる (layer → kind → 個々のもの → その中身と数)
@@ -75,7 +75,7 @@ models:
         attach: any
         tags: [monitor]
         keys: { id: entry_id, path: path, label: name }
-        show: [path, sharing_entry_count, shared_frame_count, written_datastore_count, datastore_count, external_count, frame_count, max_depth, layer_crossings]   # unknown_count は出さない (すぐ下の {unknown} の表にある。列は API で読める)
+        show: [path, sharing_entry_count, shared_frame_count, written_datastore_count, datastore_count, external_count, frame_count, max_depth, branch_count]   # 9 列まで (増やすと右端が切れる)。layer_crossings、failure_path_count、unknown_count は出さない (列は API で読める)
         labels: { path: "{entry}", name: "{name}", layer: "{entry_layer}", frame_count: "{frame}", max_depth: "{call_depth}", layer_crossings: "{layer_crossing}",
                   datastore_count: "{datastore}", written_datastore_count: "{datastore} ({write})", external_count: "{external}",
                   shared_frame_count: "{shared_frame}", sharing_entry_count: "{sharing_entry}", unknown_count: "{unknown}",
@@ -243,7 +243,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{field} {data_access}"
         hint: "1 行が {entry} × {datastore} × {field}。{field_use} は R = {read}、W = {write}、F = {filter}。* はすべての {field}"
         attach: any
@@ -260,7 +260,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{state_change}"
         hint: "1 行が {datastore} の {field} に、決まった値 ({set_to}) を {write} する {frame} 1 つ"
         attach: any
@@ -275,7 +275,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{link}"
         hint: "1 行が {entry} から行き先 1 つへの {link}。{link_to} が空の行は、行き先が {entry} の一覧に無い ({link_target} は、コードに書いてあるとおり)"
         attach: any
@@ -292,7 +292,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{access_control}"
         hint: "1 行が {analyzed} の {entry} 1 件。{authentication} が false の行は、{authentication} の {guard} が見つからなかった {entry}。{unknown} の {guard} は、{authentication} に数えない。{enclosing} が {not_analyzed} なら、そこにある {guard} は数えられていない"
         attach: any
@@ -313,7 +313,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{guard}"
         hint: "1 行が {entry} に効く {guard} 1 つ。{via} が自分でない行は、{enclosing} が行う {guard}"
         attach: any
@@ -328,7 +328,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{conditional_call}"
         hint: "1 行が {call} 1 つ。on_failure は、{caller} が失敗したときだけ動く {frame} (通知、後片付け、やり直し)"
         attach: any
@@ -345,7 +345,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{setting}"
         hint: "1 行が {setting} × {entry}。{effect} は、その {setting} で動きがどう変わるか"
         attach: any
@@ -360,7 +360,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{rule}"
         hint: "1 行が {rule} 1 つ。{source} は、式や条件のある行"
         attach: any
@@ -375,7 +375,7 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{test}"
         hint: "1 行が {frame} 1 つ。{test} の数が 0 の行は、直接呼ぶ {test} が見つからなかった"
         attach: any
@@ -392,10 +392,25 @@ models:
         origin: core
         view: table
         level: entry
-        subject: analysis
+        subject: aspect
         title: "{sensitive_data}"
         hint: "1 行が {entry} × {datastore} × {field}。{external} は、同じ {entry} が呼ぶ {host}。{dictionary} で {approved} にした {field} だけが出る"
         attach: any
         keys: { id: field_key, path: path, label: field }
         show: [category_label, resource_path, field, uses, path, externals]
         labels: { category_label: "{category}", category: "{category}", resource_path: "{datastore}", field: "{field}", uses: "{field_use}", path: "{entry}", externals: "{external}", external_count: "{external}" }
+
+  - name: mart_unreached_files
+    description: "どの {entry} からも辿られないファイル。{target_scope} にあるファイルのうち、{frame} の {source}、{entry} の {source}、{evidence} のどれにも出てこないもの。{not_analyzed} の {entry} が残っている間は、そこからだけ辿られるファイルも出る"
+    meta:
+      abatlas:
+        origin: core
+        view: table
+        level: path
+        subject: aspect
+        title: "{unreached_file}"
+        hint: "1 行がファイル 1 つ。使われていないものの候補と、分析が届いていない範囲が混ざる。{analyzed} が {approved} より少ない間は、分析の残りを先に見る"
+        attach: any
+        keys: { id: file, label: file }
+        show: [top, ext, file, analyzed, approved]
+        labels: { top: "{top_dir}", ext: "{extension}", file: "{file}", analyzed: "{analyzed}", approved: "{approved}" }

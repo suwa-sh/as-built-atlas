@@ -354,3 +354,32 @@ def test_the_data_dictionary_feeds_the_sensitive_data_mart(tmp_path: Path):
     path.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
     with pytest.raises(SystemExit, match="語彙に無い"):
         build_repo(repo)
+
+
+def test_unreached_files_are_the_ones_no_result_mentions(built: Path):
+    """どの入口からも辿られないファイル = 対象の範囲にあって、分析結果のどこにも出てこないファイル。YAML から数え直して突き合わせる。"""
+    from abatlas.etl import target_files
+
+    mentioned = set()
+    for p in RESULTS.glob("*.yaml"):
+        d = yaml.safe_load(p.read_text(encoding="utf-8"))
+        mentioned.add(d["entry"]["source"]["file"])
+
+        def walk(node):
+            if isinstance(node, dict):
+                if set(node) >= {"file", "line"}:
+                    mentioned.add(node["file"])
+                for v in node.values():
+                    walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    walk(v)
+
+        walk(d)
+    files = target_files(built.parent / "kotori-books")
+    assert "README.md" in files and all(not f.startswith(".git/") for f in files)
+    with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
+        unreached = {f for (f,) in con.execute("select file from mart.mart_unreached_files").fetchall()}
+    assert unreached == set(files) - mentioned
+    assert "README.md" in unreached and "scripts/run_job.sh" not in unreached
+    assert target_files(None) == [] and target_files(built / "no-such-dir") == [], "対象が読めなければ、空 (集計は止めない)"

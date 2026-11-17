@@ -17,6 +17,7 @@
   settings.csv    フレームの動きを変える設定
   rules.csv       フレームにある業務のルール
   tests.csv       フレームを通るテスト
+  target_files.csv  対象の範囲 (scope) にあるファイル。対象の clone が読めるときだけ (読めなければ空)
   data_dictionary.csv  データの辞書 (列ごとの区分。sensitive = 個人情報の流れに出す区分か)
 """
 
@@ -28,7 +29,7 @@ from pathlib import Path
 
 from . import file_name_collisions, result_file_name
 from .schemas import load_yaml, schema_errors, resource_kinds, vocab
-from .validate import field_problems, tests_flag_problems, within_problems
+from .validate import validate_analysis_result, within_problems
 
 LEVEL_COLUMNS = ["host", "dbms", "database", "schema", "table", "instance", "namespace", "key_pattern",
                  "broker", "topic", "directory", "file", "account", "bucket", "prefix", "object", "path"]
@@ -48,6 +49,33 @@ def _row_claim(claims: list, evid: list, entry_id: str, where: str, claim: dict 
     })
     for e in ev:
         evid.append({"entry_id": entry_id, "claim_path": where, "file": e["file"], "line": e["line"]})
+
+
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".next", "target", "vendor"}
+
+
+def target_files(scope_dir: Path | None) -> list[str]:
+    """対象の範囲にあるファイル (範囲からの相対パス、並べ替え済み)。範囲が読めなければ空。
+
+    git の管理下なら、管理されているファイルだけ (生成物や依存を除ける)。そうでなければ、隠しフォルダと、よくある生成物・依存のフォルダを除いて歩く。
+    """
+    if scope_dir is None or not scope_dir.is_dir():
+        return []
+    import subprocess
+
+    try:
+        out = subprocess.run(["git", "-C", str(scope_dir), "ls-files", "-z"], capture_output=True, check=True, timeout=120).stdout
+        files = [f for f in out.decode("utf-8", "replace").split("\0") if f and (scope_dir / f).is_file()]  # 索引にあっても、消したファイルは除く
+        if files:
+            return sorted(files)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    found = []
+    for p in scope_dir.rglob("*"):
+        rel = p.relative_to(scope_dir)
+        if p.is_file() and not any(part in SKIP_DIRS or part.startswith(".") for part in rel.parts[:-1]):
+            found.append(rel.as_posix())
+    return sorted(found)
 
 
 ASPECTS_SINCE = (0, 4)  # 分析 skill がこの版から、呼び出しの条件・列・つながり・権限の確認・設定・業務のルールを書く
@@ -79,10 +107,14 @@ FRAME_LISTS = {
 }
 
 
-def build_rows(entry_list: dict, results: list[dict], profile: dict | None = None, dictionary: dict | None = None) -> dict[str, list[dict]]:
+def build_rows(entry_list: dict, results: list[dict], profile: dict | None = None, dictionary: dict | None = None,
+               files: list[str] | None = None) -> dict[str, list[dict]]:
     """profile を渡すと、結果ごとに「今のプロファイルの版と違う版で分析したか」(profile_stale) を付ける。dictionary はデータの辞書 (無ければ空の表)。"""
     rows = {k: [] for k in COLUMNS}
     categories = vocab("data-categories")["categories"]
+    for f in files or []:
+        name = f.rsplit("/", 1)[-1]
+        rows["target_files"].append({"file": f, "top": f.split("/", 1)[0] if "/" in f else "", "ext": name.rsplit(".", 1)[-1] if "." in name.lstrip(".") else ""})
     for d in sorted((dictionary or {}).get("fields", []), key=lambda x: (x["resource"], x["field"])):
         cat = d.get("category", "")
         rows["data_dictionary"].append({"resource_path": d["resource"], "field": d["field"], "category": cat, "category_label": categories.get(cat, {}).get("label", ""),
@@ -190,6 +222,7 @@ COLUMNS = {
     "settings": ["entry_id", "frame_id", "idx", "name", "kind", "effect", "status", "reason", "note"],
     "rules": ["entry_id", "frame_id", "idx", "kind", "value", "status", "reason", "note"],
     "tests": ["entry_id", "frame_id", "idx", "name", "kind", "status", "reason", "note"],
+    "target_files": ["file", "top", "ext"],
     "data_dictionary": ["resource_path", "field", "category", "category_label", "sensitive", "status", "note"],
 }
 
@@ -208,25 +241,20 @@ def write_seeds(rows: dict[str, list[dict]], out_dir: Path) -> list[Path]:
     return written
 
 
-def _op_errors(result: dict) -> list[str]:
-    """I/O の操作 (op) がデータの種類の語彙にあるか (schema は op を文字列としか言えないので、ETL でも種類と突き合わせる)。"""
-    kinds = resource_kinds()
-    out = []
-    for f in result.get("callstack", []):
-        out.extend(f"callstack/{f['id']}/{p}" for p in tests_flag_problems(result, f))
-        for i, io in enumerate(f.get("io", [])):
-            kind = io["resource"]["kind"]
-            ops = [o["id"] for o in kinds.get(kind, {}).get("ops", [])]
-            if kind not in kinds:
-                out.append(f"callstack/{f['id']}/io/{i}: データの種類 '{kind}' が語彙に無い")
-            elif io["op"] not in ops:
-                out.append(f"callstack/{f['id']}/io/{i}: 操作 '{io['op']}' は {kind} では使えない (使えるのは {ops})")
-            out.extend(f"callstack/{f['id']}/io/{i}/{p}" for p in field_problems(io))
-    return out
+def result_errors(result: dict, profile: dict | None = None, scope_dir: Path | None = None) -> list[str]:
+    """分析結果 1 件の検査。検査のコマンド (validate result) と同じ検査を通す (形式、呼び出しの木、語彙、列、プロファイルの層との突き合わせ)。
+
+    scope_dir (対象の範囲のフォルダ) を渡すと、根拠のファイルの実在と行数も見る。対象の clone が読めない場所では渡さない (その検査だけを省く)。
+    """
+    return validate_analysis_result(result, profile, scope_dir)
 
 
-def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None) -> dict[str, int]:
-    """entry-list と results/*.yaml を schema で検証してから seed を書く。違反があれば何も書かない。
+def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None, scope_dir: Path | None = None) -> dict[str, int]:
+    """entry-list と results/*.yaml を検査してから seed を書く。違反があれば何も書かない。
+
+    分析結果は、検査のコマンド (validate result) と同じ検査を通す。検査で落ちる結果が、集計には通ることが無いようにするため。違いは 2 つ:
+    根拠のファイルの実在と行数は、対象の clone が読めるときだけ見る (読めない場所でも集計できるように)。対象 (リポジトリ、範囲、コミット) が作業定義と違う結果は、止めずに知らせる
+    (対象を更新した後、入口を 1 件ずつ分析し直す間も、集計して画面で見られるように)。
 
     入口を包む入口 (entries[].within) は、指す入口の実在と循環も見る。profile を渡すと、宣言から決まる値との一致も見る
     (古い一覧のまま集計して、欠けた・誤った関係を画面に出さないため)。
@@ -247,9 +275,7 @@ def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None) -> 
     seen: dict[str, str] = {}
     for p in sorted((analysis_repo / "results").glob("*.yaml")):
         r = load_yaml(p)
-        errs = schema_errors("analysis-result", r)
-        if not errs:  # 形式に合わない結果は、項目が欠けていることがあるので、意味の検査にかけない
-            errs = _op_errors(r)
+        errs = result_errors(r, profile, scope_dir)
         if errs:
             problems.extend(f"{p.name}: {e}" for e in errs)
             continue
@@ -261,14 +287,27 @@ def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None) -> 
             problems.append(f"{p.name}: entry.id {eid} は {seen[eid]} と重複している (進行状況とコストが二重に数えられる)")
         seen.setdefault(eid, p.name)
         results.append(r)
+    wd_path = analysis_repo / "work-definition.yaml"
+    work_target = (load_yaml(wd_path) or {}).get("target") if wd_path.is_file() else None
+    other_target = []  # 作業定義と、対象 (リポジトリ、範囲、コミット) が違う結果。止めずに知らせる
+    if isinstance(work_target, dict):
+        for r in results:
+            rt = r["target"]
+            if (rt.get("repo"), rt.get("scope", "."), rt.get("commit")) != (work_target.get("repo"), work_target.get("scope", "."), work_target.get("commit")):
+                other_target.append(r["entry"]["id"])
     for name, group in sorted(file_name_collisions({e["id"] for e in entry_list.get("entries", [])}).items()):
         problems.append(f"entry-list.yaml: id {group} は同じ結果ファイル名 '{name}' になる (片方の結果しか置けない)")
     problems.extend(dict_problems)
     if problems:
-        raise SystemExit("etl: 入力が schema に違反しているので書かない:\n  " + "\n  ".join(problems[:20]))
-    rows = build_rows(entry_list, results, profile, dictionary)
+        raise SystemExit("etl: 入力が検査に通らないので書かない (分析結果は validate result と同じ検査):\n  " + "\n  ".join(problems[:20]))
+    rows = build_rows(entry_list, results, profile, dictionary, target_files(scope_dir))
     write_seeds(rows, out_dir)
     counts = {k: len(v) for k, v in rows.items()}
+    if other_target:
+        counts["other_target_results"] = len(other_target)
+        print(f"etl: warn: 作業定義と、対象 (リポジトリ、範囲、コミット) が違う結果が {len(other_target)} 件ある: {', '.join(sorted(other_target)[:10])}{' …' if len(other_target) > 10 else ''}。"
+              " 止めずに集計する (対象を更新した後、入口を 1 件ずつ分析し直す間も、画面で見られるように)。入口ごとのコミットは、入口の概要の表の target_commit で分かる。"
+              " validate result --work は、この違いを指摘する", file=sys.stderr)
     stale = sorted(r["entry_id"] for r in rows["results"] if r["profile_stale"] == "true")
     if profile is not None:
         counts["stale_results"] = len(stale)

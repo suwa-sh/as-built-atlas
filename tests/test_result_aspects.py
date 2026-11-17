@@ -161,3 +161,34 @@ def test_frames_know_whether_their_layer_is_the_boundary(profile, result):
     assert {f["frame_id"]: f["boundary"] for f in rows["frames"]}["psycopg"] == "true"
     assert {f["frame_id"]: f["boundary"] for f in rows["frames"]}["run_sh"] == "false"
     assert build_rows(_entries(), [result])["frames"][0]["boundary"] == "", "プロファイルを渡さなければ、判定しない"
+
+
+def _repo_with(result, tmp_path, work_target):
+    from abatlas import result_file_name
+
+    (tmp_path / "results").mkdir()
+    (tmp_path / "entry-list.yaml").write_text(yaml.safe_dump({"format_version": 1, "target": result["target"], "profile": result["analyzer"]["profile"], "extractors": [], "entries": []}), encoding="utf-8")
+    (tmp_path / "work-definition.yaml").write_text(yaml.safe_dump({"format_version": 1, "target": work_target, "profile": {"id": "batch-kestra"}}), encoding="utf-8")
+    (tmp_path / "results" / result_file_name(result["entry"]["id"])).write_text(yaml.safe_dump(result, allow_unicode=True), encoding="utf-8")
+
+
+def test_etl_only_warns_on_results_of_another_target_or_commit(result, tmp_path, capsys):
+    """対象を更新した後、入口を 1 件ずつ分析し直す間も、集計できる。"""
+    from abatlas.etl import run_etl
+
+    _repo_with(result, tmp_path, {**result["target"], "commit": "ffffffffff"})
+    counts = run_etl(tmp_path, tmp_path / "out")
+    assert counts["other_target_results"] == 1 and "違う結果が 1 件" in capsys.readouterr().err
+
+
+def test_target_files_skip_files_deleted_from_the_work_tree(tmp_path):
+    import subprocess
+
+    from abatlas.etl import target_files
+
+    for name in ("a.py", "b.py"):
+        (tmp_path / name).write_text("x\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    (tmp_path / "b.py").unlink()
+    assert target_files(tmp_path) == ["a.py"]

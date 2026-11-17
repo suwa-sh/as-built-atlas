@@ -138,6 +138,18 @@ def render_dbt_project(repo: Path, profile_id: str | None = None, src: Path | No
     return work
 
 
+def _scope_dir(repo: Path) -> Path | None:
+    """対象の範囲のフォルダ。作業定義から決まらない・読めないときは None (辿られないファイルの表が空になるだけで、集計は止めない)。"""
+    from .validate import _resolve_scope
+
+    wd = analysis_dir(repo) / "work-definition.yaml"
+    try:
+        scope = _resolve_scope(load_yaml(wd)["target"], wd.parent)
+    except (SystemExit, KeyError, TypeError, OSError):
+        return None
+    return scope if scope is not None and scope.is_dir() else None
+
+
 def build_repo(repo: Path, select: str | None = None) -> dict:
     """ETL (analysis/results → seeds) → dbt build → analysis/data/abatlas.duckdb。"""
     repo = repo.resolve()
@@ -146,7 +158,7 @@ def build_repo(repo: Path, select: str | None = None) -> dict:
     outdated = oss_copy_outdated(repo)
     if outdated:
         print(f"warning: {outdated}", file=sys.stderr)
-    counts = run_etl(analysis_dir(repo), work / "seeds", profile)  # 入口を包む入口 (within) が、プロファイルの宣言と合っているかも見る
+    counts = run_etl(analysis_dir(repo), work / "seeds", profile, _scope_dir(repo))  # 入口を包む入口 (within) が、プロファイルの宣言と合っているかも見る
     db = duckdb_path(repo)
     db.parent.mkdir(parents=True, exist_ok=True)
     # dbt は別プロセスで動かす (同一プロセスだと dbt-duckdb が接続を握り続け、API の read_only 接続と設定が衝突する)。

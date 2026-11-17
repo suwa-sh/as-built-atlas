@@ -14,7 +14,7 @@ from abatlas import ANALYSIS_DIR
 from abatlas.api import _fold, create_app
 from abatlas.build import build_repo
 from abatlas.declarations import SUBJECTS, check_declaration
-from abatlas.etl import _op_errors, build_rows
+from abatlas.etl import result_errors, build_rows
 from abatlas.layout import init_repo
 from abatlas.schemas import vocab
 from abatlas.validate import hierarchy_label_problems, validate_analysis_result, validate_profile
@@ -101,7 +101,7 @@ def test_op_must_belong_to_the_kind():
     bad["callstack"][1]["io"][0]["op"] = "create"  # ファイルに create は無い (write を使う)
     findings = validate_analysis_result(bad, profile)
     assert any("操作 'create' は filesystem では使えない" in f for f in findings), findings
-    assert any("'create' は filesystem では使えない" in e for e in _op_errors(bad)), "ETL も同じ検査をする"
+    assert any("'create' は filesystem では使えない" in e for e in result_errors(bad)), "ETL も同じ検査をする"
     bad2 = copy.deepcopy(r)
     bad2["callstack"][1]["io"][4]["op"] = "read"  # キューに read は無い
     assert any("'read' は queue では使えない" in f for f in validate_analysis_result(bad2, profile))
@@ -147,7 +147,7 @@ def test_declaration_subject_title_hint_are_checked():
     assert any("title は空でない" in p for p in check_declaration("m", {**ok, "title": " "}, cols))
     no_kind = {**ok, "keys": {k: v for k, v in ok["keys"].items() if k != "kind"}}
     assert any("keys.kind" in p for p in check_declaration("m", no_kind, cols)), "subject data の matrix は種類の列が要る"
-    assert SUBJECTS == {"entry", "data", "external", "frame", "analysis"}
+    assert SUBJECTS == {"entry", "data", "external", "frame", "aspect", "analysis"}
 
 
 def test_core_marts_cover_every_subject_and_have_titles(repo: Path):

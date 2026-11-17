@@ -23,6 +23,7 @@ uv run abatlas enumerate <entry-list.yaml> --profile profiles/<id>/profile.yaml
 uv run abatlas init <分析リポ> --profile <id>   # 分析リポジトリの初期化 (OSS 所有の配置 + 中ハーネス 6 製品)。開発中の確認用
 uv run abatlas migrate <分析リポ> [--dry-run]   # 前の形式の項目名を、いまの形式に書き換える (分析する側のファイルだけ。値は変えない。文の中の「(tier: <id>)」だけ直す)
 uv run abatlas dictionary <分析リポ>            # 分析結果に出てきた列を、データの辞書に candidate で足す (区分は決めない)
+uv run abatlas diff <分析リポ> --from <git の版>   # 前の分析結果と、いまの分析結果を比べる (入口ごとに、足されたものと消えたもの)
 uv run abatlas build <分析リポ>                 # ETL → dbt build (派生物は <分析リポ>/analysis/data/)
 uv run abatlas serve <分析リポ>                 # webapp + 集計表 API + MCP (http://127.0.0.1:8765, /mcp)
 uv run abatlas evaluate <results> --truth <truth>   # 分析結果を正解と突き合わせる (適合率 / 再現率)

@@ -169,6 +169,10 @@ def main(argv=None) -> int:
     dc.add_argument("repo")
     dc.add_argument("--dry-run", action="store_true", help="書かずに、数だけ出す")
 
+    df = sub.add_parser("diff", help="分析リポジトリの git の版にある前の分析結果と、いまの分析結果を比べる (入口ごとに、足されたものと消えたもの)")
+    df.add_argument("repo")
+    df.add_argument("--from", dest="rev", required=True, help="比べる相手の git の版 (コミット、タグ、HEAD~1 など)")
+
     t = sub.add_parser("etl", help="entry-list と results/*.yaml を seed CSV に分解する")
     t.add_argument("analysis_repo")
     t.add_argument("--out", required=True)
@@ -285,8 +289,14 @@ def main(argv=None) -> int:
             rep = update_dictionary(Path(a.repo), a.dry_run)
             print("dictionary: " + ", ".join(f"{k}={v}" for k, v in rep.items()))
             return 0
+        if a.cmd == "diff":
+            from .diff import diff_repo
+
+            print(diff_repo(Path(a.repo), a.rev))
+            return 0
         if a.cmd == "etl":
-            counts = run_etl(Path(a.analysis_repo), Path(a.out))
+            prof_path, _ = _resolve_profile(Path(a.analysis_repo).resolve().parent)  # 集計 (build) と同じプロファイルで検査する。読めなければ、プロファイルとの突き合わせを省く
+            counts = run_etl(Path(a.analysis_repo), Path(a.out), load_yaml(prof_path) if prof_path else None)
             print("etl: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
             return 0
         if a.cmd == "build":
