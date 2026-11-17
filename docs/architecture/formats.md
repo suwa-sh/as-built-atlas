@@ -95,7 +95,7 @@ flowchart TB
 
 | 並び | 書くこと | 主な項目 |
 |---|---|---|
-| `links` | ほかの入口へのつながり | `kind` (`navigate` = 画面の遷移 / `trigger` = 起動 / `overlay` = 重ねて開く画面)、`target` (コードに書いてあるとおりの行き先)、`entry_id` (行き先の入口が分かるとき) |
+| `links` | ほかの入口へのつながり | `kind` (`navigate` = 画面の遷移 / `trigger` = 起動 / `overlay` = 重ねて開く画面 / `embed` = この入口の中に描く、別の入口にした部品。`entry_id` が必須)、`target` (コードに書いてあるとおりの行き先)、`entry_id` (行き先の入口が分かるとき) |
 | `guards` | 権限の確認 | `kind` (`authentication` / `role` / `permission` / `ownership` / `other`)、`value` (求める値。役割・権限・持ち主の確認では、不明でなければ必ず書く) |
 | `settings` | 動きを変える設定 | `name`、`kind` (`env` / `feature_flag` / `config_file` / `remote` / `other`)、`effect` (動きがどう変わるか。不明でなければ必ず書く) |
 | `rules` | 業務のルール | `kind` (`calculation` / `validation` / `decision`)、`value` (内容。不明でなければ必ず書く) |

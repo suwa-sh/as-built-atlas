@@ -163,3 +163,36 @@ def test_the_open_findings_count_must_match_the_review(result):
     assert any("findings_open" in f for f in validate_review(review, r))
     finding["resolved"] = True
     assert validate_review(review, r) == []
+
+
+def test_the_work_definition_may_name_models_for_subagents():
+    from abatlas.validate import validate_work_definition
+
+    work = {"format_version": 1, "target": {"repo": "x", "commit": "abcdef0"}, "profile": {"id": "batch-kestra"}, "analysis": {"models": {"analyze": "m-a", "review": "m-r"}}}
+    assert validate_work_definition(work) == []
+    work["analysis"]["models"]["summarize"] = "m-s"
+    assert validate_work_definition(work)
+
+
+def test_a_leaf_that_embeds_another_entry_is_allowed(profile, result):
+    """別の入口にした部品を描くフレームは、読み書きが無くても終端になれる (続きは、行き先の入口の結果にある)。"""
+    r = copy.deepcopy(result)
+    ev = [{"file": "scripts/housekeeping.sh", "line": 1}]
+    leaf = {"id": "renderer", "layer": "program", "kind": "function", "name": "render_part", "source": {"file": "scripts/housekeeping.sh", "line": 1},
+            "caller": "run_sh", "call": {"status": "fact", "when": "always", "evidence": ev}}
+    r["callstack"].append(leaf)
+    leaf["links"] = [{"kind": "navigate", "target": "other", "entry_id": "other", "status": "fact", "evidence": ev}]
+    assert any("renderer" in f and "終端" in f for f in validate_analysis_result(r, profile))
+    leaf["links"] = [{"kind": "embed", "target": "Chart", "status": "interpretation", "evidence": ev}]   # 行き先の入口が無い
+    problems = validate_analysis_result(r, profile)
+    assert any("renderer" in f and "終端" in f for f in problems) and any("embed" in f and "entry_id" in f for f in problems)
+    leaf["links"] = [{"kind": "embed", "target": "Chart", "entry_id": "part_p.registry.Chart", "status": "interpretation", "evidence": ev}]
+    assert any("renderer" in f and "終端" in f for f in validate_analysis_result(r, profile))   # 入口の一覧を渡さない検査では、終端の根拠にしない
+    assert any("renderer" in f and "入口の一覧に無い" in f for f in validate_analysis_result(r, profile, entry_ids={"other"}))   # 一覧に無い行き先
+    assert validate_analysis_result(r, profile, entry_ids={"part_p.registry.Chart"}) == []
+    me = r["entry"]["id"]
+    leaf["links"] = [{"kind": "embed", "target": "Self", "entry_id": me, "status": "interpretation", "evidence": ev}]   # 自分自身を指しても、続きはどこにも無い
+    problems = validate_analysis_result(r, profile, entry_ids={me})
+    assert any("renderer" in f and "終端" in f for f in problems) and any("この入口自身" in f for f in problems)
+    leaf["links"] = [{"kind": "trigger", "target": "child.yml", "entry_id": "child", "status": "fact", "evidence": ev}]   # 別の入口を起動するだけの段
+    assert validate_analysis_result(r, profile, entry_ids={"child"}) == []

@@ -22,6 +22,13 @@ layers:
     stack: [Next.js App Router, React]
     invokes_next: "layout ファイルが import して描画するコンポーネント (ヘッダー、メニュー、ログイン確認、条件付きで開く小窓など)。`children` と並行ルートの props (`@slot`) の中身は、包まれる側の入口なので辿らない"
     io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で動く layout が ORM や fetch を直接書くことがある
+  - id: part
+    tier: frontend
+    label: part (registry から選ばれて描かれる component)
+    role: entry
+    stack: [React]
+    invokes_next: "部品の component が描画する子の component と、呼ぶ hook。部品を描く側 (page や、登録表を引く component) は辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
   - id: component
     tier: frontend
     label: component (React component と、API を呼ぶ hook)
@@ -52,9 +59,11 @@ hierarchy:
   derivation: "page ファイルの置き場 (app ディレクトリからの相対) を '/' で区切って段にする。URL に出ない入れ物 `(group)` は落とす。動的な段 `[id]` と並行ルート `@slot` はそのまま残す。割り込みルートの印 `(.)` `(..)` `(..)(..)` `(...)` は外す。並行ルート + 割り込みルートの page (一覧の上に重ねる小窓) の階層は、割り込み先の URL ではなく**置き場** (どの画面の上に重なるか) を表す (例: `feed/@modal/(..)photo/[id]` → `/feed/@modal/photo/[id]`。割り込み先の URL は /photo/[id])。`_folder` (private folder) の下の page は画面にならないので拾わない。app 直下の page (URL が / だけ) は `(root)` という 1 段にする"
   entry_labels:   # 枠の入口は、詳細のページで page ではなく layout と呼ぶ
     - { contains: "(layout)", label: layout }
+    - { contains: "(part)", label: part }
   notes:   # 段の名前に残る Next.js の書き方を、画面で説明する
     - { contains: "[", text: "角かっこの段 (例: [id]) は、実行時に値が入る場所。対象のソースのフォルダ名をそのまま出している" }
     - { contains: "(layout)", text: "(layout) で始まる {entry} は layout ファイル。後ろの段は layout の置き場のフォルダで、丸かっこの段は URL に出ない route group" }
+    - { contains: "(part)", text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前" }
 
 # 入口が別の入口の中で動く関係。列挙ツールが entries[].within (包む入口の id、外側から) を埋める
 within:
@@ -117,5 +126,7 @@ extractors:
       contains:
         client: "^['\"]use client['\"]"
         metadata: "export\\s+(const\\s+metadata|(async\\s+)?function\\s+generateMetadata)"
+# 登録表から選ばれて描かれる component (層 part) は、抽出器では取れない。分けるときは、入口を見つける agent が、
+# `abatlas-extract listed` (名前は agent-listed-part、layer: part) で足す。決まりは context.md の「登録表から選ばれて描かれる部品」
 
 marts: []

@@ -54,6 +54,7 @@ description: 分析対象リポジトリの「入口」(ジョブ・エンドポ
    - 抽出器が出した件数と、読んで足した件数 (足した入口は、1 件ずつ id と理由)
    - 既定パラメータから変えた点と、その理由。外した抽出器と、その理由
    - 入口かもしれないが、足さなかったもの (場所と理由)
+   - 既に分析結果があるリポジトリで、ほかの入口の中で描かれる・呼ばれる入口 (プロファイルが、別の入口に分けると決めている部品など) を足した・外したとき: 分析し直す入口 (それを描く・呼ぶ側の入口)。この古さは、プロファイルの版の比較では見つからない
 
 `listed` の書き方:
 
@@ -90,5 +91,5 @@ extractors:
 
 ## 参照
 
-- 抽出器の契約と `params` の書き方: `<oss>/docs/architecture/profiles.md` の「抽出器の契約」、`<oss>/schema/entry-candidate.schema.json`、プロファイルの `profile.yaml` の `extractors[]` (既定の params と hint)。コア同梱の抽出器の `params` の全項目は、`<abatlas> extractors <名前>` で出す (名前は `structured-query` / `glob` / `ast` / `listed`)
+- 抽出器の契約と `params` の書き方: `<oss>/docs/architecture/profiles.md` の「抽出器の契約」、`<oss>/schema/entry-candidate.schema.json`、プロファイルの `profile.yaml` の `extractors[]` (既定の params と hint)。コア同梱の抽出器の `params` の全項目は、`<abatlas> extractors <名前>` で出す (名前は `structured-query` / `nested-keys` / `glob` / `ast` / `listed`)
 - 入口一覧の形式: `<oss>/schema/entry-list.schema.json`

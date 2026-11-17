@@ -226,6 +226,11 @@ target:
 profile:
   id: {profile_id}
   dir: .abatlas/profiles/{profile_id}   # build / validate / enumerate が読むプロファイル。layer などを自分用に直すなら analysis/profiles/{profile_id} に写して、ここを書き換える (.abatlas/ は upgrade で置き換わる)
+# analysis:
+#   models:                            # 分析とレビューを任せるサブエージェントのモデル (任意)。書かないと、起動した側と同じモデルで動く (入口が多いと、費用がかさむ)
+#     analyze: <モデルの名前>
+#     review: <モデルの名前>
+#   tests: true                        # 処理の段を通るテストも分析する (範囲にテストのコードが入っているときだけ)
 """
 
 DOTENV = """# docker compose の設定 (このリポジトリのもの。upgrade で触らない)
@@ -250,6 +255,14 @@ title: この分析リポジトリでの分析の癖
 
 分析 skill (`abatlas-analyze-entry`) と レビュー skill (`abatlas-review-entry`) は、作業の最初にこのファイルを読み、
 プロファイルの `context.md` より**こちらを優先**します。OSS 層の skill は変えずに、リポジトリごとの振る舞いをここで変えます。
+
+## 層とフォルダの対応
+
+<!-- プロファイルが、層を役割で分けているとき (cli、api)。例: `internal/core` は logic、`queries` と `internal/store` は adapter -->
+
+## 名前と値の綴り、木の書き方
+
+<!-- 入口をまたいでそろえる書き方。例: 権限の確認の value は、確認する関数の名前だけを書く。全操作に共通の認証の経路は、読み書きを持つ最初の段まで -->
 
 ## unknown の扱い
 

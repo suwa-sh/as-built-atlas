@@ -132,6 +132,10 @@ claude mcp add --transport http abatlas http://localhost:8765/mcp
 | `profile.id` | ○ | プロファイルの id |
 | `profile.dir` | | プロファイルの置き場所。[profiles.md](profiles.md) の「ツールが読むプロファイル」 |
 | `analysis.tests` | | `true` にすると、処理の段を通るテストも分析する。範囲 (`target.scope`) にテストのコードが入っているときだけ使う。既定は `false` |
+| `analysis.models.analyze` | | 入口を分析するサブエージェントのモデル。書いてなければ、起動する側の既定 (多くの製品では、起動した側と同じモデル) で動く |
+| `analysis.models.review` | | 分析結果をレビューするサブエージェントのモデル。同上 |
+
+入口が多いときは、`analysis.models` を書いておきます。書かないと、すべてのサブエージェントが、起動した側と同じ (いちばん高いことが多い) モデルで動き、費用がかさみ、利用の上限にも当たりやすくなります。値は、使っているコーディングエージェントが受け付けるモデルの名前です。実際に使ったモデルは、結果ごとの `analyzer.model` に残ります。
 
 ## このリポジトリの構成 (配布物になるもの)
 

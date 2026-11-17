@@ -29,7 +29,7 @@ from pathlib import Path
 
 from . import file_name_collisions, result_file_name
 from .schemas import load_yaml, schema_errors, resource_kinds, vocab
-from .validate import validate_analysis_result, within_problems
+from .validate import entry_ids_of, validate_analysis_result, within_problems
 
 LEVEL_COLUMNS = ["host", "dbms", "database", "schema", "table", "instance", "namespace", "key_pattern",
                  "broker", "topic", "directory", "file", "account", "bucket", "prefix", "object", "path"]
@@ -241,12 +241,12 @@ def write_seeds(rows: dict[str, list[dict]], out_dir: Path) -> list[Path]:
     return written
 
 
-def result_errors(result: dict, profile: dict | None = None, scope_dir: Path | None = None) -> list[str]:
+def result_errors(result: dict, profile: dict | None = None, scope_dir: Path | None = None, entry_ids: set[str] | None = None) -> list[str]:
     """分析結果 1 件の検査。検査のコマンド (validate result) と同じ検査を通す (形式、呼び出しの木、語彙、列、プロファイルの層との突き合わせ)。
 
     scope_dir (対象の範囲のフォルダ) を渡すと、根拠のファイルの実在と行数も見る。対象の clone が読めない場所では渡さない (その検査だけを省く)。
     """
-    return validate_analysis_result(result, profile, scope_dir)
+    return validate_analysis_result(result, profile, scope_dir, entry_ids)
 
 
 def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None, scope_dir: Path | None = None) -> dict[str, int]:
@@ -275,7 +275,7 @@ def run_etl(analysis_repo: Path, out_dir: Path, profile: dict | None = None, sco
     seen: dict[str, str] = {}
     for p in sorted((analysis_repo / "results").glob("*.yaml")):
         r = load_yaml(p)
-        errs = result_errors(r, profile, scope_dir)
+        errs = result_errors(r, profile, scope_dir, entry_ids_of(entry_list))
         if errs:
             problems.extend(f"{p.name}: {e}" for e in errs)
             continue

@@ -186,7 +186,7 @@ def test_ui_nextjs_profile_is_valid():
     assert validate_profile(profile) == []
     assert (PROFILE.parent / "context.md").is_file()
     roles = {t["id"]: t.get("role", "intermediate") for t in profile["layers"]}
-    assert roles == {"page": "entry", "layout": "entry", "component": "intermediate", "api_route": "intermediate", "query": "intermediate", "external": "boundary"}
+    assert roles == {"page": "entry", "layout": "entry", "part": "entry", "component": "intermediate", "api_route": "intermediate", "query": "intermediate", "external": "boundary"}
     assert profile["within"] == [{"layer": "layout", "rule": "source_dir"}], "画面は、祖先のフォルダの枠 (layout) の中で動く"
     for bad_within, needle in (([{"layer": "component", "rule": "source_dir"}], "role: entry の層ではない"),
                                ([{"layer": "layout", "rule": "source_dir"}] * 2, "重複"),

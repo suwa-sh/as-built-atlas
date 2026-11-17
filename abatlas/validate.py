@@ -268,7 +268,7 @@ class _ScopeFiles:
             return sum(1 for _ in fh)
 
 
-def validate_analysis_result(result: dict, profile: dict | None = None, scope_dir: Path | None = None) -> list[str]:
+def validate_analysis_result(result: dict, profile: dict | None = None, scope_dir: Path | None = None, entry_ids: set[str] | None = None) -> list[str]:
     """分析結果 YAML の機械チェック。
 
     - schema (claim の status と evidence / reason の組み合わせを含む)
@@ -370,6 +370,13 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
         for name in ("links", "guards", "settings", "rules", "tests"):
             for i, c in enumerate(f.get(name, [])):
                 check_claim(f"{w}/{name}/{i}", c)
+        for i, ln in enumerate(f.get("links", [])):
+            if ln.get("kind") == "embed" and not ln.get("entry_id"):
+                findings.append(f"{w}/links/{i}: embed には entry_id が要る (この入口の中に描く部品が、どの入口か。入口になっていない部品は、embed に書かない)")
+            if ln.get("entry_id") and ln["entry_id"] == (result.get("entry") or {}).get("id"):
+                findings.append(f"{w}/links/{i}: entry_id が、この入口自身を指している (つながりは、ほかの入口への行き先を書く)")
+            if entry_ids is not None and ln.get("entry_id") and ln["entry_id"] not in entry_ids:
+                findings.append(f"{w}/links/{i}: entry_id '{ln['entry_id']}' が、入口の一覧に無い (rejected の入口も、行き先にできない)")
         if f.get("caller") is None and (f.get("call") or {}).get("when"):
             findings.append(f"{w}/call: 入口のフレームは呼び出し元が無いので、when を書けない")
         findings.extend(f"{w}/{p}" for p in tests_flag_problems(result, f))
@@ -408,14 +415,30 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
             layer = layers.get(f["layer"], {})
             if layer.get("role") == "boundary" or f.get("io") or f.get("rules"):
                 continue  # 業務のルールを持つフレームは、読み書きも外部の呼び出しも無くても終端になれる (純粋な判定や計算の関数)
+            if entry_ids is not None and any(
+                ln.get("kind") in ("embed", "trigger") and ln.get("entry_id") in entry_ids and ln["entry_id"] != result["entry"]["id"] and ln.get("status") != "unknown"
+                for ln in f.get("links", [])
+            ):
+                continue  # 続きが、別の入口の結果にあるフレーム (別の入口にした部品を描く、別の入口を起動する)。行き先が、入口の一覧にあるものだけ (一覧を渡されない検査では、終端の根拠にしない)
             unknown_leaf = any((f.get(k) or {}).get("status") == "unknown" for k in ("call", "summary")) or any(
                 p.get("status") == "unknown" for p in f.get("parameters", [])
             )
             if not unknown_leaf:
                 findings.append(
-                    f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も業務のルールも unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
+                    f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も業務のルールも、行き先が入口の一覧にあるつながり (embed / trigger と entry_id。--work で作業定義を渡すと、隣の入口の一覧と照合する) も、unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
                 )
     return findings
+
+
+def entry_ids_of(entry_list: dict | None) -> set[str] | None:
+    """つながりの行き先にできる入口の id (rejected を除く)。一覧が無ければ None。"""
+    if not isinstance(entry_list, dict):
+        return None
+    return {e["id"] for e in entry_list.get("entries", []) if isinstance(e, dict) and e.get("id") and e.get("status") != "rejected"}
+
+
+def _entry_ids(path: Path) -> set[str] | None:
+    return entry_ids_of(load_yaml(path)) if path.is_file() else None
 
 
 def validate_result_file(path: Path, profile_path: Path | None = None, work_path: Path | None = None) -> list[str]:
@@ -427,7 +450,7 @@ def validate_result_file(path: Path, profile_path: Path | None = None, work_path
         scope_dir = _resolve_scope(work["target"], work_path.parent)
     elif isinstance(result, dict) and isinstance(result.get("target"), dict):
         scope_dir = _resolve_scope(result["target"], path.parent)
-    findings = validate_analysis_result(result, profile, scope_dir)
+    findings = validate_analysis_result(result, profile, scope_dir, _entry_ids(work_path.parent / "entry-list.yaml") if work_path else None)
     if work_path and isinstance(result, dict) and isinstance(result.get("target"), dict):
         wt, rt = work["target"], result["target"]
         for k in ("repo", "commit"):
