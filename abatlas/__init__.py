@@ -3,7 +3,7 @@
 - schemas: schema/ 配下の JSON Schema を読み、参照 ($ref) を解決する
 - validate: 分析結果 YAML / 入口一覧 / プロファイル / 作業定義の機械チェック
 - enumerate: 入口一覧の extractors を実行し、候補を entries に書く
-- extractors: コア同梱の汎用抽出器 (structured-query: 定義ファイルを JMESPath で読む / glob: ファイルの置き場から入口を作る)
+- extractors: コア同梱の汎用抽出器 (structured-query: 定義ファイルを JMESPath で読む / nested-keys: 定義ファイルの入れ子のキーの組から入口を作る / glob: ファイルの置き場から入口を作る)
 - layout: 分析リポジトリの初期化と更新 (OSS 所有ファイルの配置、中ハーネスの生成)
 - build: ETL → dbt build (派生物は分析リポジトリの analysis/data/)
 - api / mcp_server: 集計表 API と、その上の MCP。webapp/ (静的ファイル) も api が配信する

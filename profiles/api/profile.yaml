@@ -1,0 +1,95 @@
+# プロファイル: API だけを持つシステム (操作 → 受け口 → 処理 → データや外部とのやり取り → 外部のライブラリ)
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: api
+version: "0.1.0"
+label: "API service (operation → handler → logic → adapter → {datastore})"
+
+# 層は、役割で分ける (言語や、フォルダの名前では分けない)。対象のフォルダと層の対応は、分析リポジトリの analysis-conventions.md に書く
+layers:
+  - id: operation
+    tier: interface
+    label: operation (API definition の 1 操作。HTTP の path + method、channel + action、tool、RPC method)
+    role: entry
+    stack: [OpenAPI, AsyncAPI, MCP, gRPC, GraphQL]
+    invokes_next: "その操作を受け持つ handler。定義ファイルの操作と、コードの登録 (router の登録、handler の対応表) を、path と method (または操作の名前) で突き合わせて見つける"
+    io: []
+  - id: handler
+    tier: interface
+    label: handler (controller、resolver、tool handler、middleware)
+    stack: [router, controller, middleware]
+    invokes_next: "入力を解釈して呼ぶ処理 (logic)。その操作に掛かる middleware (認証、権限の確認) も、この層"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]   # 小さな API は、handler で直接読み書きする
+  - id: logic
+    tier: core
+    label: logic (procedure、business rule)
+    stack: [service, usecase, domain]
+    invokes_next: "ほかの処理 (logic) と、データや外部とのやり取りを受け持つコード (adapter) の呼び出し"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]   # やり取りを分けていない作りでは、ここで直接読み書きする
+  - id: adapter
+    tier: edge
+    label: adapter (repository、gateway、client wrapper)
+    stack: [repository, gateway, client wrapper]
+    invokes_next: "ORM、DB のドライバ、HTTP のクライアント、SDK の呼び出し (ここから先は boundary)"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+  - id: external
+    tier: edge
+    label: external library / service (boundary)
+    role: boundary
+    stack: [DB driver, ORM, HTTP client, SDK]
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+
+hierarchy:
+  level_labels: [resource+, operation]   # 最後の段が操作 (HTTP なら method)。それより前は、URL の区切り (または、channel や service の名前)
+  derivation: "HTTP の API は、URL の path を '/' で区切って段にし、最後に method (小文字) を置く (例: GET /users/{id} → /users/{id}/get)。path が '/' だけの操作は、(root) という 1 段と method にする。定義ファイルの servers が持つ共通の接頭辞 (/api など) は、path に書かれていないので、段にしない。接頭辞の外に登録された route (コードにだけある) は、path をそのまま段にし、接頭辞の中の route と同じ段になるときだけ、先頭に (outside) という段を置く。メッセージの API は、channel の名前と操作 (publish / subscribe、または操作の id)。tool や RPC は、まとまり (service、分類) と名前"
+  notes:   # 段の名前に残る書き方を、画面で説明する
+    - { contains: "{", text: "波かっこの段は、実行時に値が入る場所。API の定義の書き方をそのまま出している" }
+
+extractors:
+  - name: openapi-operations
+    run: abatlas-extract nested-keys
+    layer: operation
+    hint: "OpenAPI (Swagger) の定義ファイルがあるとき。files を、実際の置き場に合わせる (JSON もそのまま読める)。定義ファイルは、名前に頼らずに探す (先頭のキーが `openapi:` か `swagger:` の YAML / JSON。名前が openapi でも swagger でもないことがある)。定義が複数のファイルに分かれ、path の値が $ref だけのときは、列挙の出力に「読めなかった参照」として出る。この抽出器は参照を辿らないので、指す先のファイルを読んで、その操作を listed で足す (指す先のファイルを files に足しても、paths からのキーの並びが無いので読めない)。定義ファイルが無く、route の登録がコードにあるだけのシステムでは、この抽出器を書かず、ast の抽出器か listed で足す (context.md)"
+    params:
+      files: ["openapi.yaml", "openapi.yml", "openapi.json", "**/openapi.yaml", "**/openapi.yml", "**/openapi.json", "**/swagger.yaml", "**/swagger.yml", "**/swagger.json"]
+      root: paths
+      levels:
+        - { split: "/" }                                              # URL の path。'/' で区切って段にする
+        - { match: "get|put|post|delete|patch|head|options|trace" }   # method。path の下の parameters や summary は、入口にしない
+      name: operationId
+      attributes:
+        operation_id: operationId
+        summary: summary
+        tags: tags
+        security: security
+        deprecated: deprecated
+      id:
+        # id は結果のファイル名になるので記号を持てない。値が入る段を「_ + 1 文字」の印で表し、名前の中の _ は 2 つ重ねる
+        #   /users/{id} get → users.id_d.get      /users/id get → users.id.get      / get → root_r.get
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\{(.+)\\}$", with: "\\1_d" }
+          - { pattern: "^\\(root\\)$", with: "root_r" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+  - name: asyncapi-operations
+    run: abatlas-extract nested-keys
+    layer: operation
+    hint: "AsyncAPI の定義ファイルがあるとき。既定は 2 系の形 (channels.<channel>.<publish | subscribe>)。3 系 (operations.<操作の id>) では、root を operations、levels を 1 段 ([{}]) にする。channel の名前の区切り (/ や .) に、split を合わせる。定義ファイルが無いシステムでは、この抽出器を書かない"
+    params:
+      files: ["asyncapi.yaml", "asyncapi.yml", "asyncapi.json", "**/asyncapi.yaml", "**/asyncapi.yml", "**/asyncapi.json"]
+      root: channels
+      levels:
+        - { split: "/" }
+        - { match: "publish|subscribe" }
+      name: operationId
+      attributes:
+        operation_id: operationId
+        summary: summary
+      id:
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\{(.+)\\}$", with: "\\1_d" }
+          - { pattern: "^\\(root\\)$", with: "root_r" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+
+marts: []

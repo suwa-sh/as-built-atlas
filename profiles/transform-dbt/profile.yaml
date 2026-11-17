@@ -1,0 +1,64 @@
+# プロファイル: dbt で組んだデータの変換 (model → macro → データベース)
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: transform-dbt
+version: "0.1.0"
+label: "dbt project (model → macro → {datastore})"
+
+layers:
+  - id: model
+    tier: transform
+    label: model (dbt の model、snapshot)
+    role: entry
+    stack: [dbt, SQL, Jinja]
+    invokes_next: "model の SQL が呼ぶ、project の macro。ref() と source() で読む相手は、呼び出しではなく、読み書きに書く"
+    io: [rdb, filesystem, object_storage, external_api]
+  - id: macro
+    tier: transform
+    label: macro (project の macro)
+    stack: [Jinja, SQL]
+    invokes_next: "ほかの macro と、package の macro、adapter の関数 (ここから先は boundary)"
+    io: [rdb, filesystem, object_storage, external_api]
+  - id: external
+    tier: transform
+    label: external package / adapter (boundary)
+    role: boundary
+    stack: [dbt adapter, dbt_utils]
+    io: [rdb, filesystem, object_storage, external_api]
+
+hierarchy:
+  level_labels: [folder+, model]   # 最後の段が model。それより前は、models の下のフォルダ
+  derivation: "model の file の置き場 (models からの相対) を '/' で区切って段にし、最後に、拡張子を除いた file の名前を置く (例: models/staging/stg_orders.sql → /staging/stg_orders)。snapshot は、(snapshot) という段を先頭に置く"
+  notes:
+    - { contains: "(snapshot)", text: "(snapshot) で始まる {entry} は、dbt の snapshot (変化の履歴を残す表)" }
+
+extractors:
+  - name: dbt-models
+    run: abatlas-extract glob
+    layer: model
+    hint: "dbt_project.yml の model-paths を確かめて、files と strip_prefix を合わせる (既定は models)。範囲 (scope) は、dbt_project.yml のあるフォルダにする。Python の model があれば、files に models/**/*.py を足す"
+    params:
+      files: ["models/**/*.sql"]
+      segments:
+        strip_prefix: "models"
+        drop_last: false
+        replace:
+          - { pattern: "\\.sql$", with: "" }
+      contains:
+        incremental: "materialized\\s*=\\s*['\"]incremental['\"]"
+        ephemeral: "materialized\\s*=\\s*['\"]ephemeral['\"]"
+  - name: dbt-snapshots
+    run: abatlas-extract glob
+    layer: model
+    hint: "snapshot を持つ project だけ。snapshot-paths を確かめる (既定は snapshots)。この抽出器は、file の名前を snapshot の名前にする (中の `{% snapshot 名前 %}` は読まない)。file の名前と snapshot の名前が違う file、1 つの file に snapshot が複数ある file は、exclude に足して、読んで listed で足す。YAML で定義した snapshot も、listed で足す。snapshot が無い project では、この抽出器を書かない"
+    params:
+      files: ["snapshots/**/*.sql"]
+      segments:
+        strip_prefix: "snapshots"
+        drop_last: false
+        prefix: ["(snapshot)"]
+        replace:
+          - { pattern: "\\.sql$", with: "" }
+      line_match: "\\{%-?\\s*snapshot\\s"
+
+marts: []

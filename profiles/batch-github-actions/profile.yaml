@@ -1,0 +1,63 @@
+# プロファイル: GitHub Actions で組んだ自動処理 (workflow → job → step → リポジトリのスクリプト → 外部の action・コマンド)
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: batch-github-actions
+version: "0.1.0"
+label: "GitHub Actions (workflow → job → step → program → {datastore})"
+
+layers:
+  - id: workflow
+    tier: scheduler
+    label: workflow (GitHub Actions の workflow file)
+    role: entry
+    stack: [GitHub Actions]
+    invokes_next: "jobs の下の job。別の workflow を呼ぶ job (uses に workflow file) は、行き先が別の entry"
+    io: []   # workflow 自体は I/O を持たない。I/O は、呼び先のフレームに書く
+  - id: job
+    tier: job
+    label: job
+    stack: [GitHub Actions runner]
+    invokes_next: "steps の下の step (run の script と、uses の action)"
+    io: []
+  - id: step
+    tier: job
+    label: step (run の script、repository の中の action)
+    stack: [bash, composite action, JavaScript action]
+    invokes_next: "run の script が起動する、repository の script・Makefile の target・package の script。外部の command と、外部の action は boundary"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]   # run の中で、直接 curl や gh を呼ぶことが多い
+  - id: program
+    tier: job
+    label: program (repository の script、Makefile の target、package の script)
+    stack: [bash, Make, npm scripts, Python, Go]
+    invokes_next: "ほかの script と、外部の command・library の呼び出し (ここから先は boundary)"
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+  - id: external
+    tier: job
+    label: external action / command (boundary)
+    role: boundary
+    stack: [marketplace action, docker, gh, npm, cloud CLI]
+    io: [filesystem, rdb, kvs, queue, object_storage, external_api]
+
+hierarchy:
+  level_labels: [group+, workflow]   # 最後の段が workflow (file の名前)。workflow の置き場は 1 つなので、ふつうは 1 段だけ
+  derivation: "workflow file の名前から、拡張子を除いたものを段にする (例: .github/workflows/release.yml → /release)。別の workflow から呼ばれるだけの workflow (workflow_call) も、独立した entry として列挙する"
+
+extractors:
+  - name: workflows
+    run: abatlas-extract glob
+    layer: workflow
+    hint: "workflow file の置き場は、GitHub の決まりで .github/workflows の直下。範囲 (scope) が repository の根でないときは、files と strip_prefix を、範囲からの相対に直す。attributes の印 (schedule など) は、起動のきっかけを、文字の一致で拾ったもの (正確な内容は、分析のときに file を読む)"
+    params:
+      files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+      segments:
+        strip_prefix: ".github/workflows"
+        drop_last: false
+      line_match: "^(on|'on'|\"on\")\\s*:"
+      contains:
+        schedule: "^\\s*schedule\\s*:"
+        workflow_dispatch: "^\\s*-?\\s*workflow_dispatch\\b|\\[[^\\]]*workflow_dispatch"
+        workflow_call: "^\\s*-?\\s*workflow_call\\b|\\[[^\\]]*workflow_call"
+        push: "^\\s*-?\\s*push\\b|\\bon\\s*:\\s*\\[?[^\\]\\n]*\\bpush\\b"
+        pull_request: "^\\s*-?\\s*pull_request(_target)?\\b|\\bon\\s*:\\s*\\[?[^\\]\\n]*\\bpull_request"
+
+marts: []

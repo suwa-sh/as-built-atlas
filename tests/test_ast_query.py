@@ -340,8 +340,8 @@ def test_dry_run_prints_candidates_and_extractors_prints_params(app: Path, capsy
     assert "books.bookId\t/books/:bookId\tscreen\tvue-routes\tcandidate" in out and len(out) == 3
     assert path.read_text(encoding="utf-8") == before
     assert cli_main(["extractors"]) == 0
-    assert "ast, glob, listed, structured-query" in capsys.readouterr().out
-    for kind, needle in [("ast", "unresolved:"), ("listed", "reason:"), ("glob", "strip_prefix:"), ("structured-query", "records:")]:
+    assert "ast, glob, listed, nested-keys, structured-query" in capsys.readouterr().out
+    for kind, needle in [("ast", "unresolved:"), ("listed", "reason:"), ("glob", "strip_prefix:"), ("structured-query", "records:"), ("nested-keys", "levels:")]:
         assert cli_main(["extractors", kind]) == 0
         assert needle in capsys.readouterr().out, kind
     assert cli_main(["extractors", "nope"]) == 2

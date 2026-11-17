@@ -25,6 +25,7 @@ from .validate import _resolve_scope, rejected_wrappers, validate_entry_list, wi
 CORE_EXTRACTORS = {
     "structured-query": [sys.executable, "-m", "abatlas.extractors.structured_query"],
     "glob": [sys.executable, "-m", "abatlas.extractors.file_glob"],
+    "nested-keys": [sys.executable, "-m", "abatlas.extractors.nested_keys"],
     "ast": [sys.executable, "-m", "abatlas.extractors.ast_query"],
     "listed": [sys.executable, "-m", "abatlas.extractors.listed"],
 }
