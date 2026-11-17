@@ -26,6 +26,7 @@ webapp は、`abatlas serve` が配る静的ファイル (`abatlas/webapp/`) で
 | 読み書きの表 | `#/access/<kind>/<入口の節>` | 入口とデータの組み合わせ | 同上 |
 | 外部接続 (external API) | `#/external` | この外部サービスを誰が呼ぶか | `subject: external` の表 |
 | 共有処理 (shared function) | `#/frames` | この共通処理を直すと誰に影響するか | `subject: frame` の表 |
+| 分析の観点 (aspects) | `#/aspects`、`#/aspects/<集計表の名前>` | 列、つながり、権限、条件、設定、ルールを、入口をまたいで見る | `subject: aspect`。タブで 1 つずつ見せる。タブはリンクなので、見ている表を URL で渡せる |
 | 分析の状態 (analysis status) | `#/status` | 分析はどこまで進んだか | `subject: analysis` か `tags: [monitor]` |
 | 集計表 (mart) | `#/marts`、`#/mart/<name>` | 集計表そのものと、API・MCP での読み方 | `view` と `keys` |
 
@@ -201,7 +202,7 @@ flowchart TB
 | 層 (上から) | 場所 | 中身 |
 |---|---|---|
 | 起動 | `app.js` | カタログ読込 → メニュー (`buildNav` / `markNav`) → 経路 (`route`)。経路の表はここ。分析対象の名前の表示と、メニューの折り畳みもここ |
-| 画面 | `pages/` | `overview.js` (構成)、`entries.js` (入口の階層)、`entry.js` (入口の詳細)、`data.js` (データ)、`access.js` (読み書きの表)、`subject.js` (外部接続・共有処理)、`status.js` (分析の状態)、`marts.js` (集計表) |
+| 画面 | `pages/` | `overview.js` (構成)、`entries.js` (入口の階層)、`entry.js` (入口の詳細)、`data.js` (データ)、`access.js` (読み書きの表)、`subject.js` (外部接続・共有処理)、`aspects.js` (分析の観点)、`status.js` (分析の状態)、`marts.js` (集計表) |
 | 表示の種類 | `views/` | 下の表 |
 | 汎用部品 | `ui/` | `table.js` (一覧と表、行を選べる表 `pickTable`)、`crumbs.js`、`card.js`、`link.js` (階層パスの行き先を 1 か所で決める)、`toast.js` |
 | 宣言の読み方 | `model/` | `catalog.js` (共通の状態 `model` と、宣言・meta を読む関数)、`vocab.js` (画面に出す呼び名。用語集を引く `term`)、`kinds.js` (図の参加者の種類と絞り込み) |

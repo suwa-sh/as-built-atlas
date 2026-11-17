@@ -21,6 +21,6 @@ export function viewHint(view) {
   }[view];
 }
 // 宣言の subject / 図の参加者の種類 → 用語集の id
-const SUBJECT_TERM = { entry: "entry", data: "datastore", external: "external", frame: "shared_frame", analysis: "analysis_status" };
+const SUBJECT_TERM = { entry: "entry", data: "datastore", external: "external", frame: "shared_frame", aspect: "aspects", analysis: "analysis_status" };
 export const subjectLabel = (s) => (SUBJECT_TERM[s] ? term(SUBJECT_TERM[s]) : "");
 export const KIND_TERM = { entry: "entry", frame: "frame", data: "datastore", external: "external" };

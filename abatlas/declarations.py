@@ -34,7 +34,7 @@ LEVELS = {"entry", "path"}
 ATTACH = {"any", "root", *(f"level{i}" for i in range(1, 6))}
 TAGS = {"monitor", "within"}  # within = 入口を包む入口の表 (入口の詳細の画面が、包む入口・中で動く入口のカードに使う)
 # この表が何についての表か。webapp のナビの区分 (その区分の表が無ければ区分は出ない)
-SUBJECTS = {"entry", "data", "external", "frame", "analysis"}
+SUBJECTS = {"entry", "data", "external", "frame", "aspect", "analysis"}
 TEXT_FIELDS = ("title", "hint")
 FILTER_SUFFIXES = ("__prefix", "__under", "__contains", "__min", "__max")
 

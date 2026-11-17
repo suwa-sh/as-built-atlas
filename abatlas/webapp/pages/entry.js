@@ -131,7 +131,7 @@ export async function pageEntry(path) {
     if (f === null) continue;
     tabs.push({ label: titleOf(m), make: () => cardFor(m, panelBody(m, f, { here: path }), f) });
   }
-  for (const m of (model.subj.analysis || []).filter((x) => x.declaration.view === "table" && x.keys.path && x.cols.has(x.keys.path))) {
+  for (const m of [...(model.subj.aspect || []), ...(model.subj.analysis || [])].filter((x) => x.declaration.view === "table" && x.keys.path && x.cols.has(x.keys.path))) {
     const n = await countOf(m, { [m.keys.path]: path }).catch(() => null);
     tabs.push({ label: titleOf(m), n, make: () => cardFor(m, panelBody(m, { [m.keys.path]: path }, {}), { [m.keys.path]: path }) });
   }

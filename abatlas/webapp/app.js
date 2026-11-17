@@ -23,6 +23,7 @@ import { pageDataKind } from "./pages/data.js";
 import { pageAccess } from "./pages/access.js";
 import { pageSubjectList } from "./pages/subject.js";
 import { pageStatus } from "./pages/status.js";
+import { pageAspects } from "./pages/aspects.js";
 import { pageMarts, pageMart } from "./pages/marts.js";
 
 const $main = document.getElementById("main");
@@ -42,6 +43,7 @@ async function buildNav() {
   }
   if (model.subj.external) items.push(sec("#/external", term("external"), ext));
   if (model.subj.frame) items.push(sec("#/frames", term("shared_frame"), frm));
+  if (model.subj.aspect) items.push(sec("#/aspects", term("aspects"), model.subj.aspect.length));
   if (model.subj.analysis) items.push(sec("#/status", term("analysis_status"), prog ? `${prog.done} / ${prog.total}` : null));
   items.push(el("hr"));
   items.push(sec("#/marts", `${term("mart")} (API / MCP)`, null, { dim: true }));
@@ -87,6 +89,7 @@ function route() {
   if ((mm = /^#\/access\/([^/]+)(\/.*)?$/.exec(path))) return pageAccess(decodeURIComponent(mm[1]), decPath(mm[2]), query);
   if ((mm = /^#\/external(?:\/(.+))?$/.exec(path))) return pageSubjectList("external", term("external"), `${term("host")} ごとに、それを呼ぶ ${term("entry")}。切り替えると誰が影響を受けるか`, Object.assign((m, id) => `#/external/${enc(m.name)}/${enc(id)}`, { root: "#/external" }), mm[1] || null);
   if ((mm = /^#\/frames(?:\/(.+))?$/.exec(path))) return pageSubjectList("frame", term("shared_frame"), `2 件以上の ${term("entry")} から呼ばれている ${term("frame")}。直すと全部に影響する`, Object.assign((m, id) => `#/frames/${enc(m.name)}/${enc(id)}`, { root: "#/frames" }), mm[1] || null);
+  if ((mm = /^#\/aspects(?:\/(.+))?$/.exec(path))) return pageAspects(mm[1] ? decodeURIComponent(mm[1]) : null);
   if (path === "#/status" || path === "#/monitor") return pageStatus();
   if (path === "#/marts") return pageMarts();
   if ((mm = /^#\/mart\/(.+)$/.exec(path))) return pageMart(decodeURIComponent(mm[1]), query);
