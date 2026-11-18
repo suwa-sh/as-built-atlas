@@ -149,6 +149,11 @@ def test_marts_show_pages_and_the_layouts_that_wrap_them(built: Path):
         # 分けた部品 (WebsiteControls) は、描く側の木から消えるので、別の入口に分ける候補に出ない。分けていない部品 (PixelControls) は、出る
         candidates = {n for (n,) in con.execute("select name from mart.mart_split_candidates where layer = 'component'").fetchall()}
         assert "WebsiteControls" not in candidates and "PixelControls" in candidates, sorted(candidates)[:20]
+        # 出るのは、別の入口に分けられる層 (component) の処理だけ。どの API も通るサーバー側の確認 (canViewWebsite など) は、大きくても出ない
+        assert {la for (la,) in con.execute("select distinct layer from mart.mart_split_candidates").fetchall()} == {"component"}
+        (server_side,) = con.execute("select count(distinct entry_id) from staging.stg_frames where layer = 'query' and name like 'canViewWebsite (%'").fetchone()
+        (listed,) = con.execute("select count(*) from mart.mart_split_candidates where name like 'canViewWebsite%'").fetchone()
+        assert server_side >= 50 and listed == 0
         rows = con.execute("select entry_count, frames_each, repeated_frames from mart.mart_split_candidates").fetchall()
         assert all(n >= 3 and each >= 10 and n - 1 <= rep <= each * (n - 1) for n, each, rep in rows), "3 件以上の入口、10 以上の段。繰り返しの段は、1 回分を引いた数"
         assert [r[2] for r in rows] == sorted((r[2] for r in rows), reverse=True), "繰り返されている段の多い順"

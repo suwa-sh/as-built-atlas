@@ -92,6 +92,17 @@ def validate_profile(profile: dict) -> list[str]:
         findings.append("profile: layers: role: entry の層が無い")
     if "boundary" not in roles:
         findings.append("profile: layers: role: boundary の層が無い")
+    for t in layers:
+        if "split_from" not in t:
+            continue
+        if t.get("role") != "entry":
+            findings.append(f"profile: layers/{t['id']}/split_from: role: entry の層にだけ書ける")
+        for s in t["split_from"]:
+            src = next((x for x in layers if x["id"] == s), None)
+            if src is None:
+                findings.append(f"profile: layers/{t['id']}/split_from: 未知の層 '{s}'")
+            elif src.get("role", "intermediate") != "intermediate":
+                findings.append(f"profile: layers/{t['id']}/split_from: '{s}' は role: {src['role']} の層 (分けられるのは、入口でも boundary でもない層)")
     findings.extend(profile_term_problems(profile))
     kinds = set(vocab("resource-kinds")["kinds"])
     for t in layers:

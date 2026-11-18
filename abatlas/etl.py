@@ -132,6 +132,7 @@ def build_rows(entry_list: dict, results: list[dict], profile: dict | None = Non
     by_id = {e["id"]: e for e in entry_list.get("entries", [])}
     by_path = {e["path"]: e["id"] for e in entry_list.get("entries", [])}
     boundary = {t["id"] for t in (profile or {}).get("layers", []) if t.get("role") == "boundary"}
+    splittable = {s for t in (profile or {}).get("layers", []) for s in t.get("split_from", [])}
     for r in sorted(results, key=lambda x: x["entry"]["id"]):
         eid = r["entry"]["id"]
         an = r["analyzer"]
@@ -163,6 +164,8 @@ def build_rows(entry_list: dict, results: list[dict], profile: dict | None = Non
                 "call_when": (f.get("call") or {}).get("when", ""), "call_condition": (f.get("call") or {}).get("condition", ""),
                 # 外との境の層か (リポジトリに定義が無い処理)。プロファイルを渡さなければ、判定しない (空)
                 "boundary": "" if profile is None else str(f["layer"] in boundary).lower(),
+                # 別の入口に分けられる層か (プロファイルの split_from に挙がった層)。プロファイルを渡さなければ、判定しない (空)
+                "splittable": "" if profile is None else str(f["layer"] in splittable).lower(),
             })
             for i, ln in enumerate(f.get("links", [])):
                 rows["links"].append({"entry_id": eid, "frame_id": fid, "idx": i, "kind": ln["kind"], "target": ln["target"],
@@ -209,7 +212,7 @@ COLUMNS = {
                 "analyzed_at", "analyst", "reviewed_findings_open", "run_cost_usd", "run_duration_s", "run_by", "summary_status", "summary", "frame_count",
                 "tests_analyzed", "aspects_analyzed"],
     "frames": ["entry_id", "frame_id", "seq", "layer", "kind", "name", "source_file", "source_line", "caller_id", "call_status", "call_reason",
-               "summary_status", "summary", "summary_reason", "call_when", "call_condition", "boundary"],
+               "summary_status", "summary", "summary_reason", "call_when", "call_condition", "boundary", "splittable"],
     "io": ["entry_id", "frame_id", "idx", "op", "op_letter", "op_rank", "op_direction", "kind", "kind_label", *["lv_" + c for c in LEVEL_COLUMNS],
            "resource_path", "detail", "status", "reason", "note"],
     "parameters": ["entry_id", "frame_id", "idx", "name", "value", "status", "reason"],
