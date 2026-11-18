@@ -106,8 +106,9 @@ def origin_problems(models: list[dict]) -> list[str]:
     return out
 
 
-def check_declaration(name: str, meta, columns: set[str] | None, description: str | None = None) -> list[str]:
-    """1 つの宣言の指摘。columns を渡すと keys の列の実在も見る。description (model の説明) を渡すと、その用語の差し込み口も見る。"""
+def check_declaration(name: str, meta, columns: set[str] | None, description: str | None = None, types: dict[str, str] | None = None) -> list[str]:
+    """1 つの宣言の指摘。columns を渡すと keys の列の実在も見る。description (model の説明) を渡すと、その用語の差し込み口も見る。
+    types (列 → 型) を渡すと、rollup.flag が真偽の列であることも見る。"""
     problems = []
     if isinstance(description, str):
         known = term_labels()
@@ -133,7 +134,7 @@ def check_declaration(name: str, meta, columns: set[str] | None, description: st
         for ref in term_refs(text):
             if ref not in terms:
                 problems.append(f"{name}: {where} の用語 '{{{ref}}}' が用語集に無い (schema/vocab/terms.yaml)")
-    if "topic" in meta and (meta.get("subject") != "aspect" or meta["topic"] not in TOPICS):
+    if "topic" in meta and (meta.get("subject") != "aspect" or not isinstance(meta["topic"], str) or meta["topic"] not in TOPICS):
         problems.append(f"{name}: topic '{meta.get('topic')}' は subject: aspect の表にだけ書け、{sorted(TOPICS)} のどれか")
     rollup = meta.get("rollup")
     if rollup is not None:
@@ -185,6 +186,8 @@ def check_declaration(name: str, meta, columns: set[str] | None, description: st
         for col in ([*rollup["by"], rollup["member"], *(rollup[k] for k in ("flag", "chip") if k in rollup)] if rollup else []):
             if col not in columns:
                 problems.append(f"{name}: rollup の列 '{col}' が mart に無い")
+        if rollup and types and rollup.get("flag") in types and types[rollup["flag"]].upper() != "BOOLEAN":
+            problems.append(f"{name}: rollup.flag の列 '{rollup['flag']}' は真偽の列でなければならない (型: {types[rollup['flag']]})")
         for col in (labels or {}) if isinstance(labels, dict) else {}:
             if col not in columns:
                 problems.append(f"{name}: labels の列 '{col}' が mart に無い")
@@ -278,13 +281,13 @@ def check_manifest(manifest_path: Path, db_path: Path | None) -> list[str]:
     try:
         problems = origin_problems(models)
         for m in models:
-            cols = None
+            cols = types = None
             if con is not None:
                 rel = m["relation"]
-                rows = con.execute("select column_name from information_schema.columns where table_schema = ? and table_name = ?",
+                rows = con.execute("select column_name, data_type from information_schema.columns where table_schema = ? and table_name = ?",
                                    [rel["schema"], rel["alias"]]).fetchall()
-                cols = {r[0] for r in rows}
-            problems.extend(check_declaration(m["name"], m["declaration"], cols, m.get("description")))
+                cols, types = {r[0] for r in rows}, {r[0]: r[1] for r in rows}
+            problems.extend(check_declaration(m["name"], m["declaration"], cols, m.get("description"), types))
         return problems
     finally:
         if con is not None:

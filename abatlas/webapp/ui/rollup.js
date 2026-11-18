@@ -14,7 +14,7 @@ const ORDERS = [["-members", "多い順"], ["members", "少ない順"], ["key", 
 export function rollupList(m, opts) {
   const o = { base: {}, ...opts };
   const r = m.declaration.rollup;
-  const st = { q: "", order: "-members", scale: 1 };
+  const st = { q: "", order: "-members", scale: 1, gen: 0 }; // gen = 描き直した回数。検索や並び順を変えるたびに進め、前の回の応答は捨てる
   const count = el("span", { class: "count" });
   const search = el("input", { type: "search", "aria-label": `${labelOf(m, r.by[0])} で探す`, placeholder: `${labelOf(m, r.by[0])} で探す`, oninput: () => { st.q = search.value.trim(); draw(); } });
   const orderBar = el("div", { class: "chips", role: "group", "aria-label": "並び順" });
@@ -32,12 +32,14 @@ export function rollupList(m, opts) {
     const list = el("ul", { class: "rollup-rows" });
     const pager = el("div", { class: "pager" });
     host.replaceChildren(loading());
+    const gen = st.gen;
     let seq = 0;
     async function load() {
       const my = ++seq;
+      const stale = () => my !== seq || gen !== st.gen;
       try {
         const data = await groups(m, { ...filter, by, member: r.member, flag: r.flag, chip: last ? r.chip : null, order: st.order, q: top ? st.q : null, limit: PAGE, offset: acc.length });
-        if (my !== seq) return;
+        if (stale()) return;
         if (top) { st.scale = Math.max(1, data.member_total); count.textContent = `${data.total} 件`; drawLegend(data.member_total); }
         if (!acc.length && !data.groups.length) { host.replaceChildren(emptyMsg(top && !st.q ? "行が無い (該当が無いか、まだ分析されていない)" : "該当する行が無い")); return; }
         acc.push(...data.groups);
@@ -45,7 +47,7 @@ export function rollupList(m, opts) {
         const rest = data.total - acc.length;
         pager.replaceChildren(...(rest > 0 ? [el("span", null, `${acc.length} 件を表示 · 残り ${rest} 件`), el("button", { onclick: load }, `さらに ${Math.min(PAGE, rest)} 件を表示`)] : []));
         if (!list.isConnected) host.replaceChildren(list, pager);
-      } catch (e) { if (my === seq) host.replaceChildren(el("p", { class: "err" }, e.message)); }
+      } catch (e) { if (!stale()) host.replaceChildren(el("p", { class: "err" }, e.message)); }
     }
     load();
   }
@@ -79,7 +81,7 @@ export function rollupList(m, opts) {
       r.flag ? [" · ", el("span", { class: "flagged" }, `朱と、斜線の後ろの数 = そのうち ${labelOf(m, r.flag)}`)] : null,
       r.by.length > 1 ? ` · 開くと ${r.by.slice(1).map((c) => labelOf(m, c)).join(" → ")}、最後に行の一覧` : " · 開くと行の一覧"));
   }
-  function draw() { drawOrder(); level(body, 0, o.base, true); }
+  function draw() { st.gen++; drawOrder(); level(body, 0, o.base, true); }
   draw();
   return el("div", { class: "list" }, el("div", { class: "toolbar" }, search, orderBar, count), body, legend);
 }

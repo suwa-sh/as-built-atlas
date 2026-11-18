@@ -42,7 +42,10 @@ export function heat(m, data) {
           const r = cells.get(c);
           const n = val(cells, c);
           if (r && k.flag && r[k.flag] === true) return el("td", { class: "flag" }, n ? fmt(n) : labelOf(m, k.flag));
-          if (!n) return el("td", { class: "zero" }, "—");
+          // 行が無い組は「—」、値が無い (null) は「?」、数えて 0 は「0」。3 つを見分けられるようにする
+          if (!r) return el("td", { class: "zero" }, "—");
+          if (typeof r[k.value] !== "number") return el("td", { class: "zero", title: "値が無い" }, "?");
+          if (!n) return el("td", { class: "zero" }, "0");
           const step = n / max[c] > 0.66 ? 3 : n / max[c] > 0.33 ? 2 : 1;
           return el("td", { class: `h${step}` }, fmt(n));
         }));

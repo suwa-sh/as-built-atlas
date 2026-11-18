@@ -414,8 +414,8 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
             if f["id"] in callers:
                 continue
             layer = layers.get(f["layer"], {})
-            if layer.get("role") == "boundary" or f.get("io") or f.get("rules"):
-                continue  # 業務のルールを持つフレームは、読み書きも外部の呼び出しも無くても終端になれる (純粋な判定や計算の関数)
+            if layer.get("role") == "boundary" or f.get("io") or f.get("rules") or f.get("guards"):
+                continue  # 業務のルールか、権限の確認を持つフレームは、読み書きも外部の呼び出しも無くても終端になれる (純粋な判定や計算の関数、確認だけをする middleware)
             if entry_ids is not None and any(
                 ln.get("kind") in ("embed", "trigger") and ln.get("entry_id") in entry_ids and ln["entry_id"] != result["entry"]["id"] and ln.get("status") != "unknown"
                 for ln in f.get("links", [])
@@ -426,7 +426,7 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
             )
             if not unknown_leaf:
                 findings.append(
-                    f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も業務のルールも、行き先が入口の一覧にあるつながり (embed / trigger と entry_id。--work で作業定義を渡すと、隣の入口の一覧と照合する) も、unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
+                    f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も業務のルールも権限の確認も、行き先が入口の一覧にあるつながり (embed / trigger と entry_id。--work で作業定義を渡すと、隣の入口の一覧と照合する) も、unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
                 )
     return findings
 

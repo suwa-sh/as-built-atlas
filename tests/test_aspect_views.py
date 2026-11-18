@@ -21,6 +21,10 @@ COLS = {"k", "path", "thing", "sub", "writes", "val"}
 def test_topic_and_rollup_are_checked():
     assert check_declaration("m", {**OK, "topic": "access", "rollup": {"by": ["thing", "sub"], "member": "path", "flag": "writes", "chip": "val"}}, COLS) == []
     assert any("topic" in p for p in check_declaration("m", {**OK, "topic": "nope"}, COLS))
+    assert any("topic" in p for p in check_declaration("m", {**OK, "topic": []}, COLS)), "文字でない topic も、指摘として返す (例外にしない)"
+    flag = {**OK, "rollup": {"by": ["thing"], "member": "path", "flag": "writes"}}
+    assert check_declaration("m", flag, COLS, types={"writes": "BOOLEAN"}) == []
+    assert any("真偽の列" in p for p in check_declaration("m", flag, COLS, types={"writes": "VARCHAR"}))
     assert any("topic" in p for p in check_declaration("m", {**OK, "subject": "entry", "topic": "access"}, COLS)), "topic は、分析の観点の表にだけ書ける"
     for bad in ({"by": "thing", "member": "path"}, {"by": [], "member": "path"}, {"by": ["thing"]}, {"by": ["thing"], "member": "path", "other": "x"},
                 {"by": ["a", "b", "c", "d"], "member": "path"}):

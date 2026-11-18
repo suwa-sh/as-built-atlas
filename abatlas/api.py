@@ -321,7 +321,7 @@ def create_app(repo: Path) -> FastAPI:
         """
         reserved = ("by", "member", "flag", "chip", "q", "limit", "offset", "order")
         filters = {k: v for k, v in request.query_params.multi_items() if k not in reserved}
-        orders = {"-members": "members desc, key", "members": "members, key", "key": "key"}
+        orders = {"-members": "2 desc, 1", "members": "2, 1", "key": "1"}  # 位置で指定する (元の表に key や members という列があっても、取り違えない)
         if order not in orders:
             raise HTTPException(400, f"order は {sorted(orders)} のどれか")
         with catalog.connect() as con:
@@ -346,7 +346,7 @@ def create_app(repo: Path) -> FastAPI:
             total = con.execute(f"select count(distinct {key}) {base}", params).fetchone()[0]
             rows = con.execute(
                 f"select {key} as key, {count} as members, {flagged} as flagged, count(*) as n, {chip_sql} as chips {base} "
-                f"group by key order by {orders[order]} limit {int(limit)} offset {int(offset)}", params).fetchall()
+                f"group by 1 order by {orders[order]} limit {int(limit)} offset {int(offset)}", params).fetchall()
         out = []
         for r in rows:
             chips = sorted(r[4] or [])

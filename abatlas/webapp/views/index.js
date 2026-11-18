@@ -1,8 +1,9 @@
 // 表示の種類: 登録表 (宣言の view → 描き方)。新しい図の種類は views/<name>.js を作り、renderers に 1 行足す
 
 import { el } from "../lib/dom.js";
-import { rowsAll } from "../lib/api.js";
-import { VIEW_ORDER } from "../model/vocab.js";
+import { rows, rowsAll, BIG } from "../lib/api.js";
+import { hMart } from "../lib/hash.js";
+import { VIEW_ORDER, term } from "../model/vocab.js";
 import { loading } from "../ui/card.js";
 import { listTable } from "../ui/table.js";
 import { table } from "./table.js";
@@ -23,7 +24,12 @@ export function render(m, data, ctx) {
 export function panelBody(m, filter, ctx) {
   if (m.declaration.view === "table" || m.declaration.view === "matrix") return listTable(m, { base: filter, link: ctx && ctx.link, rel: ctx && ctx.rel }); // 行列の汎用表示は行の一覧 (開閉する表は読み書きの表のページ)
   const body = el("div", null, loading());
-  rowsAll(m, filter).then((data) => body.replaceChildren(render(m, data, ctx))).catch((e) => body.replaceChildren(el("p", { class: "err" }, e.message)));
+  // 入口をまたぐ図 (絞り込みが無いときの heat / bridge / 数つきのツリー) は、1 回で読める行数までで描く。切ったら、切ったことを出して、全体を見られる場所へ誘導する
+  const wide = !Object.keys(filter || {}).length && (m.declaration.view === "heat" || m.declaration.view === "bridge" || (m.declaration.view === "tree" && m.keys.value));
+  const read = wide ? rows(m, filter, BIG) : rowsAll(m, filter);
+  read.then((data) => body.replaceChildren(
+    data.total > data.rows.length ? el("p", { class: "caveat" }, el("b", null, `${data.total} 行のうち、先頭の ${data.rows.length} 行で描いている`), "。全体は ", el("a", { href: hMart(m.name) }, `${term("mart")} で見る`)) : null,
+    render(m, data, ctx))).catch((e) => body.replaceChildren(el("p", { class: "err" }, e.message)));
   return body;
 }
 export const byView = (a, b) => VIEW_ORDER.indexOf(a.declaration.view) - VIEW_ORDER.indexOf(b.declaration.view) || a.name.localeCompare(b.name);
