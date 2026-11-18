@@ -465,3 +465,34 @@ def test_check_manifest_rejects_origin_mismatch(tmp_path):
     assert any("mart_b" in p and "models/repo/" in p for p in problems), problems
     mf.write_text(json.dumps({"nodes": {"a": node("mart_a", "models/core/mart_a.sql", "core"), "b": node("mart_b", "models/repo/mart_b.sql", "repo")}}), encoding="utf-8")
     assert check_manifest(mf, None) == []
+
+
+def _bare_null_children(text: str) -> list[int]:
+    """replaceChildren / append / prepend の引数に、null がそのまま入りうる所の行番号 (複数行の呼び出しも見る)。"""
+    out = []
+    for m in re.finditer(r"\.(replaceChildren|append|prepend)\(", text):
+        depth, args, cur = 0, [], ""
+        for ch in text[m.end():]:
+            if ch in "([{":
+                depth += 1
+            elif ch in ")]}":
+                if depth == 0:
+                    break
+                depth -= 1
+            if ch == "," and depth == 0:
+                args.append(cur)
+                cur = ""
+            else:
+                cur += ch
+        args.append(cur)
+        if any(re.search(r":\s*null\s*$", a) or a.strip() == "null" for a in args):
+            out.append(text.count("\n", 0, m.start()) + 1)
+    return out
+
+
+def test_replace_children_never_gets_a_bare_null():
+    """replaceChildren と append は、null を「null」という文字にする (el() は捨てる)。条件で出し分ける子は、並びに展開して渡す。"""
+    assert _bare_null_children("x.replaceChildren(\n  a > b ? el('p') : null,\n  render(m))") == [1], "複数行の呼び出しも見つける"
+    assert _bare_null_children("x.replaceChildren(...(a ? [el('p')] : []), el('div', null, a ? b : null))") == [], "el() の中の null と、展開した並びは、当たらない"
+    bad = [f"{p.relative_to(WEBAPP_DIR)}:{n}" for p in sorted(WEBAPP_DIR.rglob("*.js")) for n in _bare_null_children(p.read_text(encoding="utf-8"))]
+    assert bad == [], "null を、そのまま子として渡している (文字の null が画面に出る)"

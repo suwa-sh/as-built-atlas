@@ -27,8 +27,9 @@ export function panelBody(m, filter, ctx) {
   // 入口をまたぐ図 (絞り込みが無いときの heat / bridge / 数つきのツリー) は、1 回で読める行数までで描く。切ったら、切ったことを出して、全体を見られる場所へ誘導する
   const wide = !Object.keys(filter || {}).length && (m.declaration.view === "heat" || m.declaration.view === "bridge" || (m.declaration.view === "tree" && m.keys.value));
   const read = wide ? rows(m, filter, BIG) : rowsAll(m, filter);
+  // replaceChildren は、null を「null」という文字にする。知らせが無いときは、並びに入れない
   read.then((data) => body.replaceChildren(
-    data.total > data.rows.length ? el("p", { class: "caveat" }, el("b", null, `${data.total} 行のうち、先頭の ${data.rows.length} 行で描いている`), "。全体は ", el("a", { href: hMart(m.name) }, `${term("mart")} で見る`)) : null,
+    ...(data.total > data.rows.length ? [el("p", { class: "caveat" }, el("b", null, `${data.total} 行のうち、先頭の ${data.rows.length} 行で描いている`), "。全体は ", el("a", { href: hMart(m.name) }, `${term("mart")} で見る`))] : []),
     render(m, data, ctx))).catch((e) => body.replaceChildren(el("p", { class: "err" }, e.message)));
   return body;
 }
