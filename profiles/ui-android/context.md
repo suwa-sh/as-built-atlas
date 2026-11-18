@@ -123,6 +123,8 @@ Android のアプリは、product flavor (例: `demo` と `prod`) と build type
 - `callbackFlow` などの中で登録して、Flow が購読されている間だけ受ける receiver や callback (時刻帯の変化、通信の状態の監視) は、入口にしない。購読する入口の中で、包む class を `datasource` のフレームにし、登録の呼び出し (`registerReceiver`、`registerNetworkCallback`) を `external` のフレームで閉じる (I/O は無し)
 - **ディープリンクと、通知を押したときの起動**は、入口にしない。受ける Activity の入口で、intent を解釈して画面へ移る所を、`links` の `navigate` に書く。通知を出す側 (Worker など) は、通知の `PendingIntent` の行き先を `links` の `navigate` に書く
 
+- **同じ短い名前の class が、別の package にあるとき** (`com.foo.MainActivity` と `com.bar.MainActivity`): 既定の抽出器は、package を落として class の名前だけを段にするので、同じ id になり、列挙が止まって知らせる。そのリポジトリでは、抽出器の `segments.replace` を、package の最後の段を残す形に直す (`profile.yaml` の注釈に例がある。`foo-MainActivity`)。manifest の activity だけでなく、service / receiver / provider / Worker も同じ
+
 ## 入口ごとの分析で見るもの
 
 | 層 | 読む場所 | 拾うこと |
