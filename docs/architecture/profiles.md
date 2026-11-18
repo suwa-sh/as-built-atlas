@@ -14,7 +14,7 @@
 | `context.md` | エージェント | 入口の判別、層ごとに見るもの、事実・解釈・不明の付け方、データの当てはめ |
 | `dbt-template/` | ツール | プロファイル固有の集計表。無くてもよい |
 
-いまあるプロファイルは 10 個です。
+いまあるプロファイルは 11 個です。
 
 | プロファイル | 対象 | 層の連鎖 | 入口と階層 | 抽出器 |
 |---|---|---|---|---|
@@ -25,6 +25,7 @@
 | `api` | サーバー側で操作を受けて処理するシステム。ほかのシステムやアプリから呼ばれる API と、サーバー側で画面を作って返す webapp | operation → handler → logic → adapter → external | 操作 1 つ = 入口 (HTTP なら、URL とメソッドの組)。`[resource+, operation]` | nested-keys (OpenAPI、AsyncAPI の定義ファイル)。定義ファイルが無い API、ツールを提供するサーバー、RPC は、ast か、エージェントが読んで足す (listed) |
 | `batch-github-actions` | GitHub Actions で組んだ自動処理 (テスト、ビルド、公開、定期の処理) | workflow → job → step → program → external | workflow ファイル 1 つ = 入口。`[group+, workflow]` | glob (`.github/workflows/*.yml`) |
 | `transform-dbt` | dbt で組んだデータの変換 | model → macro → external | model 1 つ = 入口 (snapshot も)。`[folder+, model]` | glob (`models/**/*.sql`、`snapshots/**/*.sql`) |
+| `ui-sveltekit` | SvelteKit の画面を持つシステム | page / layout / shell / part → component → api_route → query → external | `+page.svelte` 1 つ = 入口 (画面)、`+layout.svelte` 1 つ = 入口 (画面を包む枠)、`hooks.server` = 入口 (どの要求でも動く枠、shell)。`[section+, page]` | glob (`src/routes/**/+page.svelte`、`+layout.svelte`、`src/hooks.server.ts`) |
 | `ui-nuxt` | Nuxt の画面を持つシステム (サーバー側 `server/` を持つものも、別のバックエンドを呼ぶものも) | page / layout / shell / part → component → store → api_client → (api_route → query) → external | page ファイル 1 つ = 入口、layout ファイル 1 つ = 入口、app.vue・global の route middleware・server middleware・データに届くプラグイン = 入口 (shell)。`[section+, page]` (階層は置き場。`index` も段に残す) | glob (`pages/**/*.vue`、`layouts/**/*.vue`、`app.vue`、`middleware/*.global.ts`、`server/middleware/*`)。プラグインと、枠が描く共通の部品は、エージェントが読んで足す (listed) |
 | `ui-android` | Android のアプリ (Jetpack Compose / Navigation 3 / Fragment。端末の中の保存とサーバーの API を使う) | screen / activity / shell / background → ui → viewmodel → usecase → repository → datasource → external | Navigation の destination 1 つ = 入口 (画面)。manifest の Activity 1 つ、枠が描く共通の composable 1 つ、OS から起動される class (Application、Service、Receiver、Provider、Worker) 1 つも入口。`[section+, screen]` | ast (Kotlin の `entry<K>` / `composable<R>` / `composable("...")`、`html` で読む manifest と navigation の XML、Worker の継承)。定数の route と、枠の composable は、エージェントが読んで足す (listed) |
 | `ui-ios` | iOS のアプリ (SwiftUI、UIKit)。端末の中の保存もデータとして扱う | screen / shell / system → view → view_model → repository → client → external | 行き先の enum の case 1 つ = 入口 (画面)。アプリ全体の枠、OS から起動される入口 (ウィジェット、App Intents、拡張、URL の受け口) も入口。`[section+, screen]` | ast (行き先の enum の case、準拠するプロトコル)。push で開く View、UIKit の画面、枠、Info.plist だけで決まる入口は、エージェントが読んで足す (listed) |
@@ -239,7 +240,7 @@ flowchart TB
 
 ## プロファイルを増やす手順
 
-2 本目の `ui-nextjs`、3 本目の `ui-vue-router`、4 本目の `cli`、5 本目の `api`、6 本目の `batch-github-actions`、7 本目の `transform-dbt`、8 本目の `ui-android`、9 本目の `ui-ios`、10 本目の `ui-nuxt` も、この手順で作りました。
+2 本目の `ui-nextjs`、3 本目の `ui-vue-router`、4 本目の `cli`、5 本目の `api`、6 本目の `batch-github-actions`、7 本目の `transform-dbt`、8 本目の `ui-android`、9 本目の `ui-ios`、10 本目の `ui-nuxt`、11 本目の `ui-sveltekit` も、この手順で作りました。
 
 | 手順 | やること |
 |---|---|
@@ -375,6 +376,33 @@ umami での試し分析で、3 つありました。`context.md` で、次の�
 | 列は、最後の `select` が出す列を「書く」、相手から取り出す列を「読む」 | 結合・絞り込み・集計の区切りに使う列は「条件」 | 列の単位の系譜を、列の読み書きの表から追える |
 | macro は、表を読む・問い合わせを実行する・業務のルールを持つものだけを段にする | SQL の断片を返すだけの macro は、段にしない | 処理の段を、意味のあるものに絞る |
 | テストは、YAML に書いたテストと、model を参照する SQL のテスト | データを確かめるテストは integration、`unit_tests` は unit | テストとの対応の表で、テストの無い model が分かる |
+
+## `ui-sveltekit` の決まり
+
+ファイルの置き場がルーティングになる型です。Next.js の型と違う所だけを書きます。
+
+| 所 | 決まり | 理由 |
+|---|---|---|
+| どの要求でも動くフック | `hooks.server` を 1 件の入口 (`shell`) にする。包む関係は `layout` と `shell` の 2 つの層で `source_dir`。`src/` に置くので、すべての入口を包む | ログインの確認やセッションの読み書きを、画面と API の受け口の数だけ繰り返さない |
+| load と actions | `+page.ts` / `+layout.ts` の load は component。`+page.server.ts` / `+layout.server.ts` の load と actions、remote functions は api_route。どれも画面か枠の入口の段の子にする | ブラウザでも動く load は API を呼ぶだけ。サーバーの load と actions は、ブラウザから HTTP 越しに入る口 |
+| `_` で始まるフォルダ | route になる (除外しない)。routes 直下だけは id の置換を足す | SvelteKit に、route にならないフォルダの書き方は無い |
+| 値の形の検査付きの段 `[id=integer]` | id から検査の名前を外す (`id_d`)。階層パスには残す | 同居して同じ id になれば、列挙が止まって知らせる |
+| 段の一部に値が入る段 (`photos-[id]`) | 値の部分に印を付ける (`photos-id_d`) | `ui-nuxt` と同じ |
+| 枠を抜ける page (`+page@.svelte`) | `within` は置き場の祖先の枠をすべて持つ (余分)。抜けていることは入口の要約に書く | 包む関係の決め方 (`source_dir`) が、`@` を知らない |
+| MongoDB | `rdb` (`dbms: mongodb`、`table` = コレクション)。GridFS は `object_storage` | データの種類に、文書の DB が無い |
+| `+server.ts` | 入口にしない (`ui-nextjs` と同じ) | 画面を通らない受け口は、`api` のプロファイルで、分析リポジトリを分けて見る |
+| 起動のときに始めて、動き続ける処理 | 始める段で止め、`not_analyzed` にする | 入口にする層が無い |
+
+### ファイルの置き場がルーティングになる 3 つで、そろえた所と、そろえていない所
+
+| 所 | `ui-nextjs` | `ui-sveltekit` | `ui-nuxt` | そろえたか |
+|---|---|---|---|---|
+| id の印 | `[id]` → `id_d`、`[[x]]` → `x_o`、`[...x]` → `x_c`。名前の中の `_` は重ねる。枠は `layout_l` | 同じ | 同じ | そろえた |
+| サーバー側の受け口 | 入口にしない (`api_route` の段) | 同じ | 同じ | そろえた |
+| どの要求・画面でも動く処理の層 | (layout が受け持つ) | `shell` | `shell` | そろえた (`ui-vue-router` と同じ名前) |
+| 画面を包む入口 (`within`) | 置き場のフォルダで決まる | 同じ | 持たない | そろえていない。Nuxt は、画面が枠を宣言で選び、入れ子の親が隣のファイルなので、フォルダの上下では決まらない |
+| 階層 | URL | URL | 置き場 (`index` も段に残す) | そろえていない。Nuxt は、入れ子の親と子が同じ URL になる |
+| 状態の置き場と、API を呼ぶ関数の層 | 持たない | 持たない | 持つ (`store`、`api_client`) | そろえていない。Nuxt は、サーバー側を持たず、別のバックエンドを呼ぶ作りにも使う (`ui-vue-router` と同じ層) |
 
 ## `ui-nuxt` の決まり
 

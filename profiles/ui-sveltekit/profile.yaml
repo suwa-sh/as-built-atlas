@@ -1,0 +1,156 @@
+# プロファイル: SvelteKit の画面を持つシステム (画面 → 画面の部品 → API の受け口 → サーバー側の関数 → データストア)
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: ui-sveltekit
+version: "0.1.0"
+label: "SvelteKit (page / layout / shell → component → server route → server function → {datastore})"
+
+# tier は画面の architecture の図の枠 (画面での呼び名も tier)。役割の分け方で、どこで動くかではない: frontend の層にも、サーバー側で動くもの (SSR、+page.ts の load) がある
+# label / tier / hierarchy.notes の text は画面に出る。"{id}" は用語集 (schema/vocab/terms.yaml) の呼び名に置き換わる
+# 層の id は ui-nextjs と同じにする (同じ役割の層を、型をまたいで同じ名前で見られる)
+layers:
+  - id: page
+    tier: frontend
+    label: page (+page.svelte)
+    role: entry
+    stack: [SvelteKit, Svelte]
+    invokes_next: "+page.svelte が import して描画するコンポーネントと、同じフォルダの load と actions (+page.ts の load は component、+page.server.ts の load と actions は api_route)。祖先のフォルダの +layout と hooks.server は別の入口なので、ここからは辿らない (load の中の await parent() と page.data の、枠から来る値も辿らない)"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # ふつうは呼び先のフレームに書く。ブラウザから他社のサービスを直接呼ぶときなど
+  - id: layout
+    tier: frontend
+    label: layout (+layout.svelte)
+    role: entry
+    stack: [SvelteKit, Svelte]
+    invokes_next: "+layout.svelte が import して描画するコンポーネント (ヘッダー、メニュー、ログイン確認、条件付きで開く小窓など) と、同じフォルダの +layout.ts / +layout.server.ts の load。children (slot) の中身は、包まれる側の入口なので辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: shell
+    tier: backend
+    label: shell (hooks.server の handle、handleFetch、handleError、init。どの要求・どの画面でも、前に動く)
+    role: entry
+    stack: [SvelteKit hooks]
+    invokes_next: "handle が呼ぶサーバー側の関数 (ログインの確認、セッションの読み書き、要求の検査)。handleFetch、handleError、init も同じファイルの関数として辿る。resolve(event) の先 (画面と API の受け口) は、包まれる側なので辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: part
+    tier: frontend
+    label: part (registry から選ばれて描かれる component)
+    role: entry
+    stack: [Svelte]
+    invokes_next: "部品の component が描画する子の component と、呼ぶ store や関数。部品を描く側 (page や、登録表を引く component) は辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: component
+    tier: frontend
+    label: component (Svelte component、API を呼ぶ store と関数、+page.ts / +layout.ts の load)
+    stack: [Svelte, SvelteKit load, fetch]
+    invokes_next: "子のコンポーネント、store、関数の呼び出し。次の api_route へは 3 通り: (a) fetch や API クライアントが URL の文字列で呼ぶ (例: fetch(`${base}/api/mcp/servers`)) → その URL に当たる +server.ts の HTTP メソッドの関数。(b) form の action (`?/save`、名前が無ければ default) → 同じ route の +page.server.ts の actions の関数。(c) remote functions (`.remote.ts` の query / command / form) を import して呼ぶ → その関数の定義"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # ブラウザから他社のサービスを呼ぶとき。自分のシステムの API は I/O ではなく次のフレーム
+  - id: api_route
+    tier: backend
+    label: server route (+server.ts の GET / POST …、+page.server / +layout.server の load と actions、remote functions)
+    stack: [SvelteKit server routes, form actions, remote functions]
+    invokes_next: "import したサーバー側の関数 (問い合わせ、認証・権限の検査、入力の解釈) の呼び出し"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # 受け口が直接データを触る書き方もある (collections.x.findOne(…) を load に書くなど)
+  - id: query
+    tier: backend
+    label: server function (query、認証・権限、$lib/server の共通の関数)
+    stack: [TypeScript, MongoDB driver, ORM, SQL]
+    invokes_next: "DB クライアント・ORM・キャッシュ・メッセージ基盤・HTTP クライアントの呼び出し (ここから先は boundary)"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: external
+    tier: backend
+    label: external library / service (boundary)
+    role: boundary
+    stack: [MongoDB driver, ORM, Redis client, fetch]
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+
+hierarchy:
+  level_labels: [section+, page]   # URL の区切りがそのまま段。最後の段だけが page、それより前は section
+  derivation: "+page.svelte の置き場 (src/routes からの相対) を '/' で区切って段にする。URL に出ない入れ物 `(group)` は落とす。動的な段 `[id]`、省ける段 `[[lang]]`、残りすべての段 `[...rest]`、値の形を決める段 `[id=integer]` はそのまま残す。src/routes 直下の page (URL が / だけ) は `(root)` という 1 段にする。枠を抜ける page (`+page@.svelte`) も、置き場で段を決める"
+  entry_labels:   # 枠とフックの入口は、詳細のページで page ではなく、それぞれの呼び名で呼ぶ
+    - { contains: "(layout)", label: layout }
+    - { contains: "(shell)", label: shell }
+    - { contains: "(part)", label: part }
+  notes:   # 段の名前に残る SvelteKit の書き方を、画面で説明する
+    - { contains: "[", text: "角かっこの段 (例: [id]、[[lang]]、[...rest]、[id=integer]) は、実行時に値が入る場所。対象のソースのフォルダ名をそのまま出している" }
+    - { contains: "(layout)", text: "(layout) で始まる {entry} は +layout.svelte。後ろの段は枠の置き場のフォルダで、丸かっこの段は URL に出ない route group" }
+    - { contains: "(shell)", text: "(shell) で始まる {entry} は、どの要求・どの画面でも動くもの (hooks.server など)。画面と API の受け口を包む。後ろの段はファイルの名前" }
+    - { contains: "(part)", text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前" }
+
+# 入口が別の入口の中で動く関係。列挙ツールが entries[].within (包む入口の id、外側から) を埋める
+within:
+  - layer: layout
+    rule: source_dir   # +layout.svelte は、ソースのファイルが自分と同じフォルダか、その配下にある入口 (page と、内側の layout) を包む
+  - layer: shell
+    rule: source_dir   # src/hooks.server.ts は src の下のすべての入口 (根の layout を含む) を包む
+
+extractors:
+  - name: sveltekit-pages
+    run: abatlas-extract glob
+    layer: page
+    hint: "routes の場所を実際に合わせる (既定は `src/routes`。svelte.config の kit.files.routes で変えられる)。files と segments.strip_prefix を同じ場所にする。Next.js と違い、`_` で始まるフォルダも route になるので exclude しない"
+    params:
+      files: ["src/routes/**/+page.svelte", "src/routes/**/+page@*.svelte"]   # +page@.svelte は、途中の枠を抜ける page
+      segments:
+        strip_prefix: "src/routes"
+        drop: ["\\([^)]+\\)"]                          # URL に出ない入れ物 (route group): (app) / (nav) …
+        empty: "(root)"
+      id:
+        # id は結果のファイル名になるので記号を持てない。段の種類を「_ + 1 文字」の印で表し、名前の中の _ は 2 つ重ねる (ui-nextjs と同じ)
+        #   /blog/[id] → blog.id_d    /docs/[...rest] → docs.rest_c    /[[lang]]/about → lang_o.about    /item/[id=integer] → item.id_d    / → root_r
+        replace:
+          - { pattern: "_", with: "__" }                                     # 名前の中の _ を重ねる (最初に行う)
+          - { pattern: "\\[([xu])\\+([0-9A-Fa-f]+)\\]", with: "\\1\\2" }     # 記号を表す書き方 [x+3a] / [u+00e9] は値の入る段ではない → x3a / u00e9
+          - { pattern: "\\[\\.\\.\\.([^=\\]]+)(=[^\\]]+)?\\]", with: "\\1_c" }   # [...rest] / [...rest=m] → rest_c (rest)
+          - { pattern: "\\[\\[([^=\\]]+)(=[^\\]]+)?\\]\\]", with: "\\1_o" }      # [[lang]] / [[lang=m]] → lang_o (optional)
+          - { pattern: "\\[([^=\\]\\[]+)(=[^\\]]+)?\\]", with: "\\1_d" }         # [id] / [id=integer] → id_d (dynamic。matcher は id から外し、階層パスに残す)。段の一部でもよい: photos-[id] → photos-id_d、[a]-[b] → a_d-b_d (ui-nuxt と同じ)
+          - { pattern: "^\\(root\\)$", with: "root_r" }                      # routes 直下の page (segments.empty)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }                          # 残りの記号を除く。これで同じ id になる画面が同居していれば、列挙は失敗して両方のファイルを示す (そのリポジトリ向けに replace を足す)
+      line_match: "^\\s*<script"
+      contains:
+        form: "(?i)<form[^>]*method=[\"']?post"        # true なら page 自身が POST の form を持つ (同じ route の actions へ送ることが多い)
+  - name: sveltekit-layouts
+    run: abatlas-extract glob
+    layer: layout
+    hint: "sveltekit-pages と同じ routes の場所にする (files・segments.strip_prefix)。+layout.svelte が 1 つも無いシステムでは、この抽出器を入口の一覧に書かない。+layout.ts / +layout.server.ts だけがあり、+layout.svelte が無いフォルダは、context.md の決まりで listed で足す"
+    params:
+      files: ["src/routes/**/+layout.svelte", "src/routes/**/+layout@*.svelte"]
+      segments:
+        strip_prefix: "src/routes"
+        prefix: ["(layout)"]                                 # 画面の階層と分ける。routes 直下の layout は /(layout) だけになる。入れ物 (group) は落とさない: どの入れ物の枠かが名前になる
+      id:
+        # sveltekit-pages と同じ印に、枠の印を足す。画面の id は _l / _g の印を持たないので、枠の id と取り違えない
+        #   routes 直下 → layout_l      settings/(nav)/+layout.svelte → layout_l.settings.nav_g
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(layout\\)$", with: "layout_l" }                  # 先頭の固定の段 (segments.prefix)
+          - { pattern: "\\[([xu])\\+([0-9A-Fa-f]+)\\]", with: "\\1\\2" }
+          - { pattern: "\\[\\.\\.\\.([^=\\]]+)(=[^\\]]+)?\\]", with: "\\1_c" }
+          - { pattern: "\\[\\[([^=\\]]+)(=[^\\]]+)?\\]\\]", with: "\\1_o" }
+          - { pattern: "\\[([^=\\]\\[]+)(=[^\\]]+)?\\]", with: "\\1_d" }
+          - { pattern: "^\\((.+)\\)$", with: "\\1_g" }                       # (nav) → nav_g (入れ物)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      line_match: "^\\s*<script"
+  - name: sveltekit-hooks
+    run: abatlas-extract glob
+    layer: shell
+    hint: "hooks.server の場所に合わせる (既定は `src/hooks.server.ts` か `.js`。svelte.config の kit.files.hooks.server で変えられる)。strip_prefix は、hooks.server を置いたフォルダ (既定は src)。hooks.server が無いシステムでは、この抽出器を入口の一覧に書かない"
+    params:
+      files: ["src/hooks.server.ts", "src/hooks.server.js"]
+      segments:
+        strip_prefix: "src"
+        drop_last: false                                     # ファイル名 (拡張子を除く) を段にする: /(shell)/hooks.server
+        prefix: ["(shell)"]                                  # 画面の階層と分ける (ui-vue-router、ui-nuxt の shell と同じ)
+      id:
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(shell\\)$", with: "shell_s" }                    # shell_s.hooks-server (ui-vue-router、ui-nuxt と同じ印)
+          - { pattern: "\\.", with: "-" }                                    # hooks.server の点を、読める形で残す (ui-nuxt と同じ)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      line_match: "export\\s+(const|async\\s+function|function)\\s+handle\\b"
+      contains:
+        handle: "export\\s+(const|async\\s+function|function)\\s+handle\\b"
+        handle_fetch: "export\\s+(const|async\\s+function|function)\\s+handleFetch\\b"
+        init: "export\\s+(const|async\\s+function|function)\\s+init\\b"
+# 登録表から選ばれて描かれる component (層 part) と、+layout.svelte の無い枠の load は、抽出器では取れない。分けるときは、入口を見つける agent が、
+# `abatlas-extract listed` (名前は agent-listed-part / agent-listed-layout、layer: part / layout) で足す。決まりは context.md
+
+marts: []
