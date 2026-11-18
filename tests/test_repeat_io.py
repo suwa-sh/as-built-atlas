@@ -36,7 +36,10 @@ def repo(tmp_path_factory) -> Path:
     db_again = copy.deepcopy(frames["psycopg"])
     db_again["id"], db_again["caller"] = "psycopg_rw", "notify"
     db_again["io"][0]["fields"].append({"name": "note", "use": ["write"], "set_to": "copied"})
-    result["callstack"] += [again, other, db_again]
+    # 届く先ごとに書いたものの写し: 最初のフレーム (notify_py) には無い読み書きを、2 つ目 (notify_py_other) と 3 つ目が持つ。3 つ目だけが写し
+    other_again = copy.deepcopy(other)
+    other_again["id"], other_again["caller"] = "notify_py_other_rw", "notify"
+    result["callstack"] += [again, other, db_again, other_again]
     (an / "results" / "daily.housekeeping.yaml").write_text(yaml.safe_dump(result, allow_unicode=True, sort_keys=False), encoding="utf-8")
     (an / "entry-list.yaml").write_text(yaml.safe_dump(_entry_list(result["target"]), allow_unicode=True, sort_keys=False), encoding="utf-8")
     rep = build_repo(repo)
@@ -49,8 +52,9 @@ def test_a_frame_written_again_is_not_counted_twice(repo: Path):
         flags = dict(con.execute("select frame_id, bool_or(is_repeat) from staging.stg_io group by frame_id").fetchall())
         assert flags["notify_py"] is False and flags["notify_py_rw"] is True, "最初に書いたフレームは数え、もう一度書いたフレームは数えない"
         assert flags["notify_py_other"] is False, "同じ処理でも、読み書きの相手が違えば、写しではない"
+        assert flags["notify_py_other_rw"] is True, "最初のフレームに無い読み書きでも、より前のフレームにあれば、写し"
         total, repeats = con.execute("select count(*), sum(is_repeat::int) from staging.stg_io").fetchone()
-        assert (total, repeats) == (6, 2)
+        assert (total, repeats) == (7, 3)
         (io_count,) = con.execute("select io_count from mart.mart_entry_overview where entry_id = 'daily.housekeeping'").fetchone()
         assert io_count == 4, "入口ごとの読み書きの数は、写しを除く"
         assert con.execute("select sum(io_count) from mart.mart_data_access").fetchone()[0] == con.execute(
