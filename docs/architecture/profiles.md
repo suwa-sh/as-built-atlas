@@ -14,7 +14,7 @@
 | `context.md` | エージェント | 入口の判別、層ごとに見るもの、事実・解釈・不明の付け方、データの当てはめ |
 | `dbt-template/` | ツール | プロファイル固有の集計表。無くてもよい |
 
-いまあるプロファイルは 3 つです。
+いまあるプロファイルは 9 つです。
 
 | プロファイル | 対象 | 層の連鎖 | 入口と階層 | 抽出器 |
 |---|---|---|---|---|
@@ -25,6 +25,8 @@
 | `api` | サーバー側で操作を受けて処理するシステム。ほかのシステムやアプリから呼ばれる API と、サーバー側で画面を作って返す webapp | operation → handler → logic → adapter → external | 操作 1 つ = 入口 (HTTP なら、URL とメソッドの組)。`[resource+, operation]` | nested-keys (OpenAPI、AsyncAPI の定義ファイル)。定義ファイルが無い API、ツールを提供するサーバー、RPC は、ast か、エージェントが読んで足す (listed) |
 | `batch-github-actions` | GitHub Actions で組んだ自動処理 (テスト、ビルド、公開、定期の処理) | workflow → job → step → program → external | workflow ファイル 1 つ = 入口。`[group+, workflow]` | glob (`.github/workflows/*.yml`) |
 | `transform-dbt` | dbt で組んだデータの変換 | model → macro → external | model 1 つ = 入口 (snapshot も)。`[folder+, model]` | glob (`models/**/*.sql`、`snapshots/**/*.sql`) |
+| `ui-android` | Android のアプリ (Jetpack Compose / Navigation 3 / Fragment。端末の中の保存とサーバーの API を使う) | screen / activity / shell / background → ui → viewmodel → usecase → repository → datasource → external | Navigation の destination 1 つ = 入口 (画面)。manifest の Activity 1 つ、枠が描く共通の composable 1 つ、OS から起動される class (Application、Service、Receiver、Provider、Worker) 1 つも入口。`[section+, screen]` | ast (Kotlin の `entry<K>` / `composable<R>` / `composable("...")`、`html` で読む manifest と navigation の XML、Worker の継承)。定数の route と、枠の composable は、エージェントが読んで足す (listed) |
+| `ui-ios` | iOS のアプリ (SwiftUI、UIKit)。端末の中の保存もデータとして扱う | screen / shell / system → view → view_model → repository → client → external | 行き先の enum の case 1 つ = 入口 (画面)。アプリ全体の枠、OS から起動される入口 (ウィジェット、App Intents、拡張、URL の受け口) も入口。`[section+, screen]` | ast (行き先の enum の case、準拠するプロトコル)。push で開く View、UIKit の画面、枠、Info.plist だけで決まる入口は、エージェントが読んで足す (listed) |
 
 ## ツールが読むプロファイル
 
@@ -236,7 +238,7 @@ flowchart TB
 
 ## プロファイルを増やす手順
 
-2 本目の `ui-nextjs`、3 本目の `ui-vue-router`、4 本目の `cli`、5 本目の `api`、6 本目の `batch-github-actions`、7 本目の `transform-dbt` も、この手順で作りました。
+2 本目の `ui-nextjs`、3 本目の `ui-vue-router`、4 本目の `cli`、5 本目の `api`、6 本目の `batch-github-actions`、7 本目の `transform-dbt`、8 本目の `ui-android`、9 本目の `ui-ios` も、この手順で作りました。
 
 | 手順 | やること |
 |---|---|
@@ -367,3 +369,39 @@ umami での試し分析で、3 つありました。`context.md` で、次の�
 | 列は、最後の `select` が出す列を「書く」、相手から取り出す列を「読む」 | 結合・絞り込み・集計の区切りに使う列は「条件」 | 列の単位の系譜を、列の読み書きの表から追える |
 | macro は、表を読む・問い合わせを実行する・業務のルールを持つものだけを段にする | SQL の断片を返すだけの macro は、段にしない | 処理の段を、意味のあるものに絞る |
 | テストは、YAML に書いたテストと、model を参照する SQL のテスト | データを確かめるテストは integration、`unit_tests` は unit | テストとの対応の表で、テストの無い model が分かる |
+
+## `ui-android` の決まり
+
+| 決まり | 内容 | 理由 |
+|---|---|---|
+| 入口は、画面の行き先と、OS から起動される class | Navigation の destination のほかに、manifest の activity / application / service / receiver / provider と、WorkManager の Worker を入口にする | 画面を通らない同期や受信が、端末の中の保存を書く。書く側を入口にしないと、保存を介したつながりが消える |
+| XML は `ast` の `html` で読む | manifest と navigation graph の XML 用の抽出器は足さない | `ast` の `html` で要素と属性が読める (先頭の `<?xml ?>` だけ読めない) |
+| 型の route は 1 段、文字の route は区切りが段 | `ForYouNavKey` → `/ForYou` (末尾の NavKey / Route / Destination を落とす)、`"topic/{topicId}"` → `/topic/{topicId}` (`topic.topicId_d`) | 型の route には URL が無い |
+| アプリ全体の枠 | Navigation の host を置く Activity は枠。枠が描く、保存先を読み書きする composable は、別の入口 (`/(shell)/<名前>`)。画面は枠を辿らない | `ui-vue-router` の `shell` と同じ。同じ通り道を、画面の数だけ繰り返さない |
+| 端末の中の保存は、読み書きに書く | Room → rdb (`host: (device)`、`dbms: sqlite`)、DataStore / SharedPreferences → kvs、ファイル → filesystem。メモリだけの状態と、ライブラリ任せのキャッシュは書かない | 先に端末に貯める作りでは、端末の中のデータベースが本物の保存先。Web のプロファイルの「ブラウザの中の保存は書かない」とは逆 |
+| interface の実装は、DI の宣言で決める。build variant は 1 つ | Hilt の `@Binds` / `@Provides` の行を根拠にする。分析する variant は、分析リポジトリの決まりに書く | 層の間を interface と DI でつなぐのがふつう。flavor で実装が変わる |
+| ディープリンクと通知は、入口にしない | 受ける Activity と、通知を出す側のフレームの `links` (`navigate`) に書く | 起動の経路で、処理は Activity の中にある |
+
+## `ui-ios` の決まり
+
+| 決まり | 内容 | 理由 |
+|---|---|---|
+| 入口は、行き先の enum の case 1 つ | 階層は `/<enum の名前>/<case の名前>`。同じ View を描く case も、case ごとに入口 | URL が無い。case が、渡る値と読む API を決める |
+| push で開く View は、別の入口 | enum を通らずに push で開く View と、2 つ以上の画面から重ねて開く View は `/(view)/<View の名前>`。1 つの画面からだけ重ねて開くものは、開く側に含める | 開く側に含めると、設定の画面 1 件が十数画面ぶんになった |
+| アプリ全体の枠 (`shell`) | @main の App、AppDelegate、タブを持つルートの View、枠が描く共通の view。`within` は持たない | どの画面でも動く処理を、画面の数だけ繰り返さない |
+| OS から起動される入口 (`system`) | `/(system)/<widget\|intent\|notification\|extension\|link\|background>/<名前>` | アプリの画面を通らずに、同じ保存の場所と API を使う |
+| 端末の中の保存は、読み書きに書く | SwiftData / Core Data → rdb、UserDefaults と Keychain → kvs、ファイル → filesystem。host は `(device)`。App Group の名前を段にそろえる | 端末の DB や設定は本物のデータで、アプリと拡張が受け渡す |
+| OS が呼ぶ関数が 2 つ以上ある入口 | どれも入口のフレームの直下に置き、主の関数 (`timeline`、`perform`、`didFinishLaunching`) の下に、共通の経路を 1 回だけ書く | OS が呼ぶ関数には、コードの順が無い |
+| ほかの端末だけのコードは辿らない | `#if os(macOS)`、`#if os(visionOS)`、`#if targetEnvironment(macCatalyst)` | 対象は iPhone と iPad |
+
+### モバイルの 2 つで、そろえた所と、そろえていない所
+
+| 所 | `ui-android` | `ui-ios` | そろえたか |
+|---|---|---|---|
+| 端末の中の保存 | 読み書きに書く | 同じ | そろえた。host は `(device)`、SDK の host は `(<SDK の名前>)` |
+| 読み書きを書くフレーム | `external` のフレーム (Room の DAO は、注釈の行を `source` にした `external` のフレーム) | `external` のフレーム (ライブラリの関数を呼ぶ行) | そろえた。サーバーの API を `external` のフレームに書く決まりと同じ向き |
+| `dbms` | 中で動くエンジンを小文字で (`sqlite`) | 同じ (SwiftData、Core Data、GRDB は `sqlite`、Realm は `realm`)。ライブラリの名前は `note` | そろえた |
+| 保存の形の移し替え (migration) | 入口の読み書きに書かない | 同じ | そろえた |
+| OS から起動される入口の層 | `background` | `system` | そろえていない。iOS は、ウィジェットや共有の拡張のように、画面を持つものを含む |
+| アプリ全体の枠の範囲 | Application は `background`、Activity は専用の層 `activity`、共通の composable が `shell` | App、AppDelegate、ルートの View が `shell` | そろえていない。OS の作りが違う |
+| 外から URL で開かれたときの受け口 | 入口にせず、受ける Activity の `links` に書く | 入口にする (`/(system)/link/<スキーム>`) | そろえていない。Android は、受ける Activity そのものが入口なので、受け口の処理は、その入口の結果に入る |

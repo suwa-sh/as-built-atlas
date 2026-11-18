@@ -1,0 +1,328 @@
+# プロファイル: Android のアプリ (画面 → composable → ViewModel → use case → repository → data source → Room / DataStore / API)
+# 画面の行き先 (Compose Navigation の destination) と、OS から起動される class (Activity、Service、Worker など) を入口にする。
+# 端末の中の保存 (Room、DataStore、SharedPreferences、ファイル) は、アプリの本物の保存先として読み書きに書く。
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: ui-android
+version: "0.1.0"
+label: "Android (screen / activity / shell / background → composable → ViewModel → use case → repository → data source → {datastore})"
+
+# tier は画面の architecture の図の枠。Android の公式のアーキテクチャの分け方 (UI / domain / data) に合わせる
+# label / tier / hierarchy.notes の text は画面に出る。"{id}" は用語集 (schema/vocab/terms.yaml) の呼び名に置き換わる
+layers:
+  - id: screen
+    tier: ui
+    label: screen (Navigation の destination 1 つ。Compose の entry / composable / dialog、navigation graph の XML の fragment)
+    role: entry
+    stack: [Jetpack Compose, Navigation Compose, Navigation 3, Fragment]
+    invokes_next: "destination の中身 (`entry<Key> { ... }` や `composable<Route> { ... }` のラムダ、fragment の class) が作る ViewModel (`hiltViewModel()`、`viewModel()`、`by viewModels()`) と、描く画面の composable。アプリ全体の枠 (Activity、`NavHost` / `NavDisplay` を置く root の composable、上下のバー) は別の入口 (activity / shell) なので、ここからは辿らない"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: activity
+    tier: ui
+    label: activity (AndroidManifest の activity 1 つ)
+    role: entry
+    stack: [Android Activity, Jetpack Compose]
+    invokes_next: "`onCreate` などの lifecycle の method と、`setContent` の root の composable。Navigation の host (`NavHost`、`NavDisplay`) を置くときは、host の中の destination は別の入口 (screen) なので辿らない。枠が描く共通の composable のうち別の入口 (shell) にしたものも辿らない。host を置かず、1 つの画面を描くだけの activity では、その画面を終端まで辿る"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: shell
+    tier: ui
+    label: shell (アプリ全体の枠が描く共通の composable。上や下のバー、設定の dialog など)
+    role: entry
+    stack: [Jetpack Compose]
+    invokes_next: "その composable が作る ViewModel と、呼ぶ state holder。描く側 (activity と root の composable) は辿らない"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: background
+    tier: background
+    label: background (画面を持たずに OS から起動される class。Application、Service、BroadcastReceiver、ContentProvider、WorkManager の Worker)
+    role: entry
+    stack: [Android Application, Service, BroadcastReceiver, ContentProvider, WorkManager, Firebase Cloud Messaging]
+    invokes_next: "OS が呼ぶ method (`Application.onCreate`、`Worker.doWork`、`onMessageReceived`、`onReceive`、`query` など) から、呼ぶ repository、data source、SDK。Worker の登録 (`enqueue`) は、登録した Worker の入口へのつながり (trigger) にして、Worker の中は辿らない"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: ui
+    tier: ui
+    label: ui (composable、Fragment や View の class、state holder)
+    stack: [Jetpack Compose, Fragment, View]
+    invokes_next: "子の composable の呼び出し。ViewModel の method の呼び出し (利用者の操作で動くものは条件つき)。ViewModel の state の購読 (`collectAsStateWithLifecycle()` など)。ViewModel を通らない state holder (`rememberXxxState()`) が repository を直接読むこともある"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: viewmodel
+    tier: ui
+    label: ViewModel (Jetpack ViewModel。画面の state と、操作を受ける method)
+    stack: [Jetpack ViewModel, Kotlin Flow, Hilt]
+    invokes_next: "constructor に注入した use case と repository の呼び出し。state を作る Flow の組み立て (`combine`、`stateIn`) は、画面が state を購読している間は動く。interface に注入されたときは、DI の宣言 (Hilt の `@Binds` / `@Provides`) で実装の class を決める"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: usecase
+    tier: domain
+    label: use case (domain の class。複数の repository を組み合わせる)
+    stack: [Kotlin]
+    invokes_next: "注入した repository の呼び出し"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: repository
+    tier: data
+    label: repository (保存先と API を束ねる class)
+    stack: [Kotlin, Kotlin Flow, Hilt]
+    invokes_next: "注入した data source (Room の DAO、DataStore を包む class、API の client) の呼び出し。interface に注入されたときは、DI の宣言で実装の class を決める"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: datasource
+    tier: data
+    label: data source (Room の DAO、DataStore や SharedPreferences を包む class、Retrofit の service、SDK を包む class)
+    stack: [Room, DataStore, SharedPreferences, Retrofit, OkHttp]
+    invokes_next: "保存先や通信のライブラリの呼び出し (ここから先は boundary)。読み書きと API の呼び出しは、この層ではなく external のフレームに書く。Room の DAO の method と Retrofit の service の method は、中身を決める注釈 (`@Query`、`@GET` など) の行を、external のフレーム (Room、Retrofit) の source にする"
+    io: [rdb, kvs, filesystem, external_api]
+  - id: external
+    tier: data
+    label: external library / SDK (boundary)
+    role: boundary
+    stack: [Room, DataStore, Retrofit, OkHttp, WorkManager, Firebase, Android framework]
+    io: [rdb, kvs, filesystem, external_api]
+
+hierarchy:
+  level_labels: [section+, screen]   # 文字の route は区切りがそのまま段。型の route は 1 段
+  derivation: "型で書いた route (`entry<ForYouNavKey>`、`composable<Screen.Home>`) は、型の名前 (入れ子の class は `.` でつないだまま) を 1 段にし、末尾の `NavKey` / `Route` / `Destination` を落とす (`/ForYou`、`/Screen.Home`)。文字で書いた route (`composable(\"topic/{topicId}\")`) は '/' で区切って段にし、`?` から後ろの省ける引数は落とす (`/topic/{topicId}`)。navigation graph の XML の destination は `/<graph のファイル名>/<android:id>`。入れ子の graph (`navigation<Graph>`、`<navigation>`) は段にしない。activity は `/(activity)/<class 名>`、アプリ全体の枠が描く共通の composable は `/(shell)/<composable 名>`、画面を持たない起点は `/(background)/<application|service|receiver|provider|worker>/<class 名>`"
+  entry_labels:   # 画面でない入口は、詳細のページで、それぞれの呼び名にする
+    - { contains: "(activity)", label: activity }
+    - { contains: "(shell)", label: shell }
+    - { contains: "(background)", label: background }
+  notes:   # 段の名前に残る Navigation の書き方を、画面で説明する
+    - { contains: "{", text: "波かっこの段 (例: {topicId}) は、実行時に値が入る場所。対象のソースの route の文字をそのまま出している" }
+    - { contains: "(activity)", text: "(activity) で始まる {entry} は、AndroidManifest に書いた Activity。Navigation の host を置く Activity は、アプリ全体の枠になる" }
+    - { contains: "(shell)", text: "(shell) で始まる {entry} は、アプリ全体の枠が描く共通の composable。どの画面を開いても動く" }
+    - { contains: "(background)", text: "(background) で始まる {entry} は、画面を持たずに OS から起動される class。後ろの段は、{kind} と class 名" }
+
+extractors:
+  - name: compose-typed-destinations
+    run: abatlas-extract ast
+    layer: screen
+    hint: "型で書いた destination (Navigation 3 の `entry<Key>`、Navigation Compose 2.8 以降の `composable<Route>` / `dialog<Route>`) を取る。files は、destination を書くモジュールに合わせる (feature のモジュールと app)。テストのソース (`src/test*`、`src/androidTest`) と、範囲の外のアプリ (見本のアプリ、benchmark) は exclude に書く。Navigation 3 で `when (key) { is X -> NavEntry(key) { ... } }` の形に書くアプリや、route を定数で渡すアプリ (`composable(TOPIC_ROUTE)`) は、unresolved に出る場所を読んで `abatlas-extract listed` で足す。Java で書いた fragment だけのアプリでは、この抽出器を外す"
+    params:
+      files: ["**/src/main/**/*.kt", "**/src/*/kotlin/**/*.kt"]
+      exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
+      language: kotlin
+      rule:   # navigation の宣言の中の、型の引数を持つ entry / composable / dialog の呼び出し 1 つ = 画面 1 つ。入れ子の graph (navigation<Graph>) は画面にしない
+        kind: call_expression
+        all:
+          - has: { kind: simple_identifier, regex: "^(entry|composable|dialog)$" }
+          - has:
+              kind: call_suffix
+              has: { kind: type_arguments, has: { kind: type_projection, pattern: $ROUTE } }
+          - inside:
+              stopBy: end
+              any:
+                - kind: function_declaration                    # fun EntryProviderScope<NavKey>.fooEntry() / fun NavGraphBuilder.fooScreen()
+                  has: { kind: receiver_type, regex: "^(EntryProviderScope|NavGraphBuilder)\\b" }
+                - kind: call_expression                         # NavHost(...) { ... } / entryProvider { ... } / navigation<Graph> { ... }
+                  has: { kind: simple_identifier, regex: "^(NavHost|entryProvider|navigation)$" }
+      fields:
+        path: "{ROUTE}"
+        name: "{ROUTE}"
+        attributes: { route_type: "{ROUTE}" }
+      segments:
+        replace:
+          - { pattern: "^(.+?)(NavKey|Route|Destination)$", with: "\\1" }   # ForYouNavKey → ForYou、Screen.HomeRoute → Screen.Home
+      id:
+        #   ForYouNavKey → ForYou      Screen.Home → Screen.Home (入れ子の class の . は残す)      Topic_Detail → Topic__Detail
+        replace:
+          - { pattern: "_", with: "__" }                 # 名前の中の _ を重ねる (最初に行う。ほかのプロファイルと同じ考え方)
+          - { pattern: "[^A-Za-z0-9_.-]", with: "" }      # 残りの記号を除く
+      unresolved:   # 静的に読めない destination。入口にはせず、場所を知らせる
+        any:
+          - kind: call_expression    # route を名前で渡した destination (composable(TOPIC_ROUTE)、composable(route = TOPIC_ROUTE)、entry(key))
+            all:
+              - has: { kind: simple_identifier, regex: "^(entry|composable|dialog)$" }
+              - has:
+                  kind: call_suffix
+                  all:
+                    - not: { has: { kind: type_arguments } }
+                    - has:
+                        kind: value_arguments
+                        has:
+                          kind: value_argument
+                          nthChild: 1
+                          not: { has: { kind: string_literal } }
+              - inside:
+                  stopBy: end
+                  any:
+                    - kind: function_declaration
+                      has: { kind: receiver_type, regex: "^(EntryProviderScope|NavGraphBuilder)\\b" }
+                    - kind: call_expression
+                      has: { kind: simple_identifier, regex: "^(NavHost|entryProvider|navigation)$" }
+          - kind: call_expression    # Navigation 3 の when で書いた entryProvider (is X -> NavEntry(key) { ... })
+            has: { kind: simple_identifier, regex: "^NavEntry$" }
+  - name: compose-string-destinations
+    run: abatlas-extract ast
+    layer: screen
+    hint: "文字で書いた route の destination (`composable(\"topic/{topicId}\")`、`composable(route = \"...\")`) を取る。files と exclude は compose-typed-destinations と同じにする。文字の route を使わないアプリ (型の route だけ、Navigation 3) では、この抽出器を外す。route の文字に `$` で値を埋め込むアプリは、取れないので、読んで `abatlas-extract listed` で足す"
+    params:
+      files: ["**/src/main/**/*.kt", "**/src/*/kotlin/**/*.kt"]
+      exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
+      language: kotlin
+      rule:
+        kind: call_expression
+        all:
+          - has: { kind: simple_identifier, regex: "^(composable|dialog)$" }
+          - has:
+              kind: call_suffix
+              has:
+                kind: value_arguments
+                has:
+                  kind: value_argument
+                  any:
+                    - nthChild: 1                                   # composable("topic/{topicId}")
+                      has: { kind: string_literal, regex: "^\"[^$]*\"$", pattern: $ROUTE }
+                    - all:                                          # composable(route = "topic/{topicId}")
+                        - has: { kind: simple_identifier, regex: "^route$" }
+                        - has: { kind: string_literal, regex: "^\"[^$]*\"$", pattern: $ROUTE }
+          - inside:
+              stopBy: end
+              any:
+                - kind: function_declaration
+                  has: { kind: receiver_type, regex: "^NavGraphBuilder\\b" }
+                - kind: call_expression
+                  has: { kind: simple_identifier, regex: "^(NavHost|navigation)$" }
+      fields:
+        path: "{ROUTE}"
+        name: "{ROUTE}"
+        attributes: { route: "{ROUTE}" }
+      segments:
+        replace:
+          - { pattern: "\\?.*$", with: "" }   # search?query={query} → search (省ける引数は段にしない)
+        empty: "(root)"
+      id:
+        #   topic/{topicId} → topic.topicId_d      topic/topicId → topic.topicId      "" → root_r
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\{(.+)\\}$", with: "\\1_d" }       # {topicId} → topicId_d (値が入る段)
+          - { pattern: "^\\(root\\)$", with: "root_r" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      unresolved:   # route の文字に $ で値を埋め込んだ destination ("orders/$ORDER_ARG"、"x/${A.b}")。入口にはせず、場所を知らせる
+        kind: string_literal
+        all:
+          - any:
+              - has: { kind: interpolation_identifier_start }
+              - has: { kind: interpolation_expression_start }
+          - inside:   # composable(...) の引数の文字だけ (ラムダの中の文字は見ない)
+              kind: value_argument
+              inside:
+                kind: value_arguments
+                inside:
+                  kind: call_suffix
+                  inside:
+                    kind: call_expression
+                    has: { kind: simple_identifier, regex: "^(composable|dialog)$" }
+  - name: navigation-xml-destinations
+    run: abatlas-extract ast
+    layer: screen
+    hint: "navigation graph の XML (`res/navigation/*.xml`) の fragment と dialog の destination を取る。XML は html として読む (先頭の `<?xml ...?>` は読めないが、要素は読める)。XML の navigation graph が無いアプリ (Compose だけ) では、この抽出器を外す。`<activity>` の destination は、行き先の Activity が activity の入口になるので取らない。`<include>` した graph は、そのファイルも files に入っていれば取れる"
+    params:
+      files: ["**/src/main/res/navigation/*.xml"]
+      exclude: ["**/build/**"]
+      language: html
+      rule:   # <fragment android:id="@+id/home" ...> 1 つ = 画面 1 つ
+        kind: attribute
+        all:
+          - inside:
+              any:
+                - { kind: start_tag, has: { kind: tag_name, regex: "^(fragment|dialog)$" } }
+                - { kind: self_closing_tag, has: { kind: tag_name, regex: "^(fragment|dialog)$" } }
+          - has: { kind: attribute_name, regex: "^android:id$" }
+          - has: { kind: quoted_attribute_value, has: { kind: attribute_value, pattern: $ID } }
+      fields:
+        path: "{stem}/{ID}"
+        name: "{ID}"
+        attributes: { graph: "{stem}", destination_id: "{ID}" }
+      segments:
+        drop: ["@\\+?id"]   # @+id/homeFragment の @+id の段を落とす → homeFragment
+      id:
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+  - name: manifest-activities
+    run: abatlas-extract ast
+    layer: activity
+    hint: "AndroidManifest.xml の activity を取る。XML は html として読む。files は、アプリのモジュールの manifest (`src/main` と、product flavor ごとの `src/<flavor>`)。テスト用のモジュール、見本のアプリ、benchmark の manifest は exclude に書く (範囲に入れるかは、作業定義の scope と合わせる)。同じ activity を 2 つの manifest に書くと (flavor で上書き)、同じ id が 2 つ出て列挙が止まるので、片方を exclude に書き、rationale に理由を書く"
+    params:
+      files: ["**/src/*/AndroidManifest.xml"]
+      exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
+      language: html
+      rule:   # <activity android:name=".MainActivity"> 1 つ = 入口 1 つ。activity-alias は取らない (同じ class の別名)
+        kind: attribute
+        all:
+          - inside:
+              any:
+                - { kind: start_tag, has: { kind: tag_name, regex: "^activity$" } }
+                - { kind: self_closing_tag, has: { kind: tag_name, regex: "^activity$" } }
+          - has: { kind: attribute_name, regex: "^android:name$" }
+          - has: { kind: quoted_attribute_value, has: { kind: attribute_value, pattern: $NAME } }
+      fields:
+        path: "(activity)/{NAME}"
+        name: "{NAME}"
+        attributes: { component_class: "{NAME}", manifest: "{file}" }
+      segments:
+        replace:
+          - { pattern: "^(?!\\().*\\.", with: "" }   # .MainActivity / com.example.MainActivity → MainActivity (先頭の固定の段は残す)
+      id:
+        #   /(activity)/MainActivity → activity_a.MainActivity
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(activity\\)$", with: "activity_a" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+  - name: manifest-background
+    run: abatlas-extract ast
+    layer: background
+    hint: "AndroidManifest.xml の application (`android:name` を書いたときだけ)、service、receiver、provider を取る。files と exclude は manifest-activities と同じにする。ライブラリが manifest の合成で足すもの (androidx.startup の InitializationProvider など) は、リポジトリの manifest に書いていなければ取れない。それが動かすリポジトリの class (`Initializer` の実装) は、読んで `abatlas-extract listed` で足すか、Application の入口の中で辿る"
+    params:
+      files: ["**/src/*/AndroidManifest.xml"]
+      exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
+      language: html
+      rule:
+        kind: attribute
+        all:
+          - inside:
+              any:
+                - { kind: start_tag, has: { kind: tag_name, regex: "^(application|service|receiver|provider)$", pattern: $KIND } }
+                - { kind: self_closing_tag, has: { kind: tag_name, regex: "^(application|service|receiver|provider)$", pattern: $KIND } }
+          - has: { kind: attribute_name, regex: "^android:name$" }
+          - has: { kind: quoted_attribute_value, has: { kind: attribute_value, pattern: $NAME } }
+      fields:
+        path: "(background)/{KIND}/{NAME}"
+        name: "{NAME}"
+        attributes: { component_class: "{NAME}", component_kind: "{KIND}", manifest: "{file}" }
+      segments:
+        replace:
+          - { pattern: "^(?!\\().*\\.", with: "" }
+      id:
+        #   /(background)/service/SyncNotificationsService → background_b.service.SyncNotificationsService
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(background\\)$", with: "background_b" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+  - name: workers
+    run: abatlas-extract ast
+    layer: background
+    hint: "WorkManager の Worker (`CoroutineWorker`、`Worker`、`ListenableWorker`、`RxWorker` を直に継承する class) を取る。Worker は manifest に書かないので、コードから取る。files と exclude は compose-typed-destinations と同じにする。ほかの Worker に仕事を渡すだけの Worker (Hilt の都合で置く `DelegatingWorker` など) も取れてしまうので、分析の前に、承認で外す (reason は列挙の報告に書く)。自前の基底の class を継承する Worker は取れないので、読んで `abatlas-extract listed` で足す。Java の Worker は、language を java にした抽出器を、別の名前でもう 1 つ書く"
+    params:
+      files: ["**/src/main/**/*.kt", "**/src/*/kotlin/**/*.kt"]
+      exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
+      language: kotlin
+      rule:
+        kind: class_declaration
+        all:
+          - has: { kind: type_identifier, pattern: $NAME }
+          - has:
+              kind: delegation_specifier
+              has:
+                kind: constructor_invocation
+                has: { kind: user_type, regex: "^(CoroutineWorker|Worker|ListenableWorker|RxWorker)$" }
+      fields:
+        path: "(background)/worker/{NAME}"
+        name: "{NAME}"
+        attributes: { component_class: "{NAME}", component_kind: worker }
+      id:
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(background\\)$", with: "background_b" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+
+# アプリ全体の枠が描く共通の composable (層 shell) は、抽出器では取れない。入口を見つける agent が、
+# `abatlas-extract listed` (名前は agent-listed-shell、layer: shell) で足す。決まりは context.md の「アプリ全体の枠」
+
+marts: []

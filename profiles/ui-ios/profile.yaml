@@ -1,0 +1,163 @@
+# プロファイル: iOS のアプリ (画面 → View → view model → repository → client → 外部のライブラリ)
+# SwiftUI (行き先を enum で持つ作り) と UIKit (view controller)。サーバーの API は、別のリポジトリか、分析の範囲の外にある前提。
+# 端末の中の保存 (SwiftData / Core Data / SQLite、UserDefaults、Keychain、ファイル) は、アプリが持つ本物のデータとして読み書きに書く。
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: ui-ios
+version: "0.1.0"
+label: "iOS (screen / shell / system → view → view model → repository → client → external library)"
+
+# label / tier / hierarchy.notes の text は画面に出る。"{id}" は用語集 (schema/vocab/terms.yaml) の呼び名に置き換わる
+# tier は、画面の architecture の図の枠。どれも端末の上で動くので、1 つにまとめる (ui-vue-router と同じ考え方)
+layers:
+  - id: screen
+    tier: app
+    label: screen (行き先の enum の case 1 つ。navigationDestination、sheet、タブで開く。UIKit では view controller 1 つ)
+    role: entry
+    stack: [SwiftUI, UIKit]
+    invokes_next: "case を受けて描く View (`navigationDestination(for:)`、`.sheet(item:)`、`TabView` の switch で、case から View を作る行)。UIKit では view controller 自身。ほかの画面へ移る呼び出し (`path.append`、`navigate(to:)`、`presentedSheet = .x`、`present`、`pushViewController`) は、行き先の画面が別の入口なので辿らない (つながりに書く)。アプリ全体の枠 (@main の App、ルートの View、タブのバー、AppDelegate) も別の入口 (shell) なので辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: shell
+    tier: app
+    label: shell (アプリ全体の枠。@main の App、AppDelegate / SceneDelegate、ルートの View、枠が描く共通の view)
+    role: entry
+    stack: [SwiftUI, UIKit]
+    invokes_next: "枠のファイル自身が呼ぶ view model、repository と、その先 (起動のときの読み込み、scenePhase で動く呼び出し、environment に入れる共通の object の準備)。枠が描く共通の view は、view ごとに別の入口 (shell) なので、App やルートの View の入口からは辿らない。タブの中身と、navigation の行き先は、包まれる側の入口 (screen) なので辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: system
+    tier: app
+    label: system (OS から起動される。ウィジェット、App Intents、通知の拡張、共有の拡張、URL の受け口、バックグラウンドのタスク)
+    role: entry
+    stack: [WidgetKit, App Intents, UserNotifications, App Extensions, BackgroundTasks]
+    invokes_next: "OS が呼ぶ関数 (ウィジェットの timeline provider の `getTimeline` / `timeline(for:in:)`、intent の `perform()`、拡張の `didReceive` / `beginRequest`、`onOpenURL` / `application(_:open:)` の受け口、バックグラウンドのタスクの handler) と、そこから呼ぶ view model、repository。拡張が描く View は、その入口の中で辿る。intent が、アプリを開いて画面へ移るだけなら、行き先の画面を辿らずにつながりに書く"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: view
+    tier: app
+    label: view (SwiftUI の View と modifier、UIKit の view と子の view controller)
+    stack: [SwiftUI, UIKit]
+    invokes_next: "子の View、`.task` / `.onAppear` / `.refreshable` / ボタンの action が呼ぶ view model の関数。`@Environment` で受け取った object の関数。view model を通さずに、client や保存のライブラリ (`@Query`、`modelContext`、`@AppStorage`) を直接使うこともある"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: view_model
+    tier: app
+    label: view model (ViewModel、@Observable / ObservableObject の状態の object、store)
+    stack: [Observation, Combine, Swift Concurrency]
+    invokes_next: "repository や共通の service の関数、client の関数 (HTTP の要求、保存の読み書き) の呼び出し"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: repository
+    tier: app
+    label: repository (repository、service、manager。業務の手順と、保存や API の使い分けを包む型)
+    stack: [Swift]
+    invokes_next: "client の関数の呼び出し。別の repository の呼び出し"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: client
+    tier: app
+    label: client (HTTP、DB、端末の保存を包む自前の型。API の endpoint の定義を含む)
+    stack: [URLSession, SwiftData, Core Data]
+    invokes_next: "HTTP のライブラリ (URLSession、Alamofire)、保存のライブラリ (SwiftData の ModelContext、Core Data、SQLite、UserDefaults、Keychain のライブラリ)、OS の API の呼び出し (ここから先は boundary)"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: external
+    tier: app
+    label: external library / SDK / OS framework (boundary)
+    role: boundary
+    stack: [URLSession, Alamofire, SwiftData, Core Data, KeychainAccess, UserDefaults, Firebase SDK]
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+
+hierarchy:
+  level_labels: [section+, screen]   # 行き先を宣言した型の名前が section、case の名前が screen
+  derivation: "SwiftUI の画面は、行き先を宣言した enum の名前と、case の名前の 2 段 (例: `/RouterDestination/accountDetail`、`/SheetDestination/settings`、`/AppTab/timeline`)。UIKit の画面は `/(uikit)/<クラスの名前>`。行き先の enum を通らずに push で開く View と、2 つ以上の画面から重ねて開く View は `/(view)/<View の型の名前>`。枠 (shell) は `/(shell)` で始める (`/(shell)/app`、`/(shell)/delegate/<クラスの名前>`、`/(shell)/root/<View の型の名前>`、`/(shell)/part/<View の型の名前>`)。OS から起動される入口 (system) は `/(system)/<種類>/<名前>` で、種類は widget / intent / notification / extension / link / background (例: `/(system)/widget/LatestPostsWidget`、`/(system)/link/icecubesapp`)"
+  entry_labels:   # 枠と、OS から起動される入口は、詳細のページで screen ではなくそれぞれの名前で呼ぶ
+    - { contains: "(shell)", label: shell }
+    - { contains: "(system)", label: system }
+  notes:   # 段の名前に残る書き方を、画面で説明する
+    - { contains: "Destination/", text: "Destination で終わる段は、行き先を宣言した enum の名前。後ろの段が case の名前 (コードの書き方をそのまま出している)" }
+    - { contains: "Tab/", text: "Tab で終わる段は、タブを宣言した enum の名前。後ろの段が、タブの case の名前" }
+    - { contains: "(shell)", text: "(shell) で始まる {entry} は、アプリ全体の枠。どの画面を開いても動く" }
+    - { contains: "(system)", text: "(system) で始まる {entry} は、アプリの画面を通らずに OS から起動される。2 段目は {kind} (widget、intent、notification、extension、link、background)" }
+    - { contains: "(uikit)", text: "(uikit) で始まる {entry} は、UIKit の view controller 1 つ" }
+    - { contains: "(view)", text: "(view) で始まる {entry} は、行き先の enum を通らずに開く View (push で開くものと、2 つ以上の画面から重ねて開くもの)" }
+
+extractors:
+  - name: swiftui-destinations
+    run: abatlas-extract ast
+    layer: screen
+    hint: "行き先を宣言した enum (`navigationDestination(for: X.self)`、`.sheet(item:)`、`.fullScreenCover(item:)`、`TabView(selection:)` に渡している enum) を探して、rule の enum の名前の正規表現を、その名前に合わせて書き換える (既定は Destination / Route / Screen / Tab で終わる名前。名前で当てているだけなので、実際に行き先に使われているかを確かめる)。case 1 つ = 画面 1 つ。unresolved に出た場所 (正規表現から漏れた行き先の `navigationDestination` / `sheet(item:)` / `fullScreenCover(item:)`、UIKit の view controller) は、読んで、入口を `abatlas-extract listed` で足すか、足さない理由を報告に書く。テストのコードと、依存の取り込み先 (`.build`、`Pods`、`Carthage`) は exclude で外す"
+    params:
+      files: ["**/*.swift"]
+      exclude: ["*Tests/*", "*.build/*", "Pods/*", "*/Pods/*", "Carthage/*", "*/Carthage/*"]
+      language: swift
+      rule:   # 名前が Destination / Route / Screen / Tab で終わる enum の、case の名前 1 つ。`case a, b` は 2 件。関連値の名前は拾わない
+        kind: simple_identifier
+        pattern: $CASE
+        inside:
+          kind: enum_entry
+          inside:
+            kind: enum_class_body
+            inside:
+              kind: class_declaration
+              has: { field: name, regex: "(Destination|Route|Screen|Tab)$", pattern: $ENUM }
+      fields:
+        path: "/{ENUM}/{CASE}"
+        name: "{ENUM}.{CASE}"
+        attributes: { destination_enum: "{ENUM}", destination_case: "{CASE}" }
+      id:
+        # id は結果のファイル名になるので記号を持てない。名前の中の _ は 2 つ重ねる (ui-vue-router と同じ考え方)
+        #   /RouterDestination/accountDetail → RouterDestination.accountDetail
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      unresolved:   # 行き先の enum の正規表現から漏れたかもしれない場所と、UIKit の画面。入口にはせず、場所を知らせる
+        any:
+          - kind: call_suffix   # navigationDestination(for:) / (item:)、sheet(item:)、fullScreenCover(item:)。`.sheet(...)` と、self を省いた `sheet(...)` の両方
+            follows:
+              any:
+                - kind: navigation_expression
+                  has: { kind: navigation_suffix, regex: "^\\.(navigationDestination|sheet|fullScreenCover)$" }
+                - kind: simple_identifier
+                  regex: "^(navigationDestination|sheet|fullScreenCover)$"
+            has:
+              kind: value_arguments
+              has: { kind: value_argument, has: { kind: value_argument_label, regex: "^(for|item)$" } }
+          - kind: class_declaration   # UIKit の view controller を直接継いだクラス
+            has: { kind: inheritance_specifier, regex: "^UI(Table|Collection|Page|Navigation|TabBar|Split|Hosting)?ViewController$" }
+
+  - name: os-entry-points
+    run: abatlas-extract ast
+    layer: system
+    hint: "OS から起動される型 (ウィジェット、App Intents、通知の拡張、アクションの拡張) を、準拠するプロトコルで取る。設定の画面だけの intent (`WidgetConfigurationIntent`) は取らない。Info.plist だけで決まる入口 (共有の拡張の principal class、URL スキーム、ユニバーサルリンク、バックグラウンドのタスクの identifier) は取れないので、読んで `abatlas-extract listed` で足す。拡張や intent を持たないアプリでも止まらないよう allow_empty にしてある"
+    params:
+      files: ["**/*.swift"]
+      exclude: ["*Tests/*", "*.build/*", "Pods/*", "*/Pods/*", "Carthage/*", "*/Carthage/*"]
+      language: swift
+      allow_empty: true
+      rule:   # プロトコルを直接書いて準拠する struct / class 1 つ
+        kind: class_declaration
+        all:
+          - has: { field: name, pattern: $NAME }
+          - has:
+              kind: inheritance_specifier
+              regex: "^(Widget|ControlWidget|AppIntent|AudioPlaybackIntent|LiveActivityIntent|ForegroundContinuableIntent|UNNotificationServiceExtension|UNNotificationContentExtension|NSExtensionRequestHandling)$"
+              pattern: $BASE
+      fields:
+        path: "/(system)/{BASE}/{NAME}"
+        name: "{NAME}"
+        attributes: { conforms_to: "{BASE}" }
+      segments:
+        replace:   # 準拠するプロトコルを、種類の名前にそろえる
+          - { pattern: "^(Widget|ControlWidget)$", with: "widget" }
+          - { pattern: "^(AppIntent|AudioPlaybackIntent|LiveActivityIntent|ForegroundContinuableIntent)$", with: "intent" }
+          - { pattern: "^UNNotification(Service|Content)Extension$", with: "notification" }
+          - { pattern: "^NSExtensionRequestHandling$", with: "extension" }
+      id:
+        #   /(system)/widget/LatestPostsWidget → system_s.widget.LatestPostsWidget  (かっこの段は、名前 + _ + 頭文字。ui-vue-router の shell_s と同じ)
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(([a-z])([a-z]*)\\)$", with: "\\1\\2_\\1" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+
+# 抽出器で取れない入口は、入口を見つける agent が `abatlas-extract listed` で、層ごとに足す:
+#   agent-listed-screen (layer: screen)  … 正規表現から漏れた行き先の enum、UIKit の view controller、storyboard の scene、行き先の enum を通らない View
+#   agent-listed-shell  (layer: shell)   … @main の App、AppDelegate / SceneDelegate、ルートの View、枠が描く共通の view
+#   agent-listed-system (layer: system)  … 共有の拡張、URL スキームとユニバーサルリンクの受け口、バックグラウンドのタスク
+# 決まりは context.md の「入口の判別」
+
+marts: []

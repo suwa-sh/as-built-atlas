@@ -145,6 +145,8 @@ flowchart LR
 | `api` | サーバー側で操作を受けて処理するシステム (ほかのシステムから呼ばれる API、サーバー側で画面を作って返す webapp) | 操作 1 つ (HTTP なら、URL とメソッドの組) |
 | `batch-github-actions` | GitHub Actions で組んだ自動処理 (テスト、ビルド、公開、定期の処理) | workflow 1 つ |
 | `transform-dbt` | dbt で組んだデータの変換 | model 1 つ |
+| `ui-android` | Android のアプリ (Jetpack Compose、Fragment。端末の中の保存とサーバーの API を使う) | 画面の行き先 1 つ、Activity 1 つ、枠が描く共通の部品 1 つ、OS から起動される class 1 つ (Application、Service、Worker など) |
+| `ui-ios` | iOS のアプリ (SwiftUI、UIKit。端末の中の保存とサーバーの API を使う) | 画面の行き先 1 つ、アプリ全体の枠 1 つ、OS から起動される入口 1 つ (ウィジェット、App Intents、拡張など) |
 
 プロファイルは、自分のシステムに合わせて直せます (例: 使っていない層を外す)。手順は [docs/architecture/profiles.md](docs/architecture/profiles.md) にあります。
 

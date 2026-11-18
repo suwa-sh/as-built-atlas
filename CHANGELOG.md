@@ -13,6 +13,8 @@
 - 集計表 5 つ: 入口 × 権限の確認の種類 (`mart_guard_map`)、入口 × 動きを変える物の種類 (`mart_behavior_map`)、設定の広がり (`mart_setting_spread`)、入口 1 件を真ん中にしたつながり (`mart_entry_link_hubs`)、辿られないファイルのフォルダごとの数 (`mart_unreached_dirs`)
 - 作業定義の `analysis.models`。分析とレビューをサブエージェントに任せるときのモデルを、分析リポジトリで決められる (`analyze` と `review`)。書かないと、起動した側と同じモデルで動き、入口が多いと費用がかさむ
 - 分析の skill に、複数の入口をまとめて分析するときの進め方 (先に少ない件数で試して、決まりを固めてから残りを流す)
+- **プロファイル** `ui-android`。Android のアプリ。入口は、Navigation の行き先 1 つ、Activity 1 つ、枠が描く共通の composable 1 つ、OS から起動される class (Application、Service、Receiver、Provider、Worker) 1 つ。端末の中の保存 (Room、DataStore) を読み書きに書くので、Worker が書く表と画面が読む表が、データを介したつながりの表に出る
+- **プロファイル** `ui-ios`。iOS のアプリ。入口は、行き先の enum の case 1 つ、アプリ全体の枠、OS から起動される入口 (ウィジェット、App Intents、拡張、URL の受け口)。端末の中の保存 (SwiftData、UserDefaults、Keychain) を読み書きに書く
 - **プロファイル** `api`。サーバー側で操作を受けて処理するシステム (ほかのシステムから呼ばれる API、サーバー側で画面を作って返す webapp)。入口は、操作 1 つ (HTTP なら、URL とメソッドの組)
 - **プロファイル** `transform-dbt`。dbt で組んだデータの変換。入口は、model 1 つ。上流の model は、呼び出しではなく読み書きで表すので、model の依存が、データを介したつながりの表に出る
 - **プロファイル** `batch-github-actions`。GitHub Actions で組んだ自動処理。入口は、workflow 1 つ

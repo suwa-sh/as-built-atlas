@@ -23,7 +23,7 @@ description: 分析対象リポジトリの「入口」(ジョブ・エンドポ
 ## 前提
 
 - 分析リポジトリでは Docker が動き、`.env` の `ABATLAS_TARGET` が対象の clone を指している (`<abatlas>` はそれを `/ws/target` として読む)。OSS の checkout では `uv sync` 済み
-- 対象は `analysis/work-definition.yaml` の `target.clone_path` に clone 済みで、`target.commit` が checkout されている (`git -C <clone_path> rev-parse HEAD` で確かめる。違えば止めて人に伝える)
+- 対象は `analysis/work-definition.yaml` の `target.clone_path` に clone 済みで、`target.commit` が checkout されている (`git -C <clone_path> rev-parse HEAD` で確かめる。違えば止めて人に伝える。対象に git のコマンドを実行しないよう指示されているときは、確かめずに、作業定義の値を信じる)
 
 ## 手順
 
