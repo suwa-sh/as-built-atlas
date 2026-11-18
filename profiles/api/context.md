@@ -42,7 +42,7 @@ operation (API の操作 1 つ。入口)
 | メッセージ (AsyncAPI の定義ファイルがある) | channel + 操作 | 抽出器 `asyncapi-operations` |
 | ツールを提供するサーバー (MCP など) | ツール 1 つ (リソース、プロンプトも) | 登録しているコードを、`ast` の抽出器で拾うか、読んで `listed` で足す。下の「抽出器の書き方の例」 |
 | RPC (gRPC) | サーバーに登録した service の method 1 つ | 範囲の中の生成したコードを `ast` で拾うか、登録の行を読んで `listed` で足す。下の「gRPC」 |
-| GraphQL | `Query` / `Mutation` / `Subscription` の field 1 つ | スキーマの定義を読んで `listed` で足す |
+| GraphQL | `Query` / `Mutation` / `Subscription` の field 1 つ (型の field は、入口にしない) | resolver の登録を `ast` で拾い、スキーマの定義と突き合わせる。下の「GraphQL」 |
 
 - 階層パスと id の作り方は、`profile.yaml` の `hierarchy.derivation` と、抽出器 `openapi-operations` の `id` のとおり (`GET /users/{id}` → `/users/{id}/get`、`users.id_d.get`)。`listed` で足す入口も、同じ作り方にそろえる。値が入る段の書き方がコードで違うとき (`:id`、`<id>`) も、階層と id では `{id}` の形にそろえる
   - 抽出器を `ast` や `listed` で書くときも、id の加工は、`openapi-operations` の `id.replace` の並びを、そのまま写す (値が入る所の `_d`、`_` を 2 つ重ねる、`.` は `-`)。写さないと、`{name}` の段が `name` になり、後で直すと承認が candidate に戻る
@@ -85,6 +85,19 @@ operation (API の操作 1 つ。入口)
 - ストリーミングの method も、入口は method 1 つ。呼び出しの木は、1 回のやり取りの method と同じに書き、ストリームの中で繰り返し送る・受けることは `summary` に書く。種類は、入口の `attributes` (`rpc_kind`) に書く
 - サーバーに掛ける interceptor は、middleware と同じ扱い (`handler` 層の `kind: middleware`)。サーバー全体に掛かるので、どの method の経路にも書く
 - ほかのサービスを gRPC で呼ぶ所は、下の「データの当てはめ」
+
+### GraphQL
+
+- 定義 (SDL) は、名前に頼らずに探す (`type Query` か `schema {` を含むファイル)。`query X {` / `mutation X {` で始まるファイルは、クライアントの問い合わせの文で、定義ではない (フロントエンドやテストのもの)
+- 入口は、根の型 (`Query` / `Mutation` / `Subscription`。`schema { query: … }` で名前が変わっていれば、その型) の field 1 つ。ほかの型の field を解く resolver は、入口にしない (問い合わせで選ばれたときだけ、親の field の後に動く)
+- **入口の見つけ方**: 既にある抽出器は、SDL を読めない。resolver の登録 (Spring for GraphQL の `@QueryMapping` / `@MutationMapping` / `@SubscriptionMapping`、graphql-java の `dataFetcher`、JavaScript の resolver の表 `Query: { … }` など) を `ast` で拾い、SDL の field と、名前で突き合わせる。定義にあって resolver が無い field は、`listed` で足す (分析で「実装が見つからない」になる)。このとき、入口の `source` は resolver の登録の行になる (定義ファイルの行ではない)。SDL の field の行は、分析で、入口のフレームの根拠に足す
+  - 実物で動いた設定 (Java): `rule` は `pattern: "@$KIND $RET $NAME($$$ARGS) { $$$BODY }"` に、`constraints` で `KIND` を `^(Query|Mutation|Subscription)Mapping$` に絞る。`fields.path: "{KIND}/{NAME}"`、`segments.replace` で `QueryMapping` を `query` に (ほかも同じ)、`segments.prefix: "(graphql)"`。注釈に名前を渡す書き方 (`@QueryMapping("x")`) は取れないので、読んで足す
+- HTTP の受け口 (`/graphql`)、WebSocket の受け口、問い合わせを試す画面 (GraphiQL) は、入口にしない
+- 入口から resolver へ: 登録に、field の名前がそのまま書いてあれば `fact`。名前を書かず、メソッドの名前と field の名前が同じことで結び付くときは `interpretation` (`note` に、枠組みの決まりを書く)
+- **型の field の resolver** (`@SchemaMapping`、`@BatchMapping`、型ごとの resolver の表): 入口の resolver が返す型 (更新の操作では、返す入れ物の中の型も) が**直接持つ** field の resolver だけを、入口の resolver のフレームの下に `handler` フレームとして書く (`when: conditional`、条件は「問い合わせが、その field を選んだとき」)。その resolver の、読み書きを持つ最初の段まで書き、**そこから先の、型の field の resolver は辿らない** (`summary` に、さらに選べる型と field を並べる)。実物では、型をたどれる限り辿ると、どの入口にも同じ 6 段が入り、読み書きの 7 割が、その繰り返しになった。値を返すだけの既定の resolver は、フレームにしない
+- まとめて読む仕組み (DataLoader、`@BatchMapping`) は、型の field の resolver と同じ扱い。1 つの問い合わせの中で、親をまとめて 1 回呼ばれることを `note` に書く
+- **subscription**: 入口のフレームから、購読を返す resolver を `handler` にし、流れの元を `adapter` で閉じる。値を流す側 (更新の操作、イベントの受け手) は、その入口の木で書き、`links` (`kind: trigger`) で subscription の入口を指す
+- アプリの中のイベントの受け手 (`@TransactionalEventListener` など) は、入口にしない。受け手をフレームにし、`call` の `condition` に、いつ動くか (transaction の確定の後、など) を書く
 
 ### MCP のツール
 
@@ -144,6 +157,8 @@ operation (API の操作 1 つ。入口)
 - 権限の確認をする middleware、データを読み書きする middleware、外部を呼ぶ middleware を、`handler` 層のフレーム (`kind: middleware`) にする。`caller` は入口のフレーム。handler より前に動くものは、handler より前に書く (入口から辿る順が、動く順になる)
 - 記録や、応答の圧縮のように、読み書きにも確認にも当たらない middleware は、フレームにしない
 - 確認だけをして、読み書きを持たない middleware は、`guards` を持つフレームとして終端にできる (機械チェックは、権限の確認を持つ終端を認める)
+- ログインの確認が、利用者の表を読まずに、トークンの署名だけを確かめる作りでは、middleware のフレームで閉じてよい (検証するライブラリの `external` を 1 つ置いてもよい)
+- メソッドに付いた権限の確認 (`@PreAuthorize`、`@Secured`、`@RolesAllowed` など) は、注釈が付いたメソッドのフレームに `guards` を書く (層は問わない)。根拠は、注釈の行と、それを有効にする設定の行。`value` は、比べる値そのもの (`hasAuthority('SCOPE_MANAGER')` → `SCOPE_MANAGER`。接頭辞を外さない)。`kind` は、役割を表す値なら `role`、それ以外は `permission`
 - 呼び出し元の場所の確認 (Host、Origin、IP の許可) は、`guards` の `kind: other` にし、`value` に、許可の集合を作る式を書く
 - 権限の確認は、確認を実際に行っている段に `guards` で書く。判定する関数と、判定の結果を受けて止める関数が分かれているときは、判定する側に書く。求める権限の名前が、登録の行で渡されているとき (例: `perm("users:manage")`) は、その行も根拠に入れる
   - `value` は、権限の値そのもの (実行時に比べる文字列。例: `users:manage`)。定数の名前で書かれていれば、定義を読んで、値を書く
