@@ -1,70 +1,21 @@
 format_version: 1
 entry_id: websites.websiteId_d.goals
-reviewed_at: "2026-11-17T15:43:55Z"
+reviewed_at: "2026-11-18T19:52:23Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_item
-    resolved: true
-    severity: medium
-    where: callstack/q_update_report/io/0/fields
-    claim: "report の update で、Prisma の @updatedAt が自動で書く updated_at が fields に無い。ほかの入口の結果 (boards.boardId_d.edit、dashboard、settings.websites.websiteId_d) では、update の updated_at を write として書いている"
-    evidence: { file: "prisma/schema.prisma", line: 277 }
-    suggestion: "fields に updated_at (use: write) を足し、note に「Prisma の @updatedAt (prisma/schema.prisma 277 行) が自動で書く」と書く"
-  - kind: missing_frame
-    resolved: true
-    severity: medium
-    where: callstack/use_goal_query
-    claim: "useGoalQuery は id が無いとき goals/stats を呼ぶ (三項の分かれ道) が、この画面の Goal はいつも id を渡すという理由で、GET /api/websites/[websiteId]/goals/stats のフレームを省いている (結果の notes の (11) だけに書いてある)。分析の決まりは、この画面からは条件が成り立たないように見える呼び出しも省かずに conditional のフレームにし、理由を note に書くこと"
-    evidence: { file: "src/components/hooks/queries/useGoalQuery.ts", line: 12 }
-    suggestion: "use_goal_query の下に GET /api/websites/[websiteId]/goals/stats (src/app/api/websites/[websiteId]/goals/stats/route.ts) の conditional のフレームを足し、「Goal は report の id をいつも渡すので、この画面からは呼ばれないように見える」を note に書く"
-  - kind: missing_frame
-    resolved: true
-    severity: low
-    where: callstack/q_can_view_report
-    claim: "canViewReport の最後の canViewWebsite の直接呼び出し (区画が無い種類のとき) を、goal は区画 goals を持つので通らない、として summary で触れるだけでフレームにしていない。分析の決まりでは、この画面から条件が成り立たないように見える呼び出しも conditional のフレームにする"
-    evidence: { file: "src/permissions/report.ts", line: 46 }
-    suggestion: "q_can_view_report の下に canViewWebsite の conditional のフレーム (終端を満たすための書き直し。getWebsite まで) を足し、「report の type は受け口が goal に限るので、getReportSection はいつも goals を返す」を note に書く"
-  - kind: classification_mismatch
-    resolved: true
-    severity: low
-    where: callstack/use_date_range_query/settings/0
-    claim: "API_URL の設定を、API を呼ぶ 11 のフレーム (use_goals_query、use_date_range_query、use_website_segment_query、use_update_query_segment、goal_edit_form_create、use_update_query_create、use_website_values_query、use_goal_query、use_delete_query、use_goal_definition_query、use_update_query_edit) に繰り返し書いている。分析の決まりは、その入口で最初に API を呼ぶフレームに 1 回だけ書くこと。goal_edit_form_create は API を自分では呼ばない部品でもある"
-    evidence: { file: "src/lib/api-url.ts", line: 38 }
-    suggestion: "最初に API を呼ぶ use_goals_query (GoalsPage.tsx 12 行) の settings だけに残し、ほかの 10 フレームの API_URL を消す"
-  - kind: missing_item
-    resolved: true
-    severity: low
-    where: callstack/use_goals_query/settings
-    claim: "BASE_PATH は API の呼び出し先の前に付く設定だが、API_URL の effect の文の中に出るだけで、settings の項目として書いていない (分析の決まりは、BASE_PATH と API_URL を最初に API を呼ぶフレームに 1 回ずつ書くこと)"
-    evidence: { file: "next.config.ts", line: 15 }
-    suggestion: "use_goals_query の settings に BASE_PATH (kind: env。根拠は next.config.ts 15 行と api-url.ts 38・44 行) を足す"
-  - kind: missing_item
-    resolved: true
-    severity: low
-    where: callstack/ext_prisma_goal
-    claim: "生の SQL を実行する rawQuery は、DATABASE_REPLICA_URL が設定されていると複製 (replica) の DB に問い合わせるが、ext_prisma_goal・ext_prisma_values・ext_prisma_daterange のどれにも settings が無い。分析の決まりの綴りの表に DATABASE_REPLICA_URL があり、ほかの入口の結果 (websites.websiteId_d.compare など) は生の SQL の external ごとに書いている"
-    evidence: { file: "src/lib/prisma.ts", line: 738 }
-    suggestion: "ext_prisma_goal・ext_prisma_values・ext_prisma_daterange の settings に DATABASE_REPLICA_URL (kind: env。根拠は prisma.ts 738・55 行) を足す"
   - kind: evidence_mismatch
-    resolved: true
     severity: low
-    where: callstack/api_values/rules/1
-    claim: "「type が segment / cohort なら保存済みのセグメントの名前を返す」の分かれ道は、受け口のスキーマの type (fieldsParam) に segment も cohort も無いので、parseRequest が先に 400 を返し、どの呼び出し元からも届かない。rules/0 の「セグメントの種類」を含む 400 の検証も、実際に先に効くのはスキーマの enum"
-    evidence: { file: "src/lib/schema.ts", line: 127 }
-    suggestion: "rules/1 に「スキーマが segment / cohort を受け付けないので、この分かれ道には届かない」を note で足し、rules/0 の根拠に values/route.ts 14 行と schema.ts 127 行を足す"
-  - kind: missing_item
+    where: callstack/q_get_goal/io/2
+    claim: "PostgreSQL の event_data の読み取りの note は「URL にイベントのプロパティの絞り込みがあるときだけ」とするが、この画面では useFilterParameters が epf の絞り込みを、パスが /events で終わるときだけ付ける (この入口のパスは /goals で終わる) ので、ブラウザから送られず、この入口からは読まれないように見える。入口の summary と q_get_goal の summary の「event_data も読む」も同じ。"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 25 }
+    suggestion: "読み書きは消さずに残し、note に「この画面のパスは /events で終わらないので、useFilterParameters が epf を付けず (useFilterParameters.ts 14・25 行)、segment もイベントのプロパティの絞り込みを足さない (request.ts 133〜137 行) ので、この入口からは読まれないように見える」と書き、入口と q_get_goal の summary の言い方も合わせる。"
     resolved: true
+  - kind: evidence_mismatch
     severity: low
-    where: callstack/api_values/rules
-    claim: "クエリの検証 (withDateRange: startAt と endAt か、startDate と endDate のどちらかの組が無ければ 400。type は fieldsParam の値でなければ 400) が rules に無い"
-    evidence: { file: "src/lib/schema.ts", line: 36 }
-    suggestion: "rules に kind: validation で 1 件足す (根拠は values/route.ts 13・18 行、schema.ts 26・36・127 行、request.ts 33 行)"
-  - kind: missing_item
+    where: callstack/q_get_goal/io/5
+    claim: "ClickHouse の event_data の読み取りも、io/2 と同じ理由で、この画面からはイベントのプロパティの絞り込み (epf) が送られず読まれないように見えるが、note はその理由を書いていない。"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 14 }
+    suggestion: "io/2 と同じく、読み書きは残し、この入口からは読まれないように見える理由を note に書く。"
     resolved: true
-    severity: low
-    where: callstack/q_get_goal/io/2/fields
-    claim: "プロパティの絞り込みの副問い合わせは、どの型でも data_type = <型> で絞るが、event_data と session_data の fields (io/2・io/3・io/5・io/6) に data_type が無い (値を比べる列は型で変わるが、data_type の条件はいつも付く)"
-    evidence: { file: "src/lib/prisma.ts", line: 565 }
-    suggestion: "4 つの io の fields に data_type (use: filter) を足す (根拠は PostgreSQL が prisma.ts 565・691 行、ClickHouse が clickhouse.ts 529・652 行)"
-notes: "根拠の行は、対象のコードで開いて確かめた。上の 9 件のほかは、主張を支えていた。確認の値の綴り (user.isAdmin、PERMISSIONS.websiteUpdate / websiteDelete、canViewWebsite などの関数の名前) と設定の名前は、ほかの入口の結果と同じだった。指摘にしなかったが伝えること: (1) website_filter_button と segment_filter_fields は unknown + not_analyzed で、note に読んだ範囲と止めた理由があり、分析の決まりも打ち切りを禁じていないので指摘にしていない。ただし websites.websiteId_d.compare などは、同じ部品を GET values まで辿っている。入口ごとに扱いが違うので、そろえるかは人が決めてほしい。(2) getValues の PostgreSQL 用には、列がセッションの列のとき session を読む枝 (getValues.ts 53 行) がある。この画面の type は path か event (ActionSelect.tsx 14・15 行) なので通らない。summary で触れているが io には無い。決まりの「省かずに書く」を io にも当てるかは人が決めてほしい。(3) WebsiteControls の ExportButton と MonthFilter は、この画面が allowDownload / allowMonthFilter を渡さないので描かれない。summary で触れるだけでフレームにしていない (compare の結果も同じ扱い)。(4) report.create と segment.create でも、created_at (@default(now())) と updated_at (@updatedAt) が自動で書かれるが、ほかの入口の結果も create では書いていないので、指摘にしていない。(5) 削除の URL を `${type}s` で組み立てるので、call を interpretation にしたのは妥当。(6) q_get_query_filters の segment / cohort のルールは、values の受け口からは届かない (スキーマが segment / cohort を落とす) が、goals/[goalId]/stats の受け口 (filterParams に segment / cohort がある) からは届くので、ルールとしては正しい。(7) funnels の結果のレビューで指摘された「definitionListSchema は orderBy を持たない」は、この結果では正しく直っている (pagingParams に orderBy は無く、sortingParams にある)。"
+notes: "機械チェックは OK (作業定義の profile.dir からプロファイルを読めた)。決まり (analysis-conventions.md) の末尾 2 節に照らして確かめた: GoalsPage で止めて links に embed (target WebsiteControls、entry_id part_p.shared_a.WebsiteControls、status fact、根拠は GoalsPage.tsx 3・21 行) があり、渡す値 (websiteId だけ、ほかは既定) は goals_page の summary に書いてある。WebsiteControls の中を辿っていないのは決まりのとおり。checkAuth は settings に CLOUD_MODE (と REDIS_URL)、rules に API キーの枝の 1 行、その下に getUser がある。canViewWebsite・canUpdateWebsite・canDeleteWebsite は ownership と別に role (user.isAdmin) を 1 件ずつ持つ。API_URL と BASE_PATH は最初に API を呼ぶ use_goals_query に 1 回だけ。target は作業定義と同じ。canViewWebsite の共有トークンの確認を kind other で書く形と、canViewWebsiteSection を kind other で書く形は、ほかの入口 (funnels など) と同じ綴り。values の受け口の下の getQueryFilters の segment / cohort の分かれ道を閉じた呼び出しにし、stats の受け口の下 (q_get_query_filters_rw_stats) に書き直した扱いは、useWebsiteValuesQuery.ts 54〜59 行、values/route.ts 13〜16 行、request.ts 38〜45 行、useFilterParameters.ts 35・36 行、schema.ts 66・67 行で確かめ、妥当と判断した。GoalEditForm の追加のときの useGoalDefinitionQuery は id が無く enabled が false (useSavedDefinitionsQuery.ts 27 行) なので、フレームが無いのは漏れではない。ActionSelect は固定の選択肢だけ、国名・地域名の翻訳の JSON は同じサーバーの静的なファイルなので、書かないのは決まりのとおり。session (PostgreSQL) の join は、セッションの列のほか referrer の絞り込みでも起きる (prisma.ts 298〜301 行) が、note の例示の範囲として指摘にしなかった。"

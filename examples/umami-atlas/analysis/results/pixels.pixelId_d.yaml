@@ -18,7 +18,7 @@ analyzer:
     version: "0.4.0"
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T22:11:48Z"
+  analyzed_at: "2026-11-18T20:43:11Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T15:04:34Z"
@@ -45,7 +45,7 @@ summary:
     line: 33
   - file: "src/app/(main)/pixels/[pixelId]/PixelPage.tsx"
     line: 35
-notes: "(1) この画面のコードは、link の統計の画面 (links.linkId_d) と、名前 (link / pixel) と見出しの 1 行のほかは同じ (ファイルを並べて比べて確かめた。行の位置も同じ)。そこで、同じ対象のコミットで書かれてレビュー済みの、その入口の結果の段を出発点にした。pixel に固有のところ (page、Pixel で始まる部品、PixelProvider、usePixelQuery、GET /api/pixels/[pixelId]、canViewPixel、getPixel) と、link の画面と違うところ (見出しに行き先の URL が無い。useSlug が pixelsUrl / PIXELS_URL を使う。getEntity の下に書く段が getLink になる) は、対象のコードを読んで書き直した。サイト用の共通の部品・受け口・問い合わせの段は、根拠の行を対象のコードの本文と並べて確かめた (認証・権限・絞り込み・セグメント・部品・受け口の段は 1 行ずつ。統計の SQL の段は、行が実在することと、いくつかの段の中身)。getPageviewMetrics は、この入口から渡る type (表の referrer と、ダウンロードの path) に当たらない列を外してある。拡大表示の問い合わせは、type が URL の view から来るので、列を外していない。(2) 同じ処理の置き場は、プロファイルの決まり (入口から、コードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に書く) で決めた。getPixel は page (page.tsx:7) の下。parseRequest → checkAuth と getTeamUser は、最初に着く GET /api/pixels/[pixelId] (PixelProvider → usePixelQuery) の下。useConfig → GET /api/config は PixelHeader (useSlug) の下。canViewWebsiteSection → canViewWebsite → getEntity → getWebsite / getLink / getBoard と、getWebsiteSegments と、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は GET values の下。canViewSharedWebsiteFilters は GET segments (フィルターの小窓の SegmentFilters) の下、PropertyFilters (session) はフィルターの小窓 (FilterEditForm) の下。canViewSharedWebsite は GET daterange の下。canViewAuthenticatedWebsite と getEventMetrics / getPageviewMetrics / getSessionMetrics は、PixelControls の中で PixelPanels より先に着く GET export (ExportButton) の下。canUpdateWebsite は POST segments の下。(3) 呼び先がすべて他の呼び出し元の下に書いた処理で、そのままでは終端になる呼び出し元の下には、決まりどおり、いちばん早い呼び出しを I/O を持つ段まで書き直した (id の末尾が _rw<数字>)。canViewSharedWebsite / canViewSharedWebsiteFilters / canViewAuthenticatedWebsite / canUpdateWebsite の下の getWebsite まで、WorldMap と GET segments/[segmentId] の下の parseRequest → checkAuth まで。書き直した段には、権限の確認・設定・ルールを繰り返していない。external の段までは書いていない。(4) この画面からは条件が成り立たないように見えるが、分析リポジトリの決まりに従い、消さずに conditional のフレームにし、そう見える理由を各フレームの note に書いたもの: グラフの注釈の受け口 (WebsiteChart.tsx:38 の enabled。この画面は showAnnotations を渡さない)、フィルターの小窓のセグメント・コホート・イベントのプロパティ・セッションのプロパティのタブ (FilterEditForm.tsx:37 / :38。パスに /pixels を含み、/events で終わらない)、ExportButton と、その先の GET export (PixelControls.tsx:31。allowDownload を渡さない)、GET values の getWebsiteSegments の枝 (列に segment / cohort が無い)。GET metrics の getEventMetrics (表が event を渡さない) は、先に着く GET export の下に書いた。辿らなかったもの: MonthFilter (PixelControls.tsx:32。URL を変えるだけで API を呼ばない)。checkAuth の API キーの経路 (画面のフックはログインのトークンを付ける)。PixelShareForm と PixelEditForm は、この画面からは描かれない (編集の画面 pixels.pixelId_d.edit が描く)。(5) 迷った点と選んだ扱い。(a) サイト用の API に pixel の id を渡すので、website を id で探す読み取り (fetchWebsite、getEntity の getWebsite、canUpdateWebsite の getWebsite) は、実際には行が当たらないと読める。読み取りそのものは行われるので、I/O は書いた。canUpdateWebsite が pixel を探さないので、管理者でなければセグメントの保存は通らないと読めるが、経路はコードにあるので conditional で書き、その読みは段の summary に書いた。(b) URL の segment / cohort は、この画面の小窓からは選べないが、URL に付いていれば FilterBar と getQueryFilters が読むので、conditional で書いた。(c) ピクセルの URL を新しいタブで開くリンク (PixelHeader.tsx:28) は、入口の一覧に無い行き先 (PIXELS_URL のホスト。既定は同じオリジンの /p/<slug>) なので、links に書かず、PixelHeader の summary と settings (PIXELS_URL) に書いた。(d) Tabs / TabPanel の中の MetricsTable を、タブを選ぶまで描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードの条件だけを見て always にし、note に書いた。(e) guards の値は、分析リポジトリの決まりにそろえた: 管理者は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前。共有トークンだけの確認 (kind: other) も、確認する関数の名前。ログイン済みの確認は checkAuth の 1 か所だけ (canUpdateWebsite の「利用者がいなければ通さない」は、role の note と summary に書いた)。条件の説明は note に書いた。(f) 設定は、読んで使っている段に書いた: API_URL は API を呼ぶフックごと (ただし、レビューの 2 回目の対応で足したフック (useWebsiteAnnotationsQuery、useWebsiteSegmentsQuery、event の usePropertyFieldsQuery / usePropertyValuesQuery) には、analysis-conventions.md の「その入口で最初に API を呼ぶフレームに 1 回だけ書く」に従って書いていない)、CLICKHOUSE_URL は runQuery を呼ぶ問い合わせの関数ごと、DATABASE_REPLICA_URL は生の SQL を実行する external ごと、REDIS_URL は checkAuth と fetchWebsite、CLOUD_MODE は checkAuth と getQueryFilters、PRIVATE_MODE と FAVICON_URL は Favicon、PIXELS_URL は PixelHeader。DATABASE_URL は、決まりどおり書いていない。(g) useConfig → GET /api/config → Response.json を段にした。PixelHeader が links と settings を持つ段で、その呼び先はこの経路だけなので、段を外すと PixelHeader が終端になり、終端の決まりを満たせない。データに届かない経路の閉じ方 (最後に頼るライブラリを external として 1 つ書く) に従った。(h) getValues の、type で決まる列は、この画面で選べる列 (useFields の一覧。フィルターの小窓は一部を外すが、セグメントの保存のフォームの FieldFilters は外さない) に当たるものを fields に書いた (PostgreSQL の session にはセッションの列、website_event にはイベントの列、ClickHouse の website_event には両方)。q_session_metrics / q_pageview_metrics と同じ扱い。(i) getSessionMetrics と getPageviewMetrics は、置き場の決まりで GET export の下に移したので、fields は、ダウンロードの受け口が渡す type (path / referrer、browser / os / device / country) と、この画面の表と地図が渡す type を合わせた列にした。(6) レビューへの対応 (1 回。high 0 件、medium 0 件、low 4 件)。4 件とも直した。1 回目の対応で 2 件: pixel の id では website が当たらないという読みを、fetchAccount・website:* への set・share の読み取りの call の note と、getQueryFilters の CLOUD_MODE の effect に書いた。Redis の auth:* と account:* の fields を、ほかの入口の結果と同じ項目の名前 (userId / pwd、hasSubscription) にした。2 回目の対応で 2 件 (analysis-conventions.md の「条件が成り立たないように見える呼び出しも、省かずに conditional のフレームにする」に従った): グラフの注釈 (useWebsiteAnnotationsQuery → GET annotations → getWebsiteAnnotations)、ExportButton → GET export (canViewAuthenticatedWebsite と、getEventMetrics を含む 3 つの集計)、GET values の getWebsiteSegments、フィルターの小窓の SegmentFilters (→ GET segments) と PropertyFilters (event → event-data/fields・values、session) を conditional のフレームにした。それに伴い、置き場の決まりで canViewSharedWebsiteFilters を GET segments の下へ、PropertyFilters (session) を FilterEditForm の下へ、getSessionMetrics / getPageviewMetrics を GET export の下へ移し、終端になった GET segments/[segmentId] の下に parseRequest → checkAuth を書き直した。getValues の、type で決まる列を fields に書いた ((5)(h))。"
+notes: "(1) この画面のコードは、link の統計の画面 (links.linkId_d) と、名前 (link / pixel) と見出しの 1 行のほかは同じ (ファイルを並べて比べて確かめた。行の位置も同じ)。そこで、同じ対象のコミットで書かれてレビュー済みの、その入口の結果の段を出発点にした。pixel に固有のところ (page、Pixel で始まる部品、PixelProvider、usePixelQuery、GET /api/pixels/[pixelId]、canViewPixel、getPixel) と、link の画面と違うところ (見出しに行き先の URL が無い。useSlug が pixelsUrl / PIXELS_URL を使う。getEntity の下に書く段が getLink になる) は、対象のコードを読んで書き直した。サイト用の共通の部品・受け口・問い合わせの段は、根拠の行を対象のコードの本文と並べて確かめた (認証・権限・絞り込み・セグメント・部品・受け口の段は 1 行ずつ。統計の SQL の段は、行が実在することと、いくつかの段の中身)。getPageviewMetrics は、この入口から渡る type (表の referrer と、ダウンロードの path) に当たらない列を外してある。拡大表示の問い合わせは、type が URL の view から来るので、列を外していない。(2) 同じ処理の置き場は、プロファイルの決まり (入口から、コードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に書く) で決めた。getPixel は page (page.tsx:7) の下。parseRequest → checkAuth と getTeamUser は、最初に着く GET /api/pixels/[pixelId] (PixelProvider → usePixelQuery) の下。useConfig → GET /api/config は PixelHeader (useSlug) の下。canViewWebsiteSection → canViewWebsite → getEntity → getWebsite / getLink / getBoard と、getWebsiteSegments と、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は GET values の下。canViewSharedWebsiteFilters は GET segments (フィルターの小窓の SegmentFilters) の下、PropertyFilters (session) はフィルターの小窓 (FilterEditForm) の下。canViewSharedWebsite は GET daterange の下。canViewAuthenticatedWebsite と getEventMetrics / getPageviewMetrics / getSessionMetrics は、PixelControls の中で PixelPanels より先に着く GET export (ExportButton) の下。canUpdateWebsite は POST segments の下。(3) 呼び先がすべて他の呼び出し元の下に書いた処理で、そのままでは終端になる呼び出し元の下には、決まりどおり、いちばん早い呼び出しを I/O を持つ段まで書き直した (id の末尾が _rw<数字>)。canViewSharedWebsite / canViewSharedWebsiteFilters / canViewAuthenticatedWebsite / canUpdateWebsite の下の getWebsite まで、WorldMap と GET segments/[segmentId] の下の parseRequest → checkAuth まで。書き直した段には、権限の確認・設定・ルールを繰り返していない。external の段までは書いていない。(4) この画面からは条件が成り立たないように見えるが、分析リポジトリの決まりに従い、消さずに conditional のフレームにし、そう見える理由を各フレームの note に書いたもの: グラフの注釈の受け口 (WebsiteChart.tsx:38 の enabled。この画面は showAnnotations を渡さない)、フィルターの小窓のセグメント・コホート・イベントのプロパティ・セッションのプロパティのタブ (FilterEditForm.tsx:37 / :38。パスに /pixels を含み、/events で終わらない)、ExportButton と、その先の GET export (PixelControls.tsx:31。allowDownload を渡さない)、GET values の getWebsiteSegments の枝 (列に segment / cohort が無い)。GET metrics の getEventMetrics (表が event を渡さない) は、先に着く GET export の下に書いた。辿らなかったもの: MonthFilter (PixelControls.tsx:32。URL を変えるだけで API を呼ばない)。checkAuth の API キーの経路 (画面のフックはログインのトークンを付ける)。PixelShareForm と PixelEditForm は、この画面からは描かれない (編集の画面 pixels.pixelId_d.edit が描く)。(5) 迷った点と選んだ扱い。(a) サイト用の API に pixel の id を渡すので、website を id で探す読み取り (fetchWebsite、getEntity の getWebsite、canUpdateWebsite の getWebsite) は、実際には行が当たらないと読める。読み取りそのものは行われるので、I/O は書いた。canUpdateWebsite が pixel を探さないので、管理者でなければセグメントの保存は通らないと読めるが、経路はコードにあるので conditional で書き、その読みは段の summary に書いた。(b) URL の segment / cohort は、この画面の小窓からは選べないが、URL に付いていれば FilterBar と getQueryFilters が読むので、conditional で書いた。(c) ピクセルの URL を新しいタブで開くリンク (PixelHeader.tsx:28) は、入口の一覧に無い行き先 (PIXELS_URL のホスト。既定は同じオリジンの /p/<slug>) なので、links に書かず、PixelHeader の summary と settings (PIXELS_URL) に書いた。(d) Tabs / TabPanel の中の MetricsTable を、タブを選ぶまで描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。コードの条件だけを見て always にし、note に書いた。(e) guards の値は、分析リポジトリの決まりにそろえた: 管理者は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前。共有トークンだけの確認 (kind: other) も、確認する関数の名前。ログイン済みの確認は checkAuth の 1 か所だけ (canUpdateWebsite の「利用者がいなければ通さない」は、role の note と summary に書いた)。条件の説明は note に書いた。(f) 設定は、読んで使っている段に書いた: API_URL は API を呼ぶフックごと (ただし、レビューの 2 回目の対応で足したフック (useWebsiteAnnotationsQuery、useWebsiteSegmentsQuery、event の usePropertyFieldsQuery / usePropertyValuesQuery) には、analysis-conventions.md の「その入口で最初に API を呼ぶフレームに 1 回だけ書く」に従って書いていない)、CLICKHOUSE_URL は runQuery を呼ぶ問い合わせの関数ごと、DATABASE_REPLICA_URL は生の SQL を実行する external ごと、REDIS_URL は checkAuth と fetchWebsite、CLOUD_MODE は checkAuth と getQueryFilters、PRIVATE_MODE と FAVICON_URL は Favicon、PIXELS_URL は PixelHeader。DATABASE_URL は、決まりどおり書いていない。(g) useConfig → GET /api/config → Response.json を段にした。PixelHeader が links と settings を持つ段で、その呼び先はこの経路だけなので、段を外すと PixelHeader が終端になり、終端の決まりを満たせない。データに届かない経路の閉じ方 (最後に頼るライブラリを external として 1 つ書く) に従った。(h) getValues の、type で決まる列は、この画面で選べる列 (useFields の一覧。フィルターの小窓は一部を外すが、セグメントの保存のフォームの FieldFilters は外さない) に当たるものを fields に書いた (PostgreSQL の session にはセッションの列、website_event にはイベントの列、ClickHouse の website_event には両方)。q_session_metrics / q_pageview_metrics と同じ扱い。(i) getSessionMetrics と getPageviewMetrics は、置き場の決まりで GET export の下に移したので、fields は、ダウンロードの受け口が渡す type (path / referrer、browser / os / device / country) と、この画面の表と地図が渡す type を合わせた列にした。(6) レビューへの対応 (1 回。high 0 件、medium 0 件、low 4 件)。4 件とも直した。1 回目の対応で 2 件: pixel の id では website が当たらないという読みを、fetchAccount・website:* への set・share の読み取りの call の note と、getQueryFilters の CLOUD_MODE の effect に書いた。Redis の auth:* と account:* の fields を、ほかの入口の結果と同じ項目の名前 (userId / pwd、hasSubscription) にした。2 回目の対応で 2 件 (analysis-conventions.md の「条件が成り立たないように見える呼び出しも、省かずに conditional のフレームにする」に従った): グラフの注釈 (useWebsiteAnnotationsQuery → GET annotations → getWebsiteAnnotations)、ExportButton → GET export (canViewAuthenticatedWebsite と、getEventMetrics を含む 3 つの集計)、GET values の getWebsiteSegments、フィルターの小窓の SegmentFilters (→ GET segments) と PropertyFilters (event → event-data/fields・values、session) を conditional のフレームにした。それに伴い、置き場の決まりで canViewSharedWebsiteFilters を GET segments の下へ、PropertyFilters (session) を FilterEditForm の下へ、getSessionMetrics / getPageviewMetrics を GET export の下へ移し、終端になった GET segments/[segmentId] の下に parseRequest → checkAuth を書き直した。getValues の、type で決まる列を fields に書いた ((5)(h))。 共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。"
 callstack:
 - id: "page"
   layer: "page"
@@ -442,6 +442,27 @@ callstack:
       line: 129
     - file: "src/lib/auth.ts"
       line: 174
+  - kind: "validation"
+    value: "API キーの形のトークン (umami_ で始まる) は、CLOUD_MODE が設定されていなければ、API キーとして照合する経路 (checkApiKeyAuth) に回す (/api/auth、/api/2fa、/api/users、/api/admin などのパスでは、API キーを受け付けない)。この画面のフックはログインのトークンを付けるので、この経路は通らない"
+    status: "interpretation"
+    evidence:
+    - file: "src/lib/auth.ts"
+      line: 74
+    - file: "src/lib/auth.ts"
+      line: 75
+    - file: "src/lib/auth.ts"
+      line: 35
+    - file: "src/lib/api-key.ts"
+      line: 4
+    - file: "src/lib/api-key.ts"
+      line: 11
+    - file: "src/lib/api-key.ts"
+      line: 33
+    - file: "src/lib/api-key.ts"
+      line: 41
+    - file: "src/lib/client.ts"
+      line: 4
+    note: "分析リポジトリの決まり (API キーの枝はフレームにせず、checkAuth の rules に 1 行書く) による。この画面の受け口 (/api/pixels/...、/api/websites/...) は API キーを断るパスに当たらないので、API キーを付けて直接呼べば、この経路に届く"
 - id: "q_get_user"
   layer: "query"
   kind: "function"
@@ -1058,22 +1079,6 @@ callstack:
       line: 54
     - file: "src/components/hooks/queries/useWebsiteValuesQuery.ts"
       line: 58
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
   rules:
   - kind: "calculation"
     value: "列が country / region のときは、検索語を名前に含む国・地域のコード (最大 5 件) に置き換えて送る。当たるものが無ければ検索語のまま送る"
@@ -3602,22 +3607,6 @@ callstack:
       line: 27
     - file: "src/components/hooks/queries/usePropertyFieldsQuery.ts"
       line: 37
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_session_data_properties"
   layer: "api_route"
   kind: "route_handler"
@@ -4043,22 +4032,6 @@ callstack:
       line: 51
     - file: "src/components/hooks/queries/usePropertyValuesQuery.ts"
       line: 54
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_session_data_values"
   layer: "api_route"
   kind: "route_handler"
@@ -4506,22 +4479,6 @@ callstack:
       line: 20
     - file: "src/components/hooks/queries/useDateRangeQuery.ts"
       line: 21
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_daterange"
   layer: "api_route"
   kind: "route_handler"
@@ -6365,22 +6322,6 @@ callstack:
       line: 16
     - file: "src/components/hooks/queries/useWebsiteSegmentQuery.ts"
       line: 17
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_segment_get"
   layer: "api_route"
   kind: "route_handler"
@@ -6547,22 +6488,6 @@ callstack:
       line: 44
     - file: "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx"
       line: 46
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_segment_create"
   layer: "api_route"
   kind: "route_handler"
@@ -6893,22 +6818,6 @@ callstack:
       line: 29
     - file: "src/components/hooks/queries/useWebsiteStatsQuery.ts"
       line: 31
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_stats"
   layer: "api_route"
   kind: "route_handler"
@@ -7616,22 +7525,6 @@ callstack:
       line: 19
     - file: "src/components/hooks/queries/useWebsitePageviewsQuery.ts"
       line: 25
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_pageviews"
   layer: "api_route"
   kind: "route_handler"
@@ -8499,22 +8392,6 @@ callstack:
       line: 33
     - file: "src/components/hooks/queries/useWebsiteMetricsQuery.ts"
       line: 39
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_metrics"
   layer: "api_route"
   kind: "route_handler"
@@ -9411,22 +9288,6 @@ callstack:
       line: 37
     - file: "src/components/hooks/queries/useWebsiteExpandedMetricsQuery.ts"
       line: 43
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "interpretation"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_metrics_expanded"
   layer: "api_route"
   kind: "route_handler"

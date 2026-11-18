@@ -14,7 +14,7 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T21:58:38Z"
+  analyzed_at: "2026-11-18T19:45:29Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T11:39:59Z"
@@ -35,7 +35,7 @@ summary:
     - { file: "src/app/api/websites/[websiteId]/route.ts", line: 121 }
     - { file: "src/app/api/websites/[websiteId]/route.ts", line: 125 }
     - { file: src/queries/prisma/website.ts, line: 236 }
-notes: "(1) 画面を包む枠 (ルート、(main)、admin の layout) の処理 (ログインの確認、管理者でなければ描かない、CLOUD_MODE では描かない) は、枠の入口の結果にあるので、ここでは辿っていない。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた: parseRequest → checkAuth → getUser は GET /api/admin/websites の下。DELETE /api/websites/[websiteId] も parseRequest を呼ぶが、ほかの呼び先 (canDeleteWebsite、deleteWebsite) があり終端にならないので、書き直していない。(3) 管理者の確認 canViewAllWebsites (src/permissions/website.ts:116) は、user.isAdmin を返すだけで、データにもライブラリにも届かない。フレームにすると終端の決まりを満たせないので、フレームにせず、確認は、それを呼ぶ受け口 (api_admin_websites_get) に書いた。指示書は、設定とルールについて「段になっていない補助の関数にあるときは、それを呼ぶ段に書く」と決めているが、権限の確認については決めていない。同じ考え方を当てはめた。(4) canDeleteWebsite の、管理者でないときの枝 (getWebsite と getTeamUser) は、消さずに conditional で書いた。この画面は、admin の枠が管理者にだけ描く (AdminLayout.tsx:9) ので、画面からの呼び出しでは管理者の早い return で終わると読めるが、受け口そのものは管理者でなくても呼べる。(5) deleteWebsite の CLOUD_MODE の枝 (website の update と、Redis の website:* の削除) も、消さずに書いた。admin の枠は、ビルド時に埋め込んだ process.env.cloudMode があると何も描かない (src/app/(main)/admin/layout.tsx:5) ので、この画面からは届かないと読めるが、サーバーの側は実行時の process.env.CLOUD_MODE を見るので、指示書の「条件が成り立たないように見える呼び出しは、消さずに conditional で書く」に従った。(6) checkAuth の API キーの枝 (auth.ts:74) は、辿っていない。ブラウザが付けるのは localStorage のログイントークン (src/lib/client.ts:5) で、/api/admin は API キーを受け付けないパスでもある (src/lib/api-key.ts:17)。設定 (CLOUD_MODE) とルールにだけ書いた。(7) フレームにしなかったもの: DataGrid (検索の欄、表示の切り替え、ページ送り。URL のクエリを書き換えるだけで、表示の切り替えは localStorage に残す)、usePagedQuery (URL のクエリの page / search / orderBy / sortDescending を queryFn に渡す小道具)、SortableLabel (並べ替えのクエリを書き換える)、TypeConfirmationForm (確認の入力欄)、PageHeader / Panel / Link / MenuButton (見た目の部品)、useApi と getApiUrl (URL とヘッダーを組み立てる小道具)。検索・並べ替え・ページ送りの router.push は、同じ画面のクエリを替えるだけなので、links に書いていない。(8) リンクの行き先 /admin/websites/${row.id} は、名前の欄 (AdminWebsitesTable.tsx:25) と編集のメニュー (同 :69。こちらは `/admin/websites/${id}` と書いてあり、id は row.id を取り出したもの) の 2 か所にある。同じ行き先なので、1 件にまとめた。(9) 削除の小窓 (WebsiteDeleteForm) は、JSX ではいつも書いてあるが、Modal が isOpen のときだけ中身を描くと読んで conditional にした (Modal は @umami/react-zen の部品で、ソースは範囲に無い)。(10) deleteWebsite の中のライブラリの呼び出しは 15 か所ある。external のフレームは 1 つにまとめ (source は、ほかの入口の結果に合わせて、トランザクションの中で最初に呼ぶ行 website.ts:21)、Redis の削除だけ分けた。(11) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(12) DATABASE_URL (getSchema が schema の名前を読む。website.ts:43) は、決まりどおり settings に書いていない。Link の prefetch を変える CLOUD_MODE (src/components/common/Link.tsx:5) は、処理の流れも読み書きの相手も変えないので、書いていない。(13) レビューの指摘 2 件のうち、low の 1 件 (検索が大文字と小文字を区別しないことの根拠の行) は直した。medium の 1 件 (checkAuth の API キーの枝に、フレームも api_key の読み書きも無い) は、直していない。理由: analysis-conventions.md の木の書き方が「checkAuth の中の API キーの枝は、フレームにしない (ブラウザが付けるのはログインのトークン)。checkAuth の rules に 1 行書く」と決めていて、q_check_auth の rules にその 1 行 (API キーを使えないパス) がある。レビューが添えた、トランザクションの external のフレームの source の違いは、ほかの入口に合わせて直した"
+notes: "(1) 画面を包む枠 (ルート、(main)、admin の layout) の処理 (ログインの確認、管理者でなければ描かない、CLOUD_MODE では描かない) は、枠の入口の結果にあるので、ここでは辿っていない。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた: parseRequest → checkAuth → getUser は GET /api/admin/websites の下。DELETE /api/websites/[websiteId] も parseRequest を呼ぶが、ほかの呼び先 (canDeleteWebsite、deleteWebsite) があり終端にならないので、書き直していない。(3) 管理者の確認 canViewAllWebsites (src/permissions/website.ts:116) は、user.isAdmin を返すだけで、データにもライブラリにも届かない。フレームにすると終端の決まりを満たせないので、フレームにせず、確認は、それを呼ぶ受け口 (api_admin_websites_get) に書いた。指示書は、設定とルールについて「段になっていない補助の関数にあるときは、それを呼ぶ段に書く」と決めているが、権限の確認については決めていない。同じ考え方を当てはめた。(4) canDeleteWebsite の、管理者でないときの枝 (getWebsite と getTeamUser) は、消さずに conditional で書いた。この画面は、admin の枠が管理者にだけ描く (AdminLayout.tsx:9) ので、画面からの呼び出しでは管理者の早い return で終わると読めるが、受け口そのものは管理者でなくても呼べる。(5) deleteWebsite の CLOUD_MODE の枝 (website の update と、Redis の website:* の削除) も、消さずに書いた。admin の枠は、ビルド時に埋め込んだ process.env.cloudMode があると何も描かない (src/app/(main)/admin/layout.tsx:5) ので、この画面からは届かないと読めるが、サーバーの側は実行時の process.env.CLOUD_MODE を見るので、指示書の「条件が成り立たないように見える呼び出しは、消さずに conditional で書く」に従った。(6) checkAuth の API キーの枝 (auth.ts:74) は、辿っていない。ブラウザが付けるのは localStorage のログイントークン (src/lib/client.ts:5) で、/api/admin は API キーを受け付けないパスでもある (src/lib/api-key.ts:17)。設定 (CLOUD_MODE) とルールにだけ書いた。(7) フレームにしなかったもの: DataGrid (検索の欄、表示の切り替え、ページ送り。URL のクエリを書き換えるだけで、表示の切り替えは localStorage に残す)、usePagedQuery (URL のクエリの page / search / orderBy / sortDescending を queryFn に渡す小道具)、SortableLabel (並べ替えのクエリを書き換える)、TypeConfirmationForm (確認の入力欄)、PageHeader / Panel / Link / MenuButton (見た目の部品)、useApi と getApiUrl (URL とヘッダーを組み立てる小道具)。検索・並べ替え・ページ送りの router.push は、同じ画面のクエリを替えるだけなので、links に書いていない。(8) リンクの行き先 /admin/websites/${row.id} は、名前の欄 (AdminWebsitesTable.tsx:25) と編集のメニュー (同 :69。こちらは `/admin/websites/${id}` と書いてあり、id は row.id を取り出したもの) の 2 か所にある。同じ行き先なので、1 件にまとめた。(9) 削除の小窓 (WebsiteDeleteForm) は、JSX ではいつも書いてあるが、Modal が isOpen のときだけ中身を描くと読んで conditional にした (Modal は @umami/react-zen の部品で、ソースは範囲に無い)。(10) deleteWebsite の中のライブラリの呼び出しは 15 か所ある。external のフレームは 1 つにまとめ (source は、ほかの入口の結果に合わせて、トランザクションの中で最初に呼ぶ行 website.ts:21)、Redis の削除だけ分けた。(11) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(12) DATABASE_URL (getSchema が schema の名前を読む。website.ts:43) は、決まりどおり settings に書いていない。Link の prefetch を変える CLOUD_MODE (src/components/common/Link.tsx:5) は、処理の流れも読み書きの相手も変えないので、書いていない。(13) レビューの指摘 2 件のうち、low の 1 件 (検索が大文字と小文字を区別しないことの根拠の行) は直した。medium の 1 件 (checkAuth の API キーの枝に、フレームも api_key の読み書きも無い) は、直していない。理由: analysis-conventions.md の木の書き方が「checkAuth の中の API キーの枝は、フレームにしない (ブラウザが付けるのはログインのトークン)。checkAuth の rules に 1 行書く」と決めていて、q_check_auth の rules にその 1 行 (API キーを使えないパス) がある。レビューが添えた、トランザクションの external のフレームの source の違いは、ほかの入口に合わせて直した。(14) 共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: page
@@ -696,25 +696,6 @@ callstack:
         - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
         - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 9 }
         - { file: src/components/hooks/useApi.ts, line: 63 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "あれば、API の呼び先が basePath + /api ではなく、この URL (相対なら basePath の下) になる"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_website_delete
     layer: api_route

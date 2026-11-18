@@ -14,12 +14,12 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T22:01:12Z"
+  analyzed_at: "2026-11-18T20:38:20Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T14:58:33Z"
     findings_open: 1
-notes: "迷った点と選んだ扱い: (1) LogoutPage は useApi の post を直接呼ぶ (API を呼ぶ専用のフックをはさまない) ので、POST /api/auth/logout の受け口は LogoutPage の下に書いた。useApi は URL とヘッダーを組み立てるだけの小道具としてフレームにしていない (login の結果と同じ扱い)。(2) LogoutPage は、API を呼ぶ前に localStorage のトークンを消すが (LogoutPage.tsx:19)、authorization ヘッダーは描画のときに useApi が組み立て済み (useApi.ts:28) なので、消す前のトークンが送られると読んだ (interpretation として summary に書いた)。(3) /login への移動は、await post の後ろにあり (LogoutPage.tsx:14、16)、API が失敗すると (トークンが無い・無効で 401 など) post が reject して移動の行に届かない。links の note に書いた。(4) call.when: POST /api/auth/logout は、描画の後の useEffect で必ず呼ぶので always。parseRequest → checkAuth は if の中にあるが、この受け口は schema も options も渡さないので always (note に理由)。Redis の del は、設定 (REDIS_URL) と authKey の有無で決まるので conditional。(5) checkAuth の guards / settings / rules と、その先の getUser・Redis の get は、login の結果 (POST /api/auth/verify の下) と同じ綴りで書いた。この入口の中では checkAuth に着く呼び出し元は 1 つだけ。(6) 設定: REDIS_URL は、受け口 (del をするかどうか) と checkAuth (セッションを Redis から読むかどうか) の両方に書いた。BASE_PATH は、API の URL と /login への移動先の両方に効くので LogoutPage に書いた。API_URL は /auth で始まる URL には使われない (api-url.ts:6、39) ので書いていない。APP_SECRET と DATABASE_URL は、分析リポジトリの決まりのとおり書いていない。(7) localStorage のトークンの削除と、ブラウザのストアの user を null にする処理は、ブラウザの中の保存なので I/O に書かず、summary に書いた。(8) Redis が無効のときは、サーバー側で消すものが無く (署名付きトークンは無効にならない)、ブラウザのトークンを消すだけになる。業務のルールというより設定による分かれ道なので、rules ではなく settings (REDIS_URL) と summary に書いた。(9) KVS の auth:* の削除は、キーをまるごと消すので fields は * (write)。作業定義に analysis.tests が無いので、tests は書いていない。直さなかったレビューの指摘 (low): (a) checkAuth が読む Redis の auth:* の項目が、ほかの 7 つの入口では * になっている件。この結果の書き方 (userId / role / pwd) は分析の指示書の決まり (値の中の項目がコードから読めれば、項目の名前を書く) に合い、login の結果とも同じ綴り。そろえるなら相手の側で、ほかの入口のファイルはこの作業では書き換えられないので、そのままにした (レビューも、この結果は直さなくてよいとしている)。直したレビューの指摘: (b) checkAuth の共有トークンの検証 (共有のヘッダーが無ければ拒否、type が share のトークンだけ受け付ける) を、checkAuth の rules に validation 2 つとして足した (綴りは、同じ checkAuth を書いたほかの入口にそろえた)"
+notes: "迷った点と選んだ扱い: (1) LogoutPage は useApi の post を直接呼ぶ (API を呼ぶ専用のフックをはさまない) ので、POST /api/auth/logout の受け口は LogoutPage の下に書いた。useApi は URL とヘッダーを組み立てるだけの小道具としてフレームにしていない (login の結果と同じ扱い)。(2) LogoutPage は、API を呼ぶ前に localStorage のトークンを消すが (LogoutPage.tsx:19)、authorization ヘッダーは描画のときに useApi が組み立て済み (useApi.ts:28) なので、消す前のトークンが送られると読んだ (interpretation として summary に書いた)。(3) /login への移動は、await post の後ろにあり (LogoutPage.tsx:14、16)、API が失敗すると (トークンが無い・無効で 401 など) post が reject して移動の行に届かない。links の note に書いた。(4) call.when: POST /api/auth/logout は、描画の後の useEffect で必ず呼ぶので always。parseRequest → checkAuth は if の中にあるが、この受け口は schema も options も渡さないので always (note に理由)。Redis の del は、設定 (REDIS_URL) と authKey の有無で決まるので conditional。(5) checkAuth の guards / settings / rules と、その先の getUser・Redis の get は、login の結果 (POST /api/auth/verify の下) と同じ綴りで書いた。この入口の中では checkAuth に着く呼び出し元は 1 つだけ。(6) 設定: REDIS_URL は、受け口 (del をするかどうか) と checkAuth (セッションを Redis から読むかどうか) の両方に書いた。BASE_PATH は、API の URL と /login への移動先の両方に効くので LogoutPage に書いた。API_URL は /auth で始まる URL には使われない (api-url.ts:6、39) ので書いていない。APP_SECRET と DATABASE_URL は、分析リポジトリの決まりのとおり書いていない。(7) localStorage のトークンの削除と、ブラウザのストアの user を null にする処理は、ブラウザの中の保存なので I/O に書かず、summary に書いた。(8) Redis が無効のときは、サーバー側で消すものが無く (署名付きトークンは無効にならない)、ブラウザのトークンを消すだけになる。業務のルールというより設定による分かれ道なので、rules ではなく settings (REDIS_URL) と summary に書いた。(9) KVS の auth:* の削除は、キーをまるごと消すので fields は * (write)。作業定義に analysis.tests が無いので、tests は書いていない。直さなかったレビューの指摘 (low): (a) checkAuth が読む Redis の auth:* の項目が、ほかの 7 つの入口では * になっている件。この結果の書き方 (userId / role / pwd) は分析の指示書の決まり (値の中の項目がコードから読めれば、項目の名前を書く) に合い、login の結果とも同じ綴り。そろえるなら相手の側で、ほかの入口のファイルはこの作業では書き換えられないので、そのままにした (レビューも、この結果は直さなくてよいとしている)。直したレビューの指摘: (b) checkAuth の共有トークンの検証 (共有のヘッダーが無ければ拒否、type が share のトークンだけ受け付ける) を、checkAuth の rules に validation 2 つとして足した (綴りは、同じ checkAuth を書いたほかの入口にそろえた)。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ"
 summary:
   status: interpretation
   value: "ログアウトする画面。何も描かず、表示されるとすぐに、ブラウザの localStorage のログイントークンを消し、ストアの user を null にして、POST /api/auth/logout を呼ぶ (authorization ヘッダーは、消す前のトークンで組み立て済み)。受け口は、トークンを検査し (user を読み、Redis が有効でトークンに authKey があれば Redis の auth:* キーからセッションを読む)、認証できなければ 401、できれば Redis が有効で authKey があるときだけ auth:* キーを消して ok を返す。Redis が無効なら、サーバー側で消すものは無い。API が成功すると /login へ移る。環境変数 DISABLE_LOGIN か CLOUD_MODE があれば page は何も描かず、API も呼ばない"
@@ -281,6 +281,17 @@ callstack:
         evidence:
           - { file: src/lib/auth.ts, line: 137 }
           - { file: src/lib/constants.ts, line: 175 }
+      - kind: decision
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/auth.ts, line: 75 }
+          - { file: src/lib/api-key.ts, line: 4 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 33 }
+          - { file: src/lib/auth.ts, line: 35 }
+        note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この受け口のパス (/api/auth/logout) は API キーを使えないパスなので、API キーを付けても null が返り、401 になる。この画面のブラウザはログイントークンを付ける (useApi.ts:28、client.ts:4)"
     io:
       - op: get
         status: fact

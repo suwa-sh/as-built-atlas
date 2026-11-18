@@ -38,7 +38,7 @@ def test_entry_list_is_valid_and_wraps_every_page():
     assert validate_work_definition(work) == [] and validate_entry_list(el, PROFILE) == []
     assert el["target"] == work["target"] and el["profile"] == {"id": "ui-nextjs", "version": PROFILE["version"]}
     layers = [e["layer"] for e in el["entries"]]
-    assert (layers.count("page"), layers.count("layout"), layers.count("part")) == (60, 6, 16) and {e["status"] for e in el["entries"]} == {"approved"}
+    assert (layers.count("page"), layers.count("layout"), layers.count("part")) == (60, 6, 17) and {e["status"] for e in el["entries"]} == {"approved"}
     by_id = {e["id"]: e for e in el["entries"]}
     assert all(e["within"][0] == "layout_l" for e in el["entries"] if e["layer"] == "page"), "どの画面も、いちばん外の枠を通る"
     assert "within" not in by_id["layout_l"]
@@ -48,7 +48,7 @@ def test_entry_list_is_valid_and_wraps_every_page():
 def test_results_and_reviews_pass_checks_that_need_no_target():
     el, results = _load(AN / "entry-list.yaml"), _results()
     by_id = {e["id"]: e for e in el["entries"]}
-    assert len(results) == len(by_id) == 82  # 入口はすべて分析済み (画面 60 + 枠 6 + 部品 16)
+    assert len(results) == len(by_id) == 83  # 入口はすべて分析済み (画面 60 + 枠 6 + 部品 17)
     layouts = {i for i, r in results.items() if r["entry"]["layer"] == "layout"}
     assert layouts == {i for i, e in by_id.items() if e["layer"] == "layout"}, "枠は 6 つとも分析済み"
     for eid, r in results.items():
@@ -142,10 +142,22 @@ def built(tmp_path_factory) -> Path:
 
 def test_marts_show_pages_and_the_layouts_that_wrap_them(built: Path):
     with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
-        assert con.execute("select count(*), sum(analyzed::int) from mart.mart_entry_overview").fetchone() == (82, 82)
+        assert con.execute("select count(*), sum(analyzed::int) from mart.mart_entry_overview").fetchone() == (83, 83)
         # 部品を描く画面から、部品の入口へのつながり (embed) が、入口どうしのつながりの表に出る
         embeds = con.execute("select path, count(*) from mart.mart_entry_links where kind = 'embed' and resolved group by path order by path").fetchall()
-        assert dict(embeds)["/boards/[boardId]"] == 16 and {p for p, _ in embeds} >= {"/dashboard", "/dashboard/edit", "/boards/[boardId]/design", "/share/[slug]/[[...path]]"}, embeds
+        assert dict(embeds)["/boards/[boardId]"] == 17 and dict(embeds)["/websites/[websiteId]/events"] == 1 and {p for p, _ in embeds} >= {"/dashboard", "/dashboard/edit", "/boards/[boardId]/design", "/share/[slug]/[[...path]]"}, embeds
+        # 分けた部品 (WebsiteControls) は、描く側の木から消えるので、別の入口に分ける候補に出ない。分けていない部品 (PixelControls) は、出る
+        candidates = {n for (n,) in con.execute("select name from mart.mart_split_candidates where layer = 'component'").fetchall()}
+        assert "WebsiteControls" not in candidates and "PixelControls" in candidates, sorted(candidates)[:20]
+        rows = con.execute("select entry_count, frames_each, repeated_frames from mart.mart_split_candidates").fetchall()
+        assert all(n >= 3 and each >= 10 and n - 1 <= rep <= each * (n - 1) for n, each, rep in rows), "3 件以上の入口、10 以上の段。繰り返しの段は、1 回分を引いた数"
+        assert [r[2] for r in rows] == sorted((r[2] for r in rows), reverse=True), "繰り返されている段の多い順"
+        # 下の段の数は、同じ入口の中で、もう一度書いたフレームを除いた数 (入口の段の数を超えない)
+        (worst,) = con.execute("""select count(*) from mart.mart_split_candidates c
+            where c.frames_each > (select max(n) from (select count(*) n from staging.stg_frames group by entry_id))""").fetchone()
+        assert worst == 0
+        # 下の段に、もう一度書いたフレームを含む部品 (SessionProfile。含めて数えると 96) で、除いた数になっていること
+        assert con.execute("select entry_count, frames_each, repeated_frames from mart.mart_split_candidates where name = 'SessionProfile'").fetchall() == [(7, 75, 349)]
         wrap = con.execute("select within_path from mart.mart_entry_within where path = '/settings/teams/[teamId]' order by ord").fetchall()
         assert [w for (w,) in wrap] == ["/(layout)", "/(layout)/(main)", "/(layout)/(main)/settings"]
         (inner,) = con.execute("select count(*) from mart.mart_entry_within where within_path = '/(layout)/(main)' and layer = 'page'").fetchone()

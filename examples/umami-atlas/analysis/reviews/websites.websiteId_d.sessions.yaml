@@ -1,84 +1,21 @@
 format_version: 1
 entry_id: websites.websiteId_d.sessions
-reviewed_at: "2026-11-17T16:25:01Z"
+reviewed_at: "2026-11-18T20:25:28Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_frame
+  - kind: status_mismatch
     severity: medium
+    where: callstack/api_session_data_properties/call
+    claim: "受け口への呼び出しが interpretation になっているが、フックの URL は source の三項演算子で決まり、呼び出し元が source に固定の文字列 'session' を渡す (SessionProperties.tsx:25) ので、コードから直接読める事実である。同じ扱いが api_session_data_values / api_session_data_numeric_series / api_session_data_numeric_stats / api_session_data_date_series / api_session_data_property_series / api_session_data_array_series の call にもある (source で切り替わらない api_session_data_stats などは fact で、結果の中で割れている)"
+    evidence: { file: "src/components/hooks/queries/usePropertyFieldsQuery.ts", line: 25 }
+    suggestion: "source で URL が切り替わる受け口への call の status を fact にそろえ、切り替わりと固定の値は note に残す。"
     resolved: true
-    where: callstack/website_controls
-    claim: "WebsiteControls は allowDownload が真のときだけ ExportButton を描き、押すと GET /websites/<id>/export でデータを読むが、この画面からは届かないという理由で notes と summary に触れるだけで、フレームが無い。分析リポジトリの決まり (この画面からは条件が成り立たないように見える呼び出しも、省かずに conditional のフレームにし、理由を note に書く) に合わない。同じ結果の中で、PropertyFilters (source: event) は同じ理由で conditional のフレームにしており、扱いが割れている"
-    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 42 }
-    suggestion: "ExportButton を conditional のフレーム (condition は allowDownload が真のとき、note に「この画面は allowDownload を渡さない」) にし、その先の GET /websites/[websiteId]/export (ExportButton.tsx:20) を辿る"
-  - kind: missing_frame
-    severity: low
-    resolved: true
-    where: callstack/api_values
-    claim: "GET values の受け口は type が segment / cohort のとき getWebsiteSegments を呼ぶ枝 (route.ts:48 から :49) を持つが、届かないように見えるという理由で notes に書くだけで、フレームが無い。分析リポジトリの決まりでは conditional のフレームにする (読む表 segment は GET segments の下に書いてあるので、データの漏れは無い)"
-    evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 49 }
-    suggestion: "getWebsiteSegments の枝を conditional のフレームにして note に届かないように見える理由を書く。コードの順では getQueryFilters (route.ts:53) より先に着くので、q_get_website_segments をこの下に移し、GET segments の側は「経路はフレーム <id> と同じ」と書き直す"
   - kind: evidence_mismatch
-    severity: medium
-    resolved: true
-    where: callstack/session_profile/call
-    claim: "条件の「セッションの一覧の表かプロパティの値の表で訪問者のアイコンを押した」の根拠に、この画面が描かない events の画面の部品 (events/EventsTable.tsx:72、event-data/EventDataPivotTable.tsx:131) を挙げており、events の結果から写したまま。この画面で URL の session を書き換えるのは SessionsDataTable と SessionDataPivotTable"
-    evidence: { file: "src/app/(main)/websites/[websiteId]/sessions/SessionsDataTable.tsx", line: 15 }
-    suggestion: "EventsTable.tsx:72 と EventDataPivotTable.tsx:131 を外し、SessionsDataTable.tsx:15 (getSessionHref の updateParams) と session-data/SessionDataPivotTable.tsx:94 に置き換える"
-  - kind: evidence_mismatch
-    severity: medium
-    resolved: true
-    where: callstack/q_parse_request/summary
-    claim: "「この画面のほかの受け口も、最初に同じ関数を呼ぶ」の一覧に、この画面が呼ばない受け口 (events/stats、events、events/series、metrics、event-data/properties、event-data-pivot とその下の 5 つ) が入っている。events の結果から写した文で、この画面で呼ぶ sessions (一覧)、session-data の 6 つの受け口 (stats・numeric-series・numeric-stats・date-series・property-series・array-series)、session-data-pivot が抜けている"
-    evidence: { file: "src/app/(main)/websites/[websiteId]/sessions/SessionsPage.tsx", line: 25 }
-    suggestion: "一覧を、この結果のフレームにある受け口 (segments、segments/[segmentId]、event-data/fields・values、session-data/properties・values・numeric-series・numeric-stats・date-series・stats・property-series・array-series、session-data-pivot、daterange、sessions、sessions/[sessionId] とその activity・properties・replays、event-data/[eventId]、replays/[replayId]、replays/saved/[replayId]) に書き直す"
-  - kind: evidence_mismatch
-    severity: medium
-    resolved: true
-    where: callstack/q_can_view_website_section/summary
-    claim: "「この画面のほかの受け口も同じ関数を呼ぶ」の一覧に、この画面が呼ばない受け口 (events/stats・events・events/series・event-data/properties・event-data-pivot とその下の 5 つ、metrics) が入っている。events の結果から写した文で、この画面の sessions (一覧) と session-data の受け口が抜けている"
-    evidence: { file: "src/app/api/websites/[websiteId]/sessions/route.ts", line: 25 }
-    suggestion: "一覧を、この結果のフレームにある受け口のうち canViewWebsiteSection を呼ぶものだけに書き直す"
-  - kind: evidence_mismatch
-    severity: medium
-    resolved: true
-    where: callstack/q_get_query_filters/summary
-    claim: "「この画面のほかの受け口も同じ関数を呼ぶ」の一覧に、この画面が呼ばない受け口 (events/stats、events、events/series、metrics、event-data/properties、event-data-pivot とその下の 5 つ) が入っている。events の結果から写した文で、この画面の sessions (一覧、route.ts:29) と session-data の受け口が抜けている"
-    evidence: { file: "src/app/api/websites/[websiteId]/sessions/route.ts", line: 29 }
-    suggestion: "一覧を、この結果のフレームにある受け口のうち getQueryFilters を呼ぶものだけに書き直す"
-  - kind: missing_item
     severity: low
+    where: callstack/api_session_data_values/call
+    claim: "条件の「演算子が自由入力 (contains / doesNotContain / regex / notRegex) でないとき」は、配列の型には当てはまらない。isFreeText は配列では常に false なので (!isArray && ...)、配列のプロパティは contains / doesNotContain を選んでも値の候補を読む"
+    evidence: { file: "src/components/property-data/PropertyFilterRecord.tsx", line: 91 }
+    suggestion: "condition を「型が数値・真偽・日付でなく、配列でない型では演算子が自由入力でないとき (配列は演算子によらず読む)」に直し、PropertyFilterRecord.tsx:91 を根拠に足す。"
     resolved: true
-    where: callstack/q_session_data_numeric_series
-    claim: "PostgreSQL 用と ClickHouse 用の SQL は、どちらも parseFilters の filterQuery を差し込み、URL にイベントのプロパティの絞り込みがあれば event_data を読む副問い合わせが入るのに、event_data の読み取りが無い。同じ作りの getSessionDataProperties / getSessionDataValues / getSessionDataActivityStats / getSessionDataPivot には event_data の読み取りを書いており、割れている"
-    evidence: { file: "src/queries/sql/sessions/getSessionDataNumericSeries.ts", line: 60 }
-    suggestion: "dbms: postgresql と clickhouse の event_data の read を足し、note に「イベントのプロパティで絞るときだけ」と書く (根拠は :60 と :116、src/lib/prisma.ts:309、src/lib/clickhouse.ts:278)"
-  - kind: missing_item
-    severity: low
-    resolved: true
-    where: callstack/q_session_data_numeric_stats
-    claim: "どちらの SQL も filterQuery を差し込む (イベントのプロパティの絞り込みで event_data を読む) のに、event_data の読み取りが無い"
-    evidence: { file: "src/queries/sql/sessions/getSessionDataNumericStats.ts", line: 52 }
-    suggestion: "dbms: postgresql と clickhouse の event_data の read を足し、note に「イベントのプロパティで絞るときだけ」と書く (根拠は :52 と :102)"
-  - kind: missing_item
-    severity: low
-    resolved: true
-    where: callstack/q_session_data_date_series
-    claim: "どちらの SQL も filterQuery を差し込む (イベントのプロパティの絞り込みで event_data を読む) のに、event_data の読み取りが無い"
-    evidence: { file: "src/queries/sql/sessions/getSessionDataDateSeries.ts", line: 58 }
-    suggestion: "dbms: postgresql と clickhouse の event_data の read を足し、note に「イベントのプロパティで絞るときだけ」と書く (根拠は :58 と :102)"
-  - kind: missing_item
-    severity: low
-    resolved: true
-    where: callstack/q_session_data_property_series
-    claim: "どちらの SQL も filterQuery を差し込む (イベントのプロパティの絞り込みで event_data を読む) のに、event_data の読み取りが無い"
-    evidence: { file: "src/queries/sql/sessions/getSessionDataPropertySeries.ts", line: 59 }
-    suggestion: "dbms: postgresql と clickhouse の event_data の read を足し、note に「イベントのプロパティで絞るときだけ」と書く (根拠は :59 と :104)"
-  - kind: missing_item
-    severity: low
-    resolved: true
-    where: callstack/q_session_data_array_series
-    claim: "どちらの SQL も filterQuery を差し込む (イベントのプロパティの絞り込みで event_data を読む) のに、event_data の読み取りが無い"
-    evidence: { file: "src/queries/sql/sessions/getSessionDataArraySeries.ts", line: 60 }
-    suggestion: "dbms: postgresql と clickhouse の event_data の read を足し、note に「イベントのプロパティで絞るときだけ」と書く (根拠は :60 と :105)"
-notes: "指摘にしなかったこと。(1) 機械チェック (validate result) は OK、プロファイルも作業定義の profile.dir から読めている。全フレームの根拠の行 (file:line) が実在し、空行でないことを機械的に確かめた。(2) 画面を包む枠の処理が無いことは、プロファイルの決まりどおり。(3) 画面固有の部分 (SessionsPage の順 :25 / :26 / :38 / :41、SessionsDataTable → GET sessions → getWebsiteSessions の表と列と ClickHouse の 2 つの表の切り替え、SessionProperties の usePropertyFieldsQuery と useSessionDataPropertiesQuery、PropertyFilterButton の小窓、型ごとのグラフの出し分け、SessionModal → SessionProfile と getWebsiteSession) は、コードと突き合わせて合っていることを確かめた。(4) 同じ処理の置き場 (入口から深さ優先で最初に着いた呼び出し元の下) と、書き直したフレーム (_rw) が読み書きを持つ最初の段 (checkAuth の auth:*) で止まり、確認・設定・ルールを繰り返していないことを確かめた。getSessionDataProperties を propertyName 付きでも同じ処理として扱ったのは、読む表が同じなので決まりに合う。(5) 設定の名前 (API_URL、BASE_PATH、CLICKHOUSE_URL、CLOUD_MODE、DATABASE_REPLICA_URL、REDIS_URL) と確認の値 (user.isAdmin、PERMISSIONS.websiteUpdate / websiteDelete、canViewWebsite などの関数の名前) は、分析リポジトリの決まりの表どおりで、events の結果と同じ綴り。events のレビューで直した canUpdateWebsite / canViewWebsite の status も、この結果では fact になっている。(6) この画面には Favicon が無いので、FAVICON_URL が無くてよい。SessionsMetricsBar を描かないこと、SessionsTable の既定の行き先を使わないこと (links が無いこと) も、コードと合う。(7) フレーム数が 222 と多いため、events の結果から写した共通の木 (checkAuth、canViewWebsite、getQueryFilters、FilterEditForm の下の event-data の木、SessionModal の下の録画の木) の列の一つ一つは、events のレビューで確かめた範囲を信じ、ここでは件数と表の名前の突き合わせにとどめた。"
+notes: "共通の段の決まりはどれも満たしている: checkAuth の CLOUD_MODE の settings と API キーの枝の rules、canViewWebsite / canDeleteWebsite / canUpdateWebsite の ownership と role (user.isAdmin) の 2 件、API_URL と BASE_PATH を入口から辿って最初に API を呼ぶ use_website_session に 1 回だけ、target は作業定義と同じ。WebsiteControls は sessions_page で止めて links に embed (part_p.shared_a.WebsiteControls、SessionsPage.tsx:25) を書いている。書き直しの段 (_rw) は、読み書きを持つ最初の段で止まり、確認・設定・ルールを繰り返していない。固定の値で閉じた録画の保存の POST (isSaved: false / true) は、2 つの受け口の summary の note と先頭の notes に書いてあり、ReplayPlayback.tsx:60 と ReplaySaveForm.tsx:31 で確かめた。指摘にしなかったこと: getQueryFilters の excludeBounce (request.ts:172) を rules に書いていないが、この画面は WebsiteControls に allowBounceFilter を渡さないので、とくに足さなくてよい。q_get_entity の summary の「最初に見つかったもの」は、実際は website / link / pixel / board の順の優先 (entity.ts:12)。analyzer.tests が無いので、tests の漏れは見ていない (SessionProfile.test.tsx がある)。"

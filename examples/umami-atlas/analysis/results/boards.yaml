@@ -18,7 +18,7 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.0
   model: claude-fable-5-2
-  analyzed_at: '2026-11-17T22:00:13Z'
+  analyzed_at: '2026-11-18T20:00:31Z'
   reviewed:
     by: claude-fable-5-2 (fresh context)
     at: '2026-11-17T15:06:11Z'
@@ -73,7 +73,7 @@ summary:
     line: 150
   - file: src/queries/prisma/board.ts
     line: 43
-notes: '指示書 0.4.0 とプロファイル 0.4.0 で分析した。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。BoardsPage.tsx では、追加のボタン (17 行目) が一覧 (20 行目) より前、BoardEditForm.tsx では、useBoardQuery (61 行目) が useUpdateQuery (62 行目) と選択欄 (158 行目) より前。このため、認証の経路 (parseRequest → checkAuth → getUser) と getBoard / getTeamUser の置き場は、GET /api/boards/[boardId] の下になった。(3) 迷った点: その GET /api/boards/[boardId] は、この画面からは呼ばれないように見える (BoardEditForm が useBoardQuery に空文字を渡し、enabled が偽になる)。指示書の「条件が成り立たないように見える呼び出しは、消さずに conditional で書く」に従って書いたので、実際には動かない受け口の下に、認証の経路がぶら下がる木になっている。認証の経路そのものは、実際に動く API (POST /api/boards、GET /api/boards、DELETE /api/boards/[boardId] など) が必ず通るので、読み書きの中身は変わらない。同じ理由で conditional にしたもの: getReport (この画面のフォームは、部品の行を持たない parameters を送る)、WebsiteSelect の useLoginQuery からの POST /api/auth/verify、GET /api/me/websites、getAllUserWebsitesIncludingTeamAccess。(4) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。このリポジトリの決まりで、external の段までは書かず、確認・設定・ルールも繰り返していない): canCreateTeamWebsite と canViewTeam の下の getTeamUser、canDeleteBoard の下の getBoard、canViewPixel の下の getPixel、canViewLink の下の getLink、canViewSharedWebsite の下の canViewWebsite → getEntity → getWebsite、GET /api/pixels/[pixelId]・GET /api/links/[linkId]・GET /api/me/websites の下の parseRequest → checkAuth → getUser。(5) BoardEditForm から先の、対象の選択欄 (WebsiteSelect / PixelSelect / LinkSelect) と、認証・権限の関数は、ボードの編集の画面 (boards.boardId_d.edit) と同じコードを通る。同じ綴りと同じ書き方になるように、その結果のフレームを、対象のコードで行を確かめたうえで写し、この入口に合わせて呼び出し元・条件・説明を直した。(6) canCreateWebsite (src/permissions/website.ts:120) は、データを読まないので段にせず、権限の確認を POST /api/boards の段に書いた (admin.teams の canCreateTeam と同じ扱い)。(7) フレームにしなかったもの: BoardDesignButton / BoardEditButton (行き先を出すだけのリンク。links を BoardsTable に書いた)、useNavigation / useMessages / useModified (URL・翻訳・更新印の小道具)、PageBody / PageHeader / Panel / DataGrid / DialogButton / ConfirmationForm / SortableLabel (見た目と、URL の書き換えだけの部品)。(8) リンクの行き先 (links の target) は、同じ行き先がほかの入口の結果で /boards/${boardId} と書かれているので、その綴りに合わせた (コードの書き方は、BoardsTable が `/boards/${id}`、BoardAddButton が `/boards/${board.id}/design`。note に書いた)。(9) checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。(10) 画面から API を呼ぶ URL は、環境変数 API_URL が設定されていると (/auth と /config 以外は) その URL に向く。既定で同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL と BASE_PATH は、このリポジトリの決まりのとおり、この入口で最初に API を呼ぶフレーム (use_create_board。POST /api/boards を呼ぶ) の settings に 1 回だけ書いた (木の上でそれより前の useBoardQuery は、この画面からは API を呼ばないので書いていない)。引数で行き先が切り替わる一覧の API (teamId の有無) は、interpretation にした。DB の接続先の環境変数は、決まりのとおり書いていない。(11) 権限の確認の value は、このリポジトリの決まりのとおり、確認する関数の名前だけ (canDeleteBoard など) と、権限の定数の名前だけ (PERMISSIONS.websiteCreate など) を書き、条件の説明は note に書いた。管理者の素通り (user.isAdmin) は、ほかの入口の結果と同じく、それを判定する段に role の確認として別に 1 件書いた。(12) 行の削除の fields は、name が * で use は write とし、条件の列を filter で書いた。board の作成では、コードが値を渡す列だけを書いた (created_at と updated_at は、スキーマの既定値が決めるので書いていない)。(13) テストとの対応は、作業定義で選ばれていないので分析していない。(14) レビューの指摘 2 件 (どちらも low) は、どちらも直した。(a) 管理者の素通りを、role (user.isAdmin) の確認として、canViewBoard / canViewWebsite / canViewPixel / canViewLink / canViewTeam / canCreateTeamWebsite / canDeleteBoard / canCreateWebsite (POST /api/boards の段) と、GET /api/users/[userId]/websites の段に足した。(b) BASE_PATH を足し、API_URL と BASE_PATH を、決まりのとおり、最初に API を呼ぶフレームに 1 回だけ書いた (ほかのフックの API_URL は消した)。'
+notes: '指示書 0.4.0 とプロファイル 0.4.0 で分析した。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。(2) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。BoardsPage.tsx では、追加のボタン (17 行目) が一覧 (20 行目) より前、BoardEditForm.tsx では、useBoardQuery (61 行目) が useUpdateQuery (62 行目) と選択欄 (158 行目) より前。このため、認証の経路 (parseRequest → checkAuth → getUser) と getBoard / getTeamUser の置き場は、GET /api/boards/[boardId] の下になった。(3) 迷った点: その GET /api/boards/[boardId] は、この画面からは呼ばれないように見える (BoardEditForm が useBoardQuery に空文字を渡し、enabled が偽になる)。指示書の「条件が成り立たないように見える呼び出しは、消さずに conditional で書く」に従って書いたので、実際には動かない受け口の下に、認証の経路がぶら下がる木になっている。認証の経路そのものは、実際に動く API (POST /api/boards、GET /api/boards、DELETE /api/boards/[boardId] など) が必ず通るので、読み書きの中身は変わらない。同じ理由で conditional にしたもの: getReport (この画面のフォームは、部品の行を持たない parameters を送る)、WebsiteSelect の useLoginQuery からの POST /api/auth/verify、GET /api/me/websites、getAllUserWebsitesIncludingTeamAccess。(4) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。このリポジトリの決まりで、external の段までは書かず、確認・設定・ルールも繰り返していない): canCreateTeamWebsite と canViewTeam の下の getTeamUser、canDeleteBoard の下の getBoard、canViewPixel の下の getPixel、canViewLink の下の getLink、canViewSharedWebsite の下の canViewWebsite → getEntity → getWebsite、GET /api/pixels/[pixelId]・GET /api/links/[linkId]・GET /api/me/websites の下の parseRequest → checkAuth → getUser。(5) BoardEditForm から先の、対象の選択欄 (WebsiteSelect / PixelSelect / LinkSelect) と、認証・権限の関数は、ボードの編集の画面 (boards.boardId_d.edit) と同じコードを通る。同じ綴りと同じ書き方になるように、その結果のフレームを、対象のコードで行を確かめたうえで写し、この入口に合わせて呼び出し元・条件・説明を直した。(6) canCreateWebsite (src/permissions/website.ts:120) は、データを読まないので段にせず、権限の確認を POST /api/boards の段に書いた (admin.teams の canCreateTeam と同じ扱い)。(7) フレームにしなかったもの: BoardDesignButton / BoardEditButton (行き先を出すだけのリンク。links を BoardsTable に書いた)、useNavigation / useMessages / useModified (URL・翻訳・更新印の小道具)、PageBody / PageHeader / Panel / DataGrid / DialogButton / ConfirmationForm / SortableLabel (見た目と、URL の書き換えだけの部品)。(8) リンクの行き先 (links の target) は、同じ行き先がほかの入口の結果で /boards/${boardId} と書かれているので、その綴りに合わせた (コードの書き方は、BoardsTable が `/boards/${id}`、BoardAddButton が `/boards/${board.id}/design`。note に書いた)。(9) checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。(10) 画面から API を呼ぶ URL は、環境変数 API_URL が設定されていると (/auth と /config 以外は) その URL に向く。既定で同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL と BASE_PATH は、このリポジトリの決まりのとおり、この入口で最初に API を呼ぶフレーム (use_create_board。POST /api/boards を呼ぶ) の settings に 1 回だけ書いた (木の上でそれより前の useBoardQuery は、この画面からは API を呼ばないので書いていない)。引数で行き先が切り替わる一覧の API (teamId の有無) は、interpretation にした。DB の接続先の環境変数は、決まりのとおり書いていない。(11) 権限の確認の value は、このリポジトリの決まりのとおり、確認する関数の名前だけ (canDeleteBoard など) と、権限の定数の名前だけ (PERMISSIONS.websiteCreate など) を書き、条件の説明は note に書いた。管理者の素通り (user.isAdmin) は、ほかの入口の結果と同じく、それを判定する段に role の確認として別に 1 件書いた。(12) 行の削除の fields は、name が * で use は write とし、条件の列を filter で書いた。board の作成では、コードが値を渡す列だけを書いた (created_at と updated_at は、スキーマの既定値が決めるので書いていない)。(13) テストとの対応は、作業定義で選ばれていないので分析していない。(14) レビューの指摘 2 件 (どちらも low) は、どちらも直した。(a) 管理者の素通りを、role (user.isAdmin) の確認として、canViewBoard / canViewWebsite / canViewPixel / canViewLink / canViewTeam / canCreateTeamWebsite / canDeleteBoard / canCreateWebsite (POST /api/boards の段) と、GET /api/users/[userId]/websites の段に足した。(b) BASE_PATH を足し、API_URL と BASE_PATH を、決まりのとおり、最初に API を呼ぶフレームに 1 回だけ書いた (ほかのフックの API_URL は消した)。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。'
 callstack:
 - id: page
   layer: page
@@ -602,6 +602,23 @@ callstack:
       line: 129
     - file: src/lib/auth.ts
       line: 131
+  - kind: decision
+    value: トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 74
+    - file: src/lib/auth.ts
+      line: 75
+    - file: src/lib/api-key.ts
+      line: 4
+    - file: src/lib/api-key.ts
+      line: 11
+    - file: src/lib/api-key.ts
+      line: 33
+    - file: src/lib/auth.ts
+      line: 35
+    note: 分析リポジトリの決まりのとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログイントークンを付ける (useApi.ts:28、client.ts:4) ので、この枝には入らない
 - id: q_get_user
   layer: query
   kind: function

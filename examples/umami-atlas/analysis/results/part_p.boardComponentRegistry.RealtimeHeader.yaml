@@ -18,7 +18,7 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.1
   model: claude-opus-5-5
-  analyzed_at: '2026-11-18T00:33:27Z'
+  analyzed_at: '2026-11-18T20:40:42Z'
   reviewed:
     by: claude-opus-5-5 (fresh context)
     at: '2026-11-18T00:32:21Z'
@@ -81,7 +81,7 @@ summary:
     line: 48
   - file: src/lib/db.ts
     line: 27
-notes: (1) 部品の入口として初めて分析した。入口のフレームは、登録表の項目 RealtimeHeader (boardComponentRegistry.tsx:234) が指すコンポーネント BoardRealtimeMetricsBar (BoardRealtimeMetricsBar.tsx:5)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId) を入口のフレームの parameters に書いた。この部品は、描く画面の URL のクエリ (期間・絞り込み) を読まない。登録表のこの項目は componentByEntityType も requiresWebsite も持たないので、替わる先の部品は無く、websiteId が無ければ描く側が部品を描かない (BoardComponentRenderer.tsx:30)。(2) 木は、同じフックと受け口を書いた既にある結果 websites.websiteId_d.realtime (use_realtime 以下) を出発点にし、受け口の前処理・権限の確認・絞り込みの綴りは part_p.boardComponentRegistry.WebsiteMetricsBar にそろえ、根拠の行は対象のコードで確かめた。画面の結果にあった、この入口に無い受け口 (metrics、sessions、replays など) の話は、summary から外した。(3) 固定の値で閉じている呼び出しは 1 件 (getWebsiteSegment。request.ts:133 の segment と :145 の cohort の 2 か所から呼ぶ同じ関数)。useRealtimeQuery は GET /realtime/<websiteId> をクエリを付けずに呼ぶ (useRealtimeQuery.ts:10。useApi の get の params の既定は空のオブジェクト。useApi.ts:41) ので、受け口が getQueryFilters に渡す query (route.ts:34) に segment も cohort も無い。分析リポジトリの決まり (値が HTTP のクエリを通ってサーバー側の分かれ道に効く場合も、木の中に直接書いた値として扱う) に従い、getWebsiteSegment とその先のフレームを書かず、条件を持つフレーム q_get_query_filters の summary に、閉じている呼び出しと値と行を書いた。getQueryFilters に着く経路は、この入口では受け口からの 1 つだけ。segment / cohort の判定の rules も、決して動かない分かれ道なので書いていない。(4) 迷った点と選んだ扱い。(a) 呼び出しではなく、動いているフレームの中の読み取りで、同じ理由 (クエリが無い、受け口が期間を 30 分に固定する) で決して起きないもの (getRealtimeActivity / getPageviewStats / getSessionStats の event_data / session_data / session の絞り込みのための読み取り、ClickHouse の時間ごとの集計表 website_event_stats_hourly) は、skill の「固定の値で閉じている呼び出し」が呼び出しだけを決めているので、消さずに残し、I/O の note に「この入口からは起きないように見える」と書いた (websites.websiteId_d.realtime と同じ)。(b) checkAuth の CLOUD_MODE は、API キーの枝 (この入口では通らない) だけに効くので、「この入口では有無で結果が変わらない設定」として書いていない (WebsiteMetricsBar と同じ)。getQueryFilters の CLOUD_MODE は、account:* の読み取りを変えるので書いた。(c) canViewWebsite の確認は、websites.websiteId_d.realtime と Goal と同じく、role (user.isAdmin) と ownership (canViewWebsite) の 2 件を書いた。(d) 描く側が、対象がピクセルやリンクのボードで、その id を websiteId として渡すときも、この部品はサイト用の受け口を同じように呼ぶ (替わる先が無い)。読み取りの経路は変わらないので、分けて書いていない。(5) 見た目だけの部品 (RealtimeHeader、MetricsBar、MetricCard、LoadingPanel) はフレームにしていない。API_URL と BASE_PATH は、この入口で API を呼ぶ唯一のフック useRealtimeQuery に書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。links は 1 件も無い。テストとの対応は、作業定義で選ばれていないので分析していない。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。 (6) レビューへの対応 (1 回。high 0 件、medium 0 件、low 2 件。どちらも直した)。getPageviewStats と getSessionStats の rules に、event_type が 2 (カスタムイベント) と 5 (性能の計測) のイベントを数えない決まりを足した。あわせて、レビューが指摘にしなかった点のうち、getRealtimeData の合計のイベントと国の数が、最近の動きの 100 件の中だけで数えることを rules の文に書き、ext_realtime_activity_pg の DATABASE_REPLICA_URL の根拠に prisma.ts:861 を足した。
+notes: (1) 部品の入口として初めて分析した。入口のフレームは、登録表の項目 RealtimeHeader (boardComponentRegistry.tsx:234) が指すコンポーネント BoardRealtimeMetricsBar (BoardRealtimeMetricsBar.tsx:5)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId) を入口のフレームの parameters に書いた。この部品は、描く画面の URL のクエリ (期間・絞り込み) を読まない。登録表のこの項目は componentByEntityType も requiresWebsite も持たないので、替わる先の部品は無く、websiteId が無ければ描く側が部品を描かない (BoardComponentRenderer.tsx:30)。(2) 木は、同じフックと受け口を書いた既にある結果 websites.websiteId_d.realtime (use_realtime 以下) を出発点にし、受け口の前処理・権限の確認・絞り込みの綴りは part_p.boardComponentRegistry.WebsiteMetricsBar にそろえ、根拠の行は対象のコードで確かめた。画面の結果にあった、この入口に無い受け口 (metrics、sessions、replays など) の話は、summary から外した。(3) 固定の値で閉じている呼び出しは 1 件 (getWebsiteSegment。request.ts:133 の segment と :145 の cohort の 2 か所から呼ぶ同じ関数)。useRealtimeQuery は GET /realtime/<websiteId> をクエリを付けずに呼ぶ (useRealtimeQuery.ts:10。useApi の get の params の既定は空のオブジェクト。useApi.ts:41) ので、受け口が getQueryFilters に渡す query (route.ts:34) に segment も cohort も無い。分析リポジトリの決まり (値が HTTP のクエリを通ってサーバー側の分かれ道に効く場合も、木の中に直接書いた値として扱う) に従い、getWebsiteSegment とその先のフレームを書かず、条件を持つフレーム q_get_query_filters の summary に、閉じている呼び出しと値と行を書いた。getQueryFilters に着く経路は、この入口では受け口からの 1 つだけ。segment / cohort の判定の rules も、決して動かない分かれ道なので書いていない。(4) 迷った点と選んだ扱い。(a) 呼び出しではなく、動いているフレームの中の読み取りで、同じ理由 (クエリが無い、受け口が期間を 30 分に固定する) で決して起きないもの (getRealtimeActivity / getPageviewStats / getSessionStats の event_data / session_data / session の絞り込みのための読み取り、ClickHouse の時間ごとの集計表 website_event_stats_hourly) は、skill の「固定の値で閉じている呼び出し」が呼び出しだけを決めているので、消さずに残し、I/O の note に「この入口からは起きないように見える」と書いた (websites.websiteId_d.realtime と同じ)。(b) checkAuth の CLOUD_MODE は、API キーの枝 (この入口では通らない) だけに効くので、「この入口では有無で結果が変わらない設定」として書いていない (WebsiteMetricsBar と同じ)。getQueryFilters の CLOUD_MODE は、account:* の読み取りを変えるので書いた。(c) canViewWebsite の確認は、websites.websiteId_d.realtime と Goal と同じく、role (user.isAdmin) と ownership (canViewWebsite) の 2 件を書いた。(d) 描く側が、対象がピクセルやリンクのボードで、その id を websiteId として渡すときも、この部品はサイト用の受け口を同じように呼ぶ (替わる先が無い)。読み取りの経路は変わらないので、分けて書いていない。(5) 見た目だけの部品 (RealtimeHeader、MetricsBar、MetricCard、LoadingPanel) はフレームにしていない。API_URL と BASE_PATH は、この入口で API を呼ぶ唯一のフック useRealtimeQuery に書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。links は 1 件も無い。テストとの対応は、作業定義で選ばれていないので分析していない。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。 (6) レビューへの対応 (1 回。high 0 件、medium 0 件、low 2 件。どちらも直した)。getPageviewStats と getSessionStats の rules に、event_type が 2 (カスタムイベント) と 5 (性能の計測) のイベントを数えない決まりを足した。あわせて、レビューが指摘にしなかった点のうち、getRealtimeData の合計のイベントと国の数が、最近の動きの 100 件の中だけで数えることを rules の文に書き、ext_realtime_activity_pg の DATABASE_REPLICA_URL の根拠に prisma.ts:861 を足した。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。
 callstack:
 - id: realtime_metrics_bar
   layer: part
@@ -363,6 +363,16 @@ callstack:
       line: 102
     - file: src/lib/redis.ts
       line: 106
+  - name: CLOUD_MODE
+    kind: env
+    effect: 設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 73
+    - file: src/lib/api-key.ts
+      line: 41
+    note: この部品のフックはログインのトークンを付ける (src/components/hooks/useApi.ts:28) ので、API キーの経路は辿っていない
   rules:
   - kind: validation
     value: 2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない

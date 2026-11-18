@@ -1,49 +1,35 @@
 format_version: 1
 entry_id: websites.websiteId_d.funnels
-reviewed_at: "2026-11-17T10:24:25Z"
-reviewer: "claude-fable-5-2 (fresh context)"
+reviewed_at: "2026-11-18T19:55:19Z"
+reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: classification_mismatch
-    severity: medium
-    where: callstack/q_event_data_properties/io/0/fields
-    claim: "data_key に use: filter を付け、note で「クエリに propertyName があるときだけ絞り込む」としているが、この受け口のスキーマ (startAt / endAt / filterParams) に propertyName が無いので parseRequest が落とし、getQueryFilters の戻り値にも propertyName は入らない。この入口からは data_key の絞り込みに届かない (フレームの summary の「event や propertyName は filterQuery として足される」の propertyName も同じ)"
-    evidence: { file: 'src/app/api/websites/[websiteId]/event-data/properties/route.ts', line: 12 }
-    suggestion: "data_key の use を read だけにし、note と summary を「画面は propertyName を送るが、受け口のスキーマに無いので絞り込みには効かない」に直す"
-    resolved: true
-  - kind: classification_mismatch
-    severity: medium
-    where: callstack/q_event_data_properties/io/2/fields
-    claim: "ClickHouse 用の event_data でも data_key に use: filter を付けているが、PostgreSQL 用と同じ理由 (受け口のスキーマに propertyName が無く、getQueryFilters も渡さない) で、この入口からは data_key の絞り込みに届かない"
-    evidence: { file: 'src/app/api/websites/[websiteId]/event-data/properties/route.ts', line: 12 }
-    suggestion: "data_key の use を read だけにし、note を直す"
-    resolved: true
-  - kind: evidence_mismatch
+  - kind: missing_item
     severity: low
-    where: callstack/q_get_reports/io/0
-    claim: "note の「クエリに orderBy があると、並びの列はその値で決まる (静的には読めない)」は、この受け口では成り立たない。definitionListSchema は page / pageSize / maxResults / search だけを持ち、parseRequest が orderBy と sortDescending を落とすので、getReports にはいつも orderBy が渡らず、並びは name と id の昇順に決まる"
-    evidence: { file: src/lib/analytics-schema.ts, line: 75 }
-    suggestion: "note と summary の並びの説明を「この受け口では orderBy がスキーマで落ちるので、いつも name と id の昇順」に直す"
-    resolved: true
-  - kind: evidence_mismatch
-    severity: low
-    where: callstack/q_event_data_properties/rules/0
-    claim: "「多い順に最大 500 件」は PostgreSQL 用 (order by 4 desc) には合うが、ClickHouse 用は order by 1, 4 desc で、イベント名の昇順が先になる"
-    evidence: { file: src/queries/sql/events/getEventDataProperties.ts, line: 95 }
-    suggestion: "value に、ClickHouse ではイベント名の順が先で、その中で多い順になることを足す"
+    where: callstack/ext_prisma_event_data_properties
+    claim: "生の SQL を実行する executeRawQuery は DATABASE_REPLICA_URL があると複製の DB に問い合わせを送るのに、このフレームに settings の DATABASE_REPLICA_URL が無い (同じ受け口を持つ websites.websiteId_d.goals などは、生の SQL の external ごとに書いている)"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "settings に DATABASE_REPLICA_URL (kind: env、根拠 prisma.ts 738 行) を、ほかの入口と同じ綴りと効果の文で足す"
     resolved: true
   - kind: missing_item
     severity: low
-    where: callstack/api_funnel_stats/rules
-    claim: "クエリの検証 (savedStatsQuerySchema: startAt と endAt が 0 以上の整数で、endAt が startAt 以上でなければ 400) が rules に無い。event-data の 2 つの受け口では、同じ種類の検証を書いている"
-    evidence: { file: src/lib/analytics-schema.ts, line: 41 }
-    suggestion: "rules に kind: validation で 1 件足す (根拠は analytics-schema.ts 18・19・41・74 行と stats/route.ts 12 行)"
+    where: callstack/ext_prisma_values
+    claim: "getValues の生の SQL の external に、settings の DATABASE_REPLICA_URL が無い (websites.websiteId_d.goals の同じ external には書いてある)"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "settings に DATABASE_REPLICA_URL (kind: env、根拠 prisma.ts 738 行) を足す"
     resolved: true
   - kind: missing_item
     severity: low
-    where: callstack/q_get_funnel/rules
-    claim: "イベントの段の絞り込みの比べ方 (演算子 neq は不一致、c は部分一致、dnc は部分一致しない、それ以外は一致。数値型の値は末尾の .0000 を取って比べる) が rules に無い"
-    evidence: { file: src/queries/sql/funnels/getFunnel.ts, line: 73 }
-    suggestion: "rules に kind: decision で 1 件足す (根拠は getFunnel.ts 71〜80・89 行と 224〜233・241 行)"
+    where: callstack/ext_prisma_event_data_values
+    claim: "getEventDataValues の生の SQL の external に、settings の DATABASE_REPLICA_URL が無い"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "settings に DATABASE_REPLICA_URL (kind: env、根拠 prisma.ts 738 行) を足す"
     resolved: true
-notes: "根拠の行は、対象のコードで 1 件ずつ開いて確かめた。上の 6 件のほかは、主張を支えていた。指摘にしなかったが伝えること: (1) website_filter_button と segment_filter_fields は unknown + not_analyzed で、note に読んだ範囲と止めた理由があるので指摘にしていない。ただし、この 2 つの先には、この画面から届く読み取りがある (絞り込みのダイアログの値の候補とセグメントの一覧、セグメントのフォームが開いた時点で呼ぶ GET session-data/properties)。この入口の結果には、その読み取り (segment の一覧、session_data など) が現れない。context.md の「フレームにする」の基準と終端の決まりを、打ち切りの禁止と読むかどうかは、人が決めてほしい。(2) checkAuth の API キーの経路 (auth.ts 75 行の checkApiKeyAuth → getApiKeyByHash / updateApiKeyLastUsed) はフレームが無い。画面のトークンは getClientAuthToken のログインのトークンで、umami_ で始まらないので届かない、という結果の読みは、コード (useApi.ts 28 行、api-key.ts 33 行) と矛盾しないので、辿り漏れにはしていない。(3) segment_filter_fields の source (PropertyFilters.tsx 53 行) は、関数の定義の行ではなく、中のフックの呼び出しの行。FieldFilters と PropertyFilters の 2 つのファイルを 1 つのフレームにまとめている。(4) api_values も、期間の検証 (withDateRange) を rules に書いていない (type の検証だけ)。(5) もう一度書いたフレーム (…_rw_…) は、ライブラリのフレームまでではなく、読み書きを持つフレームで止めている。結果の notes に書いてあるとおりで、機械チェックの終端の決まりは満たしている。(6) lookup_field の call は always だが、段を全部消すと描かれない (フォームは段 1 つから始まるので、指摘にはしていない)。"
+  - kind: missing_item
+    severity: low
+    where: callstack/ext_prisma_funnel
+    claim: "getFunnel の生の SQL の external に、settings の DATABASE_REPLICA_URL が無い"
+    evidence: { file: src/lib/prisma.ts, line: 738 }
+    suggestion: "settings に DATABASE_REPLICA_URL (kind: env、根拠 prisma.ts 738 行) を足す"
+    resolved: true
+notes: "analysis-conventions.md の「共有の部品」と「どの入口にも出る共通の段」に照らして確かめ、どれも合っていた: (1) funnels_page で止め、links に embed (target WebsiteControls、entry_id part_p.shared_a.WebsiteControls、status fact、根拠 FunnelsPage.tsx 3・21 行) があり、WebsiteControls の中 (WebsiteFilterButton・WebsiteDateFilter・FilterBar) の段は無い。渡す値 (websiteId だけ。allowFilter / allowDateFilter は既定の true、allowBounceFilter / allowDownload / allowCompare は既定の false、allowMonthFilter は undefined) は funnels_page の summary に書いてあり、WebsiteControls.tsx 10〜17 行と合う。(2) checkAuth に CLOUD_MODE (api-key.ts 41 行の isApiKeyEnabled) と API キーの枝の rules があり、getUser も書いてある。(3) canViewWebsite・canUpdateWebsite・canDeleteWebsite・canViewReport・canUpdateReport・canDeleteReport は、ownership と別に role (user.isAdmin) を 1 件ずつ持つ。canViewWebsiteSection は kind other で、ほかの入口と同じ。(4) API_URL と BASE_PATH は、最初に API を呼ぶ use_funnels_query (FunnelsPage.tsx 12 行) の 1 か所だけ。(5) target は作業定義と同じ。getQueryFilters を event-data/properties の下と stats の下に分け、segment / cohort の分かれ道 (request.ts 132〜170 行) を stats の下にだけ置いた扱いは、StepRow が startAt・endAt・event だけを送り (FunnelEditForm.tsx 52〜56 行)、useAnalyticsQuery が useFilterParameters の segment / cohort を付ける (useFilterParameters.ts 35・36 行) ことと合う。values の受け口の SEGMENT_TYPES の分かれ道を辿らない扱いも、fieldsParam (schema.ts 127 行) が segment と cohort を含まないので正しい。"

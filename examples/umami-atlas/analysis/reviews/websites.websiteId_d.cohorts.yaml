@@ -1,35 +1,28 @@
 format_version: 1
 entry_id: websites.websiteId_d.cohorts
-reviewed_at: "2026-11-17T15:51:51Z"
+reviewed_at: "2026-11-18T19:41:08Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_item
+  - kind: evidence_mismatch
     severity: medium
-    where: callstack/q_create_segment/io/0/fields
-    claim: "segment の作成で書かれる created_at (@default(now())) と updated_at (@updatedAt。Prisma は作成のときも値を入れる) が fields に無い。同じ結果の q_update_segment は、同じ @updatedAt を根拠に updated_at を書いており、扱いがそろっていない"
-    evidence: {file: prisma/schema.prisma, line: 312}
-    suggestion: "fields に {name: created_at, use: [write]} と {name: updated_at, use: [write]} を足し、note に、値はモデルの既定と @updatedAt で入ることを書く (ほかの入口の segment の作成も同じ書き方なので、そろえるかどうかを合わせて決める)"
     resolved: true
-  - kind: status_mismatch
-    severity: medium
-    where: callstack/q_get_team_user/io/1
-    claim: "team の読み取りは、コードに関連の条件 team: { deletedAt: null } がそのまま書いてあり、表の名前もモデルの @@map で決まる (ほかの Prisma の読み取りを fact にしたのと同じ根拠) のに interpretation になっている"
-    evidence: {file: src/queries/prisma/teamUser.ts, line: 24}
-    suggestion: "status を fact にする (note の「テーブル名はコードに直接は出ない」は、ほかのモデルの読み取りにも当てはまるので、理由にならない)。ほかの入口でも fact と interpretation が混ざっているので、どちらかにそろえる"
-    resolved: true
-  - kind: missing_item
+    where: callstack/api_values/summary
+    claim: "summary は、type がセグメントの種類のときの分かれ道 (getWebsiteSegments) を、編集のフォームが保存済みの action.type を送れば通りうる (閉じているとは言えない) としているが、受け口のスキーマの type は fieldsParam (schema.ts 127〜148 行。path・event・セッションやイベントの列だけで、segment と cohort を含まない) なので、type が segment か cohort なら parseRequest がスキーマの検査で 400 にし、48 行の分かれ道には決して着かない。"
+    evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 14 }
+    suggestion: "summary の分かれ道の説明を「受け口のスキーマ (fieldsParam) が segment と cohort を受け付けないので、この受け口では getWebsiteSegments の分かれ道に着かない」と直し、根拠に values/route.ts 14 行と schema.ts 127 行を足す。結果の先頭の notes の (d) も同じに直す。"
+  - kind: classification_mismatch
     severity: low
-    where: callstack/q_get_values_rw_filter/io/0/fields
-    claim: "絞り込みの行から読む列は実行時に決まるが、この画面で選べる項目は有限 (FieldFilters が path と event を除いた useFields の項目) で、session からは browser / os / device / country / region / city / distinct_id を読み、検索の条件にも使う。その列が fields に無い"
-    evidence: {file: src/components/input/FieldFilters.tsx, line: 49}
-    suggestion: "session の読み取り (io/0) の fields に、候補の列を use: [read, filter] で足す。website_event の読み取り (io/1、io/2) にも url_query / page_title / referrer_domain / utm_source / utm_medium / utm_campaign / utm_content / utm_term / hostname / tag を同じように足す (ほかの入口の getValues も同じ書き方なので、そろえるかどうかを合わせて決める)"
     resolved: true
-  - kind: missing_item
+    where: callstack/api_values/rules/1
+    claim: "decision のルール「type がセグメントの種類なら、保存済みのセグメントの名前を返す」は、スキーマの検査 (fieldsParam) で通らない分かれ道の中にだけあるルールで、この入口からは動かない。また rules/0 の 400 の条件 (セグメントの種類も許す) も、実際に効く fieldsParam の検査と食い違う。"
+    evidence: { file: src/lib/schema.ts, line: 127 }
+    suggestion: "rules/1 を外し (閉じた分かれ道の中にだけある業務のルールは書かない決まりに合わせる)、rules/0 は「type が fieldsParam の項目でなければ 400 を返す」を主にして、根拠に values/route.ts 14 行と schema.ts 127 行を足す。"
+  - kind: classification_mismatch
     severity: low
-    where: callstack/field_filters
-    claim: "FieldFilters は、絞り込みの値の候補を引く期間を、今日の終わりから 6 か月前までに決めて FilterRecord に渡すが、この業務のルールが rules に無い (同じ決め方の LookupField には calculation のルールとして書いてある)"
-    evidence: {file: src/components/input/FieldFilters.tsx, line: 44}
-    suggestion: "field_filters に rules を足す (kind: calculation、value は「値の候補を引く期間は、今日の終わりから 6 か月前まで」、evidence は FieldFilters.tsx 44・45 行)"
     resolved: true
-notes: "指摘にしなかったこと。(1) WebsiteControls の子 4 つ (WebsiteFilterButton・WebsiteDateFilter・ExportButton・FilterBar) の unknown + not_analyzed は、note に読んだ範囲と止めた理由があり、作業の決まりも打ち切りを禁じていないので、指摘にしていない。(2) useWebsiteCohortQuery は、深さ優先の順では追加のフォーム (CohortEditForm.tsx 35 行) で先に呼ばれる (enabled が false で問い合わせはしない)。作業の決まりは「成り立たないように見える呼び出しもフレームにする」なので、追加のフォームの下に置く読み方もあるが、結果の notes (2) に理由が書いてあり、届く先のある編集のフォームの下に置いた判断は妥当と見た。(3) GET …/segments の getQueryFilters (route.ts 31 行) は websiteId なしで呼ばれ、データに届かないので、フレームにしない扱いを受け入れた。(4) ext_prisma_values と ext_prisma_values_rw_filter の DATABASE_REPLICA_URL の interpretation は、ほかの入口の大半と同じなので、指摘にしていない。(5) 画面が送る page と pageSize を受け口のスキーマが落とし、いつも最初の 20 件になる、という主張は、request.ts 30〜45 行・prisma.ts 758〜759 行・constants.ts 31 行で確かめた。(6) 根拠の行は、全フレームの call・summary・guards・settings・rules・io を対象のコードで開いて確かめ、主張を支えていない行は見つからなかった。設定・確認の値・つながりの綴りは、ほかの入口の結果とそろっている"
+    where: notes
+    claim: "結果の先頭の notes に、分析し直す前の文が残っていて、いまの木と食い違う。[作り方] の後の [木の書き方] は getWebsiteSegment が values の受け口の下にあると書き、[迷った点と選んだ扱い] (1) は WebsiteControls の子を unknown + not_analyzed のフレームにしたと書いているが、いまの結果では getWebsiteSegment は GET …/segments/[segmentId] の下にあり、WebsiteControls は embed で止めている。同じ [作り方] と [木の書き方] の文が 2 回出ている。"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx", line: 10 }
+    suggestion: "notes の後半 ([作り方] 以降の、前の版の文) を消し、前の版から引き継ぐ扱い ((2)〜(12) のうち、いまも当てはまるもの) だけを、[前の分析の迷った点と選んだ扱い] の下に 1 回だけ書く。"
+notes: "共有の部品の扱い (CohortsPage で止め、links に embed、target WebsiteControls、entry_id part_p.shared_a.WebsiteControls、status fact、根拠は CohortsPage.tsx 3 行と 10 行) は、決まりのとおり。渡す値 (allowFilter={false}・allowDateFilter={false}、ほかは既定) と、その結果どの操作も出ないことは、WebsiteControls.tsx 12〜17・28・34〜46 行と合っている。getQueryFilters の segment / cohort の分かれ道 (request.ts 132〜170 行) を固定の値で閉じた扱いは、3 つの条件 (useWebsiteValuesQuery.ts 54〜59 行がクエリに segment と cohort を付けない、受け口のスキーマがそれを落とし request.ts 38〜45 行の戻しにも当たらない、木の中にほかに着く経路が無い) を満たしている。getWebsiteSegment を GET …/segments/[segmentId] の下に移し、終端を避けるために書いていた parseRequest・checkAuth を外したのも、深さ優先の順と合う。共通の段 (checkAuth の CLOUD_MODE と API キーの枝のルール、canViewWebsite・canUpdateWebsite・canDeleteWebsite の ownership と role の 2 件、API_URL と BASE_PATH を use_website_cohorts_query に 1 回だけ) も決まりのとおり。canViewSharedWebsiteFilters と canViewWebsiteSection の guards が kind: other なのは、ほかの入口の結果と同じ綴りなので、指摘にしていない。前のレビューから引き継ぐ指摘は無い。"

@@ -16,16 +16,16 @@ analyzer:
   profile:
     id: ui-nextjs
     version: 0.4.0
-  skill_version: 0.4.0
+  skill_version: 0.4.1
   model: claude-opus-5-5
-  analyzed_at: '2026-11-17T15:45:44Z'
+  analyzed_at: '2026-11-18T19:43:02Z'
   reviewed:
     by: claude-opus-5-5 (fresh context)
-    at: '2026-11-17T15:44:07Z'
+    at: '2026-11-18T19:41:53Z'
     findings_open: 0
 summary:
   status: interpretation
-  value: 1 つのサイトの流入元の分析 (アトリビューション) の画面。利用者がモデル (first-click / last-click)、種類 (表示したページ path / 起きたイベント event)、変換の段 (step) を選ぶと、Attribution が GET /api/websites/<id>/attribution を呼び、getAttribution が website_event から、変換の段に至ったセッションの流入元 (リファラー、有料広告のクリック ID、UTM の 5 つ) ごとのセッション数と、変換の段の合計 (件数・訪問者・訪問) を数える。PostgreSQL と ClickHouse のどちらで読むかは、設定 (CLICKHOUSE_URL) で切り替わる。変換の段の入力欄は、GET …/values で url_path か event_name の値の候補を読む。変換の段を選ぶまでは集計を呼ばない。上部の WebsiteControls は、絞り込みのボタン (列の値・セグメント・セッションのプロパティの候補を読む)、期間の選択 (daterange)、絞り込みの帯 (保存済みの segment の読み取りと、セグメントとして保存する書き込み) を描く。どの受け口も parseRequest → checkAuth で認証する (user を読む。Redis が有効なら auth:* も読む)。権限の確認では website / link / pixel / board / team_user を読む。利用者の操作による書き込みは、セグメントとして保存 (segment の作成) だけ。ほかに、Redis が有効なら、サイトの情報を website:* にキャッシュする
+  value: 1 つのサイトの流入元の分析 (アトリビューション) の画面。上の絞り込みと期間の操作 (WebsiteControls) は、多くの画面が描く共有の部品で、別の入口 (part_p.shared_a.WebsiteControls) にしたので、この入口では辿らない (embed のつながりだけを書く)。利用者がモデル (first-click / last-click)、種類 (表示したページ path / 起きたイベント event)、変換の段 (step) を選ぶと、Attribution が GET /api/websites/<id>/attribution を呼び、getAttribution が website_event から、変換の段に至ったセッションの流入元 (リファラー、有料広告のクリック ID、UTM の 5 つ) ごとのセッション数と、変換の段の合計 (件数・訪問者・訪問) を数える。PostgreSQL と ClickHouse のどちらで読むかは、設定 (CLICKHOUSE_URL) で切り替わる。変換の段の入力欄は、GET …/values で url_path か event_name の値の候補を読む。変換の段を選ぶまでは集計を呼ばない。どの受け口も parseRequest → checkAuth で認証する (user を読む。Redis が有効なら auth:* も読む)。権限の確認では website / share / link / pixel / board / team_user を読む。期間を決めるときにサイトの情報を読み、Redis が有効なら website:* に読み書きする (CLOUD_MODE で個人のサイトなら account:* も読む)。URL に segment か cohort があれば、保存した定義 (segment) を読む。利用者の操作による書き込みは無い。ほかの画面への遷移も無い
   evidence:
   - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/page.tsx
     line: 7
@@ -41,9 +41,17 @@ summary:
     line: 20
   - file: src/queries/sql/attribution/getAttribution.ts
     line: 29
-notes: 'プロファイル 0.4.0・skill 0.4.0 で分析した。[木の形] 同じ処理は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に書いた。AttributionPage の中の順は、useMessages (14 行) → useDateRange (17 行。API を呼ばない) → WebsiteControls (25 行) → WebsiteValueComboBox (50 行) → Attribution (62 行)。だから、parseRequest → checkAuth → getUser、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment、values の受け口 (useWebsiteValuesQuery) は、WebsiteControls の絞り込みのボタン (WebsiteFilterButton → FilterEditForm → FieldFilters → FilterRecord) の下に書いた。WebsiteControls の下の木は、同じコミットの同じ部品を辿った結果 (websites.websiteId_d) と同じになるので、その木を写し、呼び出し元の行と、画面によって違う記述 (直帰を除くのチェックを出さないこと、この画面のほかの受け口の一覧) を、この画面に合わせて直した。[迷った点と選んだ扱い] (1) 変換の段の入力欄 (WebsiteValueComboBox) が呼ぶ useWebsiteValuesQuery は、絞り込みの行 (FilterRecord) が呼ぶものと同じ関数で、type が path / event でも読む表 (website_event) は同じなので、同じ処理として 1 回だけ書いた。入力欄が終端になるので、いちばん早い呼び出しを、読み書きを持つ最初の段 (checkAuth) まで書き直した (use_values_rw1 から)。(2) WebsiteValueComboBox の 2 つ目の useWebsiteValuesQuery
-  (additionalType) は、同じ呼び出し元からの同じ関数なので、1 つ目と同じフレーム (use_values_rw1) で表し、別のフレームにしていない (この画面は additionalType を渡さないので type が空になり、enabled が false で、実際には API を呼ばない)。(3) ライブラリを呼ぶ同じ行 (prisma.ts 746 行の $queryRawUnsafe、clickhouse.ts 721 行の query) は、呼び出し元ごとに読む表が違うので、呼び出し元ごとに書いた。(4) 画面から受け口への呼び出しは、URL の形がコードから読め、当たる route が 1 つに決まるので fact にした。API_URL の設定は、この入口で最初に API を呼ぶフレーム (use_values) にだけ書いた。(5) 生の SQL のうち、parseFilters が実行時に組み立てる条件の列は fields に書かず、note に書いた。ClickHouse の model と集計の問い合わせは select * で website_event を読むので、fields に * を書いた。(6) 表の割合 (percentFilter) は画面での表示の計算なので、rules に書いていない。(7) 期間の localStorage など、ブラウザの中の保存は I/O に書いていない。(8) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。[レビュー] 指摘は 7 件 (すべて low) で、すべて直した: API_URL を use_values だけに残し (写した木のほかの 6 つのフックから消した)、BASE_PATH を use_values に足した。ext_prisma_attribution に DATABASE_REPLICA_URL を足した。checkAuth の rules に API キーの枝を 1 行足した。useAttributionQuery の enabled の note を直した (options の !!step が上書きする)。session を結ぶ条件に referrer の絞り込みを足した。入口の summary の書き込みに、Redis
-  の website:* へのキャッシュを足した。レビューの notes にあった、プロパティの絞り込みの data_type も fields に足した。high が無いので、もう一度のレビューはしていない。'
+  - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
+    line: 54
+  - file: src/lib/request.ts
+    line: 52
+  - file: src/permissions/website.ts
+    line: 24
+  - file: src/lib/load.ts
+    line: 10
+  - file: src/lib/request.ts
+    line: 132
+notes: '(1) 入口の一覧に、共有の部品 WebsiteControls が別の入口 part_p.shared_a.WebsiteControls として入ったので、指示書 0.4.1 とこの分析リポジトリの決まり (analysis-conventions.md の「共有の部品」「どの入口にも出る共通の段」) で分析し直した。前の結果 (0.4.0、94 段) を出発点にし、変えた所の根拠の行は対象のコードで確かめた。AttributionPage (attribution_page) で止め、links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、status: fact。根拠は AttributionPage.tsx:4 の import と :25 の描く行) を書いた。WebsiteControls のフレームと、その下の木 (WebsiteFilterButton → FilterEditForm → FieldFilters / SegmentFilters / PropertyFilters、WebsiteDateFilter、FilterBar → SegmentEditForm と、その先の受け口・問い合わせ) は外した。AttributionPage が WebsiteControls に渡す値 (websiteId だけ) は attribution_page の summary に書いた。(2) 外した木の下に書いていた共通の段 (parseRequest → checkAuth → getUser、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment、GET values → getValues) は、入口からコードの順に深さ優先で辿り直すと、変換の段の入力欄 (AttributionPage.tsx:50 の WebsiteValueComboBox → useWebsiteValuesQuery) が最初に着くので、その下に移した。前の結果がこの入力欄の下に書いていた書き直しの段 (use_values_rw1 から q_check_auth_rw2) は、要らなくなったので消した。外した段を指していた文 (ほかの受け口の一覧、canUpdateWebsite・canViewSharedWebsite などの呼び出し元の一覧) は直した。段の数は 94 から 44 になった。(3) 決まりにそろえた所: (a) checkAuth の CLOUD_MODE (settings) と API キーの枝の 1 行 (rules) は、前から書いてあるので、そのまま。(b) canViewWebsite の guards に、関数の中の管理者の確認を、別の 1 件 (kind: role、value: user.isAdmin) として足した。canViewWebsiteSection は、ほかの入口の結果と同じく kind: other のまま。(c) API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_values) に 1 回だけ書いた (前の結果も use_values にだけ書いていたが、use_values の位置が WebsiteControls の下から入力欄の下に移った)。(d) 結果の target は、作業定義と同じに書いた (clone_path も写した)。(4) 固定の値で閉じている呼び出し (指示書 0.4.1): WebsiteValueComboBox の 2 つ目の useWebsiteValuesQuery (additionalQuery) は、AttributionPage が additionalType を渡さないので既定の空文字になり (WebsiteValueComboBox.tsx:26)、enabled (useWebsiteValuesQuery.ts:60) が偽で API を呼ばない。呼ぶ関数は 1 つ目と同じなので、もとからフレームは 1 つで、閉じていることを website_value_combobox の summary に書いた。(5) 状態で決まるので閉じた扱いにしなかったもの: GET values の segment / cohort の枝 (getWebsiteSegments。route.ts:48) は、この画面の type が AttributionPage の状態 (path か event) なので届かないように見えるが、状態で決まる値なので、決まり (analysis-conventions.md の「この画面からは条件が成り立たないように見える呼び出しも、省かずに conditional のフレームにする」) に従い、conditional のフレームとして足した (前の結果は、受け口の summary に書くだけで、フレームにしていなかった)。段と読み書きの綴りは、part_p.shared_a.WebsiteControls の同じ段に合わせた。同じ理由で、getQueryFilters と getValues は always のまま (この画面からは、いつもその枝を通る。理由は call の note)。useWebsiteValuesQuery の国・地域の名前の置き換えのルールも、この画面では入らないように見えるが、状態で決まるので消さずに残し、note に書いた。(6) 迷った点と選んだ扱い (前の結果から引き継いだもの): (a) ライブラリを呼ぶ同じ行 (prisma.ts 746 行の $queryRawUnsafe、clickhouse.ts 721 行の query) は、呼び出し元ごとに読む表が違うので、呼び出し元ごとに書いた。(b) 画面から受け口への呼び出しは、URL の形がコードから読め、当たる route が 1 つに決まるので fact にした。(c) 生の SQL のうち、parseFilters が実行時に組み立てる条件の列は fields に書かず、note に書いた。ClickHouse の model と集計の問い合わせは select * で website_event を読むので、fields に * を書いた。(d) 表の割合 (percentFilter) は画面での表示の計算なので、rules に書いていない。(e) 期間の localStorage など、ブラウザの中の保存は I/O に書いていない。(f) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(7) links は embed の 1 件だけ。この画面に、ほかの画面への遷移は無い。(8) レビューへの対応 (1 回。high 0 件、medium 0 件、low 4 件。すべて直した): getAttribution の event_data の読み取り (PostgreSQL・ClickHouse) に、この画面からは届かないように見える理由 (useFilterParameters が /events で終わらないパスでは epf を送らない) を note に書き、summary の「プロパティ」をセッションのプロパティに絞った。getValues の website_event の fields に url_path と event_name を足した (この画面の type は path か event)。getValues の session の読み取りと、リファラーの条件・ルールに、この画面では使わないように見える理由を note に書いた。getWebsiteSegment の call に、GET values からは届かず、GET attribution からの getQueryFilters で届く理由を note に書いた。high が無いので、もう一度のレビューはしていない'
 callstack:
 - id: page
   layer: page
@@ -88,10 +96,8 @@ callstack:
       line: 7
   summary:
     status: interpretation
-    value: ブラウザ側で動く画面の本体。モデル (first-click / last-click。既定は first-click)、種類 (path / event。既定は path)、変換の段 (step。既定は空) を画面の状態に持ち、期間は useDateRange で URL のクエリ (無ければブラウザに保存した期間、それも無ければ既定) から決める。上部に WebsiteControls、モデルと種類の選択、変換の段の入力欄 (WebsiteValueComboBox) を描き、変換の段が選ばれていれば Attribution を、選ばれていなければ空の表示 (Empty) を描く。自分では API を呼ばない
+    value: ブラウザ側で動く画面の本体。モデル (first-click / last-click。既定は first-click)、種類 (path / event。既定は path)、変換の段 (step。既定は空) を画面の状態に持ち、期間は useDateRange で URL のクエリ (無ければブラウザに保存した期間、それも無ければ既定) から決める。上から、絞り込みと期間の操作 (WebsiteControls。別の入口の共有の部品で、ここでは辿らない)、モデルと種類の選択、変換の段の入力欄 (WebsiteValueComboBox) を描き、変換の段が選ばれていれば Attribution を、選ばれていなければ空の表示 (Empty) を描く。WebsiteControls には websiteId だけを渡す。allowFilter と allowDateFilter は渡さず既定の true (絞り込みと期間の選択を出す)、allowBounceFilter・allowDownload・allowCompare は渡さず既定の false、allowMonthFilter も渡さない (直帰を除くの選択・書き出し・比較・月の選択は出さない)。自分では API を呼ばない
     evidence:
-    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
-      line: 1
     - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
       line: 11
     - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
@@ -108,6 +114,18 @@ callstack:
       line: 61
     - file: src/components/hooks/useDateRange.ts
       line: 15
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 12
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 13
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 14
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 15
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 16
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 17
   rules:
   - kind: decision
     value: 種類 (path / event) を変えると、選んでいた変換の段を空に戻す (集計を消して、空の表示に戻る)
@@ -128,183 +146,56 @@ callstack:
     evidence:
     - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
       line: 10
-- id: website_controls
+  links:
+  - kind: embed
+    target: WebsiteControls
+    entry_id: part_p.shared_a.WebsiteControls
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
+      line: 4
+    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
+      line: 25
+- id: website_value_combobox
   layer: component
   kind: component
-  name: WebsiteControls
+  name: WebsiteValueComboBox (変換の段の入力欄)
   source:
-    file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-    line: 10
+    file: src/components/input/WebsiteValueComboBox.tsx
+    line: 23
   caller: attribution_page
   call:
     status: fact
     when: always
     evidence:
     - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
-      line: 25
+      line: 50
   summary:
     status: interpretation
-    value: フィルターのボタン、期間の選択、いまのフィルターの帯を並べる。この画面は websiteId だけを渡し、allowDownload と allowMonthFilter は渡さないので、ExportButton と MonthFilter は描かない。useShare は共有画面の設定を読むだけで、データを読まない
+    value: 変換の段を選ぶ入力欄。入力した文字を 300 ミリ秒待ってから検索語にし、useWebsiteValuesQuery で、種類 (path なら url_path、event なら event_name) の値の候補を、画面の期間で読む (primaryQuery)。2 つ目の useWebsiteValuesQuery (additionalQuery) は、type に additionalType を渡すが、AttributionPage は additionalType を渡さないので既定の空文字になり (WebsiteValueComboBox.tsx:26)、フックの enabled (useWebsiteValuesQuery.ts:60) が偽になって API を呼ばない。固定の値 (引数を渡さないことで効く既定値) で閉じている呼び出しなので、辿っていない (呼ぶ関数は 1 つ目と同じで、1 つ目は use_values に書いた)
     evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 27
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 35
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 40
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 42
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 43
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 46
-  rules:
-  - kind: decision
-    value: 共有画面の設定で allowFilter が false のときは、フィルターのボタンと、いまのフィルターの帯を出さない
-    status: interpretation
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 28
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 34
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 46
-    - file: src/lib/share.ts
-      line: 7
-- id: website_filter_button
-  layer: component
-  kind: component
-  name: WebsiteFilterButton
-  source:
-    file: src/components/input/WebsiteFilterButton.tsx
-    line: 13
-  caller: website_controls
-  call:
-    status: fact
-    when: conditional
-    condition: フィルターを出してよいとき (共有画面の設定で allowFilter が false でない)
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 34
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 35
-  summary:
-    status: interpretation
-    value: フィルターの小窓を開くボタン。小窓の中に FilterEditForm を描く (「直帰を除く」のチェックは、概要の画面か allowBounceFilter が true のときだけで、この画面では出ない)。適用すると、選んだ絞り込みを URL のクエリに書いて同じ画面を開き直す (ほかの画面へは移らない)
-    evidence:
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 55
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 68
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 72
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 81
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 92
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 27
-- id: filter_edit_form
-  layer: component
-  kind: component
-  name: FilterEditForm
-  source:
-    file: src/components/input/FilterEditForm.tsx
-    line: 22
-  caller: website_filter_button
-  call:
-    status: fact
-    when: conditional
-    condition: 利用者がフィルターのボタンを押して、小窓を開いたとき
-    evidence:
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 72
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 92
-  summary:
-    status: interpretation
-    value: '絞り込みを編集するフォーム。タブごとに、列の絞り込み (FieldFilters)、セグメントとコホートの一覧 (SegmentFilters を 2 回)、セッションのプロパティの絞り込み (PropertyFilters の source: session) を描く。イベントのプロパティのタブは、パスが /events で終わるときだけなので、この画面では出ない。自分では API を呼ばない'
-    evidence:
-    - file: src/components/input/FilterEditForm.tsx
+    - file: src/components/input/WebsiteValueComboBox.tsx
+      line: 26
+    - file: src/components/input/WebsiteValueComboBox.tsx
       line: 38
-    - file: src/components/input/FilterEditForm.tsx
-      line: 138
-    - file: src/components/input/FilterEditForm.tsx
-      line: 149
-    - file: src/components/input/FilterEditForm.tsx
-      line: 158
-    - file: src/components/input/FilterEditForm.tsx
-      line: 166
-    - file: src/components/input/FilterEditForm.tsx
-      line: 178
-  rules:
-  - kind: decision
-    value: 画面のパスで、選べない列が決まる。この画面 (パスが /events / /replays / /heatmaps で終わらず、/pixels / /links / /performance を含まない) では event を選べない
-    status: interpretation
-    evidence:
-    - file: src/components/input/FilterEditForm.tsx
-      line: 37
-    - file: src/components/input/FilterEditForm.tsx
+    - file: src/components/input/WebsiteValueComboBox.tsx
       line: 39
-    - file: src/components/input/FilterEditForm.tsx
-      line: 45
-    - file: src/components/input/FilterEditForm.tsx
+    - file: src/components/input/WebsiteValueComboBox.tsx
+      line: 41
+    - file: src/components/input/WebsiteValueComboBox.tsx
+      line: 46
+    - file: src/components/input/WebsiteValueComboBox.tsx
+      line: 48
+    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
+      line: 50
+    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
+      line: 53
+    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
       line: 60
-    - file: src/components/input/FilterEditForm.tsx
-      line: 61
-- id: field_filters
-  layer: component
-  kind: component
-  name: FieldFilters
-  source:
-    file: src/components/input/FieldFilters.tsx
-    line: 34
-  caller: filter_edit_form
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/FilterEditForm.tsx
-      line: 138
-  summary:
-    status: interpretation
-    value: 列 (path / referrer / country / browser など、useFields の項目) を選んで絞り込みの行を足す欄。行ごとに FilterRecord を描き、候補を探す期間として直近 6 か月を渡す。SegmentEditForm (SegmentEditForm.tsx:89) も、同じ部品を描く。経路はここと同じ
-    evidence:
-    - file: src/components/input/FieldFilters.tsx
-      line: 43
-    - file: src/components/input/FieldFilters.tsx
-      line: 44
-    - file: src/components/input/FieldFilters.tsx
-      line: 45
-    - file: src/components/input/FieldFilters.tsx
-      line: 159
-- id: filter_record
-  layer: component
-  kind: component
-  name: FilterRecord
-  source:
-    file: src/components/common/FilterRecord.tsx
-    line: 38
-  caller: field_filters
-  call:
-    status: fact
-    when: conditional
-    condition: 絞り込みの行が 1 つ以上あるとき (URL に絞り込みがある、または利用者が列を足した)
-    evidence:
-    - file: src/components/input/FieldFilters.tsx
-      line: 157
-    - file: src/components/input/FieldFilters.tsx
-      line: 159
-  summary:
-    status: interpretation
-    value: 絞り込みの 1 行。演算子と値を選ぶ。値の候補を useWebsiteValuesQuery で読み、検索語を打つたびに読み直す
-    evidence:
-    - file: src/components/common/FilterRecord.tsx
-      line: 55
-    - file: src/components/common/FilterRecord.tsx
-      line: 62
-    - file: src/components/common/FilterRecord.tsx
-      line: 112
+    - file: src/lib/constants.ts
+      line: 78
+    - file: src/lib/constants.ts
+      line: 94
 - id: use_values
   layer: component
   kind: hook
@@ -312,16 +203,16 @@ callstack:
   source:
     file: src/components/hooks/queries/useWebsiteValuesQuery.ts
     line: 6
-  caller: filter_record
+  caller: website_value_combobox
   call:
     status: fact
     when: always
     evidence:
-    - file: src/components/common/FilterRecord.tsx
-      line: 55
+    - file: src/components/input/WebsiteValueComboBox.tsx
+      line: 39
   summary:
     status: interpretation
-    value: 列の値の候補を GET /websites/<id>/values から読むフック。type (列)、期間、検索語を送る
+    value: 列の値の候補を GET /websites/<id>/values から読むフック。type (この画面では path か event)、期間、検索語を送る
     evidence:
     - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
       line: 51
@@ -329,6 +220,8 @@ callstack:
       line: 54
     - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
       line: 58
+    - file: src/components/input/WebsiteValueComboBox.tsx
+      line: 41
   settings:
   - name: API_URL
     kind: env
@@ -345,9 +238,10 @@ callstack:
       line: 14
     - file: next.config.ts
       line: 215
+    note: この入口の API を呼ぶフックすべてに同じように効く。このリポジトリの決まりで、この入口で最初に API を呼ぶこのフレームにだけ書いた
   - name: BASE_PATH
     kind: env
-    effect: API の URL の前に付く (basePath + /api + /websites/…。この画面のほかの API にも同じように付く。API_URL が絶対の URL のときは付かない)
+    effect: API の URL の前に付く
     status: fact
     evidence:
     - file: next.config.ts
@@ -360,7 +254,7 @@ callstack:
       line: 41
     - file: src/lib/api-url.ts
       line: 44
-    note: analysis-conventions.md のとおり、この入口で最初に API を呼ぶ段に 1 回だけ書いた (API_URL も同じ)
+    note: この入口の API を呼ぶフックすべてに同じように効く。このリポジトリの決まりで、この入口で最初に API を呼ぶこのフレームにだけ書いた
   rules:
   - kind: calculation
     value: 列が country / region のときは、検索語を名前に含む国・地域のコード (最大 5 件) に置き換えて送る。当たるものが無ければ検索語のまま送る
@@ -376,6 +270,7 @@ callstack:
       line: 42
     - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
       line: 43
+    note: この画面の type は path か event (AttributionPage の状態。選択肢は AttributionPage.tsx:45・46) なので、この置き換えには入らないように見える。状態で決まる値なので、閉じた扱いにはしていない
 - id: api_values
   layer: api_route
   kind: route_handler
@@ -394,10 +289,10 @@ callstack:
       line: 60
     - file: src/lib/api-url.ts
       line: 44
-    note: フックの enabled (websiteId・type・期間がそろっていること) は、この画面ではいつも成り立つ (websiteId は URL、type は行の列、期間は FieldFilters が作る)。API_URL を設定すると、向き先が変わる
+    note: フックの enabled (websiteId・type・期間がそろっていること) は、この入口ではいつも成り立つ (websiteId は URL、type は AttributionPage の状態で既定は path、期間は useDateRange が作る)
   summary:
     status: interpretation
-    value: 列の値の候補を返す受け口。入力の検査とログインの確認 (parseRequest)、サイトを見る権限の確認 (canViewWebsiteSection)、期間と絞り込みの組み立て (getQueryFilters) の後、getValues で値ごとの件数を読む。type が segment / cohort のときは getWebsiteSegments でセグメントの名前を返す枝 (route.ts:48) があるが、この画面の列 (useFields) には segment / cohort が無いので届かない
+    value: 列の値の候補を返す受け口。入力の検査とログインの確認 (parseRequest)、サイトを見る権限の確認 (canViewWebsiteSection) の後、type が segment / cohort なら getWebsiteSegments でセグメントの名前を返し (route.ts:48)、それ以外なら期間と絞り込みの組み立て (getQueryFilters) の後、getValues で値ごとの件数を読む。この画面が送る type は path か event なので、getWebsiteSegments の枝には届かないように見える
     evidence:
     - file: src/app/api/websites/[websiteId]/values/route.ts
       line: 18
@@ -405,6 +300,8 @@ callstack:
       line: 27
     - file: src/app/api/websites/[websiteId]/values/route.ts
       line: 48
+    - file: src/app/api/websites/[websiteId]/values/route.ts
+      line: 49
     - file: src/app/api/websites/[websiteId]/values/route.ts
       line: 53
     - file: src/app/api/websites/[websiteId]/values/route.ts
@@ -436,7 +333,7 @@ callstack:
       line: 18
   summary:
     status: interpretation
-    value: '受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す。この画面のほかの受け口も、最初に同じ関数を呼ぶ: segments の GET / POST、segments/[segmentId] の GET、session-data/properties、session-data/values、daterange、attribution。経路はここと同じ'
+    value: 受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す。この画面の attribution の受け口も、最初に同じ関数を呼ぶ。経路はここと同じ
     evidence:
     - file: src/lib/request.ts
       line: 22
@@ -715,7 +612,7 @@ callstack:
       line: 27
   summary:
     status: interpretation
-    value: 'サイトの、あるセクションを見てよいかを決める。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める。この画面のほかの受け口も同じ関数を呼ぶ (渡すセクションが違う): session-data/properties と session-data/values (sessions)、attribution (attribution)。経路はここと同じ'
+    value: サイトの、あるセクションを見てよいかを決める。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める。この画面の attribution の受け口も同じ関数を呼ぶ (セクションは attribution)。経路はここと同じ
     evidence:
     - file: src/permissions/share.ts
       line: 58
@@ -762,7 +659,7 @@ callstack:
       line: 59
   summary:
     status: interpretation
-    value: 利用者がサイトを見てよいかを決める。管理者と、共有トークンの対象は、DB を読まずに許す。それ以外は、対象を getEntity で読み、持ち主か、持ち主のチームのメンバー (getTeamUser) かを確かめる。canViewSharedWebsiteFilters (share.ts:93) と canViewSharedWebsite (share.ts:82) も同じ関数を呼ぶ
+    value: 利用者がサイトを見てよいかを決める。管理者と、共有トークンの対象は、DB を読まずに許す。それ以外は、対象を getEntity で読み、持ち主か、持ち主のチームのメンバー (getTeamUser) かを確かめる
     evidence:
     - file: src/permissions/website.ts
       line: 9
@@ -775,6 +672,13 @@ callstack:
     - file: src/permissions/website.ts
       line: 35
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    note: 管理者なら、持ち主やチームを見ずに許す
   - kind: ownership
     value: canViewWebsite
     status: interpretation
@@ -843,7 +747,7 @@ callstack:
       line: 6
   summary:
     status: interpretation
-    value: website を id で 1 件読み、見つかれば、いちばん新しい共有 (share) の slug を shareId として付ける。id が UUID の形でなければ、読まずに null を返す。fetchWebsite (src/lib/load.ts:10 / :12) と canUpdateWebsite (src/permissions/website.ts:141) も同じ関数を呼ぶ。経路はここと同じ
+    value: website を id で 1 件読み、見つかれば、いちばん新しい共有 (share) の slug を shareId として付ける。id が UUID の形でなければ、読まずに null を返す。fetchWebsite (src/lib/load.ts:10 / :12) も同じ関数を呼ぶ。経路はここと同じ
     evidence:
     - file: src/queries/prisma/website.ts
       line: 81
@@ -1135,7 +1039,7 @@ callstack:
       line: 35
   summary:
     status: interpretation
-    value: チームと利用者の組で team_user を 1 件読む (削除済みのチームは除く)。canUpdateWebsite (src/permissions/website.ts:152) も同じ関数を呼ぶ
+    value: チームと利用者の組で team_user を 1 件読む (削除済みのチームは除く)
     evidence:
     - file: src/queries/prisma/teamUser.ts
       line: 20
@@ -1206,6 +1110,117 @@ callstack:
     evidence:
     - file: src/queries/prisma/teamUser.ts
       line: 20
+- id: q_get_website_segments
+  layer: query
+  kind: function
+  name: getWebsiteSegments → getSegments (src/queries/prisma/segment.ts)
+  source:
+    file: src/queries/prisma/segment.ts
+    line: 42
+  caller: api_values
+  call:
+    status: fact
+    when: conditional
+    condition: type がセグメントの種類 (segment / cohort) のとき
+    evidence:
+    - file: src/app/api/websites/[websiteId]/values/route.ts
+      line: 48
+    - file: src/app/api/websites/[websiteId]/values/route.ts
+      line: 49
+    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
+      line: 12
+    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
+      line: 45
+    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
+      line: 46
+    note: この画面が送る type は、AttributionPage の状態 (既定は path。選択肢は path と event だけ。AttributionPage.tsx:12・45・46) で、segment / cohort にはならないので、成り立たないように見える。状態で決まる値なので、閉じた扱いにはせず、消さずに書いた
+  summary:
+    status: interpretation
+    value: サイトと種類 (segment / cohort) で segment を絞り、pagedQuery で 1 ページ分と件数を読む (検索語があれば名前で絞る)
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 26
+    - file: src/queries/prisma/segment.ts
+      line: 33
+    - file: src/queries/prisma/segment.ts
+      line: 43
+    - file: src/queries/prisma/segment.ts
+      line: 46
+    - file: src/queries/prisma/segment.ts
+      line: 47
+    - file: src/lib/prisma.ts
+      line: 761
+    - file: src/lib/prisma.ts
+      line: 775
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: segment
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: type
+      use:
+      - filter
+    - name: name
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 33
+    - file: src/queries/prisma/segment.ts
+      line: 46
+    - file: src/queries/prisma/segment.ts
+      line: 47
+    - file: src/queries/prisma/segment.ts
+      line: 28
+    - file: src/lib/prisma.ts
+      line: 761
+    - file: src/lib/prisma.ts
+      line: 775
+    - file: prisma/schema.prisma
+      line: 317
+    note: name の条件は、検索語があるときだけ。並べ替えの列は、クエリの orderBy で実行時に決まる。1 ページ分の行 (findMany) と件数 (count) の 2 回読む
+- id: ext_prisma_segment_find_many
+  layer: external
+  kind: library
+  name: Prisma Client segment.findMany (prisma.pagedQuery)
+  source:
+    file: src/lib/prisma.ts
+    line: 761
+  caller: q_get_website_segments
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 33
+    - file: src/lib/prisma.ts
+      line: 761
+- id: ext_prisma_segment_count
+  layer: external
+  kind: library
+  name: Prisma Client segment.count (prisma.pagedQuery)
+  source:
+    file: src/lib/prisma.ts
+    line: 775
+  caller: q_get_website_segments
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 33
+    - file: src/lib/prisma.ts
+      line: 775
 - id: q_get_query_filters
   layer: query
   kind: function
@@ -1222,10 +1237,10 @@ callstack:
       line: 52
     - file: src/app/api/websites/[websiteId]/values/route.ts
       line: 53
-    note: type が segment / cohort でないときの枝 (route.ts:52)。この画面の列 (useFields) には segment / cohort が無いので、いつもこの枝を通る
+    note: type が segment / cohort でないときの枝 (route.ts:52)。この画面の type は path か event なので、いつもこの枝を通る
   summary:
     status: interpretation
-    value: 'クエリから、期間・単位・列の絞り込み・プロパティの絞り込みを取り出して、問い合わせ用の条件にまとめる。websiteId を渡されたときは、サイトの情報 (fetchWebsite) で期間の開始を直し、URL に segment / cohort があれば、保存した定義 (getWebsiteSegment) を絞り込みに足す。この画面のほかの受け口も同じ関数を呼ぶ: session-data/properties、session-data/values、attribution。segments の GET は websiteId を渡さずに呼ぶ (サイトの情報もセグメントも読まない)。経路はここと同じ'
+    value: クエリから、期間・単位・列の絞り込み・プロパティの絞り込みを取り出して、問い合わせ用の条件にまとめる。websiteId を渡されたときは、サイトの情報 (fetchWebsite) で期間の開始を直し、URL に segment / cohort があれば、保存した定義 (getWebsiteSegment) を絞り込みに足す。この画面の attribution の受け口も同じ関数を呼ぶ。経路はここと同じ
     evidence:
     - file: src/lib/request.ts
       line: 122
@@ -1505,9 +1520,16 @@ callstack:
       line: 132
     - file: src/lib/request.ts
       line: 133
+    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
+      line: 54
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 35
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 36
+    note: GET values の受け口からは、useWebsiteValuesQuery が segment / cohort をクエリに付けない (useWebsiteValuesQuery.ts:54-59) ので、届かないように見える。この画面で実際に届くのは、GET attribution の受け口 (useAnalyticsQuery が useFilterParameters の segment / cohort を付ける。useFilterParameters.ts:35・36) からの getQueryFilters の呼び出し。入口から深さ優先で辿ると、getQueryFilters に最初に着くのが GET values なので、ここに書いた
   summary:
     status: interpretation
-    value: セグメント (またはコホート) を、id とサイトの組で 1 件読む。GET segments/[segmentId] の受け口 (route.ts:24) も同じ関数を呼ぶ
+    value: セグメント (またはコホート) を、id とサイトの組で 1 件読む
     evidence:
     - file: src/queries/prisma/segment.ts
       line: 37
@@ -1566,7 +1588,7 @@ callstack:
     evidence:
     - file: src/app/api/websites/[websiteId]/values/route.ts
       line: 54
-    note: type が segment / cohort でないときの枝。この画面ではいつもこの枝を通る
+    note: type が segment / cohort でないときの枝。この画面の type は path か event なので、いつもこの枝を通る
   summary:
     status: interpretation
     value: 期間の中で、指定の列の値ごとの件数を数え、多い順に 10 件返す (検索語があれば絞る)。PostgreSQL では、列がセッションの列なら session から、それ以外は website_event から読む。ClickHouse では website_event から読む。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)
@@ -1609,7 +1631,7 @@ callstack:
       line: 59
     - file: prisma/schema.prisma
       line: 84
-    note: 列がセッションの列 (browser / os / device / country / region / city / distinct_id など) のとき。取り出す列と検索の条件の列は、type から実行時に決まる (FILTER_COLUMNS[type]) ので fields に書いていない
+    note: 列がセッションの列 (browser / os / device / country / region / city / distinct_id など) のとき。取り出す列と検索の条件の列は、type から実行時に決まる (FILTER_COLUMNS[type]) ので fields に書いていない。この画面の type は path か event (url_path / event_name) で、セッションの列ではないので、この読み取りは使わないように見える (type は AttributionPage の状態で決まるので、消さずに残した)
   - op: read
     status: fact
     resource:
@@ -1618,6 +1640,14 @@ callstack:
         dbms: postgresql
         table: website_event
     fields:
+    - name: url_path
+      use:
+      - read
+      - filter
+    - name: event_name
+      use:
+      - read
+      - filter
     - name: website_id
       use:
       - filter
@@ -1641,7 +1671,11 @@ callstack:
       line: 31
     - file: prisma/schema.prisma
       line: 183
-    note: 列がセッションの列でないとき。取り出す列と検索の条件の列は、type から実行時に決まる (FILTER_COLUMNS[type]) ので fields に書いていない。referrer_domain と hostname の条件は、列が referrer_domain のときだけ
+    - file: src/lib/constants.ts
+      line: 78
+    - file: src/lib/constants.ts
+      line: 94
+    note: 取り出す列と検索の条件の列は、type から FILTER_COLUMNS[type] で決まる。この画面の type は path か event なので、url_path か event_name (constants.ts 78・94 行)。referrer_domain と hostname の条件は、列が referrer_domain のときだけなので、この画面では使わないように見える (type は AttributionPage の状態で決まるので、消さずに残した)
   - op: read
     status: fact
     resource:
@@ -1650,6 +1684,14 @@ callstack:
         dbms: clickhouse
         table: website_event
     fields:
+    - name: url_path
+      use:
+      - read
+      - filter
+    - name: event_name
+      use:
+      - read
+      - filter
     - name: website_id
       use:
       - filter
@@ -1673,7 +1715,11 @@ callstack:
       line: 96
     - file: db/clickhouse/schema.sql
       line: 2
-    note: 取り出す列と検索の条件の列は、type から実行時に決まる (FILTER_COLUMNS[type]) ので fields に書いていない。referrer_domain と hostname の条件は、列が referrer_domain のときだけ
+    - file: src/lib/constants.ts
+      line: 78
+    - file: src/lib/constants.ts
+      line: 94
+    note: 取り出す列と検索の条件の列は、type から FILTER_COLUMNS[type] で決まる。この画面の type は path か event なので、url_path か event_name (constants.ts 78・94 行)。referrer_domain と hostname の条件は、列が referrer_domain のときだけなので、この画面では使わないように見える (type は AttributionPage の状態で決まるので、消さずに残した)
   settings:
   - name: CLICKHOUSE_URL
     kind: env
@@ -1699,6 +1745,7 @@ callstack:
       line: 32
     - file: src/queries/sql/getValues.ts
       line: 96
+    note: この画面の type は path か event なので、このルールは使わないように見える (type は AttributionPage の状態で決まるので、消さずに残した)
   - kind: calculation
     value: 検索語がコンマ区切りなら、先頭の 5 語のどれかに当たる値を探す。結果は、件数の多い順に 10 件まで
     status: interpretation
@@ -1761,2242 +1808,6 @@ callstack:
       line: 117
     - file: src/lib/clickhouse.ts
       line: 721
-- id: segment_filters
-  layer: component
-  kind: component
-  name: SegmentFilters
-  source:
-    file: src/components/input/SegmentFilters.tsx
-    line: 15
-  caller: filter_edit_form
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/FilterEditForm.tsx
-      line: 147
-    - file: src/components/input/FilterEditForm.tsx
-      line: 149
-    - file: src/components/input/FilterEditForm.tsx
-      line: 158
-    note: '条件 (!isPixelLink && websiteId) は、この画面ではいつも成り立つ (パスに /pixels も /links も無く、websiteId は URL から来る)。タブを選ぶまで中身を描くかどうかは UI ライブラリ (Tabs / TabPanel) の動きで、リポジトリからは読めない。cohorts のタブ (FilterEditForm.tsx:158) も、同じ部品を type: cohort で描く'
-  summary:
-    status: interpretation
-    value: '保存済みのセグメント (type: cohort ならコホート) の一覧を出して、1 つ選ばせる。一覧と選択だけで、編集・削除はしない'
-    evidence:
-    - file: src/components/input/SegmentFilters.tsx
-      line: 21
-    - file: src/components/input/SegmentFilters.tsx
-      line: 30
-    - file: src/components/input/SegmentFilters.tsx
-      line: 31
-- id: use_segments
-  layer: component
-  kind: hook
-  name: useWebsiteSegmentsQuery
-  source:
-    file: src/components/hooks/queries/useWebsiteSegmentsQuery.ts
-    line: 7
-  caller: segment_filters
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/SegmentFilters.tsx
-      line: 21
-  summary:
-    status: interpretation
-    value: セグメントの一覧を GET /websites/<id>/segments から読むフック。type (segment / cohort) と、URL のフィルターを送る
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteSegmentsQuery.ts
-      line: 16
-    - file: src/components/hooks/queries/useWebsiteSegmentsQuery.ts
-      line: 19
-- id: api_segments_get
-  layer: api_route
-  kind: route_handler
-  name: GET /api/websites/[websiteId]/segments
-  source:
-    file: src/app/api/websites/[websiteId]/segments/route.ts
-    line: 9
-  caller: use_segments
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteSegmentsQuery.ts
-      line: 19
-    - file: src/components/hooks/queries/useWebsiteSegmentsQuery.ts
-      line: 20
-    - file: src/lib/api-url.ts
-      line: 44
-    note: フックの enabled (websiteId があること) は、この画面ではいつも成り立つ。API_URL を設定すると、向き先が変わる
-  summary:
-    status: interpretation
-    value: サイトのセグメント (またはコホート) の一覧を返す受け口。parseRequest (route.ts:18) と getQueryFilters (route.ts:31。websiteId を渡さない) も呼ぶ。経路は、フレーム q_parse_request / q_get_query_filters と同じ。見る権限は canViewSharedWebsiteFilters で確かめる
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 18
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 27
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 31
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 33
-- id: q_can_view_shared_website_filters
-  layer: query
-  kind: function
-  name: canViewSharedWebsiteFilters (src/permissions/share.ts)
-  source:
-    file: src/permissions/share.ts
-    line: 88
-  caller: api_segments_get
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 27
-    note: websiteId は URL の段から来るので、いつも呼ぶ
-  summary:
-    status: interpretation
-    value: サイトの絞り込みの部品 (セグメント、注釈) を見てよいかを決める。ログインした利用者がいれば canViewWebsite に任せる (経路は、フレーム q_can_view_website と同じ)。いなければ、共有トークンの中身で決める。segments/[segmentId] の GET (route.ts:20) も同じ関数を呼ぶ。呼び先が canViewWebsite だけで終端になるので、その先のいちばん早い呼び出しを書き直した (q_can_view_website_rw1 から)
-    evidence:
-    - file: src/permissions/share.ts
-      line: 92
-    - file: src/permissions/share.ts
-      line: 93
-    - file: src/permissions/share.ts
-      line: 96
-    - file: src/permissions/share.ts
-      line: 98
-  guards:
-  - kind: other
-    value: canViewSharedWebsiteFilters
-    status: interpretation
-    evidence:
-    - file: src/permissions/share.ts
-      line: 40
-    - file: src/permissions/share.ts
-      line: 98
-    note: ログインした利用者がいないときは、共有トークンが対象のサイトを含み、共有の設定の allowFilter が false でないこと
-- id: q_can_view_website_rw1
-  layer: query
-  kind: function
-  name: canViewWebsite (src/permissions/website.ts)
-  source:
-    file: src/permissions/website.ts
-    line: 8
-  caller: q_can_view_shared_website_filters
-  call:
-    status: fact
-    when: conditional
-    condition: ログインした利用者がいるとき
-    evidence:
-    - file: src/permissions/share.ts
-      line: 93
-  summary:
-    status: interpretation
-    value: フレーム q_can_view_website と同じ処理。呼び出し元 (q_can_view_shared_website_filters) が終端にならないように、いちばん早い呼び出し (getEntity) を書き直した。権限の確認の内容は q_can_view_website に書いた
-    evidence:
-    - file: src/permissions/website.ts
-      line: 8
-    - file: src/permissions/website.ts
-      line: 24
-- id: q_get_entity_rw1
-  layer: query
-  kind: function
-  name: getEntity (src/lib/entity.ts)
-  source:
-    file: src/lib/entity.ts
-    line: 4
-  caller: q_can_view_website_rw1
-  call:
-    status: fact
-    when: conditional
-    condition: 利用者が管理者でなく、共有トークンの対象でもないとき
-    evidence:
-    - file: src/permissions/website.ts
-      line: 24
-  summary:
-    status: interpretation
-    value: フレーム q_get_entity と同じ処理 (website / link / pixel / board を同じ id で並べて読む)。ここでは、いちばん早い getWebsite だけを書き直した
-    evidence:
-    - file: src/lib/entity.ts
-      line: 5
-    - file: src/lib/entity.ts
-      line: 6
-- id: q_get_website_rw1
-  layer: query
-  kind: function
-  name: getWebsite (src/queries/prisma/website.ts)
-  source:
-    file: src/queries/prisma/website.ts
-    line: 80
-  caller: q_get_entity_rw1
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/lib/entity.ts
-      line: 6
-  summary:
-    status: interpretation
-    value: フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。external のフレームは q_get_website の下に書いた
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 85
-    - file: src/queries/prisma/website.ts
-      line: 95
-  io:
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: website
-    fields:
-    - name: '*'
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 77
-    - file: src/queries/prisma/website.ts
-      line: 85
-    - file: prisma/schema.prisma
-      line: 130
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: share
-    fields:
-    - name: slug
-      use:
-      - read
-    - name: entity_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 304
-    - file: src/queries/prisma/website.ts
-      line: 95
-    - file: prisma/schema.prisma
-      line: 412
-    note: サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)
-- id: q_get_website_segments
-  layer: query
-  kind: function
-  name: getWebsiteSegments → getSegments (src/queries/prisma/segment.ts)
-  source:
-    file: src/queries/prisma/segment.ts
-    line: 42
-  caller: api_segments_get
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 33
-  summary:
-    status: interpretation
-    value: サイトと種類 (segment / cohort) で segment を絞り、pagedQuery で 1 ページ分と件数を読む (検索語があれば名前で絞る)
-    evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 26
-    - file: src/queries/prisma/segment.ts
-      line: 33
-    - file: src/queries/prisma/segment.ts
-      line: 43
-    - file: src/queries/prisma/segment.ts
-      line: 46
-    - file: src/queries/prisma/segment.ts
-      line: 47
-    - file: src/lib/prisma.ts
-      line: 761
-    - file: src/lib/prisma.ts
-      line: 775
-  io:
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: segment
-    fields:
-    - name: '*'
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    - name: type
-      use:
-      - filter
-    - name: name
-      use:
-      - filter
-    evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 33
-    - file: src/queries/prisma/segment.ts
-      line: 46
-    - file: src/queries/prisma/segment.ts
-      line: 47
-    - file: src/queries/prisma/segment.ts
-      line: 28
-    - file: src/lib/prisma.ts
-      line: 761
-    - file: src/lib/prisma.ts
-      line: 775
-    - file: prisma/schema.prisma
-      line: 317
-    note: name の条件は、検索語があるときだけ。並べ替えの列は、クエリの orderBy で実行時に決まる。1 ページ分の行 (findMany) と件数 (count) の 2 回読む
-- id: ext_prisma_segment_find_many
-  layer: external
-  kind: library
-  name: Prisma Client segment.findMany (prisma.pagedQuery)
-  source:
-    file: src/lib/prisma.ts
-    line: 761
-  caller: q_get_website_segments
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 33
-    - file: src/lib/prisma.ts
-      line: 761
-- id: ext_prisma_segment_count
-  layer: external
-  kind: library
-  name: Prisma Client segment.count (prisma.pagedQuery)
-  source:
-    file: src/lib/prisma.ts
-    line: 775
-  caller: q_get_website_segments
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 33
-    - file: src/lib/prisma.ts
-      line: 775
-- id: property_filters
-  layer: component
-  kind: component
-  name: 'PropertyFilters (source: session)'
-  source:
-    file: src/components/property-data/PropertyFilters.tsx
-    line: 32
-  caller: filter_edit_form
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/FilterEditForm.tsx
-      line: 176
-    - file: src/components/input/FilterEditForm.tsx
-      line: 178
-    - file: src/components/input/FilterEditForm.tsx
-      line: 179
-    note: '条件 (!isPixelLink && websiteId) は、この画面ではいつも成り立つ。タブを選ぶまで中身を描くかどうかは UI ライブラリの動きで、リポジトリからは読めない。source: event の側 (FilterEditForm.tsx:166) は、パスが /events で終わるときだけなので描かない'
-  summary:
-    status: interpretation
-    value: 'セッションのプロパティの名前の一覧 (usePropertyFieldsQuery) を出し、選んだプロパティごとに条件の行 (PropertyFilterRecord) を描く。SegmentEditForm (SegmentEditForm.tsx:101) も、同じ部品を source: session で描く。経路はここと同じ'
-    evidence:
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 53
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 59
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 156
-  rules:
-  - kind: decision
-    value: 同じ名前のプロパティが複数の型で保存されているときは、セッション数がいちばん多い型だけを一覧に残す
-    status: interpretation
-    evidence:
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 56
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 58
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 61
-- id: use_property_fields
-  layer: component
-  kind: hook
-  name: usePropertyFieldsQuery
-  source:
-    file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-    line: 8
-  caller: property_filters
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 53
-  summary:
-    status: interpretation
-    value: プロパティの名前の一覧を読むフック。source が session なら GET /websites/<id>/session-data/properties を、event なら event-data/fields を呼ぶ (この画面は session だけ)。期間と URL のフィルターを送る
-    evidence:
-    - file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-      line: 25
-    - file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-      line: 26
-    - file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-      line: 27
-    - file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-      line: 37
-- id: api_session_data_properties
-  layer: api_route
-  kind: route_handler
-  name: GET /api/websites/[websiteId]/session-data/properties
-  source:
-    file: src/app/api/websites/[websiteId]/session-data/properties/route.ts
-    line: 9
-  caller: use_property_fields
-  call:
-    status: interpretation
-    when: always
-    evidence:
-    - file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-      line: 25
-    - file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-      line: 27
-    - file: src/components/hooks/queries/usePropertyFieldsQuery.ts
-      line: 37
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 54
-    - file: src/components/input/FilterEditForm.tsx
-      line: 179
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 102
-    - file: src/lib/api-url.ts
-      line: 44
-    note: 'URL は引数の source で 2 つに切り替わる (event なら event-data/fields)。この画面は source: session だけを渡す (FilterEditForm.tsx:179、SegmentEditForm.tsx:102)。enabled (fields を親から渡されていないこと、websiteId があること) も、この画面ではいつも成り立つ。API_URL を設定すると、向き先が変わる'
-  summary:
-    status: interpretation
-    value: セッションのプロパティの名前と型ごとに、セッション数を返す受け口。parseRequest (route.ts:20)、canViewWebsiteSection (route.ts:28。セクションは sessions)、getQueryFilters (route.ts:33) も呼ぶ。経路は、フレーム q_parse_request / q_can_view_website_section / q_get_query_filters と同じ
-    evidence:
-    - file: src/app/api/websites/[websiteId]/session-data/properties/route.ts
-      line: 20
-    - file: src/app/api/websites/[websiteId]/session-data/properties/route.ts
-      line: 28
-    - file: src/app/api/websites/[websiteId]/session-data/properties/route.ts
-      line: 33
-    - file: src/app/api/websites/[websiteId]/session-data/properties/route.ts
-      line: 34
-    - file: src/app/api/websites/[websiteId]/session-data/properties/route.ts
-      line: 36
-- id: q_session_data_properties
-  layer: query
-  kind: function
-  name: getSessionDataProperties (src/queries/sql/sessions/getSessionDataProperties.ts)
-  source:
-    file: src/queries/sql/sessions/getSessionDataProperties.ts
-    line: 9
-  caller: api_session_data_properties
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/session-data/properties/route.ts
-      line: 36
-  summary:
-    status: interpretation
-    value: 期間とフィルターで絞ったセッションを website_event から選び、その session_data のプロパティの名前と型ごとにセッション数を数える (多い順に 500 件まで)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 17
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 31
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 36
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 46
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 57
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 68
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 73
-    - file: src/lib/db.ts
-      line: 27
-    - file: src/lib/db.ts
-      line: 37
-  io:
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: website_event
-    fields:
-    - name: session_id
-      use:
-      - read
-    - name: website_id
-      use:
-      - read
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: event_type
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 45
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 46
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 49
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 50
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 51
-    - file: prisma/schema.prisma
-      line: 183
-    note: URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: session_data
-    fields:
-    - name: session_id
-      use:
-      - read
-      - filter
-    - name: website_id
-      use:
-      - read
-      - filter
-    - name: data_key
-      use:
-      - read
-      - filter
-    - name: data_type
-      use:
-      - read
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 57
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 61
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 64
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 65
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 68
-    - file: src/lib/prisma.ts
-      line: 346
-    - file: prisma/schema.prisma
-      line: 229
-    note: data_key の条件は、propertyName を渡されたときだけ (この画面のフックは渡さない)。プロパティの条件で絞るときは、値の列 (string_value / number_value / date_value) も条件に使う
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: session
-    fields:
-    - name: session_id
-      use:
-      - filter
-    - name: website_id
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 48
-    - file: src/lib/prisma.ts
-      line: 318
-    - file: prisma/schema.prisma
-      line: 84
-    note: セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: event_data
-    fields:
-    - name: website_event_id
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: data_key
-      use:
-      - filter
-    - name: data_type
-      use:
-      - filter
-    evidence:
-    - file: src/lib/prisma.ts
-      line: 309
-    - file: src/lib/prisma.ts
-      line: 576
-    - file: prisma/schema.prisma
-      line: 205
-    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: clickhouse
-        table: website_event
-    fields:
-    - name: session_id
-      use:
-      - read
-    - name: website_id
-      use:
-      - read
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: event_type
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 102
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 103
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 105
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 106
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 107
-    - file: db/clickhouse/schema.sql
-      line: 2
-    note: URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: clickhouse
-        table: session_data
-    fields:
-    - name: session_id
-      use:
-      - read
-      - filter
-    - name: website_id
-      use:
-      - read
-      - filter
-    - name: data_key
-      use:
-      - read
-      - filter
-    - name: data_type
-      use:
-      - read
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 113
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 120
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 121
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 124
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 127
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 128
-    - file: src/lib/clickhouse.ts
-      line: 316
-    - file: db/clickhouse/schema.sql
-      line: 76
-    note: プロパティの条件で絞るときは、値の列 (string_value / number_value / date_value) も条件に使う
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: clickhouse
-        table: event_data
-    fields:
-    - name: event_id
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: data_key
-      use:
-      - filter
-    - name: data_type
-      use:
-      - filter
-    evidence:
-    - file: src/lib/clickhouse.ts
-      line: 278
-    - file: src/lib/clickhouse.ts
-      line: 540
-    - file: db/clickhouse/schema.sql
-      line: 57
-    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる
-  settings:
-  - name: CLICKHOUSE_URL
-    kind: env
-    effect: 設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する
-    status: fact
-    evidence:
-    - file: src/lib/db.ts
-      line: 27
-    - file: src/lib/db.ts
-      line: 32
-    - file: src/lib/db.ts
-      line: 38
-- id: ext_session_data_properties_pg
-  layer: external
-  kind: library
-  name: Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)
-  source:
-    file: src/lib/prisma.ts
-    line: 746
-  caller: q_session_data_properties
-  call:
-    status: fact
-    when: conditional
-    condition: CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 42
-    - file: src/lib/prisma.ts
-      line: 746
-  settings:
-  - name: DATABASE_REPLICA_URL
-    kind: env
-    effect: 設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る
-    status: interpretation
-    evidence:
-    - file: src/lib/prisma.ts
-      line: 738
-    - file: src/lib/prisma.ts
-      line: 55
-    - file: src/lib/prisma.ts
-      line: 861
-- id: ext_session_data_properties_ch
-  layer: external
-  kind: library
-  name: ClickHouse client (@clickhouse/client) query
-  source:
-    file: src/lib/clickhouse.ts
-    line: 721
-  caller: q_session_data_properties
-  call:
-    status: fact
-    when: conditional
-    condition: CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataProperties.ts
-      line: 99
-    - file: src/lib/clickhouse.ts
-      line: 721
-- id: property_filter_record
-  layer: component
-  kind: component
-  name: PropertyFilterRecord
-  source:
-    file: src/components/property-data/PropertyFilterRecord.tsx
-    line: 58
-  caller: property_filters
-  call:
-    status: fact
-    when: conditional
-    condition: プロパティの条件の行が 1 つ以上あるとき (URL に条件がある、または利用者がプロパティを足した)
-    evidence:
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 155
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 156
-  summary:
-    status: interpretation
-    value: プロパティの条件の 1 行。型 (文字列 / 数値 / 真偽 / 日付 / 配列) で選べる演算子が決まる。値を一覧から選ぶ型と演算子のときだけ、usePropertyValuesQuery で候補を読む
-    evidence:
-    - file: src/components/property-data/PropertyFilterRecord.tsx
-      line: 82
-    - file: src/components/property-data/PropertyFilterRecord.tsx
-      line: 91
-    - file: src/components/property-data/PropertyFilterRecord.tsx
-      line: 93
-    - file: src/components/property-data/PropertyFilterRecord.tsx
-      line: 100
-- id: use_property_values
-  layer: component
-  kind: hook
-  name: usePropertyValuesQuery
-  source:
-    file: src/components/hooks/queries/usePropertyValuesQuery.ts
-    line: 8
-  caller: property_filter_record
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/property-data/PropertyFilterRecord.tsx
-      line: 93
-  summary:
-    status: interpretation
-    value: プロパティの値の候補を読むフック。source が session なら GET /websites/<id>/session-data/values を呼ぶ (この画面は session だけ)。プロパティの名前と型、ほかの行の条件、期間、URL のフィルターを送る
-    evidence:
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 39
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 41
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 49
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 51
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 54
-- id: api_session_data_values
-  layer: api_route
-  kind: route_handler
-  name: GET /api/websites/[websiteId]/session-data/values
-  source:
-    file: src/app/api/websites/[websiteId]/session-data/values/route.ts
-    line: 8
-  caller: use_property_values
-  call:
-    status: interpretation
-    when: conditional
-    condition: プロパティの型が数値・真偽・日付でなく、演算子が自由入力 (contains / doesNotContain / regex / notRegex) でないとき
-    evidence:
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 39
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 41
-    - file: src/components/hooks/queries/usePropertyValuesQuery.ts
-      line: 54
-    - file: src/components/property-data/PropertyFilterRecord.tsx
-      line: 100
-    - file: src/components/property-data/PropertyFilters.tsx
-      line: 158
-    - file: src/components/input/FilterEditForm.tsx
-      line: 179
-    - file: src/lib/api-url.ts
-      line: 44
-    note: 'URL は引数の source で 2 つに切り替わる (event なら event-data/values)。この画面は source: session だけを渡す (FilterEditForm.tsx:179 から PropertyFilters.tsx:158 を通る)。API_URL を設定すると、向き先が変わる'
-  summary:
-    status: interpretation
-    value: セッションのプロパティ 1 つの、値ごとの件数を返す受け口。parseRequest (route.ts:20)、canViewWebsiteSection (route.ts:28。セクションは sessions)、getQueryFilters (route.ts:33) も呼ぶ。経路は、フレーム q_parse_request / q_can_view_website_section / q_get_query_filters と同じ
-    evidence:
-    - file: src/app/api/websites/[websiteId]/session-data/values/route.ts
-      line: 20
-    - file: src/app/api/websites/[websiteId]/session-data/values/route.ts
-      line: 28
-    - file: src/app/api/websites/[websiteId]/session-data/values/route.ts
-      line: 33
-    - file: src/app/api/websites/[websiteId]/session-data/values/route.ts
-      line: 35
-- id: q_session_data_values
-  layer: query
-  kind: function
-  name: getSessionDataValues (src/queries/sql/sessions/getSessionDataValues.ts)
-  source:
-    file: src/queries/sql/sessions/getSessionDataValues.ts
-    line: 9
-  caller: api_session_data_values
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/session-data/values/route.ts
-      line: 35
-  summary:
-    status: interpretation
-    value: 期間とフィルターで website_event と session_data を結び、指定のプロパティの値ごとに件数を数える (多い順に 500 件まで)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 12
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 24
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 29
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 57
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 69
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 80
-    - file: src/lib/db.ts
-      line: 27
-    - file: src/lib/db.ts
-      line: 37
-  io:
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: website_event
-    fields:
-    - name: session_id
-      use:
-      - filter
-    - name: website_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: event_type
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 35
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 66
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 72
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 73
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 74
-    - file: prisma/schema.prisma
-      line: 183
-    note: URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: session_data
-    fields:
-    - name: session_id
-      use:
-      - filter
-    - name: website_id
-      use:
-      - filter
-    - name: data_key
-      use:
-      - filter
-    - name: data_type
-      use:
-      - read
-      - filter
-    - name: string_value
-      use:
-      - read
-    - name: date_value
-      use:
-      - read
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 38
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 41
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 61
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 62
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 69
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 75
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 76
-    - file: prisma/schema.prisma
-      line: 229
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: session
-    fields:
-    - name: session_id
-      use:
-      - filter
-    - name: website_id
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 37
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 68
-    - file: src/lib/prisma.ts
-      line: 318
-    - file: prisma/schema.prisma
-      line: 84
-    note: セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: event_data
-    fields:
-    - name: website_event_id
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: data_key
-      use:
-      - filter
-    - name: data_type
-      use:
-      - filter
-    evidence:
-    - file: src/lib/prisma.ts
-      line: 309
-    - file: src/lib/prisma.ts
-      line: 576
-    - file: prisma/schema.prisma
-      line: 205
-    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: clickhouse
-        table: website_event
-    fields:
-    - name: session_id
-      use:
-      - filter
-    - name: website_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: event_type
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 101
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 128
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 133
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 134
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 135
-    - file: db/clickhouse/schema.sql
-      line: 2
-    note: URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: clickhouse
-        table: session_data
-    fields:
-    - name: session_id
-      use:
-      - filter
-    - name: website_id
-      use:
-      - filter
-    - name: data_key
-      use:
-      - filter
-    - name: data_type
-      use:
-      - read
-      - filter
-    - name: string_value
-      use:
-      - read
-    - name: date_value
-      use:
-      - read
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 99
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 103
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 124
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 125
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 130
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 136
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 137
-    - file: db/clickhouse/schema.sql
-      line: 76
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: clickhouse
-        table: event_data
-    fields:
-    - name: event_id
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    - name: data_key
-      use:
-      - filter
-    - name: data_type
-      use:
-      - filter
-    evidence:
-    - file: src/lib/clickhouse.ts
-      line: 278
-    - file: src/lib/clickhouse.ts
-      line: 540
-    - file: db/clickhouse/schema.sql
-      line: 57
-    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる
-  settings:
-  - name: CLICKHOUSE_URL
-    kind: env
-    effect: 設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する
-    status: fact
-    evidence:
-    - file: src/lib/db.ts
-      line: 27
-    - file: src/lib/db.ts
-      line: 32
-    - file: src/lib/db.ts
-      line: 38
-  rules:
-  - kind: calculation
-    value: 型が配列のプロパティは、要素に分けて、要素ごとに数える。数値は末尾の .0000 を外し、日付は時間の単位に丸めて、値としてまとめる
-    status: interpretation
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 29
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 41
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 61
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 62
-- id: ext_session_data_values_pg
-  layer: external
-  kind: library
-  name: Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)
-  source:
-    file: src/lib/prisma.ts
-    line: 746
-  caller: q_session_data_values
-  call:
-    status: fact
-    when: conditional
-    condition: CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 30
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 57
-    - file: src/lib/prisma.ts
-      line: 746
-  settings:
-  - name: DATABASE_REPLICA_URL
-    kind: env
-    effect: 設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る
-    status: interpretation
-    evidence:
-    - file: src/lib/prisma.ts
-      line: 738
-    - file: src/lib/prisma.ts
-      line: 55
-    - file: src/lib/prisma.ts
-      line: 861
-- id: ext_session_data_values_ch
-  layer: external
-  kind: library
-  name: ClickHouse client (@clickhouse/client) query
-  source:
-    file: src/lib/clickhouse.ts
-    line: 721
-  caller: q_session_data_values
-  call:
-    status: fact
-    when: conditional
-    condition: CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)
-    evidence:
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 96
-    - file: src/queries/sql/sessions/getSessionDataValues.ts
-      line: 121
-    - file: src/lib/clickhouse.ts
-      line: 721
-- id: website_date_filter
-  layer: component
-  kind: component
-  name: WebsiteDateFilter
-  source:
-    file: src/components/input/WebsiteDateFilter.tsx
-    line: 17
-  caller: website_controls
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 39
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 40
-    note: allowDateFilter の既定値は true (WebsiteControls.tsx:14) で、この画面は渡さないので、いつも描く
-  summary:
-    status: interpretation
-    value: 期間を選ぶ部品 (前後へ送るボタンと、期間の一覧)。データのある期間 (useDateRangeQuery) が取れたときだけ「すべての期間」を選べる。選ぶと、URL の date / offset を書き換えて同じ画面を開き直す
-    evidence:
-    - file: src/components/input/WebsiteDateFilter.tsx
-      line: 33
-    - file: src/components/input/WebsiteDateFilter.tsx
-      line: 35
-    - file: src/components/input/WebsiteDateFilter.tsx
-      line: 38
-    - file: src/components/input/WebsiteDateFilter.tsx
-      line: 47
-    - file: src/components/input/WebsiteDateFilter.tsx
-      line: 84
-- id: use_date_range
-  layer: component
-  kind: hook
-  name: useDateRangeQuery
-  source:
-    file: src/components/hooks/queries/useDateRangeQuery.ts
-    line: 9
-  caller: website_date_filter
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/WebsiteDateFilter.tsx
-      line: 33
-  summary:
-    status: interpretation
-    value: サイトにデータのある期間 (最初と最後の日時) を GET /websites/<id>/daterange から読むフック
-    evidence:
-    - file: src/components/hooks/queries/useDateRangeQuery.ts
-      line: 12
-    - file: src/components/hooks/queries/useDateRangeQuery.ts
-      line: 14
-    - file: src/components/hooks/queries/useDateRangeQuery.ts
-      line: 20
-    - file: src/components/hooks/queries/useDateRangeQuery.ts
-      line: 21
-- id: api_daterange
-  layer: api_route
-  kind: route_handler
-  name: GET /api/websites/[websiteId]/daterange
-  source:
-    file: src/app/api/websites/[websiteId]/daterange/route.ts
-    line: 6
-  caller: use_date_range
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/hooks/queries/useDateRangeQuery.ts
-      line: 14
-    - file: src/components/hooks/queries/useDateRangeQuery.ts
-      line: 15
-    - file: src/lib/api-url.ts
-      line: 44
-    note: フックの enabled (websiteId があること) は、この画面ではいつも成り立つ。API_URL を設定すると、向き先が変わる
-  summary:
-    status: interpretation
-    value: サイトにデータのある期間を返す受け口。parseRequest (route.ts:10) も呼ぶ。経路は、フレーム q_parse_request と同じ。見る権限は canViewSharedWebsite で確かめる
-    evidence:
-    - file: src/app/api/websites/[websiteId]/daterange/route.ts
-      line: 10
-    - file: src/app/api/websites/[websiteId]/daterange/route.ts
-      line: 18
-    - file: src/app/api/websites/[websiteId]/daterange/route.ts
-      line: 22
-- id: q_can_view_shared_website
-  layer: query
-  kind: function
-  name: canViewSharedWebsite (src/permissions/share.ts)
-  source:
-    file: src/permissions/share.ts
-    line: 80
-  caller: api_daterange
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/daterange/route.ts
-      line: 18
-  summary:
-    status: interpretation
-    value: サイトを見てよいかを決める (セクションは問わない)。ログインした利用者がいれば canViewWebsite に任せる (経路は、フレーム q_can_view_website と同じ)。いなければ、共有トークンが対象のサイトを含むかで決める。呼び先が canViewWebsite だけで終端になるので、その先のいちばん早い呼び出しを書き直した (q_can_view_website_rw2 から)
-    evidence:
-    - file: src/permissions/share.ts
-      line: 81
-    - file: src/permissions/share.ts
-      line: 82
-    - file: src/permissions/share.ts
-      line: 85
-  guards:
-  - kind: other
-    value: canViewSharedWebsite
-    status: interpretation
-    evidence:
-    - file: src/permissions/share.ts
-      line: 40
-    - file: src/permissions/share.ts
-      line: 85
-    note: ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと
-- id: q_can_view_website_rw2
-  layer: query
-  kind: function
-  name: canViewWebsite (src/permissions/website.ts)
-  source:
-    file: src/permissions/website.ts
-    line: 8
-  caller: q_can_view_shared_website
-  call:
-    status: fact
-    when: conditional
-    condition: ログインした利用者がいるとき
-    evidence:
-    - file: src/permissions/share.ts
-      line: 82
-  summary:
-    status: interpretation
-    value: フレーム q_can_view_website と同じ処理。呼び出し元 (q_can_view_shared_website) が終端にならないように、いちばん早い呼び出し (getEntity) を書き直した。権限の確認の内容は q_can_view_website に書いた
-    evidence:
-    - file: src/permissions/website.ts
-      line: 8
-    - file: src/permissions/website.ts
-      line: 24
-- id: q_get_entity_rw2
-  layer: query
-  kind: function
-  name: getEntity (src/lib/entity.ts)
-  source:
-    file: src/lib/entity.ts
-    line: 4
-  caller: q_can_view_website_rw2
-  call:
-    status: fact
-    when: conditional
-    condition: 利用者が管理者でなく、共有トークンの対象でもないとき
-    evidence:
-    - file: src/permissions/website.ts
-      line: 24
-  summary:
-    status: interpretation
-    value: フレーム q_get_entity と同じ処理 (website / link / pixel / board を同じ id で並べて読む)。ここでは、いちばん早い getWebsite だけを書き直した
-    evidence:
-    - file: src/lib/entity.ts
-      line: 5
-    - file: src/lib/entity.ts
-      line: 6
-- id: q_get_website_rw2
-  layer: query
-  kind: function
-  name: getWebsite (src/queries/prisma/website.ts)
-  source:
-    file: src/queries/prisma/website.ts
-    line: 80
-  caller: q_get_entity_rw2
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/lib/entity.ts
-      line: 6
-  summary:
-    status: interpretation
-    value: フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。external のフレームは q_get_website の下に書いた
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 85
-    - file: src/queries/prisma/website.ts
-      line: 95
-  io:
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: website
-    fields:
-    - name: '*'
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 77
-    - file: src/queries/prisma/website.ts
-      line: 85
-    - file: prisma/schema.prisma
-      line: 130
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: share
-    fields:
-    - name: slug
-      use:
-      - read
-    - name: entity_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 304
-    - file: src/queries/prisma/website.ts
-      line: 95
-    - file: prisma/schema.prisma
-      line: 412
-    note: サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)
-- id: q_daterange
-  layer: query
-  kind: function
-  name: getWebsiteDateRange (src/queries/sql/getWebsiteDateRange.ts)
-  source:
-    file: src/queries/sql/getWebsiteDateRange.ts
-    line: 7
-  caller: api_daterange
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/daterange/route.ts
-      line: 22
-  summary:
-    status: interpretation
-    value: 既定のリセット日より後のイベントの created_at の、最小と最大を読む (ClickHouse では時間ごとの集計表から)。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)
-    evidence:
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 10
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 19
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 26
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 27
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 48
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 49
-    - file: src/lib/db.ts
-      line: 27
-    - file: src/lib/db.ts
-      line: 37
-  io:
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: website_event
-    fields:
-    - name: created_at
-      use:
-      - read
-      - filter
-    - name: website_id
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 26
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 28
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 29
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 30
-    - file: prisma/schema.prisma
-      line: 183
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: clickhouse
-        table: website_event_stats_hourly
-    fields:
-    - name: created_at
-      use:
-      - read
-      - filter
-    - name: website_id
-      use:
-      - filter
-    evidence:
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 48
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 50
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 51
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 52
-    - file: db/clickhouse/schema.sql
-      line: 113
-  settings:
-  - name: CLICKHOUSE_URL
-    kind: env
-    effect: 設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する
-    status: fact
-    evidence:
-    - file: src/lib/db.ts
-      line: 27
-    - file: src/lib/db.ts
-      line: 32
-    - file: src/lib/db.ts
-      line: 38
-- id: ext_daterange_pg
-  layer: external
-  kind: library
-  name: Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)
-  source:
-    file: src/lib/prisma.ts
-    line: 746
-  caller: q_daterange
-  call:
-    status: fact
-    when: conditional
-    condition: CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)
-    evidence:
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 23
-    - file: src/lib/prisma.ts
-      line: 746
-  settings:
-  - name: DATABASE_REPLICA_URL
-    kind: env
-    effect: 設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る
-    status: interpretation
-    evidence:
-    - file: src/lib/prisma.ts
-      line: 738
-    - file: src/lib/prisma.ts
-      line: 55
-    - file: src/lib/prisma.ts
-      line: 861
-- id: ext_daterange_ch
-  layer: external
-  kind: library
-  name: ClickHouse client (@clickhouse/client) query
-  source:
-    file: src/lib/clickhouse.ts
-    line: 721
-  caller: q_daterange
-  call:
-    status: fact
-    when: conditional
-    condition: CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)
-    evidence:
-    - file: src/queries/sql/getWebsiteDateRange.ts
-      line: 45
-    - file: src/lib/clickhouse.ts
-      line: 721
-- id: filter_bar
-  layer: component
-  kind: component
-  name: FilterBar
-  source:
-    file: src/components/input/FilterBar.tsx
-    line: 28
-  caller: website_controls
-  call:
-    status: fact
-    when: conditional
-    condition: フィルターを出してよいとき (共有画面の設定で allowFilter が false でない)
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 28
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 46
-  summary:
-    status: interpretation
-    value: いま URL に付いている絞り込み (列、プロパティ、segment / cohort) を札として並べる。絞り込みが 1 つも無ければ何も描かない。segment / cohort の名前を useWebsiteSegmentQuery で読む。札を消す・すべて消す操作は、URL のクエリを書き換えて同じ画面を開き直す。保存のボタンから SegmentEditForm の小窓を開く
-    evidence:
-    - file: src/components/input/FilterBar.tsx
-      line: 35
-    - file: src/components/input/FilterBar.tsx
-      line: 45
-    - file: src/components/input/FilterBar.tsx
-      line: 49
-    - file: src/components/input/FilterBar.tsx
-      line: 88
-    - file: src/components/input/FilterBar.tsx
-      line: 95
-    - file: src/components/input/FilterBar.tsx
-      line: 112
-    - file: src/components/input/FilterBar.tsx
-      line: 195
-  rules:
-  - kind: decision
-    value: いまの絞り込みをセグメントとして保存できるのは、列かセッションのプロパティの絞り込みがあり、イベントのプロパティの絞り込みも segment も cohort も無く、共有画面でないときだけ
-    status: interpretation
-    evidence:
-    - file: src/components/input/FilterBar.tsx
-      line: 36
-    - file: src/components/input/FilterBar.tsx
-      line: 38
-    - file: src/components/input/FilterBar.tsx
-      line: 39
-    - file: src/components/input/FilterBar.tsx
-      line: 40
-    - file: src/components/input/FilterBar.tsx
-      line: 41
-    - file: src/components/input/FilterBar.tsx
-      line: 42
-    - file: src/components/input/FilterBar.tsx
-      line: 169
-- id: use_segment_query
-  layer: component
-  kind: hook
-  name: useWebsiteSegmentQuery
-  source:
-    file: src/components/hooks/queries/useWebsiteSegmentQuery.ts
-    line: 6
-  caller: filter_bar
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/FilterBar.tsx
-      line: 35
-  summary:
-    status: interpretation
-    value: セグメント 1 件を GET /websites/<id>/segments/<segmentId> から読むフック。segmentId が無ければ呼ばない。SegmentEditForm (SegmentEditForm.tsx:35) も同じフックを呼ぶが、FilterBar は segmentId を渡さないので、そこからは API を呼ばない
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteSegmentQuery.ts
-      line: 14
-    - file: src/components/hooks/queries/useWebsiteSegmentQuery.ts
-      line: 16
-    - file: src/components/hooks/queries/useWebsiteSegmentQuery.ts
-      line: 17
-- id: api_segment_get
-  layer: api_route
-  kind: route_handler
-  name: GET /api/websites/[websiteId]/segments/[segmentId]
-  source:
-    file: src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts
-    line: 8
-  caller: use_segment_query
-  call:
-    status: fact
-    when: conditional
-    condition: URL に segment か cohort があるとき
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteSegmentQuery.ts
-      line: 16
-    - file: src/components/hooks/queries/useWebsiteSegmentQuery.ts
-      line: 17
-    - file: src/components/input/FilterBar.tsx
-      line: 33
-    - file: src/components/input/FilterBar.tsx
-      line: 35
-    - file: src/lib/api-url.ts
-      line: 44
-    note: API_URL を設定すると、向き先が変わる
-  summary:
-    status: interpretation
-    value: セグメント 1 件を返す受け口 (無ければ 404)。呼ぶのは parseRequest (route.ts:12)、canViewSharedWebsiteFilters (route.ts:20)、getWebsiteSegment (route.ts:24) で、経路は、フレーム q_parse_request / q_can_view_shared_website_filters / q_get_segment と同じ。呼び先がすべてほかの呼び出し元の下に書いた処理で終端になるので、いちばん早い parseRequest を書き直した (q_parse_request_rw1 から)
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts
-      line: 12
-    - file: src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts
-      line: 20
-    - file: src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts
-      line: 24
-    - file: src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts
-      line: 26
-- id: q_parse_request_rw1
-  layer: query
-  kind: function
-  name: parseRequest (src/lib/request.ts)
-  source:
-    file: src/lib/request.ts
-    line: 16
-  caller: api_segment_get
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts
-      line: 12
-  summary:
-    status: interpretation
-    value: フレーム q_parse_request と同じ処理。呼び出し元 (api_segment_get) が終端にならないように、いちばん早い呼び出しを書き直した。ルールは q_parse_request に書いた
-    evidence:
-    - file: src/lib/request.ts
-      line: 16
-    - file: src/lib/request.ts
-      line: 52
-- id: q_check_auth_rw1
-  layer: query
-  kind: function
-  name: checkAuth (src/lib/auth.ts)
-  source:
-    file: src/lib/auth.ts
-    line: 71
-  caller: q_parse_request_rw1
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/lib/request.ts
-      line: 52
-    note: この受け口は skipAuth を渡さない。入力の誤りがあるときだけ、呼ばずに打ち切る (src/lib/request.ts:51)
-  summary:
-    status: interpretation
-    value: フレーム q_check_auth と同じ処理。権限の確認・設定・ルールと、その先の経路 (getUser、Redis の get) は q_check_auth に書いた
-    evidence:
-    - file: src/lib/auth.ts
-      line: 71
-    - file: src/lib/auth.ts
-      line: 94
-    - file: src/lib/auth.ts
-      line: 102
-  io:
-  - op: get
-    status: interpretation
-    resource:
-      kind: kvs
-      levels:
-        key_pattern: auth:*
-    fields:
-    - name: '*'
-      use:
-      - read
-    evidence:
-    - file: src/lib/auth.ts
-      line: 102
-    - file: src/lib/auth.ts
-      line: 150
-    note: REDIS_URL が設定されていて、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts:150) から読み取った
-- id: segment_edit_form
-  layer: component
-  kind: component
-  name: SegmentEditForm (FilterBar からの保存)
-  source:
-    file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-    line: 18
-  caller: filter_bar
-  call:
-    status: fact
-    when: conditional
-    condition: 利用者が保存のボタン (保存できるときだけ出る) を押して、小窓を開いたとき
-    evidence:
-    - file: src/components/input/FilterBar.tsx
-      line: 169
-    - file: src/components/input/FilterBar.tsx
-      line: 195
-  summary:
-    status: interpretation
-    value: いまの絞り込みに名前を付けて、セグメントとして保存するフォーム。useWebsiteSegmentQuery (SegmentEditForm.tsx:35)、FieldFilters (:89)、PropertyFilters (:101) も描く・呼ぶ。経路は、フレーム use_segment_query / field_filters / property_filters と同じ。保存は useUpdateQuery で POST する。成功したら、セグメントの一覧を読み直させる (touch)
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 35
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 43
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 51
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 62
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 89
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 101
-- id: use_update_segment
-  layer: component
-  kind: hook
-  name: useUpdateQuery('/websites/<id>/segments')
-  source:
-    file: src/components/hooks/queries/useUpdateQuery.ts
-    line: 6
-  caller: segment_edit_form
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 43
-  summary:
-    status: interpretation
-    value: '渡されたパスへ POST する、更新用の共通のフック。ここでは /websites/<id>/segments へ、フォームの値に type: segment を足して送る'
-    evidence:
-    - file: src/components/hooks/queries/useUpdateQuery.ts
-      line: 7
-    - file: src/components/hooks/queries/useUpdateQuery.ts
-      line: 9
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 44
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 46
-- id: api_segment_create
-  layer: api_route
-  kind: route_handler
-  name: POST /api/websites/[websiteId]/segments
-  source:
-    file: src/app/api/websites/[websiteId]/segments/route.ts
-    line: 38
-  caller: use_update_segment
-  call:
-    status: interpretation
-    when: conditional
-    condition: 利用者がフォームの保存を押したとき
-    evidence:
-    - file: src/components/hooks/queries/useUpdateQuery.ts
-      line: 9
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 44
-    - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
-      line: 51
-    - file: src/components/input/FilterBar.tsx
-      line: 195
-    - file: src/lib/api-url.ts
-      line: 44
-    note: パスは引数で切り替わる。segmentId があれば /segments/<segmentId> になるが、FilterBar は segmentId を渡さない (FilterBar.tsx:195) ので、いつも /segments への POST になる。API_URL を設定すると、向き先が変わる
-  summary:
-    status: interpretation
-    value: セグメントを新しく作る受け口。parseRequest (route.ts:48) も呼ぶ。経路は、フレーム q_parse_request と同じ。書き込む権限を canUpdateWebsite で確かめてから、createSegment で 1 行作る
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 48
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 57
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 61
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 65
-  rules:
-  - kind: validation
-    value: 種類は segment か cohort、名前は 200 文字まで。種類が cohort のときは、セッションのプロパティの絞り込みを持てない (400 を返す)
-    status: interpretation
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 43
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 44
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 57
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 58
-- id: q_can_update_website
-  layer: query
-  kind: function
-  name: canUpdateWebsite (src/permissions/website.ts)
-  source:
-    file: src/permissions/website.ts
-    line: 132
-  caller: api_segment_create
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 61
-  summary:
-    status: interpretation
-    value: 利用者がサイトを書き換えてよいかを決める。管理者は DB を読まずに許す。それ以外は、getWebsite でサイトを読み、持ち主か、チームのサイトならチームでの役割が更新の権限を持つか (getTeamUser) を確かめる。呼び先の getWebsite と getTeamUser はどちらもほかの呼び出し元の下に書いた処理で終端になるので、いちばん早い getWebsite を書き直した (q_get_website_rw3)
-    evidence:
-    - file: src/permissions/website.ts
-      line: 133
-    - file: src/permissions/website.ts
-      line: 137
-    - file: src/permissions/website.ts
-      line: 141
-    - file: src/permissions/website.ts
-      line: 148
-    - file: src/permissions/website.ts
-      line: 152
-    - file: src/permissions/website.ts
-      line: 154
-  guards:
-  - kind: ownership
-    value: canUpdateWebsite
-    status: interpretation
-    evidence:
-    - file: src/permissions/website.ts
-      line: 137
-    - file: src/permissions/website.ts
-      line: 147
-    - file: src/permissions/website.ts
-      line: 148
-    note: 管理者 (user.isAdmin) か、サイトの持ち主 (user.id === website.userId) であること。この確認の前に、ログインした利用者がいること (共有トークンだけでは書き換えられない)
-  - kind: permission
-    value: PERMISSIONS.websiteUpdate
-    status: interpretation
-    evidence:
-    - file: src/permissions/website.ts
-      line: 151
-    - file: src/permissions/website.ts
-      line: 152
-    - file: src/permissions/website.ts
-      line: 154
-    - file: src/lib/constants.ts
-      line: 194
-    note: website:update (チームのサイトのとき、チームでの役割がこの権限を持つこと)
-- id: q_get_website_rw3
-  layer: query
-  kind: function
-  name: getWebsite (src/queries/prisma/website.ts)
-  source:
-    file: src/queries/prisma/website.ts
-    line: 80
-  caller: q_can_update_website
-  call:
-    status: fact
-    when: conditional
-    condition: 利用者が管理者でないとき
-    evidence:
-    - file: src/permissions/website.ts
-      line: 137
-    - file: src/permissions/website.ts
-      line: 141
-  summary:
-    status: interpretation
-    value: フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。呼び出し元 (q_can_update_website) が終端にならないように書き直した。external のフレームは q_get_website の下に書いた
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 85
-    - file: src/queries/prisma/website.ts
-      line: 95
-  io:
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: website
-    fields:
-    - name: '*'
-      use:
-      - read
-    - name: website_id
-      use:
-      - filter
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 77
-    - file: src/queries/prisma/website.ts
-      line: 85
-    - file: prisma/schema.prisma
-      line: 130
-  - op: read
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: share
-    fields:
-    - name: slug
-      use:
-      - read
-    - name: entity_id
-      use:
-      - filter
-    - name: created_at
-      use:
-      - filter
-    evidence:
-    - file: src/queries/prisma/website.ts
-      line: 304
-    - file: src/queries/prisma/website.ts
-      line: 95
-    - file: prisma/schema.prisma
-      line: 412
-    note: サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)
-- id: q_create_segment
-  layer: query
-  kind: function
-  name: createSegment (src/queries/prisma/segment.ts)
-  source:
-    file: src/queries/prisma/segment.ts
-    line: 54
-  caller: api_segment_create
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 65
-  summary:
-    status: interpretation
-    value: segment に 1 行作る。id は受け口が新しく作った UUID
-    evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 55
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 66
-  io:
-  - op: create
-    status: fact
-    resource:
-      kind: rdb
-      levels:
-        dbms: postgresql
-        table: segment
-    fields:
-    - name: segment_id
-      use:
-      - write
-    - name: website_id
-      use:
-      - write
-    - name: type
-      use:
-      - write
-    - name: name
-      use:
-      - write
-    - name: parameters
-      use:
-      - write
-    evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 55
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 66
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 67
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 68
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 69
-    - file: src/app/api/websites/[websiteId]/segments/route.ts
-      line: 70
-    - file: prisma/schema.prisma
-      line: 317
-    note: 列は、受け口が渡す値 (route.ts:66 から :70) から読んだ。この画面からの type は segment だけ (SegmentEditForm.tsx:46)
-- id: ext_prisma_segment_create
-  layer: external
-  kind: library
-  name: Prisma Client segment.create
-  source:
-    file: src/queries/prisma/segment.ts
-    line: 55
-  caller: q_create_segment
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/queries/prisma/segment.ts
-      line: 55
-- id: website_value_combobox
-  layer: component
-  kind: component
-  name: WebsiteValueComboBox (変換の段の入力欄)
-  source:
-    file: src/components/input/WebsiteValueComboBox.tsx
-    line: 23
-  caller: attribution_page
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/(reports)/attribution/AttributionPage.tsx
-      line: 50
-  summary:
-    status: interpretation
-    value: 変換の段を選ぶ入力欄。入力した文字を 300 ミリ秒待ってから検索語にし、useWebsiteValuesQuery で、種類 (path なら url_path、event なら event_name) の値の候補を、画面の期間で読む。2 つ目の useWebsiteValuesQuery (additionalType) も同じ関数なので、同じフレーム (use_values_rw1) で表す (この画面は additionalType を渡さないので type が空になり、enabled が false で API は呼ばない)。useWebsiteValuesQuery も呼ぶ。経路はフレーム use_values と同じ。呼び先がそれだけで終端になるので、いちばん早い呼び出しを書き直した (use_values_rw1 から)
-    evidence:
-    - file: src/components/input/WebsiteValueComboBox.tsx
-      line: 26
-    - file: src/components/input/WebsiteValueComboBox.tsx
-      line: 38
-    - file: src/components/input/WebsiteValueComboBox.tsx
-      line: 39
-    - file: src/components/input/WebsiteValueComboBox.tsx
-      line: 46
-    - file: src/components/input/WebsiteValueComboBox.tsx
-      line: 48
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 60
-    - file: src/lib/constants.ts
-      line: 78
-    - file: src/lib/constants.ts
-      line: 94
-- id: use_values_rw1
-  layer: component
-  kind: hook
-  name: useWebsiteValuesQuery
-  source:
-    file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-    line: 6
-  caller: website_value_combobox
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/WebsiteValueComboBox.tsx
-      line: 39
-  summary:
-    status: interpretation
-    value: フレーム use_values と同じ処理。ここでは type に path か event を渡す。呼び出し元 (website_value_combobox) が終端にならないように、いちばん早い呼び出しを書き直した。設定とルールは use_values に書いた
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 54
-    - file: src/components/input/WebsiteValueComboBox.tsx
-      line: 41
-- id: api_values_rw1
-  layer: api_route
-  kind: route_handler
-  name: GET /api/websites/[websiteId]/values
-  source:
-    file: src/app/api/websites/[websiteId]/values/route.ts
-    line: 9
-  caller: use_values_rw1
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 54
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 60
-    - file: src/lib/api-url.ts
-      line: 44
-    note: フックの enabled (websiteId・type・期間がそろっていること) は、この入口ではいつも成り立つ (websiteId は URL、type は path か event、期間は useDateRange が作る)
-  summary:
-    status: interpretation
-    value: フレーム api_values と同じ処理。type が path / event のときは getValues の枝を通る (url_path / event_name の値ごとの件数)。いちばん早い呼び出し (parseRequest) を書き直した。ルールは api_values に書いた
-    evidence:
-    - file: src/app/api/websites/[websiteId]/values/route.ts
-      line: 18
-    - file: src/app/api/websites/[websiteId]/values/route.ts
-      line: 54
-- id: q_parse_request_rw2
-  layer: query
-  kind: function
-  name: parseRequest (src/lib/request.ts)
-  source:
-    file: src/lib/request.ts
-    line: 16
-  caller: api_values_rw1
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/values/route.ts
-      line: 18
-  summary:
-    status: interpretation
-    value: フレーム q_parse_request と同じ処理。呼び出し元 (api_values_rw1) が終端にならないように、いちばん早い呼び出しを書き直した。ルールは q_parse_request に書いた
-    evidence:
-    - file: src/lib/request.ts
-      line: 16
-    - file: src/lib/request.ts
-      line: 52
-- id: q_check_auth_rw2
-  layer: query
-  kind: function
-  name: checkAuth (src/lib/auth.ts)
-  source:
-    file: src/lib/auth.ts
-    line: 71
-  caller: q_parse_request_rw2
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/lib/request.ts
-      line: 52
-    note: この受け口は skipAuth を渡さない。入力の誤りがあるときだけ、呼ばずに打ち切る (src/lib/request.ts:51)
-  summary:
-    status: interpretation
-    value: フレーム q_check_auth と同じ処理。権限の確認・設定・ルールと、その先の経路 (getUser、Redis の get) は q_check_auth に書いた
-    evidence:
-    - file: src/lib/auth.ts
-      line: 71
-    - file: src/lib/auth.ts
-      line: 94
-    - file: src/lib/auth.ts
-      line: 102
-  io:
-  - op: get
-    status: interpretation
-    resource:
-      kind: kvs
-      levels:
-        key_pattern: auth:*
-    fields:
-    - name: '*'
-      use:
-      - read
-    evidence:
-    - file: src/lib/auth.ts
-      line: 102
-    - file: src/lib/auth.ts
-      line: 150
-    note: REDIS_URL が設定されていて、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts:150) から読み取った
 - id: attribution
   layer: component
   kind: component
@@ -4096,7 +1907,7 @@ callstack:
       line: 28
     - file: src/lib/api-url.ts
       line: 44
-    note: URL は /websites/${websiteId}/${path} で、path は useAttributionQuery が attribution を渡す。API_URL を設定すると、向き先が変わる (設定はフレーム use_values に書いた)
+    note: URL は /websites/${websiteId}/${path} で、path は useAttributionQuery が attribution を渡す。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_values) に書いた
   summary:
     status: interpretation
     value: parseRequest で入力を検査して認証し、canViewWebsiteSection (セクションは attribution) で閲覧の権限を確かめる (満たさなければ 401)。getQueryFilters で期間と絞り込みを作り、getAttribution で集計して返す。parseRequest・canViewWebsiteSection・getQueryFilters も呼ぶ。経路はフレーム q_parse_request、q_can_view_website_section、q_get_query_filters と同じ
@@ -4286,7 +2097,7 @@ callstack:
       line: 457
   summary:
     status: interpretation
-    value: 変換の段に当たったイベントを持つセッションを website_event から選び (events)、モデルに従ってセッションごとに流入元とみなすイベントの時刻を決め (model)、そのイベントのリファラー・クリック ID・UTM の列ごとにセッション数を数える。あわせて変換の段の合計を数える。問い合わせは 8 本 (リファラー、有料広告、UTM 5 つ、合計)。PostgreSQL 用 (Prisma の生 SQL) と ClickHouse 用の実装があり、設定でどちらかが動く。URL の絞り込みに referrer・セッションの列・cohort・プロパティがあれば、session / session_data / event_data も読む (PostgreSQL のリファラーの問い合わせは、いつも session を結ぶ)
+    value: 変換の段に当たったイベントを持つセッションを website_event から選び (events)、モデルに従ってセッションごとに流入元とみなすイベントの時刻を決め (model)、そのイベントのリファラー・クリック ID・UTM の列ごとにセッション数を数える。あわせて変換の段の合計を数える。問い合わせは 8 本 (リファラー、有料広告、UTM 5 つ、合計)。PostgreSQL 用 (Prisma の生 SQL) と ClickHouse 用の実装があり、設定でどちらかが動く。URL の絞り込みに referrer・セッションの列・cohort・セッションのプロパティがあれば、session / session_data も読む (event_data を読むイベントのプロパティの絞り込みは、この画面では送られないように見える) (PostgreSQL のリファラーの問い合わせは、いつも session を結ぶ)
     evidence:
     - file: src/queries/sql/attribution/getAttribution.ts
       line: 29
@@ -4482,6 +2293,10 @@ callstack:
       line: 565
     - file: prisma/schema.prisma
       line: 205
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 14
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 25
     fields:
     - name: website_event_id
       use:
@@ -4498,7 +2313,7 @@ callstack:
     - name: data_type
       use:
       - filter
-    note: URL にイベントのプロパティの絞り込みがあるときだけ。値を比べる列は、プロパティの型で決まる (実行時に組み立てる) ので書いていない
+    note: 'URL にイベントのプロパティの絞り込みがあるときだけ。値を比べる列は、プロパティの型で決まる (実行時に組み立てる) ので書いていない。この画面からは届かないように見える: 画面の問い合わせの絞り込み (useFilterParameters) は、イベントのプロパティの絞り込み (epf) を、パスが /events で終わるときだけ送る (useFilterParameters.ts:14・25)。この画面のパスは …/attribution なので送らない。固定の値ではなく画面のパスで決まるので、消さずに残した'
   - op: read
     status: fact
     resource:
@@ -4653,6 +2468,10 @@ callstack:
       line: 529
     - file: db/clickhouse/schema.sql
       line: 57
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 14
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 25
     fields:
     - name: event_id
       use:
@@ -4669,7 +2488,7 @@ callstack:
     - name: data_type
       use:
       - filter
-    note: URL にイベントのプロパティの絞り込みがあるときだけ。値を比べる列は、プロパティの型で決まるので書いていない
+    note: 'URL にイベントのプロパティの絞り込みがあるときだけ。値を比べる列は、プロパティの型で決まるので書いていない。この画面からは届かないように見える: 画面の問い合わせの絞り込み (useFilterParameters) は、イベントのプロパティの絞り込み (epf) を、パスが /events で終わるときだけ送る (useFilterParameters.ts:14・25)。この画面のパスは …/attribution なので送らない。固定の値ではなく画面のパスで決まるので、消さずに残した'
   - op: read
     status: fact
     resource:

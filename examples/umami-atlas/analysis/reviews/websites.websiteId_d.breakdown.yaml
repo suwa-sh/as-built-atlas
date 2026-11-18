@@ -1,42 +1,21 @@
 format_version: 1
 entry_id: websites.websiteId_d.breakdown
-reviewed_at: "2026-11-17T15:44:57Z"
+reviewed_at: "2026-11-18T19:42:12Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: status_mismatch
-    severity: medium
-    where: callstack/q_check_auth/io/0
-    claim: "checkAuth が読む Redis のキーは、トークンから取り出した実行時の値 authKey で、auth:* という形はログイン時にキーを作る saveAuth (auth.ts 150 行) から読み取ったものなので、fact ではなく interpretation に当たる (websites.websiteId_d の結果は、同じ読み取りを interpretation にしている)。"
-    evidence: { file: src/lib/auth.ts, line: 102 }
-    suggestion: "status を interpretation にし、note に「キーの形は saveAuth (auth.ts 150 行) から読み取った」と書く。書き直したフレーム q_check_auth_rw の io/0 も同じように直す。"
-    resolved: true
-  - kind: missing_item
+  - kind: evidence_mismatch
     severity: low
-    where: callstack/ext_prisma_breakdown
-    claim: "生の SQL を実行する executeRawQuery は、DATABASE_REPLICA_URL があると読み取りを複製の DB に送るが、この設定が settings に無い (websites.websiteId_d の結果は、生の SQL の external ごとに書いている)。"
-    evidence: { file: src/lib/prisma.ts, line: 738 }
-    suggestion: "settings に name DATABASE_REPLICA_URL (kind env) を足し、effect に「設定されていると、読み取りの生の SQL を複製の DB に送る」と書く。"
-    resolved: true
-  - kind: missing_item
-    severity: low
-    where: callstack/ext_prisma_daterange
-    claim: "getWebsiteDateRange の生の SQL も executeRawQuery を通るので、DATABASE_REPLICA_URL で送り先が変わるが、この設定が settings に無い。"
-    evidence: { file: src/lib/prisma.ts, line: 738 }
-    suggestion: "ext_prisma_breakdown と同じように、settings に DATABASE_REPLICA_URL を足す。"
-    resolved: true
-  - kind: missing_item
-    severity: low
-    where: callstack/q_get_breakdown/io/3/fields
-    claim: "セッションのプロパティの絞り込みは、どの型でも data_type 列を条件に使う (bool_or(data_key = … and data_type = … and …)) が、fields に data_type が無い。型で変わるのは値の列 (string_value など) だけ。"
-    evidence: { file: src/lib/prisma.ts, line: 691 }
-    suggestion: "fields に {name: data_type, use: [filter]} を足す。ClickHouse の session_data (io/7、clickhouse.ts 652 行) と、event_data の 2 件 (io/2、io/6) も同じように足す。"
+    where: callstack/breakdown_page/summary
+    claim: "WebsiteControls の既定として「絞り込みのボタンと帯を出す」「月の選択は出さない」と書いているが、根拠に WebsiteControls.tsx の 15 行 (allowMonthFilter に既定の値が無い) と 28 行 (showFilter は共有トークンの parameters.allowFilter が false でないときだけ真) が無く、共有の画面では絞り込みが出ないことも書かれていない。"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 28 }
+    suggestion: "根拠に WebsiteControls.tsx の 15 行と 28 行を足し、summary の「絞り込みのボタンと帯」に「共有トークンが allowFilter を false にしていなければ」と条件を添える。"
     resolved: true
   - kind: evidence_mismatch
     severity: low
-    where: callstack/website_filter_button/summary
-    claim: "note が「FilterEditForm が PropertyFilters を描く」根拠に挙げた FilterEditForm.tsx 168 行は、パスが /events で終わるときだけ描くイベントのプロパティの欄で、この画面で描くセッションのプロパティの欄は 178 行にある。"
-    evidence: { file: src/components/input/FilterEditForm.tsx, line: 178 }
-    suggestion: "note の行番号を 168 から 178 に直す (168 行の欄はこの画面では描かないと書き添える)。"
+    where: callstack/use_breakdown_query/summary
+    claim: "useAnalyticsQuery が URL の絞り込み (項目・spf・segment・cohort・excludeBounce・match) を重ねると書いているが、useFilterParameters は共有トークンの parameters.allowFilter が false のとき、これらを付けない (search は付ける)。その条件と根拠の行が無い。"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 13 }
+    suggestion: "summary に「共有トークンが allowFilter を false にしていれば、URL の絞り込みは付けない」と足し、根拠に useFilterParameters.ts の 13 行と 19 行を足す。"
     resolved: true
-notes: "指摘にしなかったこと。(1) POST /api/websites/[websiteId]/segments の呼び出し (api_segments_create の call) は、SegmentEditForm.tsx 44 行で segmentId の有無により URL が切り替わる書き方だが、この画面の FilterBar は segmentId を渡さないので、届く受け口は 1 つに決まる。fact のままでよいと判断した (websites.websiteId_d の結果は、同じ呼び出しを interpretation にしているので、入口をまたいでそろえるかは人が決める)。(2) segment_filter_fields の source は PropertyFilters.tsx 53 行 (フックを呼ぶ行) で、関数の定義は 32 行。名前が FieldFilters と PropertyFilters の 2 つをまとめているので、どちらにしても代表の行になる。(3) ext_prisma_website は website.findUnique (website.ts 77 行) と share.findFirst (website.ts 304 行) の 2 つのライブラリの呼び出しを 1 つのフレームにまとめている。I/O は両方 q_get_website に書いてあり、経路は切れていない。(4) website_filter_button と segment_filter_fields の unknown + not_analyzed は、note にどこまで読んだかと、止めた理由 (共通の絞り込みの部品で、websites.websiteId_d の結果が辿っている) があるので、指摘にしていない。(5) 根拠の行、呼び出しの条件 (when)、同じ処理を 1 回だけ書く木の形と、終端を満たすための書き直し (_rw のフレーム) は、コードと決まりのとおりだった。"
+notes: "WebsiteControls を描く BreakdownPage で止めて links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、status: fact、根拠は BreakdownPage.tsx 5 行の import と 24 行の描く行) を書いている点は、analysis-conventions.md の「共有の部品」とプロファイルの決まりに合っている (part_p.shared_a.WebsiteControls は入口の一覧にある)。WebsiteControls の中の段は残っていない。共通の段 (checkAuth の CLOUD_MODE と API キーの枝の rules、canViewWebsite の role: user.isAdmin と ownership: canViewWebsite の 2 件、API_URL / BASE_PATH を最初に API を呼ぶ use_breakdown_query に 1 回だけ、target を作業定義と同じに) も決まりどおり。Breakdown の下の書き直し (use_breakdown_query_rw から q_check_auth_rw まで) は、同じ処理の決まり (読み書きを持つ最初の段まで、確認・設定・ルールを繰り返さない) に合う。redis.ts 37 行の external の段が 3 つあるが、届くキーの形 (auth:*、website:*、account:*) が違うので、同じ処理としてまとめなくてよい。指摘にしなかったこと: (a) canViewWebsiteSection の guards が kind: other なのは、ほかの 47 件の結果と同じ綴りで、関数の中に管理者や持ち主の確認は無い (共有トークンだけを見て、ほかは canViewWebsite に任せる)。(b) DATABASE_REPLICA_URL の status: interpretation は、ほかの結果の多く (277 件) と同じ。(c) フレームの名前 getQueryFilters / setWebsiteDate は、ほかの結果の多く (38 件) が getQueryFilters → setWebsiteDate と書いている。name は綴りをそろえる項目ではないので指摘にしないが、そろえると読みやすい。(d) fields の許す値 (20 個) と FILTER_COLUMNS の列の対応は、schema.ts と constants.ts のとおり。"

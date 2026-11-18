@@ -1,43 +1,14 @@
 format_version: 1
 entry_id: dashboard
-reviewed_at: "2026-11-18T01:16:52Z"
+reviewed_at: "2026-11-18T20:35:00Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_item
+  - kind: evidence_mismatch
     severity: medium
     resolved: true
-    where: callstack/q_can_view_shared_website
-    claim: "canViewSharedWebsite を最初に書いたフレーム q_can_view_shared_website に guards が無い。daterange の受け口は、この確認が偽なら 401 を返す (daterange/route.ts:18) ので権限の確認に当たり、同じ結果の中の同じ形の包み (q_can_view_website_section、q_can_view_shared_website_filters) は、それぞれ kind: other の確認を持っている"
-    evidence:
-      file: src/app/api/websites/[websiteId]/daterange/route.ts
-      line: 18
-    suggestion: "q_can_view_shared_website に guards を 1 件足す (kind: other、value: canViewSharedWebsite。ほかの入口の結果 7 件と同じ綴り。根拠は share.ts:80-85、note にログインした利用者がいなければ共有トークンがサイトを含むこと、と書く)。"
-  - kind: missing_item
-    severity: low
-    resolved: true
-    where: callstack/q_check_auth
-    claim: "このリポジトリの決まり (analysis-conventions.md の木の書き方) は、checkAuth の中の API キーの枝をフレームにせず、checkAuth の rules に 1 行書くとしているが、rules に API キーの行が無い (summary と settings の CLOUD_MODE で触れるだけ)。boards.boardId_d と dashboard.edit の結果も同じだが、決まりは既にある結果より優先する"
-    evidence:
-      file: src/lib/auth.ts
-      line: 74
-    suggestion: "q_check_auth の rules に、API キーの形のトークン (isApiKey) は、CLOUD_MODE が無いときだけ API キーとして認証する (checkApiKeyAuth、auth.ts:74-75)、という 1 行を足す。"
-  - kind: classification_mismatch
-    severity: low
-    resolved: true
-    where: callstack/q_can_view_website/call
-    claim: "canViewWebsite の呼び出しの when が、q_can_view_website と q_can_view_website_rw3 では conditional (ログインした利用者がいるとき) なのに、同じ枝の q_can_view_website_rw4 は always (この画面はいつもログイン済み) で、同じ入口の中でそろっていない。この画面は共有画面の外で、checkAuth が利用者を特定できなければ 401 で打ち切るので、always の方が分析の skill の基準に合う"
-    evidence:
-      file: src/permissions/share.ts
-      line: 58
-    suggestion: "q_can_view_website と q_can_view_website_rw3 の call を always にし、q_can_view_website_rw4 と同じ理由を note に書く。"
-  - kind: evidence_mismatch
-    severity: low
-    resolved: true
-    where: callstack/favicon/io/0
-    claim: "Favicon の io の note が「リファラーのドメインの名前を URL のパスに入れて送る」と書いているが、この入口で Favicon に渡るのは、列のバッジのサイトのドメイン (useBoardEntityBadgeProps.ts:16 の website.domain を BoardEntityBadge.tsx:18 が渡す) で、リファラーではない (フレームの summary とも食い違う)"
-    evidence:
-      file: src/app/(main)/boards/BoardEntityBadge.tsx
-      line: 18
-    suggestion: "note の「リファラーのドメイン」を「バッジの対象のサイトのドメイン」に直す。"
-notes: "前の版へのレビューの 3 件 (ExportButton、イベントのプロパティの絞り込み、values の getWebsiteSegments の枝) は、それぞれ、property_filters_event から先のフレームを足したこと、残り 2 件は指示書 0.4.1 の固定の値で閉じている呼び出しとして summary に値と行を書いたことで、扱われている。閉じている呼び出しは次のとおり確かめ、指摘にしなかった。(a) ExportButton: PixelControls / LinkControls / WebsiteControls を描くのは、この木の中では BoardControls だけで (BoardControls.tsx:22、24、26)、allowDownload を渡さず既定値は false (3 つの部品の 15 / 15 / 16 行目) なので、3 つの条件を満たす。(b) セグメントの更新の POST: SegmentEditForm を描くのは FilterBar だけで、segmentId を渡さない (FilterBar.tsx:195-200) ので、3 つの条件を満たす。(c) values の受け口の getWebsiteSegments の枝 (values/route.ts:48): type は、useFields のコードの一覧の名前か、URL のクエリのうち FILTER_COLUMNS のキーにある名前だけで、どちらにも segment / cohort が無いので、URL がどうであっても枝は通らない。条件 1 は URL から来る値を除くが、type に入りうる値はすべてコードの定数なので、閉じていると読んだ (boards.boardId_d の扱いとも同じ)。なお、FieldFilters.tsx:162 の type={filter.name} は、URL から来た絞り込みでは直後の {...filter} の type (数字を除いた名前) で上書きされるが、結論は変わらない。登録表を引くフレーム board_component_renderer の embed 16 件は、entry_id がすべて入口の一覧の part の入口と一致し、根拠の行も登録表の項目の始まりの行と合っている。q_get_segment (URL に segment があるとき) は、values の受け口からは segment を送らない (useWebsiteValuesQuery.ts:54-59) が、同じ getQueryFilters を event-data / session-data の受け口がフィルター込みで呼ぶので、閉じていない。"
+    where: callstack/website_date_filter/summary
+    claim: "summary は「データのある期間 (useDateRangeQuery) が取れたときだけ『すべての期間』を選べる」と書くが、この入口で WebsiteDateFilter を描く PixelControls は showAllTime={false} を渡し (PixelControls.tsx:30。LinkControls.tsx:30 も同じ)、DateFilter には hasData && showAllTime を渡す (WebsiteDateFilter.tsx:84) ので、この画面では『すべての期間』は決して出ない。根拠に挙げた 84 行は、主張を支えていない"
+    evidence: { file: "src/app/(main)/pixels/[pixelId]/PixelControls.tsx", line: 30 }
+    suggestion: "summary を「GET daterange は呼ぶが、この画面では描く側が showAllTime={false} を渡すので『すべての期間』は出さない (PixelControls.tsx:30、WebsiteDateFilter.tsx:84)」の形に直し、根拠に PixelControls.tsx:30 を足す"
+notes: "このリポジトリの決まり (analysis-conventions.md の末尾 2 節) に照らして確かめ、合っていた所: (1) 共有の部品 WebsiteControls は、描くフレーム board_controls で止まり、links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、status: fact、根拠は BoardControls.tsx:4 と :26) があり、WebsiteControls の中のフレームは無い。BoardControls が渡す値 (websiteId だけ) と、既定値で出る操作・出ない操作は board_controls の summary にあり、WebsiteControls.tsx:12-17 の既定値と合っている。同じ書き方は boards.boardId_d と dashboard.edit の結果とも同じ。(2) PixelControls / LinkControls は共有の部品の入口ではないので辿っている。決まりは WebsiteControls だけを止めると書いているので、指摘にしなかった (同じ中の部品を描く別のコンポーネントの扱いは、決まりの側で決めるとよい)。(3) checkAuth に settings CLOUD_MODE (env)、rules に API キーの枝の 1 行、その下に getUser がある。(4) canViewWebsite / canUpdateWebsite / canViewPixel / canViewLink の guards に、ownership と別の role: user.isAdmin がある。canViewWebsiteSection / canViewSharedWebsiteFilters / canViewSharedWebsite は、中に管理者の確認が無く canViewWebsite に任せるので kind: other のままで、part_p.shared_a.WebsiteControls などほかの結果と同じ綴り。(5) API_URL と BASE_PATH は、入口からコードの順で最初に API を呼ぶ use_dashboard_query にだけある。(6) target は作業定義と同じ。指摘にしなかった小さな点: api_segment_get の summary に、同じ趣旨の文 (parseRequest も呼ぶ。経路は、それぞれのフレームと同じ) が 2 回入っている。canUpdateWebsite の ownership の status が interpretation で、ほかの確認の関数 (fact) とそろっていない。DashboardProvider / BoardControls / DashboardContent の call は、この入口ではいつも成り立つ条件 (URL に /teams/<id> が無い) で conditional にしているが、note に理由があるので、そのままでよい。"

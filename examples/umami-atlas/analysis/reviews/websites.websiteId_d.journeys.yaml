@@ -1,35 +1,21 @@
 format_version: 1
 entry_id: websites.websiteId_d.journeys
-reviewed_at: '2026-11-17T16:03:55Z'
-reviewer: claude-opus-5-5 (fresh context)
+reviewed_at: "2026-11-18T20:12:14Z"
+reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-- kind: classification_mismatch
-  severity: low
-  where: callstack/q_get_segment/call
-  claim: q_get_segment は api_values の下 (q_get_query_filters 経由) に置かれ、条件は「URL に segment があるとき」だが、values の受け口に届く問い合わせには segment / cohort が付かない。useWebsiteValuesQuery は type・startAt・endAt・search だけを送り (URL
-    の絞り込みを足さない)、getQueryFilters が見るのは受け口の問い合わせ (params.segment) なので、この呼び出し元からは条件が成り立たない。analysis-conventions.md は、そう見える呼び出しも conditional のフレームにし、理由を note に書くと決めているが、note が無い
-  evidence:
-    file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-    line: 54
-  suggestion: q_get_segment の call に note を足し「values の受け口の問い合わせには segment / cohort が付かない (useWebsiteValuesQuery.ts 54 から 59 行) ので、この呼び出し元からは届かない。URL の絞り込みを送る journeys・session-data の受け口から同じ getQueryFilters
-    を通るときに呼ぶ」と書く (条件の文も「受け口の問い合わせに segment があるとき」に直す)
-  resolved: true
-- kind: evidence_mismatch
-  severity: low
-  where: callstack/journeys_page/summary
-  claim: summary の「同じ部品なので、フレームは始めの段の 1 つだけに書いた」は、フレーム website_value_combobox と食い違う。そのフレームは名前が「始めの段・終わりの段の入力欄」で、call の根拠に 58 行と 70 行の両方を挙げ、2 つの入力欄を 1 つのフレームで表している
-  evidence:
-    file: src/app/(main)/websites/[websiteId]/(reports)/journeys/JourneysPage.tsx
-    line: 70
-  suggestion: journeys_page の summary を「同じ部品なので、2 つの入力欄を 1 つのフレーム (website_value_combobox) で表した」に直す
-  resolved: true
-notes: '確かめた範囲: この画面に固有のフレーム (page、journeys_page、website_value_combobox、use_values_rw1、api_values_rw1、q_parse_request_rw2、q_check_auth_rw2、journey、use_journey_query、api_journeys、q_get_journey、ext_prisma_journey、ext_clickhouse_journey)
-  は、根拠の行を対象のコードで開いて確かめ、上の指摘のほかは主張を支えていた (getJourney.ts の PostgreSQL / ClickHouse の両方の SQL、startStep / endStep の条件、parseResult の続けて同じ名前をまとめる処理、Journey.tsx の EVENT_TYPES、journeyQuerySchema と journeyReportSchema
-  の検査、FILTER_COLUMNS の eventType と prisma.ts 183 行・clickhouse.ts 155 行の常に and で付く扱い、runQuery の切り替え)。WebsiteControls の下の木は websites.websiteId_d.attribution の結果を写したもので、要所だけを確かめた (WebsiteControls・FilterEditForm・FilterBar
-  の条件、values の受け口、getValues、share.ts と website.ts の権限の確認、getQueryFilters)。前回の attribution のレビューで直した点 (API_URL と BASE_PATH を use_values に 1 回だけ、DATABASE_REPLICA_URL、checkAuth の API キーの rules、入口の summary
-  の Redis への書き込み) は、この結果にも反映されている。指摘にしなかったが伝えること: (1) 結果の先頭の notes (4) の「同じ URL の期間なので、値は同じになる」は、厳密には違う。入力欄の候補は JourneysPage の useDateRange() (タイムゾーンを渡さない) の期間を送り、集計は useDateParameters が useDateRange({
-  timezone }) と toUtc で直した期間を送る (useDateParameters.ts 16・18 行) ので、利用者のタイムゾーンを設定していると、ずれることがある。フレームの主張 (Journey の summary) は正しいので指摘にしていない。(2) values の受け口が渡すセクションの一覧 (route.ts 27 から 35 行) に journeys が無い。ログインせず、セクションごとの可否がある共有トークンで
-  journeys だけを許すと、始めの段・終わりの段の候補は 401 になる。この入口はログインした画面なので、影響は小さい。(3) 入力欄は、打った文字ごとに onChange で startStep / endStep を変える (WebsiteValueComboBox.tsx 79 行) ので、集計の問い合わせは文字を打つたびに走る (候補の検索だけが 300 ミリ秒待つ)。(4) startStep
-  / endStep の既定値は空の文字で、useAnalyticsQuery は undefined だけを除くので、空のまま送られる。getJourney は空なら条件を付けない (getJourney.ts 86・92 行) ので、結果は変わらない。(5) getQueryFilters の excludeBounce (request.ts 172 行) は、getJourney が excludeBounceQuery
-  を使わないので、この画面の集計には効かない。'
+  - kind: evidence_mismatch
+    severity: high
+    resolved: true
+    where: callstack/api_values/summary
+    claim: "values の受け口は、type を withDateRange({ type: fieldsParam, ... }) で検査する (route.ts 13-16 行) が、fieldsParam の列挙 (schema.ts 127-148 行) に segment と cohort が無いので、type が segment / cohort のリクエストは parseRequest の zod の検査で落ち (request.ts 30-33 行)、route.ts 20-21 行で 400 を返す。route.ts 48-49 行の getWebsiteSegments の枝には、どの呼び出し元からも届かない。それなのに summary は「type が segment / cohort なら getWebsiteSegments を filters なしで呼び (getSegments の中で例外になり、失敗する)」としている"
+    evidence: { file: src/lib/schema.ts, line: 127 }
+    suggestion: "api_values の summary を「type が segment / cohort のリクエストは、parseRequest の zod の検査 (fieldsParam に無い) で 400 になるので、route.ts 48-49 行の getWebsiteSegments の枝は届かない (使われないコード)」と直し、根拠に schema.ts 127 行と request.ts 30-33 行を足す。結果の notes の (5) と (8) の「例外で止まる」も同じく直す。この枝は画面の状態ではなく受け口自身の検査で閉じているので、getWebsiteSegments のフレームを足し直す必要は無い"
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/api_values/rules/0
+    claim: "rules/0 は「type は、セッションの列・イベントの列・セグメントの種類 (segment / cohort) のどれかでなければ 400」としているが、実際に効く検査は、その手前の parseRequest の fieldsParam の列挙 (schema.ts 127-148 行) で、segment / cohort もそこで 400 になる。route.ts 42-43 行の検査は、segment / cohort を通すように読めるが、そこまで届かない"
+    evidence: { file: src/lib/schema.ts, line: 127 }
+    suggestion: "rules/0 を「type は fieldsParam の列挙 (path / referrer / title / query / os / browser / device / country / region / city / tag / hostname / distinctId / language / event / utm の 5 つ) のどれかでなければ 400 (parseRequest の検査)」の形に直し、根拠に schema.ts 127 行を足す (route.ts 42-43 行は、補足として残してよい)"
+notes: "確かめた範囲: 機械チェック (validate result) は OK。すべてのフレームの source と根拠の行を対象のコードで開いた (page.tsx、JourneysPage.tsx、Journey.tsx、WebsiteControls.tsx の既定値、WebsiteValueComboBox.tsx、useWebsiteValuesQuery.ts、useJourneyQuery.ts、useAnalyticsQuery.ts、useDateParameters.ts、useFilterParameters.ts、useDateRange.ts、useApi.ts、api-url.ts、next.config.ts、values と journeys の route.ts、request.ts、auth.ts、api-key.ts、share.ts、permissions/website.ts、entity.ts、load.ts、redis.ts、db.ts、queries/prisma の user・website・link・pixel・board・teamUser・segment、getValues.ts、getJourney.ts、analytics-schema.ts、schema.ts、constants.ts、prisma.ts の parseFilters・cohort・プロパティの絞り込み・rawQuery・replica、clickhouse.ts の cohort・プロパティの絞り込み・query、schema.prisma と ClickHouse の schema.sql の表の行)。analysis-conventions.md との突き合わせ: JourneysPage で止めて links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、status: fact、根拠 JourneysPage.tsx 4・43 行) があり、渡す値は journeys_page の summary にあって WebsiteControls.tsx 12-17 行と合う。checkAuth の CLOUD_MODE と API キーの 1 行、getUser、canViewWebsite の ownership と role (user.isAdmin)、API_URL と BASE_PATH を use_values にだけ書くこと、target の写し方は、決まりどおり。1 回目の指摘 (q_get_website_segments) は、フレームが外されて直っている。ただし、その前提 (filters なしで呼んで例外) は、上の 1 件目のとおり誤りで、枝そのものに届かない。journeys の受け口は journeyQuerySchema が filterParams (schema.ts 66・67 行に segment / cohort がある) を含むので、segment / cohort は落ちずに getQueryFilters に届き、q_get_segment の call の note (実際に届くのは GET journeys から) は合っている。指摘にしなかったが伝えること: (1) 同じ values の受け口を書いたほかの入口の結果 (attribution など) にも、getWebsiteSegments の枝についての同じ誤った説明があるはずなので、直すときはそろえるとよい (この作業の範囲の外)。(2) 1 回目のレビューの notes の (1) (excludeBounce が getJourney・getValues で効かない) と (2) (values の受け口のセクションに journeys が無い) は、いまも当てはまるが、分析結果から読み取れるので指摘にしていない"

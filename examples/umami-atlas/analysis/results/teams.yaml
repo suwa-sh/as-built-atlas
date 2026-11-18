@@ -14,7 +14,7 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-opus-5-5"
-  analyzed_at: "2026-11-17T15:27:57Z"
+  analyzed_at: "2026-11-18T20:45:36Z"
   reviewed:
     by: "claude-opus-5-5 (fresh context)"
     at: "2026-11-17T15:27:16Z"
@@ -33,7 +33,7 @@ summary:
     - { file: "src/app/api/users/[userId]/teams/route.ts", line: 25 }
     - { file: src/app/api/teams/join/route.ts, line: 37 }
     - { file: src/app/api/teams/route.ts, line: 69 }
-notes: "[1] 木の置き場: 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。TeamsPage は TeamsHeader (TeamsPage.tsx:12) を TeamsDataTable (:14) より先に描き、TeamsHeader は useLoginQuery (TeamsHeader.tsx:16) を、参加ボタン (:21) を、作成ボタン (:22) の順に呼ぶ。そのため useLoginQuery → POST /api/auth/verify → parseRequest → checkAuth → getUser は TeamsHeader の下、getTeamUser は POST /api/teams/join (join/route.ts:31) の下に書いた。TeamsDataTable の useLoginQuery は summary で触れるだけにした。[2] 終端の決まりを満たすための書き直し: canViewTeam (GET /api/teams/[teamId]/users の確認) は、呼び先の getTeamUser がほかの下に書いてあり終端になるので、getTeamUser を読み書きを持つ段までもう一度書いた (q_get_team_user_rw。確認・設定・ルールは繰り返していない)。[3] 段にしなかった権限の関数: canCreateTeam はデータを読まないので、確認 (guards) を POST /api/teams の段に書いた (admin.teams の結果と同じ)。[4] この入口からは条件が成り立たないように見える呼び出しも、消さずに conditional で書いた。(a) TeamsHeader は TeamsAddButton に isAdmin を渡さず、既定が false (TeamsAddButton.tsx:8) なので、TeamAddForm の isAdmin && (TeamAddForm.tsx:38) が成り立たず、オーナーを選ぶ欄 (UserSelect) と、その先の GET /api/admin/users と GET /api/teams/[teamId]/users は、この画面からは呼ばれないように見える。(b) さらに UserSelect の useTeamMembersQuery は teamId を受け取らず、enabled: !!teamId (useTeamMembersQuery.ts:14) が成り立たない。(c) 行のリンクの /settings/teams/${row.id} は、この画面のパス (/teams) に /settings が無いので出ない。[5] クラウドモードの枝 (POST /api/teams の fetchAccount / getUserOwnedTeamCount / team:* の set) は、この画面を包む枠 (src/app/(main)/layout.tsx) がクラウドモードでも描くので、届く枝として書いた (admin.teams の結果の「届かないように見える」は、管理の枠に固有の事情)。[6] checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので、この画面からは使わないものとして辿っていない (設定 CLOUD_MODE にだけ書いた。ほかの入口の結果と同じ扱い)。[7] 画面を包む枠 (layout_l、layout_l.main_g) の処理は、枠の入口の結果にあり、ここでは辿っていない。[8] 行の名前のリンクの行き先は、コードの式が ${isSettings ? '/settings' : ''}/teams/${row.id} なので、値が読める行き先を 1 件ずつ書いた。/teams/${row.id} は、next.config.ts の転送 (/teams/:id → /teams/:id/websites、:164) と書き換え (/teams/:teamId/:path* → /:path*、:253) で、page src/app/(main)/websites/page.tsx (入口 websites) が出ると読んだので、entry_id は interpretation で書いた。[9] DataGrid のページ送りと検索は、同じ画面の URL のクエリを書き換えるだけで、ほかの入口へのつながりではないので links に書いていない。表示の切り替えの localStorage も I/O に書いていない。この画面の GET /api/users/[userId]/teams はスキーマに search を持たないので、検索の語は届かない。[10] フレームにしなかったもの: PageBody / Panel / PageHeader / DataGrid / TeamsTable / SortableLabel / Link (見た目だけ、または一覧の枠)、useMessages、useNavigation (URL を読むだけ)、useModified (ブラウザの中の更新印)、useApi (URL とヘッダーを組み立てるだけ。API_URL と BASE_PATH は、これを使うフックに書いた)、getQueryFilters (websiteId が無いのでデータを読まない)。[11] 確認の値は、決まりの綴りにした (役割は user.isAdmin、権限は定数の名前だけ、所属は関数の名前だけ)。GET /api/users/[userId]/teams の本人の確認は、関数が無く受け口に直接書いてあるので、admin.websites.websiteId_d の結果と同じ式 (auth.user.id === userId) にした。[12] テストとの対応は、作業定義で選ばれていないので分析していない。[13] レビューの指摘は low が 1 件 (GET /api/users/[userId]/teams の引数に maxResults が無い) で、直した"
+notes: "[1] 木の置き場: 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。TeamsPage は TeamsHeader (TeamsPage.tsx:12) を TeamsDataTable (:14) より先に描き、TeamsHeader は useLoginQuery (TeamsHeader.tsx:16) を、参加ボタン (:21) を、作成ボタン (:22) の順に呼ぶ。そのため useLoginQuery → POST /api/auth/verify → parseRequest → checkAuth → getUser は TeamsHeader の下、getTeamUser は POST /api/teams/join (join/route.ts:31) の下に書いた。TeamsDataTable の useLoginQuery は summary で触れるだけにした。[2] 終端の決まりを満たすための書き直し: canViewTeam (GET /api/teams/[teamId]/users の確認) は、呼び先の getTeamUser がほかの下に書いてあり終端になるので、getTeamUser を読み書きを持つ段までもう一度書いた (q_get_team_user_rw。確認・設定・ルールは繰り返していない)。[3] 段にしなかった権限の関数: canCreateTeam はデータを読まないので、確認 (guards) を POST /api/teams の段に書いた (admin.teams の結果と同じ)。[4] この入口からは条件が成り立たないように見える呼び出しも、消さずに conditional で書いた。(a) TeamsHeader は TeamsAddButton に isAdmin を渡さず、既定が false (TeamsAddButton.tsx:8) なので、TeamAddForm の isAdmin && (TeamAddForm.tsx:38) が成り立たず、オーナーを選ぶ欄 (UserSelect) と、その先の GET /api/admin/users と GET /api/teams/[teamId]/users は、この画面からは呼ばれないように見える。(b) さらに UserSelect の useTeamMembersQuery は teamId を受け取らず、enabled: !!teamId (useTeamMembersQuery.ts:14) が成り立たない。(c) 行のリンクの /settings/teams/${row.id} は、この画面のパス (/teams) に /settings が無いので出ない。[5] クラウドモードの枝 (POST /api/teams の fetchAccount / getUserOwnedTeamCount / team:* の set) は、この画面を包む枠 (src/app/(main)/layout.tsx) がクラウドモードでも描くので、届く枝として書いた (admin.teams の結果の「届かないように見える」は、管理の枠に固有の事情)。[6] checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので、この画面からは使わないものとして辿っていない (設定 CLOUD_MODE にだけ書いた。ほかの入口の結果と同じ扱い)。[7] 画面を包む枠 (layout_l、layout_l.main_g) の処理は、枠の入口の結果にあり、ここでは辿っていない。[8] 行の名前のリンクの行き先は、コードの式が ${isSettings ? '/settings' : ''}/teams/${row.id} なので、値が読める行き先を 1 件ずつ書いた。/teams/${row.id} は、next.config.ts の転送 (/teams/:id → /teams/:id/websites、:164) と書き換え (/teams/:teamId/:path* → /:path*、:253) で、page src/app/(main)/websites/page.tsx (入口 websites) が出ると読んだので、entry_id は interpretation で書いた。[9] DataGrid のページ送りと検索は、同じ画面の URL のクエリを書き換えるだけで、ほかの入口へのつながりではないので links に書いていない。表示の切り替えの localStorage も I/O に書いていない。この画面の GET /api/users/[userId]/teams はスキーマに search を持たないので、検索の語は届かない。[10] フレームにしなかったもの: PageBody / Panel / PageHeader / DataGrid / TeamsTable / SortableLabel / Link (見た目だけ、または一覧の枠)、useMessages、useNavigation (URL を読むだけ)、useModified (ブラウザの中の更新印)、useApi (URL とヘッダーを組み立てるだけ。API_URL と BASE_PATH は、これを使うフックに書いた)、getQueryFilters (websiteId が無いのでデータを読まない)。[11] 確認の値は、決まりの綴りにした (役割は user.isAdmin、権限は定数の名前だけ、所属は関数の名前だけ)。GET /api/users/[userId]/teams の本人の確認は、関数が無く受け口に直接書いてあるので、admin.websites.websiteId_d の結果と同じ式 (auth.user.id === userId) にした。[12] テストとの対応は、作業定義で選ばれていないので分析していない。[13] レビューの指摘は low が 1 件 (GET /api/users/[userId]/teams の引数に maxResults が無い) で、直した。[14] 共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: page
@@ -133,6 +133,7 @@ callstack:
           - { file: next.config.ts, line: 216 }
           - { file: src/lib/api-url.ts, line: 38 }
           - { file: src/lib/api-url.ts, line: 44 }
+        note: "analysis-conventions.md のとおり、この入口で最初に API を呼ぶ段に 1 回だけ書いた。この画面のほかの API にも同じように付く (API_URL が絶対の URL のときは付かない。api-url.ts:41)"
 
   - id: api_verify
     layer: api_route
@@ -257,6 +258,17 @@ callstack:
           - { file: src/lib/auth.ts, line: 128 }
           - { file: src/lib/auth.ts, line: 129 }
           - { file: src/lib/auth.ts, line: 174 }
+      - kind: decision
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/auth.ts, line: 75 }
+          - { file: src/lib/api-key.ts, line: 4 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 33 }
+          - { file: src/lib/auth.ts, line: 35 }
+        note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログイントークンを付ける (useApi.ts:28、client.ts:4) ので、この枝には入らない"
     io:
       - op: get
         status: fact
@@ -490,16 +502,7 @@ callstack:
           - { file: src/lib/api-url.ts, line: 39 }
           - { file: next.config.ts, line: 14 }
           - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
+        note: "/auth/verify には効かない (api-url.ts:6、:39) ので、API_URL が効く API を、この入口で最初に呼ぶ段に 1 回だけ書いた。この画面のほかの API にも同じように効く"
 
   - id: api_teams_join_post
     layer: api_route
@@ -797,26 +800,6 @@ callstack:
       evidence:
         - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
         - { file: src/components/hooks/useApi.ts, line: 49 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_teams_post
     layer: api_route
@@ -1188,26 +1171,6 @@ callstack:
         - { file: src/components/hooks/queries/useUsersQuery.ts, line: 12 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_admin_users_get
     layer: api_route
@@ -1371,26 +1334,6 @@ callstack:
         - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 9 }
         - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 12 }
         - { file: src/components/hooks/queries/useTeamMembersQuery.ts, line: 14 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_team_users_get
     layer: api_route
@@ -1451,6 +1394,12 @@ callstack:
         - { file: src/permissions/team.ts, line: 11 }
         - { file: src/permissions/team.ts, line: 15 }
     guards:
+      - kind: role
+        value: "user.isAdmin"
+        status: fact
+        evidence:
+          - { file: src/permissions/team.ts, line: 11 }
+        note: "管理者なら、チームのメンバーかを見ずに許す"
       - kind: ownership
         value: "canViewTeam"
         status: fact
@@ -1641,26 +1590,6 @@ callstack:
         - { file: src/components/hooks/queries/useUserTeamsQuery.ts, line: 14 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_user_teams_get
     layer: api_route

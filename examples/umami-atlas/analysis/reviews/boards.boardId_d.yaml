@@ -1,21 +1,27 @@
 format_version: 1
 entry_id: boards.boardId_d
-reviewed_at: "2026-11-18T00:10:54Z"
+reviewed_at: "2026-11-18T20:34:22Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_item
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_can_update_website/guards/1
+    claim: "canUpdateWebsite の持ち主の確認 (ownership) と、その下の権限の確認 (PERMISSIONS.websiteUpdate) が interpretation になっているが、確認はコードにそのまま書いてあり (website.ts:147-148 の user.id === website.userId、151-154 の getTeamUser と hasPermission)、同じ結果のほかの確認の関数 (canViewWebsite、canUpdateBoard、canCreateTeamWebsite など) はどれも fact で書いている。"
+    evidence: { file: "src/permissions/website.ts", line: 148 }
+    suggestion: "guards/1 (ownership: canUpdateWebsite) と guards/2 (permission: PERMISSIONS.websiteUpdate) の status を fact にする。"
+    resolved: true
+  - kind: classification_mismatch
     severity: low
-    where: callstack/pixel_controls/summary
-    claim: "ExportButton (GET /websites/<id>/export を呼ぶ) は、allowDownload の既定値 false で閉じている呼び出しだが、結果の先頭の notes (5) の「2 種類、3 か所」に数えられておらず、PixelControls / LinkControls / WebsiteControls の summary にも、値を渡している行 (BoardControls.tsx:22 / 24 / 26 で allowDownload を渡さない) が書かれていない"
-    evidence: { file: "src/app/(main)/pixels/[pixelId]/PixelControls.tsx", line: 31 }
-    suggestion: "notes (5) に 3 種類目として ExportButton を足し、pixel_controls (と link_controls / website_controls) の summary に、閉じている値 (allowDownload の既定値 false) と、渡していない行 BoardControls.tsx:22 (24 / 26) と、ExportButton.tsx:20 の GET /websites/<id>/export を書く"
+    where: notes
+    claim: "結果の先頭の notes に、書きかけの印 (11) REVIEW_PLACEHOLDER が残っていて、番号も (5) の後に (11)、(6) と並ぶ。また (5) の閉じた呼び出しを「3 種類、6 か所」と書くが、挙げている条件を持つフレームは 2 つの受け口、SegmentEditForm、2 つの操作の部品の 5 か所で、WebsiteControls の ExportButton を部品の入口に移す前の数が残っているように見える。"
+    suggestion: "notes から REVIEW_PLACEHOLDER を消して番号を並べ直し、閉じた呼び出しの数を、いま書いてある 5 か所に直す。"
     resolved: true
   - kind: evidence_mismatch
     severity: low
-    where: callstack/website_filter_button/summary
-    claim: "summary は小窓に「直帰を除く」のチェックを描くと書くが、チェックは isOverview (パスが /teams/<id>/websites/<id> か /share/<id>) か allowBounceFilter のときだけ描かれ、この画面 (/boards/<id>) で PixelControls は allowBounceFilter を渡さないので描かれない"
-    evidence: { file: "src/components/input/WebsiteFilterButton.tsx", line: 81 }
-    suggestion: "「直帰を除く」のチェックは、この画面では出ない (WebsiteFilterButton.tsx:81 の条件が成り立たない) と書き直す。notes (5) の allowBounceFilter の記述と合わせる"
+    where: callstack/q_check_auth/rules/3
+    claim: "API キーの枝のルールは「umami_ で始まるトークン」と書くが、根拠の行 (auth.ts:72、74、75 と useApi.ts:28) には umami_ の文字が無く、接頭辞を定義する行 (api-key.ts:4 の API_KEY_PREFIX) と、それで判定する行 (api-key.ts:33 の isApiKey) が根拠に無い。"
+    evidence: { file: "src/lib/api-key.ts", line: 4 }
+    suggestion: "rules/3 の evidence に src/lib/api-key.ts の 4 行目と 33 行目を足す。"
     resolved: true
-notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。登録表の扱いは context.md の節「登録表から選ばれて描かれる部品」のとおり: BoardComponentRenderer で止め、links の embed 16 件の target は登録表のキー、entry_id は入口の一覧の part_p.boardComponentRegistry.<キー> 16 件と一致、status は interpretation、根拠は登録表を引く行 (BoardComponentRenderer.tsx:17)・部品を描く行 (:39)・各項目の始まりの行 (boardComponentRegistry.tsx:141〜377) で、どれも合っている。Metrics bar の componentByEntityType の判定は rules にある。TextBlock は summary に名前だけ。固定の値で閉じている呼び出し (0.4.1) の 2 件 (includeTeams の枝、POST /segments/[segmentId]) は、3 つの条件 (値がこの木の中のコードで決まる、条件がその値だけで決まる、この木の中に別の値で着く経路が無い。WebsiteSelect を描くのは BoardCloneForm だけ、SegmentEditForm を描くのは FilterBar だけ) を確かめ、妥当。根拠の file:line は全件、対象のファイルの範囲に入っている。API を呼ぶ受け口の getQueryFilters(query) (websiteId なし) は、データを読まない純粋な処理なので、同じ処理の置き場の指摘にはしなかった。複製の受け口 POST /api/boards/[boardId]/clone の確認・ルール・createBoard の列は、コードと合っている。部品の中 (集計の API など) は、この結果では辿らないのが正しいので、見ていない。"
+notes: "今回の分析し直しの要点は、どれも決まりのとおりだった。(1) BoardControls は、WebsiteControls を描く行 (BoardControls.tsx:26) で止まり、links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、fact、根拠は 4 行目と 26 行目) がある。中 (絞り込み、期間、書き出し) のフレームは無く、渡す値 (websiteId だけで、ほかは WebsiteControls.tsx:12-17 の既定値) は board_controls の summary に書いてある。(2) 登録表の部品 16 件は、BoardComponentRenderer で embed (entry_id は part_p.boardComponentRegistry.<キー>) で止まっていて、16 件とも analysis/results/ に対応する部品の入口の結果がある。TextBlock を入口にしないのも、登録表 (boardComponentRegistry.tsx:389) と合う。(3) 共通の段: checkAuth に CLOUD_MODE の設定と API キーの枝の rules があり、getUser も書いてある。src/permissions/ の確認の関数 (canViewBoard、canViewWebsite、canViewPixel、canViewLink、canUpdateBoard、canCreateTeamWebsite、canViewTeam、canUpdateWebsite) は、ownership と別に role: user.isAdmin を持つ。API_URL と BASE_PATH は、最初に API を呼ぶ use_board_query にだけある。target は作業定義と同じ。(4) 根拠の file:line は、すべて対象のリポジトリに実在する (行の範囲外も無い)。(5) canViewWebsiteSection と canViewSharedWebsiteFilters を kind: other にしている点、GET /api/users/[userId]/websites の ownership の値を auth.user.id === userId と書いている点は、ほかの入口の結果と同じ綴りなので、指摘にしなかった。(6) 部品の中の木 (PixelControls / LinkControls の下の絞り込みや期間など 180 段) は、前の結果から置き場が動いていないと notes にあり、主な段 (認証、権限の確認、閉じた呼び出し) を確かめた範囲では食い違いは無かったが、すべての io の列までは見ていない。"

@@ -1,35 +1,14 @@
 format_version: 1
 entry_id: websites.websiteId_d.performance
-reviewed_at: "2026-11-17T16:09:14Z"
+reviewed_at: "2026-11-18T20:04:43Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: classification_mismatch
+  - kind: missing_item
     severity: low
-    where: callstack/performance_metrics_table
+    where: callstack/q_get_performance_metrics_session/io/0/fields
+    claim: "項目が device / browser のときは、PostgreSQL でいつも session を inner join する (結合の条件は website_event.session_id = session.session_id)。それなのに、website_event の fields に session_id が無い (session の側の読み取りには session_id がある)"
+    evidence: { file: src/lib/prisma.ts, line: 318 }
+    suggestion: "PostgreSQL の website_event の読み取りの fields に session_id (use: filter) を足し、根拠に getPerformanceMetrics.ts:42 と prisma.ts:318 を書く"
     resolved: true
-    claim: "PerformanceMetricsTable を 4 つの呼び出し (path / title / device / browser) で 1 つのフレームにまとめているが、プロファイルの context.md は「同じ関数でも、引数で読み書き先が変わるものは、届く先ごとに書く」と決めている。PostgreSQL では、type が device / browser のときだけ session を結合して読み (getPerformanceMetrics.ts 42 行の joinSession)、path / title のときは website_event だけを読むので、引数で届く表が変わる。I/O と note に違いを書いているので、触れるデータの漏れは無い"
-    evidence: { file: src/queries/sql/performance/getPerformanceMetrics.ts, line: 42 }
-    suggestion: "届く表で分けて、path / title (website_event だけ) と device / browser (session も読む) の 2 つのフレームにする"
-  - kind: missing_frame
-    severity: low
-    where: callstack/website_controls
-    resolved: true
-    claim: "WebsiteControls は allowDownload のときに ExportButton を描き (WebsiteControls.tsx:42)、ExportButton は GET /websites/<id>/export を呼ぶ (ExportButton.tsx:20) が、この画面が allowDownload を渡さないという理由で summary で触れるだけで、フレームにしていない。この画面から条件が成り立たないように見える呼び出しも、省かずに conditional のフレームにする決まり (analysis-conventions.md の木の書き方) と合わない。この画面では動かない枝なので low にした"
-    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 42 }
-    suggestion: "ExportButton から export の受け口とその先の読み取りまでを、website_controls の下に conditional のフレームとして足し、この画面が allowDownload を渡さないこと (PerformancePage.tsx 14 行) を note に書く"
-  - kind: missing_frame
-    severity: low
-    where: callstack/filter_edit_form
-    resolved: true
-    claim: "FilterEditForm は、パスが /events で終わるときにイベントのプロパティのタブで PropertyFilters (source: event) を描き (FilterEditForm.tsx:166)、usePropertyFieldsQuery は GET /websites/<id>/event-data/fields に届く (usePropertyFieldsQuery.ts:26。session のときとは別の受け口) が、summary で触れるだけでフレームにしていない。成り立たないように見える呼び出しも conditional のフレームにする決まりと合わない。この画面では動かない枝なので low にした"
-    evidence: { file: src/components/input/FilterEditForm.tsx, line: 166 }
-    suggestion: "PropertyFilters (source: event) から event-data/fields の受け口と、その先の問い合わせまでを、filter_edit_form の下に conditional のフレームとして足し、この画面のパスでは描かれない理由を note に書く"
-  - kind: missing_frame
-    severity: low
-    where: callstack/api_values
-    resolved: true
-    claim: "GET values は、type が segment / cohort のとき getWebsiteSegments を呼ぶ (values/route.ts:49) が、この画面の列に segment / cohort が無いという理由で summary で触れるだけで、フレームにしていない。入口から深さ優先で辿ると、getWebsiteSegments に最初に着くのはこの受け口なので、決まりどおりなら q_get_website_segments はここに conditional で置き、GET segments の側で「経路は同じ」と書く形になる"
-    evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 49 }
-    suggestion: "getWebsiteSegments のフレームを api_values の下に conditional で置き (届かないように見える理由を note に書く)、api_segments_get の summary で同じ経路を指す"
-notes: "確かめた範囲: この画面に固有のフレーム (page、performance_page、performance、use_performance_stats / chart / metrics、api_performance_stats / chart / metrics、q_get_performance_stats / chart / metrics、performance_metrics_table と、それぞれの ext_* フレーム) は、根拠の行を対象のコードで開いて確かめた。上の指摘のほかは、主張を支えていた (閾値 WEB_VITALS_THRESHOLDS と getRating、event_type 5、percentile_cont / quantile、metrics の列の対応表と limit の既定、SESSION_COLUMNS による session の結合、parseFilters の cohort / event_data / session_data の副問い合わせ、DATABASE_REPLICA_URL、runQuery の切り替え)。WebsiteControls の下の木は、レビュー済みで指摘が直された websites.websiteId_d.attribution の結果を写したもので、この画面に合わせて直した箇所 (呼び出し元の PerformancePage.tsx 14 行、FilterEditForm の /performance で選べない列、canViewWebsiteSection の note の performance) だけを確かめた。指摘にしなかったが伝えること: (1) タブの中身 (TabPanel) は、UI ライブラリ @umami/react-zen が node_modules に無いので、選ばれていないタブを描くかは確かめられない。最初に選ばれるタブ (path と device) は描かれるので、まとめたフレームの always は成り立つ。(2) 表は、受け口が p75 の大きい順に並べた行から、選んだ百分位の値が 0 より大きい行を上位 20 行出すので、p50 / p95 を選んでも並びは p75 の順のまま (表示の話なので rules に書かないのは妥当)。(3) 受け口の検査のルールは、timezone と unit の検査 (schema.ts の timezoneParam・unitParam) と startAt / endAt の上限に触れていないが、ほかの入口の結果も同じ書き方なので指摘にしていない。(4) event_data / session_data の fields に data_type が無いのは、attribution のレビューの notes と同じ (そろえるなら足すとよい)。(5) missing_frame の 3 件 (ExportButton、イベントのプロパティの PropertyFilters、getWebsiteSegments の枝) は、WebsiteControls の下の木を写した元の結果から受け継いだもので、websites.websiteId_d.compare のレビューも同じ 3 件を指摘している。WebsiteControls を使うほかの画面の結果にも、同じ扱いが残っているとみられる。(6) PerformanceMetricsTable をまとめる書き方をこのリポジトリで認めるかどうかは、人が決めること (認めるなら analysis-conventions.md に書く)。"
+notes: "WebsiteControls は PerformancePage で止め、links に embed (entry_id: part_p.shared_a.WebsiteControls、status: fact、根拠は PerformancePage.tsx:3 と :14) が書かれていて、決まりのとおり。WebsiteControls に渡す値 (websiteId だけ、ほかは既定の値) は performance_page の summary にあり、WebsiteControls.tsx:12-17 の既定の値と合う。共通の段 (checkAuth の CLOUD_MODE と API キーの 1 行、canViewWebsite の ownership と role user.isAdmin、API_URL / BASE_PATH を最初に API を呼ぶ use_performance_stats に 1 回だけ、target の写し) も、analysis-conventions.md の「どの入口にも出る共通の段」に合う。入口から辿る順も確かめた: PerformancePage の useDateRange は URL とブラウザの保存だけで API を呼ばず、WebsiteControls は辿らないので、最初に API に着くのは Performance.tsx:73 の usePerformanceStatsQuery。同じ処理 (parseRequest、canViewWebsiteSection、getQueryFilters) を stats の受け口の下に 1 回だけ書き、chart と metrics の受け口の summary で指す書き方も、context.md の「同じ処理が何度も呼ばれるとき」に合う。getPerformanceMetrics を path/title と device/browser の 2 つに分けた扱いも、届く表が違う (SESSION_COLUMNS に入ると joinSession を付ける。getPerformanceMetrics.ts:42) ので、決まりに合う。指摘にしなかったこと: (1) getPerformanceStats / getPerformanceChart / getPerformanceMetrics の summary の「URL の絞り込みに cohort・プロパティがあれば、それぞれの読み取りが足される」の「プロパティ」には、この画面では届かないように見えるイベントのプロパティも入る。event_data の読み取りの note に理由があるので、指摘にしなかった (直すなら、summary をセッションのプロパティに絞る)。(2) 直帰を除く絞り込み (excludeBounce) は getQueryFilters が付けるが、performance の 3 つの問い合わせは excludeBounceQuery を使わないので、読み取りが無いのは正しい。(3) タブの中身の PerformanceMetricsTable は、各パネルの最初のタブ (path、device) が既定で描かれるので、2 つのタブをまとめたフレームの when が always なのは妥当。"

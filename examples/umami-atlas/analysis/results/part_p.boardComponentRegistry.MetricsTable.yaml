@@ -18,7 +18,7 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.1
   model: claude-opus-5-5
-  analyzed_at: '2026-11-18T00:45:47Z'
+  analyzed_at: '2026-11-18T20:39:46Z'
   reviewed:
     by: claude-opus-5-5 (fresh context)
     at: '2026-11-18T00:44:51Z'
@@ -101,7 +101,7 @@ summary:
     line: 16
   - file: src/lib/constants.ts
     line: 21
-notes: '(1) 部品の入口として分析した。入口のフレームは、登録表の項目 MetricsTable (boardComponentRegistry.tsx:327) が指すコンポーネント MetricsTable (MetricsTable.tsx:23)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、保存された部品の設定 config.props から来る type / limit と、任意の props) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。この項目は componentByEntityType を持たないので、対象の種類で替わる先の部品は無い。対象がピクセルやリンクのときは、そのピクセルやリンクの id がそのまま websiteId に入り、サイト用の受け口に送られる (BoardViewColumn.tsx:54)。website を id で探す読み取り (fetchWebsite、getEntity の getWebsite) は行が当たらないと読めるが、読み取りそのものは行われるので、I/O は書いた (part_p.boardComponentRegistry.WebsiteMetricsBar と同じ扱い)。(2) 木は、ほかの入口の結果を出発点にし、根拠の行は対象のコードで確かめた。受け口の前処理・権限の確認・絞り込みの木 (parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment) は part_p.boardComponentRegistry.WebsiteMetricsBar から写し、受け口の行 (route.ts:26 / :35 / :49) と、canViewWebsiteSection に渡すセクション (overview / events / sessions / compare / breakdown / utm / attribution) を、metrics の受け口のものに直した。useWebsiteMetricsQuery → GET metrics → 4 つの集計の関数は、ボードの表を type をすべての選択肢で辿った dashboard の結果から写し、文の中の「ボード」「地図」の話を部品の話に直した。Favicon は boards.boardId_d の綴りに合わせた (名前は Favicon。useConfig はこのリポジトリの決まりでフレームにせず、PRIVATE_MODE / FAVICON_URL を settings に書いた)。(3) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた (useWebsiteMetricsQuery (:36) の経路が先、行の名前を描く MetricLabel → Favicon (:70) が後)。同じ処理を 2 つの呼び出し元から呼ぶもの (getWebsite を getEntity と fetchWebsite から) は、最初に着いた getEntity の下に書き、fetchWebsite の summary に「経路は q_get_website と同じ」と書いた。fetchWebsite は Redis の読み書きを持つので、書き直し (_rw) は要らない。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_metrics) に 1 回だけ書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。(4) 固定の値で閉じている呼び出しは無い (0 件)。確かめたこと: (a) 受け口の 4 つの分かれ道 (getSessionMetrics / getEventMetrics / getPageviewMetrics / getChannelMetrics) と 400 は、type で決まる。type は保存された部品の設定 (入口の外の値) なので閉じておらず、4 つとも conditional で辿った (event も登録表の選択肢にある)。(b) MetricsTable の showMore (既定 false) と filterLink (既定 true) は、部品の props の既定値だが、描く側が config.props をそのまま渡す (BoardComponentRenderer.tsx:42) ので、値は入口の外から変えられる。しかも showMore で描く「もっと見る」は URL のクエリを書き換えるだけで、呼び先のフレームは無い。filterLink が false なら Favicon を描かないので、Favicon は conditional にした。(c) 部品はフックに options を渡さないので、フックの enabled (websiteId があること) はほかの値で変わらない。websiteId は必須の props なので、GET metrics は always にした。(d) 受け口が canViewWebsiteSection に固定の値 (セクションの並び) を渡すが、その値が効くのは、ログインしていない共有トークンの経路で、共有の設定との組み合わせで決まるので、閉じていない (呼び先のフレームも無い)。(e) getQueryFilters には、受け口がいつも websiteId を渡すので、fetchWebsite は always にした。(f) MetricLabel が FilterLink に固定の type (city など) を渡すが、FilterLink はデータを読まないので、閉じる呼び出しが無い。(5) 迷った点と選んだ扱い。(a) 集計の関数の fields に書いた列は、登録表の選択肢にある type に当たる列にした (dashboard と同じ)。SESSION_COLUMNS の distinctId と、EVENT_COLUMNS の domain / tag は、登録表の選択肢に無いので、それに当たる列は書いていない。保存された設定に選択肢の外の値が入る経路は、部品の入口からは読めないので、call の note に書くだけにした。(b) type が domain の行の Favicon (MetricLabel.tsx:211) も、同じく選択肢の外だが、MetricLabel の分かれ道にあるので、Favicon の call の condition に含めた。(c) 行の値を押したときの絞り込み (FilterLink) と「もっと見る」(view の書き換え) は、描く画面の URL のクエリを書き換えるだけで、ほかの入口に移らないので、links に書かず、入口のフレームの summary に書いた。PathMetricLabel / ReferrerMetricLabel が出す外のサイトへの a (externalUrl) は、利用者が押して開く計測対象のサイトで、入口でもデータの読み書きでもないので書いていない。(d) useDateRange はブラウザに保存した期間 (localStorage) を読むが、サーバーのデータではないので I/O に書かず、parameters に書いた。国の名前の翻訳の JSON (useCountryNames) と国旗の画像は、同じサーバーの静的なファイルなので、このリポジトリの決まりで書いていない。(e) links は 1 件も無い。 (6) レビューへの対応 (1 回。high 0 件、medium 0 件、low 3 件。すべて直した)。getSessionMetrics / getPageviewMetrics / getChannelMetrics の rules に、カスタムイベントと性能の計測のイベントを除いて数える決まり (event_type NOT IN (2, 5)) を足した。'
+notes: '(1) 部品の入口として分析した。入口のフレームは、登録表の項目 MetricsTable (boardComponentRegistry.tsx:327) が指すコンポーネント MetricsTable (MetricsTable.tsx:23)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、保存された部品の設定 config.props から来る type / limit と、任意の props) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。この項目は componentByEntityType を持たないので、対象の種類で替わる先の部品は無い。対象がピクセルやリンクのときは、そのピクセルやリンクの id がそのまま websiteId に入り、サイト用の受け口に送られる (BoardViewColumn.tsx:54)。website を id で探す読み取り (fetchWebsite、getEntity の getWebsite) は行が当たらないと読めるが、読み取りそのものは行われるので、I/O は書いた (part_p.boardComponentRegistry.WebsiteMetricsBar と同じ扱い)。(2) 木は、ほかの入口の結果を出発点にし、根拠の行は対象のコードで確かめた。受け口の前処理・権限の確認・絞り込みの木 (parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment) は part_p.boardComponentRegistry.WebsiteMetricsBar から写し、受け口の行 (route.ts:26 / :35 / :49) と、canViewWebsiteSection に渡すセクション (overview / events / sessions / compare / breakdown / utm / attribution) を、metrics の受け口のものに直した。useWebsiteMetricsQuery → GET metrics → 4 つの集計の関数は、ボードの表を type をすべての選択肢で辿った dashboard の結果から写し、文の中の「ボード」「地図」の話を部品の話に直した。Favicon は boards.boardId_d の綴りに合わせた (名前は Favicon。useConfig はこのリポジトリの決まりでフレームにせず、PRIVATE_MODE / FAVICON_URL を settings に書いた)。(3) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた (useWebsiteMetricsQuery (:36) の経路が先、行の名前を描く MetricLabel → Favicon (:70) が後)。同じ処理を 2 つの呼び出し元から呼ぶもの (getWebsite を getEntity と fetchWebsite から) は、最初に着いた getEntity の下に書き、fetchWebsite の summary に「経路は q_get_website と同じ」と書いた。fetchWebsite は Redis の読み書きを持つので、書き直し (_rw) は要らない。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_metrics) に 1 回だけ書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。(4) 固定の値で閉じている呼び出しは無い (0 件)。確かめたこと: (a) 受け口の 4 つの分かれ道 (getSessionMetrics / getEventMetrics / getPageviewMetrics / getChannelMetrics) と 400 は、type で決まる。type は保存された部品の設定 (入口の外の値) なので閉じておらず、4 つとも conditional で辿った (event も登録表の選択肢にある)。(b) MetricsTable の showMore (既定 false) と filterLink (既定 true) は、部品の props の既定値だが、描く側が config.props をそのまま渡す (BoardComponentRenderer.tsx:42) ので、値は入口の外から変えられる。しかも showMore で描く「もっと見る」は URL のクエリを書き換えるだけで、呼び先のフレームは無い。filterLink が false なら Favicon を描かないので、Favicon は conditional にした。(c) 部品はフックに options を渡さないので、フックの enabled (websiteId があること) はほかの値で変わらない。websiteId は必須の props なので、GET metrics は always にした。(d) 受け口が canViewWebsiteSection に固定の値 (セクションの並び) を渡すが、その値が効くのは、ログインしていない共有トークンの経路で、共有の設定との組み合わせで決まるので、閉じていない (呼び先のフレームも無い)。(e) getQueryFilters には、受け口がいつも websiteId を渡すので、fetchWebsite は always にした。(f) MetricLabel が FilterLink に固定の type (city など) を渡すが、FilterLink はデータを読まないので、閉じる呼び出しが無い。(5) 迷った点と選んだ扱い。(a) 集計の関数の fields に書いた列は、登録表の選択肢にある type に当たる列にした (dashboard と同じ)。SESSION_COLUMNS の distinctId と、EVENT_COLUMNS の domain / tag は、登録表の選択肢に無いので、それに当たる列は書いていない。保存された設定に選択肢の外の値が入る経路は、部品の入口からは読めないので、call の note に書くだけにした。(b) type が domain の行の Favicon (MetricLabel.tsx:211) も、同じく選択肢の外だが、MetricLabel の分かれ道にあるので、Favicon の call の condition に含めた。(c) 行の値を押したときの絞り込み (FilterLink) と「もっと見る」(view の書き換え) は、描く画面の URL のクエリを書き換えるだけで、ほかの入口に移らないので、links に書かず、入口のフレームの summary に書いた。PathMetricLabel / ReferrerMetricLabel が出す外のサイトへの a (externalUrl) は、利用者が押して開く計測対象のサイトで、入口でもデータの読み書きでもないので書いていない。(d) useDateRange はブラウザに保存した期間 (localStorage) を読むが、サーバーのデータではないので I/O に書かず、parameters に書いた。国の名前の翻訳の JSON (useCountryNames) と国旗の画像は、同じサーバーの静的なファイルなので、このリポジトリの決まりで書いていない。(e) links は 1 件も無い。 (6) レビューへの対応 (1 回。high 0 件、medium 0 件、low 3 件。すべて直した)。getSessionMetrics / getPageviewMetrics / getChannelMetrics の rules に、カスタムイベントと性能の計測のイベントを除いて数える決まり (event_type NOT IN (2, 5)) を足した。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。'
 callstack:
 - id: metrics_table
   layer: part
@@ -524,6 +524,16 @@ callstack:
       line: 102
     - file: src/lib/redis.ts
       line: 106
+  - name: CLOUD_MODE
+    kind: env
+    effect: 設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る。設定されていれば、API キーの経路は無い
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 74
+    - file: src/lib/api-key.ts
+      line: 41
+    note: この部品のフックはログインのトークンを付ける (src/components/hooks/useApi.ts:28) ので、API キーの経路は辿っていない
   rules:
   - kind: validation
     value: 2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない
@@ -751,6 +761,15 @@ callstack:
     - file: src/permissions/website.ts
       line: 35
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 10
+    note: 管理者なら、持ち主・所属を確かめずに通す
   - kind: ownership
     value: canViewWebsite
     status: interpretation

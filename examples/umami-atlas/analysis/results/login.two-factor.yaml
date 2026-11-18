@@ -14,12 +14,12 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T11:39:19Z"
+  analyzed_at: "2026-11-18T20:38:34Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T11:39:00Z"
     findings_open: 0
-notes: "迷った点と選んだ扱い: (1) 同じ処理の置き場は、入口から辿る順 (深さ優先、コードの行の順) で決めた。page.tsx では LoginPageWrapper (11 行目) が LoginTwoFactorPage (12 行目) より先で、LoginPageWrapper の中の useLoginQuery (LoginPage.tsx:10) が先に動くので、parseRequest → checkAuth → getUser と getAllUserTeams は POST /api/auth/verify の下に書いた。POST /api/2fa/verify も getUser (route.ts:51) と getAllUserTeams (route.ts:144) を呼ぶが、同じ関数で同じ表なので、フレームを足さず summary で触れるだけにした。(2) POST /api/2fa/verify は parseRequest を skipAuth 付きで呼ぶ (route.ts:45) ので checkAuth に進まず、データに届かない。そちらではフレームにしていない。(3) LoginTwoFactorPage の呼び出し元は LoginPageWrapper にした。要素を作るのは page.tsx:12 だが、描くかどうかを決めて実際に描くのは LoginPageWrapper (LoginPage.tsx:19、31) のため。(4) 設定による打ち切りの扱い: POST /api/2fa/verify は、CLOUD_MODE があれば 404 (route.ts:22)、TWO_FACTOR_ENCRYPTION_KEY が正しくなければ 503 (route.ts:41) で打ち切る。指示書の決まりでは、設定で打ち切るときは後ろの呼び出しを conditional にするが、この入口から辿る限り条件はいつも成り立つとみて always にした。理由: page は同じサーバーの CLOUD_MODE があれば何も描かない (page.tsx:6)。仮トークンは、暗号鍵が正しいときだけ POST /api/auth/login が出す (login/route.ts:38、42。期限は 5 分)。サーバーの再起動で環境変数が変わった場合だけ、この前提は崩れる。設定そのものは settings に書いた。(5) 仮トークンの検査 (route.ts:36-38) は、ログインの処理そのものなので guards ではなく rules (validation) に書いた。ログイン済みの確認 (guards の authentication) は、決まりのとおり checkAuth の 1 か所だけ。(6) recordFailedAttempt は 3 か所 (route.ts:88、102、121)、resetRateLimit は 2 か所 (route.ts:110、130) から呼ばれるが、どれも同じ受け口の中なのでフレームは 1 つずつ。resetRateLimit は、バックアップコードと TOTP のどちらの道でも成功すれば呼ぶので always にした。(7) 受け口が直接書く Prisma の呼び出し (route.ts:57、81、96) は、受け口の I/O にし、ライブラリの呼び出しは行ごとに external のフレームにした。(8) フレームにしなかったもの: getBearerToken と parseSecureToken (トークンを読むだけ)、verifyBackupCode (bcrypt の照合だけ)、decryptSecret (復号だけ)、verifyTotp (otplib の照合だけ)、OtpInput (入力欄だけ)。どれもデータを読み書きしない。それらが持つ業務のルールは、呼ぶ側の受け口に書いた。(9) select の無い findUnique / findMany は、列を * とした。(10) API の URL は、このフックだけ getApiUrl を通さず basePath + /api/2fa/verify を直接組み立てる (useTwoFactorVerifyMutation.ts:12、17) ので、API_URL は効かない。BASE_PATH は login の結果に合わせて settings に書いた。(11) 戻り先 URL (consumeReturnUrl) への遷移は、行き先が実行時の値なので unknown (dynamic_dispatch) の link にした (login の結果と同じ綴り)。(12) 仮トークン (sessionStorage) とログインのトークン (localStorage) はブラウザ内の保存なので I/O に書いていない。(13) 作業定義に analysis.tests が無いので、tests は書いていない。(14) レビューの指摘 2 件 (どちらも low) は直した。checkAuth の settings から CLOUD_MODE を外した (/api/auth は API キーを拒否するパスなので、この入口では有無で結果が変わらない。login の結果には同じ設定が残っているが、ほかの入口のファイルは書き換えていない)"
+notes: "迷った点と選んだ扱い: (1) 同じ処理の置き場は、入口から辿る順 (深さ優先、コードの行の順) で決めた。page.tsx では LoginPageWrapper (11 行目) が LoginTwoFactorPage (12 行目) より先で、LoginPageWrapper の中の useLoginQuery (LoginPage.tsx:10) が先に動くので、parseRequest → checkAuth → getUser と getAllUserTeams は POST /api/auth/verify の下に書いた。POST /api/2fa/verify も getUser (route.ts:51) と getAllUserTeams (route.ts:144) を呼ぶが、同じ関数で同じ表なので、フレームを足さず summary で触れるだけにした。(2) POST /api/2fa/verify は parseRequest を skipAuth 付きで呼ぶ (route.ts:45) ので checkAuth に進まず、データに届かない。そちらではフレームにしていない。(3) LoginTwoFactorPage の呼び出し元は LoginPageWrapper にした。要素を作るのは page.tsx:12 だが、描くかどうかを決めて実際に描くのは LoginPageWrapper (LoginPage.tsx:19、31) のため。(4) 設定による打ち切りの扱い: POST /api/2fa/verify は、CLOUD_MODE があれば 404 (route.ts:22)、TWO_FACTOR_ENCRYPTION_KEY が正しくなければ 503 (route.ts:41) で打ち切る。指示書の決まりでは、設定で打ち切るときは後ろの呼び出しを conditional にするが、この入口から辿る限り条件はいつも成り立つとみて always にした。理由: page は同じサーバーの CLOUD_MODE があれば何も描かない (page.tsx:6)。仮トークンは、暗号鍵が正しいときだけ POST /api/auth/login が出す (login/route.ts:38、42。期限は 5 分)。サーバーの再起動で環境変数が変わった場合だけ、この前提は崩れる。設定そのものは settings に書いた。(5) 仮トークンの検査 (route.ts:36-38) は、ログインの処理そのものなので guards ではなく rules (validation) に書いた。ログイン済みの確認 (guards の authentication) は、決まりのとおり checkAuth の 1 か所だけ。(6) recordFailedAttempt は 3 か所 (route.ts:88、102、121)、resetRateLimit は 2 か所 (route.ts:110、130) から呼ばれるが、どれも同じ受け口の中なのでフレームは 1 つずつ。resetRateLimit は、バックアップコードと TOTP のどちらの道でも成功すれば呼ぶので always にした。(7) 受け口が直接書く Prisma の呼び出し (route.ts:57、81、96) は、受け口の I/O にし、ライブラリの呼び出しは行ごとに external のフレームにした。(8) フレームにしなかったもの: getBearerToken と parseSecureToken (トークンを読むだけ)、verifyBackupCode (bcrypt の照合だけ)、decryptSecret (復号だけ)、verifyTotp (otplib の照合だけ)、OtpInput (入力欄だけ)。どれもデータを読み書きしない。それらが持つ業務のルールは、呼ぶ側の受け口に書いた。(9) select の無い findUnique / findMany は、列を * とした。(10) API の URL は、このフックだけ getApiUrl を通さず basePath + /api/2fa/verify を直接組み立てる (useTwoFactorVerifyMutation.ts:12、17) ので、API_URL は効かない。BASE_PATH は login の結果に合わせて settings に書いた。(11) 戻り先 URL (consumeReturnUrl) への遷移は、行き先が実行時の値なので unknown (dynamic_dispatch) の link にした (login の結果と同じ綴り)。(12) 仮トークン (sessionStorage) とログインのトークン (localStorage) はブラウザ内の保存なので I/O に書いていない。(13) 作業定義に analysis.tests が無いので、tests は書いていない。(14) レビューの指摘 2 件 (どちらも low) は直した。checkAuth の settings から CLOUD_MODE を外した (/api/auth は API キーを拒否するパスなので、この入口では有無で結果が変わらない。login の結果には同じ設定が残っているが、ほかの入口のファイルは書き換えていない)。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ"
 summary:
   status: interpretation
   value: "ログインの 2 段階目 (認証アプリの 6 桁のコードか、バックアップコード) を入れる画面。表示時に POST /api/auth/verify で既存のトークンを確かめ (ストアにユーザーが無いときだけ)、user と所属チーム (team / team_user) を読み、ログイン済みなら / へ転送する。sessionStorage に仮トークン (ログイン画面が保存したもの) が無ければ /login へ戻す。コードを入れ終えるか送信すると、仮トークンを Bearer に付けて POST /api/2fa/verify を呼ぶ。受け口は、仮トークンを検査し、user と two_factor_auth を読み、締め出し中か (two_factor_rate_limit) を確かめる。バックアップコードなら two_factor_backup_code の未使用のものと照合して使用済みにし、6 桁のコードなら使い回し (two_factor_otp_used) を確かめて TOTP を照合し、使ったコードを記録する。失敗は two_factor_rate_limit に数え、5 回で 15 分締め出す。成功すると試行の記録を消し、Redis があれば auth:* キーにセッションを保存してトークンを返し (無ければ署名付きトークンだけ)、所属チームを読んで返す。画面はトークンを localStorage に保存して、戻り先 URL (無ければ /) へ移る。環境変数 DISABLE_LOGIN か CLOUD_MODE があれば page は何も描かない"
@@ -226,6 +226,14 @@ callstack:
         evidence:
           - { file: src/lib/auth.ts, line: 101 }
           - { file: src/lib/redis.ts, line: 106 }
+      - name: CLOUD_MODE
+        kind: env
+        effect: "設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/api-key.ts, line: 41 }
+        note: "この画面のブラウザはログイントークンを付ける (useApi.ts:28) うえ、/api/auth は API キーを拒むパスなので、API キーの経路は辿っていない"
     rules:
       - kind: validation
         value: "2 段階認証の仮トークン (type が partial-auth) は、セッションとして受け付けない"
@@ -246,6 +254,17 @@ callstack:
         evidence:
           - { file: src/lib/auth.ts, line: 137 }
           - { file: src/lib/constants.ts, line: 175 }
+      - kind: decision
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/auth.ts, line: 75 }
+          - { file: src/lib/api-key.ts, line: 4 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 33 }
+          - { file: src/lib/auth.ts, line: 35 }
+        note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログイントークンを付ける (useApi.ts:28) うえ、POST /api/auth/verify は API キーを拒むパス (api-key.ts:15) なので、この枝で認証が通ることはない"
     io:
       - op: get
         status: fact
@@ -516,16 +535,6 @@ callstack:
         - { file: src/components/hooks/queries/useTwoFactorVerifyMutation.ts, line: 17 }
         - { file: src/components/hooks/queries/useTwoFactorVerifyMutation.ts, line: 18 }
         - { file: src/components/hooks/queries/useTwoFactorVerifyMutation.ts, line: 23 }
-    settings:
-      - name: BASE_PATH
-        kind: env
-        effect: "呼ぶ API の URL の前に付く (basePath + /api/2fa/verify)。next.config が process.env.basePath として埋め込む"
-        status: fact
-        evidence:
-          - { file: src/components/hooks/queries/useTwoFactorVerifyMutation.ts, line: 12 }
-          - { file: src/components/hooks/queries/useTwoFactorVerifyMutation.ts, line: 17 }
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
 
   - id: api_2fa_verify
     layer: api_route

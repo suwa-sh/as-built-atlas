@@ -14,12 +14,12 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T10:12:40Z"
+  analyzed_at: "2026-11-18T20:38:31Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T10:12:00Z"
     findings_open: 0
-notes: "プロファイル 0.4.0 と、補足の入った指示書 0.4.0 で分析し直した。前の結果を出発点にして、根拠の行と内容を対象のコードで確かめ直した。迷った点と選んだ扱い: (1) 同じ処理の置き場は、入口から辿る順 (深さ優先、コードの行の順) で決めた。LoginPage.tsx では useLoginQuery (10 行目) が LoginForm (39 行目) より先なので、getAllUserTeams とその先は POST /api/auth/verify の下 (フレーム q_team) に書き、POST /api/auth/login の側は summary で触れるだけにした。Prisma の user.findUnique (user.ts:32) も同じ行なので、先に着く getUser の下 (ext_prisma_user) に 1 回だけ書いた。getUserByUsername は自分の I/O を持つので終端の決まりを満たす。(2) parseRequest は POST /api/auth/login からも呼ばれるが、skipAuth で checkAuth に進まずデータに届かないので、そちらではフレームにしていない (届く先が違う)。(3) call.when は、手前に入力の誤り・認証の失敗・パスワードの不一致で打ち切る経路があるだけの呼び出しを always にした (getUserByUsername、verify 側の getAllUserTeams)。if の中にあるが、この入口から辿る限り条件がいつも成り立つ呼び出し (parseRequest → checkAuth、saveAuth → redis set) は always にして、理由を note に書いた。2 段階認証が有効なら仮トークンを返して終わる分かれ道は業務の分かれ道とみて、その後ろの saveAuth を conditional にした。(4) ログインのパスワード照合は guards ではなく rules (validation) に書いた。ログイン済みなら / へ転送する動きは links に書いた。(5) 必須入力 (フォームの required) と型だけの検査 (loginRequestSchema の文字列) は rules に書いていない。(6) 設定は、環境変数を読む補助の関数 (isApiKeyEnabled、isTwoFactorConfigured、redis.enabled、getApiUrl) がフレームでないので、その結果で動きを変えるフレームに書いた。APP_SECRET (署名の鍵) は書いていない。DATABASE_URL は接続先を決めるが、読むのは Prisma のクライアントを作る共通のファイル (src/lib/prisma.ts) で、このプロファイルは接続先の段を書かない決まりなので、どのフレームにも書いていない。API_URL は /auth で始まる URL には使われない (api-url.ts:6、39) ので書いていない。(7) 戻り先 URL (consumeReturnUrl) への遷移は、行き先が実行時の値なので unknown (dynamic_dispatch) の link にした。(8) two_factor_auth は select なしの findUnique なので列は * とした。(9) KVS の auth:* の項目名は、保存する JSON のキー (userId / role / pwd)。(10) authentication の guard は、求める値が無い確認なので value を書かず、条件を note に書いた"
+notes: "プロファイル 0.4.0 と、補足の入った指示書 0.4.0 で分析し直した。前の結果を出発点にして、根拠の行と内容を対象のコードで確かめ直した。迷った点と選んだ扱い: (1) 同じ処理の置き場は、入口から辿る順 (深さ優先、コードの行の順) で決めた。LoginPage.tsx では useLoginQuery (10 行目) が LoginForm (39 行目) より先なので、getAllUserTeams とその先は POST /api/auth/verify の下 (フレーム q_team) に書き、POST /api/auth/login の側は summary で触れるだけにした。Prisma の user.findUnique (user.ts:32) も同じ行なので、先に着く getUser の下 (ext_prisma_user) に 1 回だけ書いた。getUserByUsername は自分の I/O を持つので終端の決まりを満たす。(2) parseRequest は POST /api/auth/login からも呼ばれるが、skipAuth で checkAuth に進まずデータに届かないので、そちらではフレームにしていない (届く先が違う)。(3) call.when は、手前に入力の誤り・認証の失敗・パスワードの不一致で打ち切る経路があるだけの呼び出しを always にした (getUserByUsername、verify 側の getAllUserTeams)。if の中にあるが、この入口から辿る限り条件がいつも成り立つ呼び出し (parseRequest → checkAuth、saveAuth → redis set) は always にして、理由を note に書いた。2 段階認証が有効なら仮トークンを返して終わる分かれ道は業務の分かれ道とみて、その後ろの saveAuth を conditional にした。(4) ログインのパスワード照合は guards ではなく rules (validation) に書いた。ログイン済みなら / へ転送する動きは links に書いた。(5) 必須入力 (フォームの required) と型だけの検査 (loginRequestSchema の文字列) は rules に書いていない。(6) 設定は、環境変数を読む補助の関数 (isApiKeyEnabled、isTwoFactorConfigured、redis.enabled、getApiUrl) がフレームでないので、その結果で動きを変えるフレームに書いた。APP_SECRET (署名の鍵) は書いていない。DATABASE_URL は接続先を決めるが、読むのは Prisma のクライアントを作る共通のファイル (src/lib/prisma.ts) で、このプロファイルは接続先の段を書かない決まりなので、どのフレームにも書いていない。API_URL は /auth で始まる URL には使われない (api-url.ts:6、39) ので書いていない。(7) 戻り先 URL (consumeReturnUrl) への遷移は、行き先が実行時の値なので unknown (dynamic_dispatch) の link にした。(8) two_factor_auth は select なしの findUnique なので列は * とした。(9) KVS の auth:* の項目名は、保存する JSON のキー (userId / role / pwd)。(10) authentication の guard は、求める値が無い確認なので value を書かず、条件を note に書いた。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ"
 summary:
   status: interpretation
   value: "ユーザー名とパスワードでログインする画面。表示時に POST /api/auth/verify で既存のトークンを確かめ (ストアにユーザーが無いときだけ)、user と所属チーム (team / team_user) を読み、ログイン済みなら / へ転送する。フォーム送信で POST /api/auth/login を呼び、user をユーザー名で読んでパスワードを照合し、two_factor_auth を読んで 2 段階認証が有効なら仮トークンを返して /login/two-factor へ進む。無効なら Redis があれば auth:* キーにセッションを保存してトークンを返し (無ければ署名付きトークンだけ)、所属チームを読んで返す。環境変数 DISABLE_LOGIN か CLOUD_MODE があれば page は何も描かない。ログインのトークンは localStorage、2 段階認証の仮トークンは sessionStorage に保存する (ブラウザ内なので I/O には書かない)"
@@ -249,6 +249,17 @@ callstack:
         evidence:
           - { file: src/lib/auth.ts, line: 137 }
           - { file: src/lib/constants.ts, line: 175 }
+      - kind: decision
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/auth.ts, line: 75 }
+          - { file: src/lib/api-key.ts, line: 4 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 33 }
+          - { file: src/lib/auth.ts, line: 35 }
+        note: "API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面が呼ぶ POST /api/auth/verify は API_KEY_BLOCKED_PATHS の /api/auth に当たる (api-key.ts:15) ので、この枝に入っても認証できない"
     io:
       - op: get
         status: fact
@@ -510,16 +521,6 @@ callstack:
         - { file: src/components/hooks/useApi.ts, line: 49 }
         - { file: src/lib/api-url.ts, line: 44 }
         - { file: src/components/hooks/useModified.ts, line: 3 }
-    settings:
-      - name: BASE_PATH
-        kind: env
-        effect: "呼ぶ API の URL の前に付く (basePath + /api + /auth/login)。next.config が process.env.basePath として埋め込む"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 44 }
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
 
   - id: api_login
     layer: api_route

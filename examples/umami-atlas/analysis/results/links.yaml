@@ -14,7 +14,7 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-opus-5-5"
-  analyzed_at: "2026-11-17T15:29:22Z"
+  analyzed_at: "2026-11-18T20:38:42Z"
   reviewed: { by: "claude-opus-5-5 (fresh context)", at: "2026-11-17T15:28:30Z", findings_open: 0 }
 summary:
   status: interpretation
@@ -39,7 +39,7 @@ summary:
     - { file: src/app/api/links/charts/route.ts, line: 42 }
     - { file: "src/app/api/links/[linkId]/route.ts", line: 74 }
     - { file: next.config.ts, line: 253 }
-notes: "[1] 画面を包む枠 ((main) の layout と、そこから描かれる部品) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。[2] 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser は POST /api/auth/verify (LinksPage.tsx:12 の useLoginQuery が最初に着く) の下。canViewTeam → getTeamUser は GET /api/teams/[teamId]/users (LinksPage.tsx:15) の下。canViewLink → getLink は GET /api/links/[linkId] (LinksPage.tsx:27 の追加ボタン → LinkEditForm.tsx:47 の useLinkQuery。:30 の一覧より前) の下。[3] この画面からは条件が成り立たないように見える呼び出しも、指示書のとおり、消さずに conditional で書いた: 追加の小窓の LinkEditForm は linkId を受け取らない (LinkAddButton.tsx:11) ので、useLinkQuery の enabled: !!linkId が成り立たず、GET /api/links/[linkId] は呼ばれないように見える。深さ優先の順では、canViewLink と getLink が、この呼ばれないように見える受け口の下に置かれる (pixels の結果の usePixelQuery と同じ扱い)。canViewLink は、GET /api/links/charts から実際に呼ばれる。[4] 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段まで書き直した (id が _rw で終わるフレーム。external の段は書いていない。確認・設定・ルールは繰り返していない): canCreateTeamWebsite の下の getTeamUser、canDeleteLink の下の getLink。[5] 段にしなかったもの: canCreateWebsite (src/permissions/website.ts:120。データを読まず、段にすると終端の決まりを満たせないので、確認は、それを呼ぶ受け口 POST /api/links に書いた)、getQueryFilters (websiteId を渡さないので、データを読まない)、useConfig → GET /api/config (skipAuth で環境変数を返すだけで、データにもライブラリにも届かない。pixels と links.linkId_d.edit の結果と同じ扱い。設定 CLOUD_MODE / LINKS_URL は、それを使う LinkEditForm と LinksTable に書いた)、LinkEditButton (リンクだけ。行き先は LinksTable の links に書いた)、DataGrid (検索とページ送りは、同じ画面の URL のクエリを書き換えるだけ。表示の切り替えの localStorage は I/O に書いていない)、WebsiteSparkline (受け取った値を描くだけ)。[6] 操作を出すかどうか (showActions) は、画面の出し分けで、先へ進むのを止める確認ではないので、guards ではなく LinksPage の rules (decision) に書いた。サーバー側の確認は、受け口と権限の関数の guards に書いた。[7] URL のクエリの page / search / orderBy / sortDescending は、usePagedQuery がどの一覧の読み取りにも付けるので、チームの URL では、リンクの一覧の検索語とページが、メンバーの読み取り (GET /api/teams/[teamId]/users) にも付く。検索語が自分の username に合わないときや、2 ページ目以降では、メンバーの結果に自分が入らず、操作が出なくなると読める (実行しての確認はしていない)。use_team_members_query の summary に書いた。レビューの補足では、メンバーの読み取りは既定の 20 件で切られるので、1 ページ目でも、作成順で 21 人目以降のメンバーには操作が出ないと読める。[15] レビューの指摘は low 1 件で、直した (use_link_query の settings に API_URL と BASE_PATH を足した)。レビューが指摘にしなかったこと: POST /api/links は slug の一意の制約に当たったときの扱いが無く、500 になると読める (編集の受け口は 400 にする)。DB の制約なので rules には書いていない。[8] 表の短縮 URL の列 (LINKS_URL か origin + /q の下の slug) と転送先の URL の列は、外部へのリンクで、分析の対象の入口ではないので、links に書いていない。[9] checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。DATABASE_URL は、どの段にも同じように効く接続先なので、settings に書いていない。[10] 画面から API を呼ぶ URL は、環境変数 API_URL があると (/auth と /config 以外は) その URL に向く。既定では同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL と BASE_PATH は、API を呼ぶフックの settings に書いた (pixels の結果と同じ)。[11] 確認の値は、analysis-conventions.md の綴りにした (役割は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前、ログイン済みは checkAuth の 1 か所だけ)。[12] テストとの対応は、作業定義の analysis.tests が無いので、分析していない (src/app/api/links/route.test.ts があることだけ見た。中は読んでいない)。[13] 個人の一覧 (getUserLinks) は削除済み (deletedAt) を除くが、チームの一覧 (getTeamLinks) は除かない。どちらもコードのとおりに書いた。[14] LinksTable は useNavigation の websiteId を LinkDeleteButton に渡すが、LinkDeleteButton は使わない (受け取る引数から外している)。この画面の URL には /websites/ が無いので、値も undefined。"
+notes: "[1] 画面を包む枠 ((main) の layout と、そこから描かれる部品) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。[2] 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser は POST /api/auth/verify (LinksPage.tsx:12 の useLoginQuery が最初に着く) の下。canViewTeam → getTeamUser は GET /api/teams/[teamId]/users (LinksPage.tsx:15) の下。canViewLink → getLink は GET /api/links/[linkId] (LinksPage.tsx:27 の追加ボタン → LinkEditForm.tsx:47 の useLinkQuery。:30 の一覧より前) の下。[3] この画面からは条件が成り立たないように見える呼び出しも、指示書のとおり、消さずに conditional で書いた: 追加の小窓の LinkEditForm は linkId を受け取らない (LinkAddButton.tsx:11) ので、useLinkQuery の enabled: !!linkId が成り立たず、GET /api/links/[linkId] は呼ばれないように見える。深さ優先の順では、canViewLink と getLink が、この呼ばれないように見える受け口の下に置かれる (pixels の結果の usePixelQuery と同じ扱い)。canViewLink は、GET /api/links/charts から実際に呼ばれる。[4] 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段まで書き直した (id が _rw で終わるフレーム。external の段は書いていない。確認・設定・ルールは繰り返していない): canCreateTeamWebsite の下の getTeamUser、canDeleteLink の下の getLink。[5] 段にしなかったもの: canCreateWebsite (src/permissions/website.ts:120。データを読まず、段にすると終端の決まりを満たせないので、確認は、それを呼ぶ受け口 POST /api/links に書いた)、getQueryFilters (websiteId を渡さないので、データを読まない)、useConfig → GET /api/config (skipAuth で環境変数を返すだけで、データにもライブラリにも届かない。pixels と links.linkId_d.edit の結果と同じ扱い。設定 CLOUD_MODE / LINKS_URL は、それを使う LinkEditForm と LinksTable に書いた)、LinkEditButton (リンクだけ。行き先は LinksTable の links に書いた)、DataGrid (検索とページ送りは、同じ画面の URL のクエリを書き換えるだけ。表示の切り替えの localStorage は I/O に書いていない)、WebsiteSparkline (受け取った値を描くだけ)。[6] 操作を出すかどうか (showActions) は、画面の出し分けで、先へ進むのを止める確認ではないので、guards ではなく LinksPage の rules (decision) に書いた。サーバー側の確認は、受け口と権限の関数の guards に書いた。[7] URL のクエリの page / search / orderBy / sortDescending は、usePagedQuery がどの一覧の読み取りにも付けるので、チームの URL では、リンクの一覧の検索語とページが、メンバーの読み取り (GET /api/teams/[teamId]/users) にも付く。検索語が自分の username に合わないときや、2 ページ目以降では、メンバーの結果に自分が入らず、操作が出なくなると読める (実行しての確認はしていない)。use_team_members_query の summary に書いた。レビューの補足では、メンバーの読み取りは既定の 20 件で切られるので、1 ページ目でも、作成順で 21 人目以降のメンバーには操作が出ないと読める。[15] レビューの指摘は low 1 件で、直した (use_link_query の settings に API_URL と BASE_PATH を足した)。レビューが指摘にしなかったこと: POST /api/links は slug の一意の制約に当たったときの扱いが無く、500 になると読める (編集の受け口は 400 にする)。DB の制約なので rules には書いていない。[8] 表の短縮 URL の列 (LINKS_URL か origin + /q の下の slug) と転送先の URL の列は、外部へのリンクで、分析の対象の入口ではないので、links に書いていない。[9] checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。DATABASE_URL は、どの段にも同じように効く接続先なので、settings に書いていない。[10] 画面から API を呼ぶ URL は、環境変数 API_URL があると (/auth と /config 以外は) その URL に向く。既定では同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にし、API_URL と BASE_PATH は、API を呼ぶフックの settings に書いた (pixels の結果と同じ)。[11] 確認の値は、analysis-conventions.md の綴りにした (役割は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前、ログイン済みは checkAuth の 1 か所だけ)。[12] テストとの対応は、作業定義の analysis.tests が無いので、分析していない (src/app/api/links/route.test.ts があることだけ見た。中は読んでいない)。[13] 個人の一覧 (getUserLinks) は削除済み (deletedAt) を除くが、チームの一覧 (getTeamLinks) は除かない。どちらもコードのとおりに書いた。[14] LinksTable は useNavigation の websiteId を LinkDeleteButton に渡すが、LinkDeleteButton は使わない (受け取る引数から外している)。この画面の URL には /websites/ が無いので、値も undefined。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: page
@@ -259,6 +259,17 @@ callstack:
           - { file: src/lib/auth.ts, line: 128 }
           - { file: src/lib/auth.ts, line: 129 }
           - { file: src/lib/auth.ts, line: 174 }
+      - kind: decision
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/auth.ts, line: 75 }
+          - { file: src/lib/api-key.ts, line: 4 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 33 }
+          - { file: src/lib/auth.ts, line: 35 }
+        note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログイントークンを付ける (useApi.ts:28、client.ts:4) ので、この枝には入らない"
     io:
       - op: get
         status: fact
@@ -443,16 +454,6 @@ callstack:
           - { file: src/lib/api-url.ts, line: 39 }
           - { file: next.config.ts, line: 14 }
           - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_team_users_get
     layer: api_route
@@ -791,26 +792,6 @@ callstack:
         - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 37 }
         - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 39 }
         - { file: "src/app/(main)/links/LinkEditForm.tsx", line: 40 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_links_post
     layer: api_route
@@ -1042,26 +1023,6 @@ callstack:
         - { file: src/components/hooks/queries/useLinkQuery.ts, line: 11 }
         - { file: src/components/hooks/queries/useLinkQuery.ts, line: 13 }
         - { file: "src/app/(main)/links/LinkAddButton.tsx", line: 11 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_link_get
     layer: api_route
@@ -1236,26 +1197,6 @@ callstack:
         - { file: src/components/hooks/queries/useLinksQuery.ts, line: 17 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_links_get
     layer: api_route
@@ -1564,26 +1505,6 @@ callstack:
         - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 25 }
         - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
         - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 28 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_links_charts_get
     layer: api_route
@@ -1824,26 +1745,6 @@ callstack:
       evidence:
         - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 6 }
         - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
-      - name: BASE_PATH
-        kind: env
-        effect: "API の URL の前に付く (API_URL が絶対の URL のときは付かない)"
-        status: fact
-        evidence:
-          - { file: next.config.ts, line: 15 }
-          - { file: next.config.ts, line: 216 }
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 41 }
-          - { file: src/lib/api-url.ts, line: 44 }
 
   - id: api_link_delete
     layer: api_route

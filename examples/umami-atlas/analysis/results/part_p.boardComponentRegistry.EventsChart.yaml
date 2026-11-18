@@ -18,7 +18,7 @@
     "version": "0.4.0"
   "skill_version": "0.4.1"
   "model": "claude-opus-5-5"
-  "analyzed_at": "2026-11-18T00:54:22Z"
+  "analyzed_at": "2026-11-18T20:38:33Z"
   "reviewed":
     "by": "claude-opus-5-5 (fresh context)"
     "at": "2026-11-18T00:53:06Z"
@@ -89,7 +89,7 @@
     "line": 318
   - "file": "src/lib/db.ts"
     "line": 27
-"notes": "(1) 部品の入口として分析した。入口のフレームは、登録表の項目 EventsChart (boardComponentRegistry.tsx:377) が指すコンポーネント EventsChart (EventsChart.tsx:22)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、limit、focusLabel) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。登録表のこの項目は componentByEntityType も configFields も defaultProps も持たないので、替わる先のコンポーネントは無い。(2) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた。この部品が呼ぶ API は events/series の GET 1 つだけなので、parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment を、すべてこの受け口の下に 1 回ずつ書いた。書き直し (rw) のフレームは無い。fetchWebsite が呼ぶ getWebsite は、q_get_website の下に書いた経路と同じなので、フレームにしていない (fetchWebsite 自身が Redis の I/O を持つ)。(3) 同じ処理を書く既にある結果 (websites.websiteId_d.events の events/series の経路、part_p.boardComponentRegistry.EventsMetricsBar の受け口の共通の経路) の綴りと木を出発点にし、根拠の行は対象のコードで確かめた。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_events_series) に 1 回だけ書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。CLOUD_MODE は、checkAuth の API キーの枝を辿らないので checkAuth には書かず、期間の開始を変える getQueryFilters にだけ書いた。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。(4) 固定の値で閉じている呼び出しは無い。この部品の木の中で固定の値を直接書いて渡している所は、useFilterParameters() の既定値 includePagination = true (useWebsiteEventsSeriesQuery.ts:13、useFilterParameters.ts:7)、canViewWebsiteSection(auth, websiteId, 'events') (route.ts:29)、BarChart の stacked={true} (EventsChart.tsx:118) だが、どれも送る値・判定に使う値・見た目を変えるだけで、呼び出しの有無は決めない。(5) 迷った点と選んだ扱い。(a) limit は、描く側から受け取る props で、ボードの描く側は保存された部品の設定 (config.props) をそのまま渡す (BoardComponentRenderer.tsx:42)。登録表のこの項目は limit を設定する項目を持たないが、どの値が保存されるかは部品の入口からは決められない (context.md の部品の決まり) ので、呼び先は変わらず送る値だけが変わるものとして、使う段 (getEventStats) の rules に書いた (前の画面の結果は、limit: 50 を渡す EventsPage の前提で「いつも副問い合わせで読む」と書いていたが、部品の入口では「渡されたとき」にした)。(b) イベントのプロパティの絞り込み (epf<n>) は、描く画面の URL が /events で終わるときだけ送る (useFilterParameters.ts:14、:25)。ボードの画面の URL は /events で終わらないように見えるが、どの画面が描くかは部品の入口からは決められないので、event_data の読み取りは消さずに残した。(c) website_event の読み取りで、session_id と event_id を、結合・副問い合わせの条件に使うので filter で足した (既にある画面の結果 websites.websiteId_d.events の getEventStats は、固定で書いた列だけを持つ。EventsMetricsBar のレビューの指摘と同じ扱いにそろえた)。(d) useDateRange と useTimezone はブラウザに保存した期間とタイムゾーンを読むが、サーバーのデータではないので I/O に書かず、parameters に書いた。useLocale が読む翻訳の JSON は、このリポジトリの決まりで段にも読み書きにも書かない。(e) 凡例を押して系列を隠す動きは、画面の中の状態だけで、読み書きもほかの入口への遷移も無いので、summary に書くだけにした。(6) links は 1 件も無い。 (7) レビューへの対応 (1 回、指摘は low 2 件)。1 件目 (入口の summary の「書き込みは無い」が Redis の website:* への書き込みと食い違う) は直し、「DB への書き込みは無い (Redis の website:* にキャッシュを書くことはある)」にした。2 件目 (checkAuth の settings に CLOUD_MODE が無い) は直していない。CLOUD_MODE が切り替えるのは checkAuth の API キーの枝 (auth.ts:74) だけで、部品のフックはログインのトークンを付けるので、この入口では有無で結果が変わらない (分析の skill の「この入口では有無で結果が変わらない設定も書かない」)。ほかの部品の入口の結果 (EventsMetricsBar、WebsiteChart、Goal) と同じ扱いにそろえた。"
+"notes": "(1) 部品の入口として分析した。入口のフレームは、登録表の項目 EventsChart (boardComponentRegistry.tsx:377) が指すコンポーネント EventsChart (EventsChart.tsx:22)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、limit、focusLabel) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。登録表のこの項目は componentByEntityType も configFields も defaultProps も持たないので、替わる先のコンポーネントは無い。(2) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた。この部品が呼ぶ API は events/series の GET 1 つだけなので、parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment を、すべてこの受け口の下に 1 回ずつ書いた。書き直し (rw) のフレームは無い。fetchWebsite が呼ぶ getWebsite は、q_get_website の下に書いた経路と同じなので、フレームにしていない (fetchWebsite 自身が Redis の I/O を持つ)。(3) 同じ処理を書く既にある結果 (websites.websiteId_d.events の events/series の経路、part_p.boardComponentRegistry.EventsMetricsBar の受け口の共通の経路) の綴りと木を出発点にし、根拠の行は対象のコードで確かめた。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_events_series) に 1 回だけ書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。CLOUD_MODE は、checkAuth の API キーの枝を辿らないので checkAuth には書かず、期間の開始を変える getQueryFilters にだけ書いた。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。(4) 固定の値で閉じている呼び出しは無い。この部品の木の中で固定の値を直接書いて渡している所は、useFilterParameters() の既定値 includePagination = true (useWebsiteEventsSeriesQuery.ts:13、useFilterParameters.ts:7)、canViewWebsiteSection(auth, websiteId, 'events') (route.ts:29)、BarChart の stacked={true} (EventsChart.tsx:118) だが、どれも送る値・判定に使う値・見た目を変えるだけで、呼び出しの有無は決めない。(5) 迷った点と選んだ扱い。(a) limit は、描く側から受け取る props で、ボードの描く側は保存された部品の設定 (config.props) をそのまま渡す (BoardComponentRenderer.tsx:42)。登録表のこの項目は limit を設定する項目を持たないが、どの値が保存されるかは部品の入口からは決められない (context.md の部品の決まり) ので、呼び先は変わらず送る値だけが変わるものとして、使う段 (getEventStats) の rules に書いた (前の画面の結果は、limit: 50 を渡す EventsPage の前提で「いつも副問い合わせで読む」と書いていたが、部品の入口では「渡されたとき」にした)。(b) イベントのプロパティの絞り込み (epf<n>) は、描く画面の URL が /events で終わるときだけ送る (useFilterParameters.ts:14、:25)。ボードの画面の URL は /events で終わらないように見えるが、どの画面が描くかは部品の入口からは決められないので、event_data の読み取りは消さずに残した。(c) website_event の読み取りで、session_id と event_id を、結合・副問い合わせの条件に使うので filter で足した (既にある画面の結果 websites.websiteId_d.events の getEventStats は、固定で書いた列だけを持つ。EventsMetricsBar のレビューの指摘と同じ扱いにそろえた)。(d) useDateRange と useTimezone はブラウザに保存した期間とタイムゾーンを読むが、サーバーのデータではないので I/O に書かず、parameters に書いた。useLocale が読む翻訳の JSON は、このリポジトリの決まりで段にも読み書きにも書かない。(e) 凡例を押して系列を隠す動きは、画面の中の状態だけで、読み書きもほかの入口への遷移も無いので、summary に書くだけにした。(6) links は 1 件も無い。 (7) レビューへの対応 (1 回、指摘は low 2 件)。1 件目 (入口の summary の「書き込みは無い」が Redis の website:* への書き込みと食い違う) は直し、「DB への書き込みは無い (Redis の website:* にキャッシュを書くことはある)」にした。2 件目 (checkAuth の settings に CLOUD_MODE が無い) は直していない。CLOUD_MODE が切り替えるのは checkAuth の API キーの枝 (auth.ts:74) だけで、部品のフックはログインのトークンを付けるので、この入口では有無で結果が変わらない (分析の skill の「この入口では有無で結果が変わらない設定も書かない」)。ほかの部品の入口の結果 (EventsMetricsBar、WebsiteChart、Goal) と同じ扱いにそろえた。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。"
 "callstack":
 - "id": "events_chart"
   "layer": "part"
@@ -448,6 +448,16 @@
       "line": 102
     - "file": "src/lib/redis.ts"
       "line": 106
+  - "name": "CLOUD_MODE"
+    "kind": "env"
+    "effect": "設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る"
+    "status": "fact"
+    "evidence":
+    - "file": "src/lib/auth.ts"
+      "line": 74
+    - "file": "src/lib/api-key.ts"
+      "line": 41
+    "note": "この部品のフックはログインのトークンを付ける (src/components/hooks/useApi.ts:28) ので、API キーの経路は辿っていない"
   "rules":
   - "kind": "validation"
     "value": "2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない"
@@ -671,6 +681,13 @@
     - "file": "src/permissions/website.ts"
       "line": 35
   "guards":
+  - "kind": "role"
+    "value": "user.isAdmin"
+    "status": "fact"
+    "evidence":
+    - "file": "src/permissions/website.ts"
+      "line": 9
+    "note": "管理者なら、DB を読まずに許す"
   - "kind": "ownership"
     "value": "canViewWebsite"
     "status": "interpretation"

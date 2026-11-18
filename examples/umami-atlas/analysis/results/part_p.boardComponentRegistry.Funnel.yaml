@@ -18,7 +18,7 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.1
   model: claude-opus-5-5
-  analyzed_at: "2026-11-18T00:24:14Z"
+  analyzed_at: "2026-11-18T20:39:49Z"
   reviewed:
     by: "claude-opus-5-5 (fresh context)"
     at: "2026-11-18T00:23:20Z"
@@ -63,7 +63,7 @@ summary:
   - {file: src/permissions/website.ts, line: 35}
   - {file: 'src/app/(main)/websites/[websiteId]/(reports)/funnels/BoardFunnel.tsx', line: 57}
   - {file: 'src/app/(main)/websites/[websiteId]/(reports)/funnels/Funnel.tsx', line: 43}
-notes: "(1) 部品の入口として分析した。入口のフレームは、登録表の項目 Funnel (boardComponentRegistry.tsx:181) が指すコンポーネント BoardFunnel (BoardFunnel.tsx:8)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、reportId、isPreview) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。登録表のこの項目は componentByEntityType を持たないので、替わる先のコンポーネントは無い。(2) 固定の値で閉じている呼び出しは 1 つ。BoardFunnel が Funnel を allowEdit={false} で描き (BoardFunnel.tsx:57)、Funnel は allowEdit && !isSharePage のときだけ SavedDefinitionEditButton (編集と削除のメニュー。中に FunnelEditForm、useFunnelDefinitionQuery、useUpdateQuery の POST …/funnels/[funnelId]、useDeleteQuery の DELETE …/funnels/[funnelId] がある) を描く (Funnel.tsx:43、:45、:54。SavedDefinitionEditButton.tsx:48)。値は木の中のコードに直接書いた固定の値で、Funnel に着く呼び出し元はこの木の中に BoardFunnel だけなので、その先をフレームにせず、Funnel の summary に書いた。迷った点: 条件は allowEdit と isSharePage (URL から決まる値) の組み合わせだが、false との and なので、allowEdit の値だけで決して成り立たないと判断した (決まりの「ほかの値との組み合わせで決まるなら当たらない」は、ほかの値で成り立ちうる場合を指すと読んだ)。同じ理由で、websites.websiteId_d.funnels の結果が Funnel に書いている rules (編集と削除のメニューを出す判定) も、この入口では書いていない。(3) useFunnelQuery は、id があれば funnels/<id>/stats、無ければ funnels/stats を呼ぶ (useFunnelQuery.ts:12)。Funnel に渡る id は、読んだ定義の data.id (保存されたデータの主キー) なので、固定の値で閉じた呼び出しには当たらない。決まりどおり、id ありの受け口を always (理由を note に)、id なしの受け口 (GET /api/websites/[websiteId]/funnels/stats) を、通らないように見える理由を note に書いて conditional のフレームにした (websites.websiteId_d.funnels の結果は、id なしの受け口を書いていないが、それにはならわない)。id なしの受け口の呼び先 (parseRequest、canViewWebsiteSection、getQueryFilters、getFunnel) は、どれもほかの受け口の下に書いた処理なので、終端の決まりどおり、いちばん早い parseRequest を、読み書きを持つ checkAuth まで書き直した (q_parse_request_rw1 → q_check_auth_rw1)。書き直したフレームには、確認・設定・ルールを繰り返していない。(4) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた。BoardFunnel は useFunnelDefinitionQuery (BoardFunnel.tsx:17) を Funnel (:51) より先に呼ぶので、parseRequest → checkAuth、getReport、canViewReport → canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser は、GET …/funnels/[funnelId] の下に書いた。集計の受け口は、ほかに getQueryFilters と getFunnel を持つので終端にならず、書き直しは要らなかった。canViewReport の中の canViewWebsite の直接の呼び出し (permissions/report.ts:46。区画の無い種類のとき) は、canViewWebsiteSection の下に書いた canViewWebsite と同じ関数なので、フレームにせず summary に書いた。fetchWebsite が呼ぶ getWebsite は、q_get_website の下に書いた経路と同じなので、フレームにしていない (fetchWebsite 自身が Redis の I/O を持つ)。(5) 綴りと木は、同じ部品を描く既にある結果 (websites.websiteId_d.funnels) と、部品の入口の結果 (part_p.boardComponentRegistry.WebsiteChart) にそろえ、根拠の行は対象のコードで確かめた。API_URL と BASE_PATH は、木の最初のフック (use_funnel_definition_query) に 1 回だけ書いた (その下の API 呼び出しは条件付きだが、このリポジトリの決まりどおり)。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。結果の target には clone_path を書いていない。(6) 迷った点と選んだ扱い。(a) reportId は、保存された部品の設定の props (登録表の configFields の reportId。required: true) で渡るが、部品の入口からは値が読めないので、定義を読む受け口の呼び出しを conditional にした (フックの呼び出しは always)。(b) BoardFunnel は、読んだ定義の種類が funnel でないか、別のサイトのものなら Funnel を描かない。これは業務の判定なので、BoardFunnel の rules に書いた。(c) isPreview は、reportId が無いときの案内の文言を変えるだけで、読み書きを変えないので、parameters にだけ書いた。(d) useDateParameters (中の useDateRange) はブラウザに保存した期間 (localStorage) を読むが、サーバーのデータではないので I/O に書かず、parameters に書いた。(e) LoadingPanel、EmptyPlaceholder、ProgressBar、ChangeLabel は見た目だけの部品なので、フレームにしていない。useMessages、useNavigation、useOperatorLabels はデータに届かないので、フレームにしていない。(7) links は 1 件も無い。(8) レビューへの対応 (1 回、指摘は low 2 件。どちらも直した)。Prisma の生の SQL のフレーム (ext_prisma_funnel) に、設定 DATABASE_REPLICA_URL を、Goal の部品の結果と同じ綴りで足した。入口の概要の「書き込みは無い」を、DB への書き込みに限り、Redis の website:* のキャッシュを書くことを足した。レビューの notes の細かい点のうち、GET …/funnels/[funnelId] の summary (schema を渡さないので、確かめるのはログインだけ) と、入口のフレームの parameters の offset は直した。離脱の計算の最初の段の扱い、c / dnc の大文字と小文字の違い、epf<n> がボードの画面から送られにくいことは、主張の誤りではないので直していない。"
+notes: "(1) 部品の入口として分析した。入口のフレームは、登録表の項目 Funnel (boardComponentRegistry.tsx:181) が指すコンポーネント BoardFunnel (BoardFunnel.tsx:8)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、reportId、isPreview) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。登録表のこの項目は componentByEntityType を持たないので、替わる先のコンポーネントは無い。(2) 固定の値で閉じている呼び出しは 1 つ。BoardFunnel が Funnel を allowEdit={false} で描き (BoardFunnel.tsx:57)、Funnel は allowEdit && !isSharePage のときだけ SavedDefinitionEditButton (編集と削除のメニュー。中に FunnelEditForm、useFunnelDefinitionQuery、useUpdateQuery の POST …/funnels/[funnelId]、useDeleteQuery の DELETE …/funnels/[funnelId] がある) を描く (Funnel.tsx:43、:45、:54。SavedDefinitionEditButton.tsx:48)。値は木の中のコードに直接書いた固定の値で、Funnel に着く呼び出し元はこの木の中に BoardFunnel だけなので、その先をフレームにせず、Funnel の summary に書いた。迷った点: 条件は allowEdit と isSharePage (URL から決まる値) の組み合わせだが、false との and なので、allowEdit の値だけで決して成り立たないと判断した (決まりの「ほかの値との組み合わせで決まるなら当たらない」は、ほかの値で成り立ちうる場合を指すと読んだ)。同じ理由で、websites.websiteId_d.funnels の結果が Funnel に書いている rules (編集と削除のメニューを出す判定) も、この入口では書いていない。(3) useFunnelQuery は、id があれば funnels/<id>/stats、無ければ funnels/stats を呼ぶ (useFunnelQuery.ts:12)。Funnel に渡る id は、読んだ定義の data.id (保存されたデータの主キー) なので、固定の値で閉じた呼び出しには当たらない。決まりどおり、id ありの受け口を always (理由を note に)、id なしの受け口 (GET /api/websites/[websiteId]/funnels/stats) を、通らないように見える理由を note に書いて conditional のフレームにした (websites.websiteId_d.funnels の結果は、id なしの受け口を書いていないが、それにはならわない)。id なしの受け口の呼び先 (parseRequest、canViewWebsiteSection、getQueryFilters、getFunnel) は、どれもほかの受け口の下に書いた処理なので、終端の決まりどおり、いちばん早い parseRequest を、読み書きを持つ checkAuth まで書き直した (q_parse_request_rw1 → q_check_auth_rw1)。書き直したフレームには、確認・設定・ルールを繰り返していない。(4) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた。BoardFunnel は useFunnelDefinitionQuery (BoardFunnel.tsx:17) を Funnel (:51) より先に呼ぶので、parseRequest → checkAuth、getReport、canViewReport → canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser は、GET …/funnels/[funnelId] の下に書いた。集計の受け口は、ほかに getQueryFilters と getFunnel を持つので終端にならず、書き直しは要らなかった。canViewReport の中の canViewWebsite の直接の呼び出し (permissions/report.ts:46。区画の無い種類のとき) は、canViewWebsiteSection の下に書いた canViewWebsite と同じ関数なので、フレームにせず summary に書いた。fetchWebsite が呼ぶ getWebsite は、q_get_website の下に書いた経路と同じなので、フレームにしていない (fetchWebsite 自身が Redis の I/O を持つ)。(5) 綴りと木は、同じ部品を描く既にある結果 (websites.websiteId_d.funnels) と、部品の入口の結果 (part_p.boardComponentRegistry.WebsiteChart) にそろえ、根拠の行は対象のコードで確かめた。API_URL と BASE_PATH は、木の最初のフック (use_funnel_definition_query) に 1 回だけ書いた (その下の API 呼び出しは条件付きだが、このリポジトリの決まりどおり)。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。結果の target には clone_path を書いていない。(6) 迷った点と選んだ扱い。(a) reportId は、保存された部品の設定の props (登録表の configFields の reportId。required: true) で渡るが、部品の入口からは値が読めないので、定義を読む受け口の呼び出しを conditional にした (フックの呼び出しは always)。(b) BoardFunnel は、読んだ定義の種類が funnel でないか、別のサイトのものなら Funnel を描かない。これは業務の判定なので、BoardFunnel の rules に書いた。(c) isPreview は、reportId が無いときの案内の文言を変えるだけで、読み書きを変えないので、parameters にだけ書いた。(d) useDateParameters (中の useDateRange) はブラウザに保存した期間 (localStorage) を読むが、サーバーのデータではないので I/O に書かず、parameters に書いた。(e) LoadingPanel、EmptyPlaceholder、ProgressBar、ChangeLabel は見た目だけの部品なので、フレームにしていない。useMessages、useNavigation、useOperatorLabels はデータに届かないので、フレームにしていない。(7) links は 1 件も無い。(8) レビューへの対応 (1 回、指摘は low 2 件。どちらも直した)。Prisma の生の SQL のフレーム (ext_prisma_funnel) に、設定 DATABASE_REPLICA_URL を、Goal の部品の結果と同じ綴りで足した。入口の概要の「書き込みは無い」を、DB への書き込みに限り、Redis の website:* のキャッシュを書くことを足した。レビューの notes の細かい点のうち、GET …/funnels/[funnelId] の summary (schema を渡さないので、確かめるのはログインだけ) と、入口のフレームの parameters の offset は直した。離脱の計算の最初の段の扱い、c / dnc の大文字と小文字の違い、epf<n> がボードの画面から送られにくいことは、主張の誤りではないので直していない。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。"
 callstack:
 - id: board_funnel
   layer: part
@@ -295,6 +295,14 @@ callstack:
     - {file: src/lib/auth.ts, line: 101}
     - {file: src/lib/auth.ts, line: 102}
     - {file: src/lib/redis.ts, line: 106}
+  - name: CLOUD_MODE
+    kind: env
+    effect: "設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る"
+    status: fact
+    evidence:
+    - {file: src/lib/auth.ts, line: 74}
+    - {file: src/lib/api-key.ts, line: 41}
+    note: "この部品のフックはログインのトークンを付ける (src/components/hooks/useApi.ts:28) ので、API キーの経路は辿っていない"
   rules:
   - kind: validation
     value: "2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない"
@@ -532,6 +540,12 @@ callstack:
     - {file: src/permissions/website.ts, line: 31}
     - {file: src/permissions/website.ts, line: 35}
   guards:
+  - kind: role
+    value: "user.isAdmin"
+    status: fact
+    evidence:
+    - {file: src/permissions/website.ts, line: 9}
+    note: "user.isAdmin なら、ほかを確かめずに許す"
   - kind: ownership
     value: canViewWebsite
     status: interpretation

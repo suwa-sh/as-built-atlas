@@ -1,48 +1,35 @@
 format_version: 1
 entry_id: websites.websiteId_d.events
-reviewed_at: "2026-11-17T16:08:11Z"
+reviewed_at: "2026-11-18T19:57:01Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_frame
+  - kind: classification_mismatch
     severity: medium
+    where: callstack/q_create_replay_saved/call
+    claim: "createReplaySaved (isSaved が true の枝) が、ReplayPlayback の useUpdateQuery の経路 (use_update_replay_saved → api_replay_saved_post) の下に書いてあるが、ReplayPlayback はこのフックでいつも固定の値 isSaved: false だけを送る (ReplayPlayback.tsx:60) ので、この経路では閉じている。isSaved: true を送るのは ReplaySaveForm (ReplaySaveForm.tsx:31) の経路 (use_update_replay_saved_rw1 → api_replay_saved_post_rw1) で、指示書 0.4.1 の 3 つ目の条件 (別の呼び出し元から別の値で着く経路があれば、その経路の下に書く) に合わない。いまの木では、保存の行を作る書き込みが、保存を外すボタンの下にぶら下がって見える"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplaySaveForm.tsx", line: 31 }
+    suggestion: "q_create_replay_saved と ext_prisma_replay_saved_create を api_replay_saved_post_rw1 の下に移し (書き直しの段として)、api_replay_saved_post の summary の note に、createReplaySaved は ReplayPlayback.tsx:60 の isSaved: false で閉じていること (受ける側の条件は route.ts:53) を書く"
     resolved: true
-    where: callstack/website_controls
-    claim: "WebsiteControls は allowDownload が真のときだけ ExportButton を描き、押すと GET /websites/<id>/export でデータを読むが、この画面からは成り立たないように見えるという理由で summary に触れるだけで、フレームが無い (その受け口が読むデータは、この結果のほかの場所にも無い)。分析リポジトリの決まり (この画面からは条件が成り立たないように見える呼び出しも省かずに conditional のフレームにし、理由を note に書く) に合わず、同じ結果の中で metrics の分かれ道や Favicon を conditional のフレームにした扱いとも割れている"
-    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 42 }
-    suggestion: "ExportButton を conditional のフレーム (condition は allowDownload が真のとき、note に「この画面は allowDownload を渡さない」) にし、その先の GET /websites/[websiteId]/export を辿る (ExportButton.tsx:20)"
-  - kind: missing_frame
-    severity: low
-    resolved: true
-    where: callstack/api_values
-    claim: "GET values の受け口は type が segment / cohort のとき getWebsiteSegments を呼ぶ枝 (route.ts:48) を持つが、届かないように見えるという理由で summary に書くだけで、フレームが無い。分析リポジトリの決まりでは conditional のフレームにする (読む表 segment は GET segments の下に書いてあるので、データの漏れは無い)"
-    evidence: { file: "src/app/api/websites/[websiteId]/values/route.ts", line: 48 }
-    suggestion: "getWebsiteSegments の枝を conditional のフレームにして note に届かないように見える理由を書く。入口から辿る順では getQueryFilters より先に着くので、q_get_website_segments をこの下に移し、GET segments の側は「経路はフレーム <id> と同じ」と書き直す"
-  - kind: status_mismatch
-    severity: medium
-    resolved: true
-    where: callstack/q_can_update_website/guards/2
-    claim: "canUpdateWebsite の権限の確認 PERMISSIONS.websiteUpdate はコードにそのまま書いてある (hasPermission(teamUser.role, PERMISSIONS.websiteUpdate)) のに interpretation になっている。同じ形の canDeleteWebsite の PERMISSIONS.websiteDelete (q_can_delete_website/guards/2) は fact で、結果の中で付け方が割れている"
-    evidence: { file: "src/permissions/website.ts", line: 154 }
-    suggestion: "status を fact にする"
-  - kind: status_mismatch
-    severity: medium
-    resolved: true
-    where: callstack/q_can_update_website/guards/1
-    claim: "持ち主の確認 (ownership: canUpdateWebsite) の条件はコードにそのまま書いてある (return user.id === website.userId) のに interpretation になっている。同じ形の canDeleteWebsite の ownership (q_can_delete_website/guards/1) は fact で、q_can_view_website/guards/1 (ownership: canViewWebsite、website.ts:31 の return user.id === entity.userId) も interpretation のまま"
-    evidence: { file: "src/permissions/website.ts", line: 148 }
-    suggestion: "q_can_update_website/guards/1 と q_can_view_website/guards/1 の status を fact にする"
   - kind: classification_mismatch
     severity: low
-    where: callstack/q_can_view_shared_website/guards/0
-    claim: "同じ確認 (canViewSharedWebsite の、共有トークンが対象のサイトを含むかの確認) を、ほかの入口の結果 admin.websites.websiteId_d は value: shareTokenIncludesWebsite と書いており、綴りが入口をまたいでそろっていない"
-    evidence: { file: "src/permissions/share.ts", line: 85 }
-    suggestion: "この結果の書き方 (確認を行う関数の名前 canViewSharedWebsite) は、ほかの kind: other の確認と同じ形なので、この結果はそのままにし、admin.websites.websiteId_d の側をそろえる"
+    where: callstack/api_replay_saved_post/call
+    claim: "api_replay_saved_post の condition に「保存の小窓で名前を入れて保存したとき」(ReplaySaveForm.tsx:30) が入っているが、このフレームの呼び出し元は ReplayPlayback の useUpdateQuery (use_update_replay_saved) で、その mutate を呼ぶのは保存を外すとき (ReplayPlayback.tsx:60) だけ。保存の小窓の送信は、別のフック呼び出し (use_update_replay_saved_rw1 → api_replay_saved_post_rw1) の経路で、そちらに同じ条件が書いてある"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/replays/[replayId]/ReplayPlayback.tsx", line: 60 }
+    suggestion: "condition を「利用者が、保存済みの録画の保存の印を押したとき (保存を外す)」だけにし、evidence から ReplaySaveForm.tsx:30 を外す"
+    resolved: true
   - kind: missing_item
     severity: low
+    where: callstack/use_property_fields_event/summary
+    claim: "プロパティのフック (usePropertyFieldsQuery、usePropertyValuesQuery、usePropertySeriesQuery、usePropertyArraySeriesQuery、usePropertyNumericSeriesQuery、usePropertyNumericStatsQuery、usePropertyDateSeriesQuery) は source が event でなければ session-data の受け口を呼ぶが、EventProperties が固定の値 source=\"event\" を渡す (EventProperties.tsx:153 / :169 / :178 / :187 / :196) ので閉じている。この閉じた呼び出し (session-data/properties、session-data/values、session-data/property-series など) の名前と値と行が、条件を持つフレーム (各フック) の summary の note に書かれていない (受け口の call.note に「URL は source で 2 つに切り替わる」とあるだけで、閉じた先の名前が無い)"
+    evidence: { file: "src/components/hooks/queries/usePropertyFieldsQuery.ts", line: 25 }
+    suggestion: "各フックのフレームの summary の note に「固定の値で閉じている呼び出し: GET /websites/<id>/session-data/... (source が session のとき) は、EventProperties.tsx:<行> が source=\"event\" を渡すので辿らない」と書き、結果の先頭の notes (4) にも足す"
     resolved: true
-    where: callstack/q_session_replays
-    claim: "getSessionReplays の PostgreSQL 側も prisma の parseFilters の filterQuery を使い、そこにはイベントのプロパティの絞り込み (event_data を読む副問い合わせ) が入るのに、PostgreSQL の event_data の読み取りが無い。ClickHouse 側には event_data の読み取りを書いており、両側で割れている"
-    evidence: { file: "src/lib/prisma.ts", line: 309 }
-    suggestion: "dbms: postgresql、table: event_data の read (ほかの問い合わせと同じく note に「イベントのプロパティで絞るときだけ」) を足す"
-notes: "指摘にしなかったこと。(1) 画面を包む枠の処理が無いことは、プロファイルの決まりどおり。(2) 機械チェック (validate result) は OK、プロファイルも作業定義の profile.dir から読めている。全フレームの根拠の行が実在し、空行でないことを機械的に確かめた。(3) 前回のレビューの指摘 (GET metrics の parameters、source で URL が切り替わる呼び出しの状態、canViewWebsite / canUpdateWebsite の user.isAdmin、ほかの入口から写した文、auth?.user の綴り) は、どれも直っていることを確かめた。(4) 画面固有の部分 (EventsPage の 3 つのタブ、EventsMetricsBar、EventsDataTable → EventsTable → EventData、EventsChart、MetricsTable と GET metrics の分かれ道、EventProperties と PropertyChart / PropertyNumericChart / PropertyDateChart / EventDataPivotTable、SessionModal → SessionProfile と削除・活動・プロパティ・録画・録画の保存) は、コードと突き合わせて、呼び出しの条件、受け口の URL とメソッド、問い合わせの表と列、ルールが合っていることを確かめた。(5) 同じ処理の置き場 (入口から深さ優先で最初に着いた呼び出し元の下) と、書き直したフレーム (_rw) が読み書きを持つ最初の段で止まり、確認・設定・ルールを繰り返していないことを確かめた。(6) 設定の名前 (API_URL、BASE_PATH、CLICKHOUSE_URL、CLOUD_MODE、DATABASE_REPLICA_URL、FAVICON_URL、PRIVATE_MODE、REDIS_URL) は、ほかの入口の結果と同じ綴り。確認の値 (user.isAdmin、PERMISSIONS.websiteUpdate / websiteDelete、canViewWebsite などの関数の名前、auth?.user) は、分析リポジトリの決まりの表どおり。ほかの入口には kind: other で canViewWebsite と書いた結果もあるが、この結果の ownership の方が決まりに合うので、指摘にしていない。getValues / getSessionActivity / getWebsiteDateRange は URL の絞り込み (filterQuery) を使わないので、event_data / session_data の読み取りが無くてよい。(7) ClickHouse の副問い合わせの select * を fields の名前 * で書いたのは、コードの文字のままなので指摘にしていない。(8) MonthFilter (WebsiteControls.tsx:43) はデータを読まないので、フレームが無くてよい。"
+  - kind: missing_item
+    severity: low
+    where: callstack/metrics_table/summary
+    claim: "metrics_table の summary の note は、MetricLabel が referrer の行に描く Favicon だけを閉じた呼び出しに挙げているが、type が domain の行 (MetricLabel.tsx:53 → DomainMetricLabel) も Favicon を描く (MetricLabel.tsx:211)。こちらも同じ固定の値 type=\"event\" で閉じているのに、note に無い"
+    evidence: { file: "src/components/metrics/MetricLabel.tsx", line: 211 }
+    suggestion: "note に、domain の行の Favicon (MetricLabel.tsx:53 / :211) も type=\"event\" で閉じていることを足す"
+    resolved: true
+notes: "WebsiteControls で止める扱い (events_page の links の embed、根拠 EventsPage.tsx:5 / :28、渡す値は websiteId だけで summary に書いてある) は、決まりどおり。外した木の下にあった共通の段 (parseRequest → checkAuth → getUser、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment) が、入口から辿る順で最初の受け口 (events/stats) の下に移っていること、API_URL / BASE_PATH が use_events_stats に 1 回だけあること、checkAuth の CLOUD_MODE と API キーの 1 行、canViewWebsite / canUpdateWebsite / canDeleteWebsite の管理者の確認が別の件で書いてあることを確かめた。残った部品のフック (EventsChart、EventsDataTable、EventsMetricsBar、EventProperties、EventDataPivotTable、Property*Chart、PropertyFilters / PropertyFilterRecord、Session* の部品、ReplayPlayback / ReplaySaveForm) が呼ぶ受け口は、すべてフレームになっている。GET metrics の getSessionMetrics / getPageviewMetrics / getChannelMetrics を閉じた扱いは、MetricsTable が params を渡されず type=\"event\" だけを送ること (MetricsTable.tsx:36) と route.ts:55 / :61 / :70 から、3 つの条件を満たす。録画のタブを always にした扱い (SessionModal.tsx:20 / :42 の /share/ の判定がこの入口のパスでいつも成り立つ) も妥当。canViewAuthenticatedWebsite の guards の綴り (kind: other、value: auth?.user) は、ほかの 16 件の結果とそろっている。"

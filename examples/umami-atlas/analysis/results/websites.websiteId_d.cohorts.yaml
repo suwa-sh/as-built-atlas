@@ -12,16 +12,16 @@ target:
   commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
 analyzer:
   profile: {id: ui-nextjs, version: "0.4.0"}
-  skill_version: "0.4.0"
+  skill_version: "0.4.1"
   model: "claude-opus-5-5"
-  analyzed_at: "2026-11-17T15:53:11Z"
+  analyzed_at: "2026-11-18T19:42:57Z"
   reviewed:
     by: "claude-opus-5-5 (fresh context)"
-    at: "2026-11-17T15:51:51Z"
+    at: "2026-11-18T19:41:08Z"
     findings_open: 0
 summary:
   status: interpretation
-  value: "1 つのサイトの保存済みコホート (ある期間にあるページを見た、またはあるイベントを起こしたセッションの集まりの定義) の一覧画面。CohortsDataTable が GET /api/websites/<id>/segments?type=cohort で、type が cohort の segment を読んで表にする (受け口のスキーマが page を落とすので、いつも最初の 20 件。search で名前を絞れる)。追加のフォームは segment を作成 (POST …/segments)、行の編集のフォームは segment を読んで (GET …/segments/<id>) 更新 (POST …/segments/<id>)、行の削除のボタンは segment を削除 (DELETE …/segments/<id>) する。どちらのフォームも type に cohort を付けて送る。フォームの動作の値の入力欄 (LookupField) と、絞り込みの行 (FieldFilters → FilterRecord) は、値の候補を GET …/values で読む (website_event、セッションの列なら PostgreSQL では session。PostgreSQL と ClickHouse のどちらで読むかは CLICKHOUSE_URL で切り替わる)。どの受け口も parseRequest → checkAuth で認証する (user を読む。Redis が有効なら auth:* も読む)。権限の確認では website / link / pixel / board / team_user を読む。書き込み (作成・更新) は管理者・サイトの持ち主・チームで website:update を持つ人、削除は管理者・サイトの持ち主・チームで website:delete を持つ人だけができる。行の名前は、そのコホートで絞ったサイトの画面 (/websites/<id>?cohort=<id>) へのリンク。上部の WebsiteControls は、この画面が絞り込みと期間の選択を false で渡すので、何も描かない"
+  value: "1 つのサイトの保存済みコホート (ある期間にあるページを見た、またはあるイベントを起こしたセッションの集まりの定義) の一覧画面。CohortsDataTable が GET /api/websites/<id>/segments?type=cohort で、type が cohort の segment を読んで表にする (受け口のスキーマが page を落とすので、いつも最初の 20 件。search で名前を絞れる)。追加のフォームは segment を作成 (POST …/segments)、行の編集のフォームは segment を読んで (GET …/segments/<id>) 更新 (POST …/segments/<id>)、行の削除のボタンは segment を削除 (DELETE …/segments/<id>) する。どちらのフォームも type に cohort を付けて送る。フォームの動作の値の入力欄 (LookupField) と、絞り込みの行 (FieldFilters → FilterRecord) は、値の候補を GET …/values で読む (website_event、セッションの列なら PostgreSQL では session。PostgreSQL と ClickHouse のどちらで読むかは CLICKHOUSE_URL で切り替わる)。どの受け口も parseRequest → checkAuth で認証する (user を読む。Redis が有効なら auth:* も読む)。権限の確認では website / link / pixel / board / team_user を読む。書き込み (作成・更新) は管理者・サイトの持ち主・チームで website:update を持つ人、削除は管理者・サイトの持ち主・チームで website:delete を持つ人だけができる。行の名前は、そのコホートで絞ったサイトの画面 (/websites/<id>?cohort=<id>) へのリンク。上部の WebsiteControls は、多くの画面が描く共有の部品で、別の入口 (part_p.shared_a.WebsiteControls) にしたので、この入口では辿らない (embed のつながりだけを書く)。この画面は、絞り込みと期間の選択を false で渡し、ほかの操作も渡さないので、部品は何も出さない"
   evidence:
   - {file: 'src/app/(main)/websites/[websiteId]/cohorts/page.tsx', line: 7}
   - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 10}
@@ -32,7 +32,8 @@ summary:
   - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortEditForm.tsx', line: 44}
   - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortDeleteButton.tsx', line: 19}
   - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsTable.tsx', line: 17}
-notes: "プロファイル 0.4.0・skill 0.4.0 での最初の分析。[作り方] 共通の部品と関数 (認証、権限、segment の読み書き、values の受け口、getQueryFilters、getValues) は、ほかの入口の結果 (websites.websiteId_d.funnels、websites.websiteId_d.goals、websites.websiteId_d) の書き方と綴りに合わせ、根拠の行は対象のコードで確かめ直した。[木の書き方] 同じ処理は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に書いた。CohortsPage の中の順は WebsiteControls (10 行) → CohortsDataTable (12 行)。CohortsDataTable の中の順は useWebsiteCohortsQuery (7 行) → CohortAddButton (10 行) → CohortsTable (21 行)。その結果、parseRequest → checkAuth → getUser と canViewSharedWebsiteFilters → canViewWebsite → getEntity / getTeamUser は GET …/segments の下、canUpdateWebsite は POST …/segments の下、canViewWebsiteSection と getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment は、追加のフォームの LookupField → values の受け口の下になった。[迷った点と選んだ扱い] (1) WebsiteControls の子 (WebsiteFilterButton・WebsiteDateFilter・ExportButton・FilterBar) は、この画面が allowFilter={false}・allowDateFilter={false} を渡し、allowDownload の既定が false なので、描かれない。作業の決まり (成り立たないように見える呼び出しも conditional のフレームにする) に従ってフレームにしたが、中身は辿らず unknown + not_analyzed で閉じた。辿ると、深さ優先の順で、認証や権限の共通の経路が、動かない枝の下に置かれてしまうため。中身は、ほかの入口 (websites.websiteId_d.funnels など) で分析されている。MonthFilter (WebsiteControls.tsx 43 行) は、データにも API にも届かないので、フレームにしていない。(2) CohortEditForm は同じ関数だが、cohortId の有無で呼ぶ URL が違うので、追加 (cohort_edit_form_create) と編集 (cohort_edit_form_edit) に分けた。追加のフォームでも useWebsiteCohortQuery を呼ぶが、cohortId が無いので問い合わせをしない (enabled が false) ため、届く先のある編集のフォームの下にフレームを書いた。(3) GET …/segments は getQueryFilters を websiteId なしで呼ぶ (route.ts 31 行) ので、期間と絞り込みをメモリの中で組み立てるだけで、データを読まない。この呼び出しはフレームにせず、受け口の summary に書いた。websiteId を渡す values の受け口からの呼び出し (サイトと Redis を読む) を、フレーム q_get_query_filters にした。(4) values の受け口と getValues は、LookupField (type が path か event で、website_event だけを読む) と FilterRecord (type が path と event 以外の項目で、PostgreSQL ではセッションの列なら session を読む) で、届く表が違うので、FilterRecord の側を _rw_filter の名前で別に書いた。(5) 呼び先がすべてほかの呼び出し元の下にあって終端になるフレーム (POST …/segments の下の canUpdateWebsite、values の受け口の下の canViewWebsiteSection、DELETE …/segments/[segmentId] の下の canDeleteWebsite、GET …/segments/[segmentId]) は、いちばん早い呼び先を、読み書きを持つ最初のフレーム (getWebsite か checkAuth) まで、もう一度書いた。もう一度書いたフレームには、権限の確認・設定・ルールを重ねて書いていない。(6) getWebsiteSegment は、深さ優先の順で最初に着く getQueryFilters の下に書いた (この画面の values の呼び出しは segment / cohort を送らないので、そこでは成り立たないように見える。理由はフレームの note に書いた)。編集・更新・削除の受け口は、同じ関数を呼ぶことを summary に書いた。(7) API_URL と BASE_PATH は、作業の決まりに従って、この入口で最初に API を呼ぶフレーム (use_website_cohorts_query) に 1 回だけ書いた。(8) ライブラリを呼ぶ同じ行 (prisma.ts 746 行の $queryRawUnsafe、clickhouse.ts 721 行の query、redis.ts 37 行の get) は、呼び出し元ごとに読む表やキーが違うので、呼び出し元ごとに書いた。(9) checkAuth の API キーの経路 (checkApiKeyAuth) は、作業の決まりのとおり段にせず、checkAuth の rules に 1 行書いた。(10) フォームの入力が空でないことだけの確認 (名前・動作・期間は必須) は、rules に書いていない。(11) 削除の後や保存の後の touch('cohorts') は、ブラウザの中の更新印を書き換えて一覧を読み直させるだけなので、I/O に書いていない。ブラウザの中の保存 (表示の形の localStorage) も I/O に書いていない。(12) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。[レビュー] 指摘は 4 件 (medium 2、low 2) で、すべて直した: segment の作成の fields に created_at と updated_at を足した。team の読み取り (関連の条件) を fact にした。絞り込みの行からの getValues の fields に、この欄で選べる項目の列を足した。FieldFilters に、候補を引く期間 (直近 6 か月) のルールを足した。high が無いので、もう一度のレビューはしていない。"
+  - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 3}
+notes: "[分析し直し (skill 0.4.1)] 入口の一覧に、共有の部品 WebsiteControls が別の入口 part_p.shared_a.WebsiteControls として入ったので、指示書 0.4.1 とこの分析リポジトリの決まり (analysis-conventions.md の「共有の部品」「どの入口にも出る共通の段」) で分析し直した。前の結果 (0.4.0、80 段) を出発点にし、変えた所の根拠の行は対象のコードで確かめた。段は 80 から 73 になった。(a) CohortsPage (cohorts_page) で止め、links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、status: fact。根拠は CohortsPage.tsx 3 行の import と 10 行の描く行) を書いた。WebsiteControls と、その下の WebsiteFilterButton・WebsiteDateFilter・ExportButton・FilterBar の 5 段 (前は not_analyzed で閉じていた) を外した。その下に共通の段は無かったので、移した段は無い。渡す値 (allowFilter={false}・allowDateFilter={false}。ほかは渡さない) は cohorts_page の summary に書いた。前の結果の WebsiteControls の rules (共有の設定で絞り込みを出さない) は、部品の入口のものなので、ここからは外した。(b) 固定の値で閉じている呼び出し (指示書 0.4.1): values の受け口から呼ぶ getQueryFilters の、segment / cohort の分かれ道 (request.ts 132〜170 行) の getWebsiteSegment。呼ぶ側の useWebsiteValuesQuery がクエリに segment と cohort を付けず (useWebsiteValuesQuery.ts 54〜59 行)、受け口のスキーマ (values/route.ts 13〜16 行) もそれを落とす (request.ts 38〜45 行) ので、閉じている。前の結果はここに conditional で getWebsiteSegment を書いていたが、外して、q_get_query_filters の summary に書いた。この分かれ道の中にだけある業務のルール (保存済みのセグメント・コホートの条件を絞り込みに足す) も、q_get_query_filters の rules から外した。getWebsiteSegment は、入口から深さ優先で辿って次に着く GET …/segments/[segmentId] (編集のフォームの useWebsiteCohortQuery) の下に always で移した。そのため、GET …/segments/[segmentId] は終端でなくなり、前に終端を避けるためにもう一度書いていた parseRequest → checkAuth (q_parse_request_rw_segment_get、q_check_auth_rw_segment_get) を外した。(c) 共通の段は、決まりと合っていることを確かめた (変えていない): checkAuth は settings に CLOUD_MODE と REDIS_URL、rules に API キーの枝の 1 行を持ち、getUser も書いてある。canViewWebsite・canUpdateWebsite・canDeleteWebsite の guards は、持ち主の確認 (ownership) と別に、管理者の確認 (role、user.isAdmin) を 1 件ずつ持つ。canViewWebsiteSection と canViewSharedWebsiteFilters は、websites.websiteId_d の結果と同じく kind: other のまま。API_URL と BASE_PATH は、この入口で最初に API を呼ぶ use_website_cohorts_query に 1 回だけ書いてある。target は作業定義と同じ。(d) values の受け口の、type がセグメントの種類のときの分かれ道 (values/route.ts 48 行の getWebsiteSegments) は、受け口のスキーマの type が fieldsParam (schema.ts 127 行。segment と cohort を含まない) なので、type が segment か cohort なら parseRequest が 400 にし、決して着かない。そのため分かれ道の decision の rules を外し、400 の rules を fieldsParam の検査に直し、api_values の summary に書いた (レビューの指摘)。(e) 追加のフォームの useWebsiteCohortQuery は、CohortAddButton が cohortId を渡さないので問い合わせをしないが、同じフォームに編集のボタンから cohortId 付きで着く経路があるので、閉じた呼び出しにはせず、編集のフォームの下に書いた。[木の書き方] 共通の部品と関数 (認証、権限、segment の読み書き、values の受け口、getQueryFilters、getValues) は、ほかの入口の結果 (websites.websiteId_d.funnels、websites.websiteId_d.goals、websites.websiteId_d) の書き方と綴りに合わせた。同じ処理は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に書いた。CohortsPage の中の順は WebsiteControls (10 行。embed で止める) → CohortsDataTable (12 行)。CohortsDataTable の中の順は useWebsiteCohortsQuery (7 行) → CohortAddButton (10 行) → CohortsTable (21 行)。その結果、parseRequest → checkAuth → getUser と canViewSharedWebsiteFilters → canViewWebsite → getEntity / getTeamUser は GET …/segments の下、canUpdateWebsite は POST …/segments の下、canViewWebsiteSection と getQueryFilters → fetchWebsite / fetchAccount は、追加のフォームの LookupField → values の受け口の下、getWebsiteSegment は GET …/segments/[segmentId] の下になった。[前の分析から引き継いだ扱い] (1) CohortEditForm は同じ関数だが、cohortId の有無で呼ぶ URL が違うので、追加 (cohort_edit_form_create) と編集 (cohort_edit_form_edit) に分けた。(2) GET …/segments は getQueryFilters を websiteId なしで呼ぶ (route.ts 31 行) ので、期間と絞り込みをメモリの中で組み立てるだけで、データを読まない。この呼び出しはフレームにせず、受け口の summary に書いた。websiteId を渡す values の受け口からの呼び出し (サイトと Redis を読む) を、フレーム q_get_query_filters にした。(3) values の受け口と getValues は、LookupField (type が path か event で、website_event だけを読む) と FilterRecord (type が path と event 以外の項目で、PostgreSQL ではセッションの列なら session を読む) で、届く表が違うので、FilterRecord の側を _rw_filter の名前で別に書いた。(4) 呼び先がすべてほかの呼び出し元の下にあって終端になるフレーム (POST …/segments の下の canUpdateWebsite、values の受け口の下の canViewWebsiteSection、DELETE …/segments/[segmentId] の下の canDeleteWebsite) は、いちばん早い呼び先を、読み書きを持つ最初のフレーム (getWebsite) まで、もう一度書いた。もう一度書いたフレームには、権限の確認・設定・ルールを重ねて書いていない。更新・削除の受け口は、getWebsiteSegment を呼ぶことを summary に書いた。(5) ライブラリを呼ぶ同じ行 (prisma.ts 746 行の $queryRawUnsafe、clickhouse.ts 721 行の query、redis.ts 37 行の get) は、呼び出し元ごとに読む表やキーが違うので、呼び出し元ごとに書いた。(6) checkAuth の API キーの経路 (checkApiKeyAuth) は、作業の決まりのとおり段にせず、checkAuth の rules に 1 行書いた。(7) フォームの入力が空でないことだけの確認 (名前・動作・期間は必須) は、rules に書いていない。(8) 削除の後や保存の後の touch('cohorts') は、ブラウザの中の更新印を書き換えて一覧を読み直させるだけなので、I/O に書いていない。ブラウザの中の保存 (表示の形の localStorage) も I/O に書いていない。(9) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。[レビュー] 1 回 (high 0、medium 1、low 2)。すべて直した: values の受け口の、segment / cohort の分かれ道に着かない理由をスキーマ (fieldsParam) に直した (medium)。その分かれ道の decision の rules を外し、400 の rules を fieldsParam の検査に直した (low)。notes に残っていた前の版の文を整理した (low)。high が無いので、もう一度のレビューはしていない。"
 callstack:
 - id: page
   layer: page
@@ -68,117 +69,23 @@ callstack:
     - {file: 'src/app/(main)/websites/[websiteId]/cohorts/page.tsx', line: 7}
   summary:
     status: interpretation
-    value: "ブラウザ側で動く ('use client')。上部に WebsiteControls を、絞り込みと期間の選択を出さない設定 (allowFilter={false}・allowDateFilter={false}) で描き、その下の枠 (Panel) に、コホートの一覧 CohortsDataTable を描く"
+    value: "ブラウザ側で動く ('use client')。上部に、共有の部品 WebsiteControls (別の入口 part_p.shared_a.WebsiteControls。中は辿らない) を、allowFilter={false}・allowDateFilter={false} で描く。allowBounceFilter・allowMonthFilter・allowDownload・allowCompare は渡さないので、部品の既定 (false か undefined) になる。そのため、この画面では、部品は絞り込みのボタンと表示・期間の選択・書き出し・月の選択のどれも出さない。その下の枠 (Panel) に、コホートの一覧 CohortsDataTable を描く"
     evidence:
     - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 1}
     - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 10}
     - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 12}
-- id: website_controls
-  layer: component
-  kind: component
-  name: "WebsiteControls"
-  source: {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 10}
-  caller: cohorts_page
-  call:
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 13}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 15}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 16}
+    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 17}
+  links:
+  - kind: embed
+    target: WebsiteControls
+    entry_id: part_p.shared_a.WebsiteControls
     status: fact
-    when: always
     evidence:
     - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 3}
     - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 10}
-  rules:
-  - kind: decision
-    value: "共有の設定で allowFilter が false のときは、絞り込みのボタンと絞り込みの表示を出さない"
-    status: fact
-    evidence:
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 34}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 46}
-    - {file: src/lib/share.ts, line: 7}
-  summary:
-    status: interpretation
-    value: "絞り込みのボタン (WebsiteFilterButton)、期間の選択 (WebsiteDateFilter)、ダウンロード (ExportButton)、月の選択 (MonthFilter)、絞り込みの表示 (FilterBar) を、引数に応じて描く部品。この画面は allowFilter={false} と allowDateFilter={false} を渡し、allowDownload と allowMonthFilter は渡さない (既定は false と undefined) ので、どれも描かず、データを読まない。useShare は共有の設定 (React の Context) を読むだけ"
-    evidence:
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 12}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 14}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 16}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 27}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 39}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 43}
-    - {file: 'src/app/(main)/websites/[websiteId]/cohorts/CohortsPage.tsx', line: 10}
-- id: website_filter_button
-  layer: component
-  kind: component
-  name: "WebsiteFilterButton"
-  source: {file: src/components/input/WebsiteFilterButton.tsx, line: 13}
-  caller: website_controls
-  call:
-    status: fact
-    when: conditional
-    condition: "showFilter (allowFilter が true で、共有の設定が絞り込みを禁じていない) のとき"
-    evidence:
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 34}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 35}
-    note: "この画面は allowFilter={false} を渡す (CohortsPage.tsx 10 行) ので、この入口からは条件が成り立たず、描かれない"
-  summary:
-    status: unknown
-    reason: not_analyzed
-    note: "WebsiteControls.tsx 34・35 行で、showFilter が真のときだけ描くことまでを読んだ。この画面は allowFilter={false} を渡すので描かれず、中身 (絞り込みのダイアログと、そこから呼ぶ受け口) は辿っていない。中身は、絞り込みを出す画面の入口 (websites.websiteId_d など) で分析されている"
-- id: website_date_filter
-  layer: component
-  kind: component
-  name: "WebsiteDateFilter"
-  source: {file: src/components/input/WebsiteDateFilter.tsx, line: 17}
-  caller: website_controls
-  call:
-    status: fact
-    when: conditional
-    condition: "allowDateFilter が true のとき"
-    evidence:
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 39}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 40}
-    note: "この画面は allowDateFilter={false} を渡す (CohortsPage.tsx 10 行) ので、この入口からは条件が成り立たず、描かれない"
-  summary:
-    status: unknown
-    reason: not_analyzed
-    note: "WebsiteControls.tsx 39・40 行で、allowDateFilter が真のときだけ描くこと、WebsiteDateFilter.tsx 33 行で useDateRangeQuery (GET /websites/<id>/daterange) を呼ぶことまでを読んだ。この画面は allowDateFilter={false} を渡すので描かれず、受け口から先は辿っていない。中身は、期間の選択を出す画面の入口 (websites.websiteId_d.funnels など) で分析されている"
-- id: export_button
-  layer: component
-  kind: component
-  name: "ExportButton"
-  source: {file: src/components/input/ExportButton.tsx, line: 9}
-  caller: website_controls
-  call:
-    status: fact
-    when: conditional
-    condition: "allowDownload が true のとき"
-    evidence:
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 16}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 42}
-    note: "allowDownload の既定は false で、この画面は渡さない (CohortsPage.tsx 10 行) ので、この入口からは条件が成り立たず、描かれない"
-  summary:
-    status: unknown
-    reason: not_analyzed
-    note: "WebsiteControls.tsx 42 行で allowDownload が真のときだけ描くこと、ExportButton.tsx 20 行で、押すと GET /websites/<id>/export を呼ぶことまでを読んだ。この画面では描かれないので、受け口から先は辿っていない"
-- id: filter_bar
-  layer: component
-  kind: component
-  name: "FilterBar"
-  source: {file: src/components/input/FilterBar.tsx, line: 28}
-  caller: website_controls
-  call:
-    status: fact
-    when: conditional
-    condition: "showFilter (allowFilter が true で、共有の設定が絞り込みを禁じていない) のとき"
-    evidence:
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 28}
-    - {file: 'src/app/(main)/websites/[websiteId]/WebsiteControls.tsx', line: 46}
-    note: "この画面は allowFilter={false} を渡す (CohortsPage.tsx 10 行) ので、この入口からは条件が成り立たず、描かれない"
-  summary:
-    status: unknown
-    reason: not_analyzed
-    note: "WebsiteControls.tsx 46 行で showFilter が真のときだけ描くこと、FilterBar.tsx 35 行で useWebsiteSegmentQuery (GET /websites/<id>/segments/<segmentId>) を呼ぶことまでを読んだ。この画面では描かれないので、受け口から先は辿っていない。中身は、絞り込みを出す画面の入口 (websites.websiteId_d.funnels など) で分析されている"
 - id: cohorts_data_table
   layer: component
   kind: component
@@ -1180,29 +1087,27 @@ callstack:
     note: "問い合わせは websiteId・type・期間があるときだけ有効 (enabled)。この欄では、動作の種類に path (既定) か event が入っている (CohortEditForm.tsx 76 行) ので always にした"
   rules:
   - kind: validation
-    value: "type が、セッションの列・イベントの列・セグメントの種類のどれでもなければ 400 を返す"
+    value: "クエリの type が fieldsParam の項目 (path・event と、セッションやイベントの列) でなければ 400 を返す"
     status: fact
     evidence:
-    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 42}
-    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 43}
-  - kind: decision
-    value: "type がセグメントの種類 (segment / cohort) なら、保存済みのセグメントの名前を返す。そうでなければ、その列の値の上位を返す"
-    status: fact
-    evidence:
-    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 48}
-    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 49}
-    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 54}
+    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 14}
+    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 18}
+    - {file: src/lib/schema.ts, line: 127}
+    - {file: src/lib/request.ts, line: 33}
+    note: "受け口の中にも、type がセッションの列・イベントの列・セグメントの種類のどれでもなければ 400 を返す検査 (values/route.ts 42・43 行) があるが、先にスキーマの検査が効く"
   summary:
     status: interpretation
-    value: "期間と type を検査して認証し、canViewWebsiteSection (overview / events / sessions / compare / breakdown / utm / attribution のどれか) を確かめる (満たさなければ 401)。この欄の type は path か event なので、getQueryFilters のあと getValues で列の値の上位を返す (セグメントの名前を返す分かれ道は通らない)。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ"
+    value: "期間と type を検査して認証し、canViewWebsiteSection (overview / events / sessions / compare / breakdown / utm / attribution のどれか) を確かめる (満たさなければ 401)。getQueryFilters のあと getValues で、type の列の値の上位を返す。type がセグメントの種類 (segment / cohort) のときに getWebsiteSegments で保存済みのセグメントの名前を返す分かれ道 (48・49 行) は、受け口のスキーマの type が fieldsParam (segment と cohort を含まない) なので、parseRequest の検査で 400 になり、決して着かない。そのため、その分かれ道は辿らず、ルールにも書いていない。parseRequest も呼ぶ。経路はフレーム q_parse_request と同じ"
     evidence:
     - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 13}
+    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 14}
     - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 18}
     - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 27}
-    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 42}
     - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 48}
+    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 49}
     - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 53}
     - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 54}
+    - {file: src/lib/schema.ts, line: 127}
   parameters:
   - name: "type / startAt / endAt / search"
     value: "クエリ文字列。type は動作の種類 (path か event)"
@@ -1354,18 +1259,9 @@ callstack:
     evidence:
     - {file: src/lib/request.ts, line: 80}
     - {file: src/lib/request.ts, line: 82}
-  - kind: decision
-    value: "クエリに segment があれば、保存済みのセグメントの絞り込みと match を足す。cohort があれば、保存済みのコホートの条件を cohort_ で始まる絞り込みに変えて足す"
-    status: fact
-    evidence:
-    - {file: src/lib/request.ts, line: 132}
-    - {file: src/lib/request.ts, line: 136}
-    - {file: src/lib/request.ts, line: 144}
-    - {file: src/lib/request.ts, line: 150}
-    - {file: src/lib/request.ts, line: 161}
   summary:
     status: interpretation
-    value: "クエリから期間と絞り込み (項目・イベントのプロパティ・セッションのプロパティ) を作る。websiteId があるので、setWebsiteDate (同じファイル) が fetchWebsite でサイトを読み、期間の開始を切り詰める。CLOUD_MODE でチームの無いサイトなら fetchAccount で契約を読む。クエリに segment / cohort があれば、保存済みの定義を getWebsiteSegment で読む。GET …/segments も同じ関数を websiteId なしで呼ぶが、そのときはデータを読まない (受け口の summary に書いた)"
+    value: "クエリから期間と絞り込み (項目・イベントのプロパティ・セッションのプロパティ) を作る。websiteId があるので、setWebsiteDate (同じファイル) が fetchWebsite でサイトを読み、期間の開始を切り詰める。CLOUD_MODE でチームの無いサイトなら fetchAccount で契約を読む。クエリに segment / cohort があれば保存済みの定義を getWebsiteSegment で読む分かれ道 (request.ts 132〜170 行) は、この入口では閉じている (固定の値で閉じている呼び出し): values の受け口を呼ぶフック useWebsiteValuesQuery は、クエリに type・startAt・endAt・search だけを付け、segment と cohort を付けない (useWebsiteValuesQuery.ts 54〜59 行)。受け口のスキーマ (values/route.ts 13〜16 行。期間・type・search だけ) も、segment と cohort を落とす (数字で終わる名前などだけを戻す。request.ts 38〜45 行)。そのため、この分かれ道の getWebsiteSegment はフレームにしていない (getWebsiteSegment は、GET …/segments/[segmentId] の下に書いた)。GET …/segments も同じ関数を websiteId なしで呼ぶが、そのときはデータを読まない (受け口の summary に書いた)"
     evidence:
     - {file: src/lib/request.ts, line: 122}
     - {file: src/lib/request.ts, line: 123}
@@ -1374,8 +1270,12 @@ callstack:
     - {file: src/lib/request.ts, line: 130}
     - {file: src/lib/request.ts, line: 100}
     - {file: src/lib/request.ts, line: 104}
-    - {file: src/lib/request.ts, line: 133}
-    - {file: src/lib/request.ts, line: 145}
+    - {file: src/lib/request.ts, line: 132}
+    - {file: src/lib/request.ts, line: 144}
+    - {file: src/lib/request.ts, line: 40}
+    - {file: src/components/hooks/queries/useWebsiteValuesQuery.ts, line: 54}
+    - {file: src/components/hooks/queries/useWebsiteValuesQuery.ts, line: 55}
+    - {file: 'src/app/api/websites/[websiteId]/values/route.ts', line: 13}
     - {file: 'src/app/api/websites/[websiteId]/segments/route.ts', line: 31}
 - id: q_fetch_website
   layer: query
@@ -1489,55 +1389,6 @@ callstack:
     evidence:
     - {file: src/lib/load.ts, line: 43}
     - {file: src/lib/redis.ts, line: 37}
-- id: q_get_website_segment
-  layer: query
-  kind: function
-  name: "getWebsiteSegment (src/queries/prisma/segment.ts)"
-  source: {file: src/queries/prisma/segment.ts, line: 36}
-  caller: q_get_query_filters
-  call:
-    status: fact
-    when: conditional
-    condition: "クエリに segment か cohort があるとき"
-    evidence:
-    - {file: src/lib/request.ts, line: 132}
-    - {file: src/lib/request.ts, line: 133}
-    - {file: src/lib/request.ts, line: 144}
-    - {file: src/lib/request.ts, line: 145}
-    note: "この画面の values の呼び出し (useWebsiteValuesQuery) は type・startAt・endAt・search だけを送る (useWebsiteValuesQuery.ts 54〜59 行) ので、ここからは条件が成り立たないように見える。深さ優先の順で最初に着くのがここなので、ここに書いた"
-  summary:
-    status: interpretation
-    value: "id と websiteId で segment を 1 件読む。GET …/segments/[segmentId]・POST …/segments/[segmentId]・DELETE …/segments/[segmentId] の受け口も同じ関数を呼ぶ"
-    evidence:
-    - {file: src/queries/prisma/segment.ts, line: 37}
-    - {file: src/queries/prisma/segment.ts, line: 38}
-    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 24}
-    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 60}
-    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 91}
-  io:
-  - op: read
-    status: fact
-    resource: {kind: rdb, levels: {dbms: postgresql, table: segment}}
-    detail: "prisma.client.segment.findFirst (where id, websiteId)"
-    evidence:
-    - {file: src/queries/prisma/segment.ts, line: 37}
-    - {file: src/queries/prisma/segment.ts, line: 38}
-    - {file: prisma/schema.prisma, line: 317}
-    fields:
-    - {name: '*', use: [read]}
-    - {name: segment_id, use: [filter]}
-    - {name: website_id, use: [filter]}
-- id: ext_prisma_segment
-  layer: external
-  kind: library
-  name: "Prisma Client segment.findFirst"
-  source: {file: src/queries/prisma/segment.ts, line: 37}
-  caller: q_get_website_segment
-  call:
-    status: fact
-    when: always
-    evidence:
-    - {file: src/queries/prisma/segment.ts, line: 37}
 - id: q_get_values
   layer: query
   kind: function
@@ -2033,7 +1884,7 @@ callstack:
     - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 27}
   summary:
     status: interpretation
-    value: "parseRequest で認証し、canViewSharedWebsiteFilters を確かめ (満たさなければ 401)、getWebsiteSegment で segment を読んで返す。canViewSharedWebsiteFilters と getWebsiteSegment も呼ぶ。経路はフレーム q_can_view_shared_filters、q_get_website_segment と同じ。呼び出し元が終端にならないように、parseRequest から先を、もう一度書いた"
+    value: "parseRequest で認証し、canViewSharedWebsiteFilters を確かめ (満たさなければ 401)、getWebsiteSegment で segment を読んで返す。parseRequest と canViewSharedWebsiteFilters も呼ぶ。経路はフレーム q_parse_request、q_can_view_shared_filters と同じ"
     evidence:
     - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 12}
     - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 20}
@@ -2045,53 +1896,49 @@ callstack:
     status: fact
     evidence:
     - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 18}
-- id: q_parse_request_rw_segment_get
+- id: q_get_website_segment
   layer: query
   kind: function
-  name: "parseRequest (src/lib/request.ts)"
-  source: {file: src/lib/request.ts, line: 16}
+  name: "getWebsiteSegment (src/queries/prisma/segment.ts)"
+  source: {file: src/queries/prisma/segment.ts, line: 36}
   caller: api_segment_get
   call:
     status: fact
     when: always
     evidence:
-    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 12}
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 24}
   summary:
     status: interpretation
-    value: "スキーマなしで呼ばれ、checkAuth で認証する。呼び出し元が終端にならないように、もう一度書いたもの。全体の経路はフレーム q_parse_request と同じ"
+    value: "id と websiteId で segment を 1 件読む。POST …/segments/[segmentId]・DELETE …/segments/[segmentId] の受け口も同じ関数を呼ぶ"
     evidence:
-    - {file: src/lib/request.ts, line: 27}
-    - {file: src/lib/request.ts, line: 52}
-- id: q_check_auth_rw_segment_get
-  layer: query
-  kind: function
-  name: "checkAuth (src/lib/auth.ts)"
-  source: {file: src/lib/auth.ts, line: 71}
-  caller: q_parse_request_rw_segment_get
+    - {file: src/queries/prisma/segment.ts, line: 37}
+    - {file: src/queries/prisma/segment.ts, line: 38}
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 60}
+    - {file: 'src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts', line: 91}
+  io:
+  - op: read
+    status: fact
+    resource: {kind: rdb, levels: {dbms: postgresql, table: segment}}
+    detail: "prisma.client.segment.findFirst (where id, websiteId)"
+    evidence:
+    - {file: src/queries/prisma/segment.ts, line: 37}
+    - {file: src/queries/prisma/segment.ts, line: 38}
+    - {file: prisma/schema.prisma, line: 317}
+    fields:
+    - {name: '*', use: [read]}
+    - {name: segment_id, use: [filter]}
+    - {name: website_id, use: [filter]}
+- id: ext_prisma_segment
+  layer: external
+  kind: library
+  name: "Prisma Client segment.findFirst"
+  source: {file: src/queries/prisma/segment.ts, line: 37}
+  caller: q_get_website_segment
   call:
     status: fact
     when: always
     evidence:
-    - {file: src/lib/request.ts, line: 52}
-  summary:
-    status: interpretation
-    value: "Bearer トークンを解いて、ユーザーを決める。呼び出し元が終端にならないように、もう一度書いたもの (最初の読み書きの Redis の auth:* までを書いた)。権限の確認・設定・ルールと、全体の経路はフレーム q_check_auth と同じ"
-    evidence:
-    - {file: src/lib/auth.ts, line: 72}
-    - {file: src/lib/auth.ts, line: 101}
-    - {file: src/lib/auth.ts, line: 102}
-  io:
-  - op: get
-    status: interpretation
-    resource: {kind: kvs, levels: {key_pattern: 'auth:*'}}
-    detail: "redis.client.get(authKey)。authKey は saveAuth が作る auth:<ランダム> の形"
-    evidence:
-    - {file: src/lib/auth.ts, line: 102}
-    - {file: src/lib/auth.ts, line: 150}
-    - {file: src/lib/redis.ts, line: 37}
-    fields:
-    - {name: '*', use: [read]}
-    note: "Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey があるときだけ"
+    - {file: src/queries/prisma/segment.ts, line: 37}
 - id: use_update_query_edit
   layer: component
   kind: hook

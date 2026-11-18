@@ -1,49 +1,21 @@
 format_version: 1
 entry_id: "websites.websiteId_d"
-reviewed_at: "2026-11-17T10:38:26Z"
-reviewer: "claude-fable-5-2 (fresh context)"
+reviewed_at: "2026-11-18T19:31:14Z"
+reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_item
-    severity: medium
-    where: callstack/metrics_table/summary
-    claim: "MetricsTable は type が referrer の行で MetricLabel (ReferrerMetricLabel、src/components/metrics/MetricLabel.tsx:190) から Favicon を描き、Favicon はブラウザから他社のサービス (既定は https://icons.duckduckgo.com/ip3/<リファラーのドメイン>.ico、src/lib/constants.ts:21) へ画像を取りに行くが、この外部への送信が、どのフレームの I/O にも、入口の summary にも書かれていない (notes の (5) は、MetricLabel / FilterLink を「見た目か、URL のクエリを書き換えるだけ」としている)。拡大表示 (metrics_expanded_table。MetricsExpandedTable.tsx:95 が同じ MetricLabel を描き、type が referrer / domain のとき) も同じ。"
-    evidence: { file: "src/components/common/Favicon.tsx", line: 21 }
-    suggestion: "metrics_table (と metrics_expanded_table) に external_api の I/O (op: call、host: icons.duckduckgo.com、path: /ip3/*.ico、送る項目はリファラーのドメイン) を書き、動きを変える設定として PRIVATE_MODE (設定されていると取りに行かない。Favicon.tsx:12、src/app/api/config/route.ts:19) と FAVICON_URL (向き先を変える。Favicon.tsx:16、route.ts:16) を足す。Favicon が呼ぶ useConfig (設定がまだ無いときだけ GET /config を呼ぶ。src/components/hooks/useConfig.ts:22) の扱いも、summary か notes に書く。"
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/api_pageviews/rules/0
+    claim: "比較の期間を集計する枝 (pageviews/route.ts:35 の if (filters.compare)) は、この入口の木の中の固定の値で閉じている (WebsitePage は WebsiteChart に compareMode を渡さず、WebsiteChart.tsx:42 で compare は undefined になり、useFilterParameters も compare を送らず、ほかに useWebsitePageviewsQuery を呼ぶ経路も無い) のに、閉じた枝の中にだけある業務のルールを rules に書いている。結果の notes (5) も、閉じた呼び出しとして getEventMetrics だけを挙げている"
+    evidence: { file: "src/app/api/websites/[websiteId]/pageviews/route.ts", line: 35 }
     resolved: true
-  - kind: status_mismatch
-    severity: medium
-    where: callstack/api_segment_create/call
-    claim: "呼び出しの URL は引数で組み立てられ、候補が 2 つある (segmentId があれば /segments/<segmentId>、無ければ /segments) のに、status が fact になっている。POST /segments に決まるのは、呼び出し元の FilterBar が segmentId を渡さないこと (src/components/input/FilterBar.tsx:195) を読み取った結果で、context.md の決まり (URL が引数で組み立てられ、候補が複数ある → interpretation) と、同じ形の注釈の受け口 (api_annotation_create / api_annotation_update は interpretation) と食い違う。source の値で URL が 2 つに分かれる api_session_data_properties/call と api_session_data_values/call も、同じ形で fact になっている。"
-    evidence: { file: "src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx", line: 44 }
-    suggestion: "status を interpretation にし、根拠に、候補を 1 つに決めている行 (FilterBar.tsx:195 から :200。session-data の 2 つは FilterEditForm.tsx:179 と SegmentEditForm.tsx:102) を足す。fact のままにするなら、理由を notes に書く。"
-    resolved: true
-  - kind: status_mismatch
-    severity: medium
-    where: callstack/q_check_auth/io/0
-    claim: "読むキーは、トークンから取り出した実行時の値 authKey (src/lib/auth.ts:91、:102) で、auth:* というキーの形は、別の関数 saveAuth がキーを作る行 (auth.ts:150) から読み取ったもの。コードにそのまま書いてある読み書きではないのに、status が fact になっている。同じ I/O を写した q_check_auth_rw1/io/0 と q_check_auth_rw2/io/0 も同じ。"
-    evidence: { file: "src/lib/auth.ts", line: 102 }
-    suggestion: "3 つの I/O の status を interpretation にし、note に「キーの値はトークンの authKey。形は saveAuth が作るキーから読んだ」と書く。"
-    resolved: true
+    suggestion: "このルールを消し、api_pageviews の summary に、閉じている枝 (route.ts:35) と、値を決めている行 (WebsitePage.tsx:27 で compareMode を渡さないこと、WebsiteChart.tsx:42) を並べて書き、結果の notes (5) にも足す"
   - kind: evidence_mismatch
     severity: low
-    where: callstack/q_pageview_metrics/rules/1
-    claim: "「リファラーは、自分のホストからの流入と、空の値を除いて数える」は、PostgreSQL 用の SQL と、ClickHouse で website_event を読む SQL には当てはまるが、ClickHouse で時間ごとの集計表を読む SQL (この画面の表が、イベントの列で絞らずに referrer を開いたときに動く側) は、空の値だけを除き、自分のホストは除かない。根拠の行 (:53、:54、:137) は、この経路を支えていない。"
-    evidence: { file: "src/queries/sql/pageviews/getPageviewMetrics.ts", line: 184 }
-    suggestion: "value に「ClickHouse の時間ごとの集計表を読むときは、空の値だけを除く」を足し、根拠に :183 と :184 を足す。"
+    where: callstack/api_metrics/summary
+    claim: "getEventMetrics (route.ts:64) を、この画面の表が event を渡さないので届かないとして閉じているが、根拠が受ける側の行だけで、type の固定の値を渡している呼ぶ側の行 (WebsitePanels.tsx の 12 か所の type と、WorldMap.tsx:32 の type: country) が summary の文にも evidence にも無い"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsitePanels.tsx", line: 34 }
     resolved: true
-  - kind: missing_item
-    severity: low
-    where: callstack/q_pageview_expanded_metrics/summary
-    claim: "entry / exit を訪問の最初 / 最後のページビューで数える判定と、fullPath をパスにクエリを付けた形でまとめる判定が、summary にあるだけで rules に無い。同じ判定を、q_pageview_metrics は rules (decision) に書いている。PostgreSQL 側は、訪問ごとの最小 / 最大の created_at に結ぶ別の書き方 (:68 から :83) なので、根拠の行も別に要る。"
-    evidence: { file: "src/queries/sql/pageviews/getPageviewExpandedMetrics.ts", line: 68 }
-    suggestion: "rules に decision を 1 件足す (根拠は :68、:74、:82、:88、:168、:172、:183)。"
-    resolved: true
-  - kind: missing_item
-    severity: low
-    where: callstack/q_event_expanded_metrics/summary
-    claim: "カスタムイベントの集計では、直帰をイベントの件数が 1 件の訪問として数え (:57、:107)、合計の滞在時間を訪問ごとの最初と最後のイベントの時刻の差で出す (:58、:108)。ほかの集計 (q_stats、q_session_expanded_metrics) とは定義が違う計算なのに、summary にあるだけで rules (calculation) に無い。"
-    evidence: { file: "src/queries/sql/events/getEventExpandedMetrics.ts", line: 57 }
-    suggestion: "rules に calculation を 1 件足す (直帰 = イベントが 1 件の訪問の数。カスタムイベントの有無は見ない。合計の時間 = 訪問ごとの最後 − 最初のイベントの時刻の合計)。"
-    resolved: true
-notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読まれた)。161 フレームの根拠の行を対象のファイルで開いて確かめ、src/queries/sql/ の下の 15 の問い合わせの関数は、PostgreSQL 側と ClickHouse 側の両方の SQL を読んで、summary・rules・fields・表の組み合わせと突き合わせた。行のずれや、主張を支えない根拠は、上の 1 件 (q_pageview_metrics/rules/1) のほかには無かった。指摘にしなかったこと: (1) checkAuth の API キーの経路 (auth.ts:75) を辿っていない点。画面のフックが付けるのはログインのトークン (useApi.ts:28) なので届かない、という読み取りは妥当と見た。(2) Tabs / TabPanel の中の部品 (SegmentFilters、PropertyFilters、MetricsTable) の when が always である点。コードの条件だけで決めたことが note に書いてある。(3) 同じ処理を 1 回だけ書く置き場と、終端にならないように書き直したフレーム (_rw の付くもの) は、context.md の決まり (コードに書いてある順の深さ優先) のとおりだった。(4) 自分のアプリの静的なファイルの読み込み (国名・地域名の /intl/*.json、世界地図の /datamaps.world.json、ブラウザやデバイスのアイコンの画像) は、サーバーのデータの読み書きでも他社への送信でもないので、書き漏れに数えていない。(5) URL のフィルターで決まる列を fields に書かず note で説明している点は、列が実行時に決まるので妥当と見た。"
+    suggestion: "api_metrics の summary の evidence と文に、WebsitePanels.tsx:34 から :100 の type の行と WorldMap.tsx:32 を足す (値が HTTP のクエリを通ってサーバーの分かれ道に効くので、呼ぶ側と受ける側の行を並べる)"
+notes: "(1) 指摘にしなかったもの: WebsiteControls を WebsitePage で止め、links に embed (entry_id: part_p.shared_a.WebsiteControls、status: fact、根拠は WebsitePage.tsx:12 / :21) を書き、渡す値 (allowBounceFilter={true}、ほかは既定) を website_page の summary に書いているのは、決まりどおり。checkAuth の settings の CLOUD_MODE と rules の API キーの枝、canViewWebsite / canUpdateWebsite の guards の role (user.isAdmin) と ownership の 2 件、API_URL / BASE_PATH を最初に API を呼ぶ use_stats にだけ書いていること、target が作業定義と同じことも、決まりどおり。canViewWebsiteSection / canViewSharedWebsiteFilters の guards が kind: other なのは、ほかの入口の結果 (websites.websiteId_d.* など) と同じ綴りで、そろっている。(2) 書き直し (q_can_view_website_rw1 から q_get_website_rw1、q_get_website_rw3、use_metrics_rw1 から q_check_auth_rw2) は、読み書きを持つ最初の段で止まり、確認・設定・ルールを繰り返していない。q_can_view_shared_website_filters と q_can_update_website は guards を持つので、終端の決まりだけなら書き直しは要らないが、確認の後に getEntity / getWebsite の読み取りが続くので、書き直したことで辿り漏れにならずに済んでいる。(3) WebsiteChart の注釈の読み取り (showAnnotations) を always にしたのは、WebsitePage が固定の値 true を渡すので妥当。Tabs / TabPanel の中の MetricsTable を always にした扱いは、UI ライブラリの動きがリポジトリから読めないことを note に書いてあるので、指摘にしなかった。(4) 列の書き方の揺れ: q_create_annotation の fields に created_at (@default(now())) と updated_at (@updatedAt。Prisma は作成のときも書く) が無い一方、q_update_annotation は @updatedAt を理由に updated_at を書いている。ほかの入口の結果も、作成で updated_at を書かないものが 77 件、書くものが 8 件と割れているので、この入口の指摘にはしなかった (決まりとしてそろえるかは、人が決める)。(5) getWebsiteAnnotations の note の絞り込み (検索語) は、この入口の木の中の呼び出し (WebsiteChart と AnnotationsModal) が search を送らないので通らないが、1 つの問い合わせの中の部分なので残してよい。io の note に、この入口からは送らないことを書くと、なお分かりやすい。(6) 確かめた範囲: 画面の部品 (page、WebsitePage、WebsiteMetricsBar、WebsiteChart、WebsitePanels、MetricsTable、MetricLabel、Favicon、WorldMap、WeeklyTraffic、ExpandedViewModal、WebsiteExpandedView、WebsiteExpandedMenu、MetricsExpandedTable、DownloadButton、Annotations の 4 部品) と、そのフック、受け口 (stats、pageviews、annotations の GET / POST、annotations/[annotationId] の POST / DELETE、metrics、metrics/expanded、sessions/weekly)、共通の段 (parseRequest、checkAuth、getQueryFilters / setWebsiteDate、fetchWebsite、fetchAccount、canViewWebsiteSection、canViewSharedWebsiteFilters、canViewWebsite、canUpdateWebsite、getEntity、getWebsite、getTeamUser、getUser、annotation の問い合わせ) は、根拠の行を開いて確かめた。フレームにしていないフック (useDateRange、useDateParameters、useTimezone、useNavigation、useModified、PageviewsChart) が API を呼ばないことも確かめた (useLocale / useCountryNames / WorldMap の地図は、同じサーバーの静的な JSON を読むだけ)。集計の問い合わせのうち、getWebsiteStats は全体を、getPageviewMetrics と getPageviewStats (:59 / :68 / :88) と getPageviewExpandedMetrics (直帰と滞在時間が固定の 0) は一部を確かめた。getSessionStats、getSessionMetrics、getChannelMetrics、getWeeklyTraffic、getSessionExpandedMetrics、getEventExpandedMetrics、getChannelExpandedMetrics の io の列と根拠の行は、1 行ずつは開いていない"

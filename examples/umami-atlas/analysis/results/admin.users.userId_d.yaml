@@ -14,7 +14,7 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T11:43:51Z"
+  analyzed_at: "2026-11-18T19:16:14Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T11:43:07Z"
@@ -35,7 +35,7 @@ summary:
     - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 26 }
     - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 55 }
     - { file: "src/app/api/admin/users/[userId]/2fa/route.ts", line: 77 }
-notes: "(1) 枠 (admin と (main) の layout) の処理は辿っていない。この画面は admin の枠の中で動き、枠は CLOUD_MODE のときと管理者でないときに何も描かないが、それは枠の入口の結果に書いてある。(2) 同じ関数は、入口からコードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に 1 回だけ書いた。parseRequest → checkAuth → getUser は GET /api/users/[userId] (UserProvider の useUserQuery が最初に着く) の下。updateUser は POST /api/users/[userId] の下 (POST /api/admin/users/[userId]/2fa も呼ぶ。書く列 two_factor_required は、同じ I/O の fields に足した)。useUserQuery は UserProvider の下 (UserTwoFactorSettings も呼ぶ)。(3) POST /api/admin/users/[userId]/2fa は、呼び先 (parseRequest と updateUser) がどちらもほかの呼び出し元の下に書いてあり、そのままでは終端になるので、いちばん早い呼び先の parseRequest を、読み書きを持つ最初の段 (checkAuth) までもう一度書いた (id が _rw で終わるフレーム)。書き直したフレームには、確認・設定・ルールを繰り返していない。(4) 同じ関数でも URL が違うものは別のフレームにした: useUpdateQuery は /users/<userId> と /admin/users/<userId>/2fa。(5) 権限の確認の関数 canViewUser / canUpdateUser / canEnforceTwoFactorAuthForUser (src/permissions/user.ts) は、データを読まず、ログイン中のユーザーの値を比べるだけなので、フレームにすると終端の決まりを満たせない。段にせず、確認はそれを呼ぶ受け口の guards に書いた。canEnforceTwoFactorAuthForUser の中身は user?.isAdmin だけなので、kind: role の user.isAdmin と書いた。GET /api/users/[userId]/websites の確認は関数になっていないので、ほかの入口の結果に合わせて、value にコードの式を肯定の形 (auth.user.id === userId) で書いた。(6) getUserByUsername は getUser と同じ補助の関数 findUser を通り、ライブラリを呼ぶ行 (user.ts:32) が同じなので、external のフレームは足していない (ext_prisma_user と同じ)。(7) Tabs / TabPanel の中の部品 (UserEditForm、UserWebsites、UserTwoFactorSettings) を、タブを選ぶまで描くかどうかは UI ライブラリ (@umami/react-zen) の動きで、リポジトリからは読めない。ほかの入口の結果と同じく、コードの条件だけを見て always にし、note に書いた。(8) /api/admin の 3 つの受け口は、先頭で CLOUD_MODE なら 404 を返す。設定で打ち切るので、その後ろの呼び出しを conditional にし、設定を settings に書いた (admin の枠が CLOUD_MODE で何も描かないので、この画面からは、ふつう成り立つ条件)。(9) canViewBatchWebsites は管理者なら DB を読まずに返す。この画面は管理者にだけ描かれるので、その後ろの読み取りはこの入口からは届かないように見えるが、消さずに conditional で書いて note に理由を書いた。(10) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は辿っていない。ブラウザはログインのトークンを付ける (useApi.ts:28) うえ、/api/users・/api/admin・/api/2fa・/api/auth は API キーを受け付けないパス (api-key.ts:11)。(11) 設定: API_URL は API を呼ぶフックごとに書いた。/auth で始まる URL には効かないので、useLoginQuery には書かず、ほかの入口の結果に合わせて BASE_PATH を書いた。DATABASE_URL は書いていない。(12) UserHeader (ユーザー名の見出し)、DataGrid (一覧の枠。ページ送りと検索は、同じ画面の URL のクエリを書き換えるだけ)、WebsiteSparkline、TypeConfirmationForm、ControlledDialog は、見た目だけか、データに届かない部品なので、フレームにしていない。(13) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(14) レビューの指摘 2 件 (medium 1、low 1) は、どちらも直した: DATABASE_REPLICA_URL の設定を fact にし、GET /api/users/[userId]/websites の本人の確認の value を、ほかの入口と同じ綴りにそろえた"
+notes: "(1) 枠 (admin と (main) の layout) の処理は辿っていない。この画面は admin の枠の中で動き、枠は CLOUD_MODE のときと管理者でないときに何も描かないが、それは枠の入口の結果に書いてある。(2) 同じ関数は、入口からコードに書いてある順に深さ優先で辿り、最初に着いた呼び出し元の下に 1 回だけ書いた。parseRequest → checkAuth → getUser は GET /api/users/[userId] (UserProvider の useUserQuery が最初に着く) の下。updateUser は POST /api/users/[userId] の下 (POST /api/admin/users/[userId]/2fa も呼ぶ。書く列 two_factor_required は、同じ I/O の fields に足した)。useUserQuery は UserProvider の下 (UserTwoFactorSettings も呼ぶ)。(3) POST /api/admin/users/[userId]/2fa は、呼び先 (parseRequest と updateUser) がどちらもほかの呼び出し元の下に書いてあり、そのままでは終端になるので、いちばん早い呼び先の parseRequest を、読み書きを持つ最初の段 (checkAuth) までもう一度書いた (id が _rw で終わるフレーム)。書き直したフレームには、確認・設定・ルールを繰り返していない。(4) 同じ関数でも URL が違うものは別のフレームにした: useUpdateQuery は /users/<userId> と /admin/users/<userId>/2fa。(5) 権限の確認の関数 canViewUser / canUpdateUser / canEnforceTwoFactorAuthForUser (src/permissions/user.ts) は、データを読まず、ログイン中のユーザーの値を比べるだけなので、フレームにすると終端の決まりを満たせない。段にせず、確認はそれを呼ぶ受け口の guards に書いた。canEnforceTwoFactorAuthForUser の中身は user?.isAdmin だけなので、kind: role の user.isAdmin と書いた。GET /api/users/[userId]/websites の確認は関数になっていないので、ほかの入口の結果に合わせて、value にコードの式を肯定の形 (auth.user.id === userId) で書いた。(6) getUserByUsername は getUser と同じ補助の関数 findUser を通り、ライブラリを呼ぶ行 (user.ts:32) が同じなので、external のフレームは足していない (ext_prisma_user と同じ)。(7) Tabs / TabPanel の中の部品 (UserEditForm、UserWebsites、UserTwoFactorSettings) を、タブを選ぶまで描くかどうかは UI ライブラリ (@umami/react-zen) の動きで、リポジトリからは読めない。ほかの入口の結果と同じく、コードの条件だけを見て always にし、note に書いた。(8) /api/admin の 3 つの受け口は、先頭で CLOUD_MODE なら 404 を返す。設定で打ち切るので、その後ろの呼び出しを conditional にし、設定を settings に書いた (admin の枠が CLOUD_MODE で何も描かないので、この画面からは、ふつう成り立つ条件)。(9) canViewBatchWebsites は管理者なら DB を読まずに返す。この画面は管理者にだけ描かれるので、その後ろの読み取りはこの入口からは届かないように見えるが、消さずに conditional で書いて note に理由を書いた。(10) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は辿っていない。ブラウザはログインのトークンを付ける (useApi.ts:28) うえ、/api/users・/api/admin・/api/2fa・/api/auth は API キーを受け付けないパス (api-key.ts:11)。(11) 設定: API_URL は API を呼ぶフックごとに書いた。/auth で始まる URL には効かないので、useLoginQuery には書かず、ほかの入口の結果に合わせて BASE_PATH を書いた。DATABASE_URL は書いていない。(12) UserHeader (ユーザー名の見出し)、DataGrid (一覧の枠。ページ送りと検索は、同じ画面の URL のクエリを書き換えるだけ)、WebsiteSparkline、TypeConfirmationForm、ControlledDialog は、見た目だけか、データに届かない部品なので、フレームにしていない。(13) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(14) レビューの指摘 2 件 (medium 1、low 1) は、どちらも直した: DATABASE_REPLICA_URL の設定を fact にし、GET /api/users/[userId]/websites の本人の確認の value を、ほかの入口と同じ綴りにそろえた。(15) 共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ"
 callstack:
   # ---------------------------------------------------------------- 入口
   - id: page
@@ -126,13 +126,14 @@ callstack:
     settings:
       - name: API_URL
         kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
+        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く。この画面のほかの API にも同じように効く)"
         status: fact
         evidence:
           - { file: src/lib/api-url.ts, line: 38 }
           - { file: src/lib/api-url.ts, line: 39 }
           - { file: next.config.ts, line: 14 }
           - { file: next.config.ts, line: 215 }
+        note: "analysis-conventions.md のとおり、この入口で最初に API を呼ぶ段に 1 回だけ書いた"
 
   - id: api_user_get
     layer: api_route
@@ -268,6 +269,17 @@ callstack:
         evidence:
           - { file: src/lib/auth.ts, line: 127 }
           - { file: src/lib/auth.ts, line: 129 }
+      - kind: validation
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users、/api/admin、/api/2fa など) では使えない"
+        status: fact
+        evidence:
+          - { file: src/lib/auth.ts, line: 74 }
+          - { file: src/lib/auth.ts, line: 75 }
+          - { file: src/lib/api-key.ts, line: 4 }
+          - { file: src/lib/api-key.ts, line: 11 }
+          - { file: src/lib/api-key.ts, line: 33 }
+          - { file: src/lib/auth.ts, line: 35 }
+        note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログインのトークンを付ける (useApi.ts:28) ので、この枝には入らない"
     io:
       - op: get
         status: interpretation
@@ -592,16 +604,6 @@ callstack:
       evidence:
         - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
         - { file: src/components/hooks/useApi.ts, line: 49 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
 
   - id: api_user_post
     layer: api_route
@@ -838,16 +840,6 @@ callstack:
         - { file: src/components/hooks/queries/useUserWebsitesQuery.ts, line: 21 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 18 }
         - { file: src/components/hooks/usePagedQuery.ts, line: 24 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
 
   - id: api_user_websites_get
     layer: api_route
@@ -1054,16 +1046,6 @@ callstack:
         - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 23 }
         - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 27 }
         - { file: src/components/hooks/queries/useWebsiteListChartsQuery.ts, line: 28 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
 
   - id: api_websites_charts_get
     layer: api_route
@@ -1412,16 +1394,6 @@ callstack:
         - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 17 }
         - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 18 }
         - { file: src/components/hooks/queries/useTwoFactorStatusQuery.ts, line: 19 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
 
   - id: api_2fa_status
     layer: api_route
@@ -1592,16 +1564,6 @@ callstack:
         - { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 7 }
         - { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 8 }
         - { file: src/components/hooks/queries/useTwoFactorUserStatus.ts, line: 9 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
 
   - id: api_admin_user_2fa_get
     layer: api_route
@@ -1694,16 +1656,6 @@ callstack:
         - { file: src/components/hooks/queries/useUpdateQuery.ts, line: 9 }
         - { file: src/components/hooks/useApi.ts, line: 49 }
         - { file: "src/app/(main)/admin/users/[userId]/UserTwoFactorSettings.tsx", line: 53 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
 
   - id: api_admin_user_2fa_post
     layer: api_route
@@ -1843,16 +1795,6 @@ callstack:
       evidence:
         - { file: src/components/hooks/queries/useDeleteQuery.ts, line: 7 }
         - { file: src/components/hooks/useApi.ts, line: 63 }
-    settings:
-      - name: API_URL
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: src/lib/api-url.ts, line: 38 }
-          - { file: src/lib/api-url.ts, line: 39 }
-          - { file: next.config.ts, line: 14 }
-          - { file: next.config.ts, line: 215 }
 
   - id: api_admin_user_2fa_delete
     layer: api_route

@@ -1,28 +1,14 @@
 format_version: 1
 entry_id: dashboard.edit
-reviewed_at: "2026-11-18T01:14:05Z"
+reviewed_at: "2026-11-18T20:36:36Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: missing_item
-    severity: medium
-    where: callstack/q_can_update_website
-    resolved: true
-    claim: "canUpdateWebsite は、DB を読む前に管理者 (user.isAdmin) なら許す確認を持つが、guards に role の確認が無く、ownership の note に書いているだけ (この結果の canViewWebsite / canViewPixel / canViewLink / canViewTeam は role として書いていて、analysis-conventions.md も管理者の確認を user.isAdmin の role と決めている)。"
-    evidence: { file: src/permissions/website.ts, line: 137 }
-    suggestion: "guards に kind: role、value: user.isAdmin (根拠 src/permissions/website.ts:137) を足し、ownership の note から管理者の話を外す。"
-  - kind: status_mismatch
-    severity: medium
-    where: callstack/q_can_update_website/guards/1
-    resolved: true
-    claim: "PERMISSIONS.websiteUpdate はコードにそのまま書いてある定数 (hasPermission(teamUser.role, PERMISSIONS.websiteUpdate)) なのに interpretation になっている (同じ形の canViewWebsite / canViewPixel / canViewLink / canViewTeam の確認は、この結果では fact)。"
-    evidence: { file: src/permissions/website.ts, line: 154 }
-    suggestion: "status を fact にする。ownership の canUpdateWebsite (guards/0) も、関数の名前と呼び出しがコードにそのままあるので、ほかの確認とそろえて fact にする。"
-  - kind: classification_mismatch
+  - kind: evidence_mismatch
     severity: low
-    where: callstack/api_dashboard_post/call
+    where: callstack/q_check_auth/rules/3
+    claim: "API キーの枝のルールは「umami_ で始まるトークン」と言うが、根拠 (auth.ts:72/74/75、useApi.ts:28) に、接頭辞 umami_ を決める行 (API_KEY_PREFIX) と、それで判定する行 (isApiKey) が無い。同じ checkAuth を書いた boards.boardId_d の結果は、レビューの指摘でこの 2 行を足していて、根拠がそろっていない。"
+    evidence: { file: src/lib/api-key.ts, line: 4 }
+    suggestion: "evidence に src/lib/api-key.ts の 4 行目 (API_KEY_PREFIX = 'umami_') と 33 行目 (token.startsWith(API_KEY_PREFIX)) を足す。"
     resolved: true
-    claim: "POST /dashboard の URL を書いているのは DashboardProvider の mutationFn (DashboardProvider.tsx:73。call の evidence もこの行) なのに、caller が保存ボタンを持つ DashboardEditHeader になっている。プロファイルの橋渡しの手順 (caller は URL を持つ呼び出し側のフレーム) と、入口から辿る順 (DashboardProvider が DashboardEditHeader より先) のどちらにも合わず、BoardProvider の下に置いた boards.boardId_d.design とも木の形がそろわない。"
-    evidence: { file: src/app/(main)/dashboard/DashboardProvider.tsx, line: 73 }
-    suggestion: "caller を dashboard_provider にし、when は conditional (保存ボタンを押したとき) のまま、ボタンが DashboardEditHeader にあることを call の note に書く。DashboardEditHeader の summary には、保存の経路はフレーム api_dashboard_post と同じ、と書く。"
-notes: "確かめたこと: (1) 根拠の file:line は、全 179 フレームのすべてが対象のファイルの行の範囲にある (機械的に確かめた)。dashboard 固有のフレーム (page / DashboardEditPage / DashboardProvider / useDashboardQuery / GET・POST /api/dashboard / getBoard / hasValidBoardReports / getReport / updateBoard / createBoard / DashboardEditHeader / BoardControls / BoardEditBody / BoardEditRow / BoardEditColumn / useBoardEntityAvailability / BoardComponentRenderer / BoardComponentSelect / funnels・goals / WebsiteSelect・useLoginQuery・useUserWebsitesQuery と 3 つの受け口) は、根拠の行を開いて主張と合うことを確かめた。確認とルールの status は、全件を一覧にして見た。(2) 登録表の部品: BoardComponentRenderer で止め、embed 16 件の target と entry_id が登録表のキーと入口の一覧の part の id と一致し、status は interpretation、TextBlock は summary に名前だけ。試し描き (BoardComponentSelect.tsx:507) は同じ関数なので 1 回だけ書いたことも、context.md の決まりに合う。(3) 固定の値で閉じている呼び出し 3 種類 (includeTeams の枝、ExportButton、SegmentEditForm の更新) は、3 つの条件を満たす: 値は木の中で渡さない既定値 (PixelControls.tsx:15 / LinkControls.tsx:15 / WebsiteControls.tsx:16 の allowDownload = false、BoardComponentSelect.tsx:340-345 で includeTeams 無し、FilterBar.tsx:195 で segmentId 無し)、条件はその値だけで決まり、この木の中でほかに WebsiteSelect / SegmentEditForm / 3 つの操作の部品を描く呼び出し元は無い (SegmentSaveButton / SegmentAddButton / SegmentEditButton はこの木に無い)。usePagedQuery は URL から page / search / orderBy / sortDescending だけを足すので、includeTeams は URL からも入らない。(4) 同じ処理の置き場: PixelControls・WebsiteControls・LinkControls の下に useWebsiteQuery / usePixelQuery / useLinkQuery を呼ぶ部品は無いので、列の useBoardEntityAvailability の下に書いたのは入口から辿る順に合う。(5) 指摘にしなかったこと: ownership の value (board.userId === auth.user.id、existing.userId === userId、auth.user.id === userId) は、コードの式 (!==) を裏返した形だが、いまの dashboard と boards.* の結果も同じ書き方なので、リポジトリの書き方として指摘にしなかった。q_create_board の fields に created_at / updated_at が無く、q_update_board には updated_at があるのは、それぞれの note に理由 (スキーマの既定値と @updatedAt) があり、boards の結果の createBoard も同じ書き方。期間と絞り込みの部品の連鎖 (values / segments / event-data / session-data / daterange) は boards.boardId_d.design から写したもので、代表のフレームだけを読んだ。"
+notes: "確かめたこと: (1) 機械チェックは OK (作業定義の profile.dir からプロファイルを読んでいる)。根拠の file:line は、全 171 フレームのすべてが対象のファイルの行の範囲にあり、空の行を指すものも無い (機械的に確かめた)。(2) 共有の部品: BoardControls (board_controls) で止め、links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、status: fact、根拠は BoardControls.tsx:4 の import と :26 の描く行) がある。WebsiteControls の下の段は無い。BoardControls が渡す値 (websiteId だけ) と、既定値のままになる操作 (allowFilter / allowDateFilter は true、allowBounceFilter / allowCompare / allowDownload は false、allowMonthFilter 無し) は summary にあり、WebsiteControls.tsx:12-17 と合う。boards.boardId_d の同じフレームと書き方がそろっている。PixelControls (:22) は WebsiteControls (:26) より先なので、同じ処理の置き場は PixelControls の下のままでよく、外した段に、先に着いていた処理は無い。PixelControls / LinkControls は別の入口ではないので辿っているのは、決まりに合う。(3) どの入口にも出る共通の段: checkAuth は settings に CLOUD_MODE (kind: env)、rules に API キーの枝の 1 行、下に getUser がある。src/permissions/ の確認の関数 (canViewWebsite / canUpdateWebsite / canViewPixel / canViewLink / canViewTeam) は、ownership と、別の 1 件の role (user.isAdmin) を持つ。canViewWebsiteSection / canViewSharedWebsite / canViewSharedWebsiteFilters は中に管理者の確認が無いので kind: other で、ほかの入口の結果と同じ。API_URL と BASE_PATH は、入口から辿って最初に API を呼ぶ useDashboardQuery (DashboardEditPage → DashboardProvider:50) にだけあり、書き直しの段 (_rw) には確認・設定・ルールを繰り返していない。結果の target は作業定義と同じ。(4) dashboard 固有の段 (page / DashboardEditPage / DashboardProvider / useDashboardQuery / GET・POST /api/dashboard / hasValidBoardReports / getReport / DashboardEditHeader / BoardControls / PixelControls / LinkControls / BoardEditBody / BoardEditRow / BoardEditColumn / BoardComponentSelect と、その中の選択欄と funnels・goals) は、根拠の行を開いて主張と合うことを確かめた。getEntity が呼ぶ getBoard は、先に着く GET /api/dashboard の下 (q_get_board) に書いてあり、q_get_entity の summary にもそう書いてある。(5) 固定の値で閉じている呼び出し (includeTeams の枝、PixelControls / LinkControls の ExportButton、SegmentEditForm の更新、values の受け口の segment / cohort の枝) は、どれも木の中のコードに直接書いた値 (渡さない既定値、useFields の固定の一覧) で決まり、条件を持つフレームの summary に、値と行が書いてある。パスで決まるイベントのプロパティのタブと、teamId / ストアのユーザーで決まる受け口は、conditional で、成り立たないように見える理由が note にある。(6) 指摘にしなかったこと: ownership の value に関数でない式 (board.userId === auth.user.id など) を書くのは、dashboard と boards の結果と同じ書き方。SegmentFilters と PropertyFilters (session) の when が always なのは、タブの中身を描くかどうかが UI ライブラリの動きで、そう note に書いてある。api_segment_get と api_values の summary に、parseRequest の経路の文が 2 回出てくる (読みにくいが、主張は合っている)。期間と絞り込みの部品の連鎖 (values / segments / event-data / session-data / daterange) は boards.boardId_d.design から写したもので、代表のフレームだけを読んだ。"

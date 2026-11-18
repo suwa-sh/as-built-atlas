@@ -1,0 +1,40 @@
+format_version: 1
+entry_id: "part_p.shared_a.WebsiteControls"
+reviewed_at: "2026-11-18T19:29:44Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/website_controls
+    claim: "プロファイルは、アプリの状態から読む値 (タイムゾーンなど) も入口のフレームの parameters に書くと決めているが、利用者のタイムゾーン (useDateParameters が useTimezone から読み、プロパティの候補のフックが API に timezone として送る) と、表示の言語 (useWebsiteValuesQuery が useLocale から読み、country / region の検索語を国・地域のコードに置き換えるのに使う) が parameters に無い"
+    evidence: { file: "src/components/hooks/useDateParameters.ts", line: 13 }
+    suggestion: "parameters に「タイムゾーン (アプリの状態)」と「表示の言語 (アプリの状態)」を足し、根拠に useDateParameters.ts:13、usePropertyFieldsQuery.ts:34、useWebsiteValuesQuery.ts:20 と :24 を書く"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/filter_bar/call
+    claim: "FilterBar を描く条件が「共有画面の設定で allowFilter が false でない」だけになっていて、描く側から受け取る allowFilter (既定は true) の条件が抜けている (showFilter は allowFilter && allowShareFilter(...) で、WebsiteFilterButton の条件には両方が書いてある)"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/WebsiteControls.tsx", line: 28 }
+    suggestion: "condition を「描く側の allowFilter が false でなく、共有画面の設定の allowFilter も false でないとき」にし、根拠に WebsiteControls.tsx:12 を足す"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_get_values/io/0/fields
+    claim: "getValues が取り出して数え、検索の条件にも使う列 (FILTER_COLUMNS[type]) を「実行時に決まる」として fields に書いていないが、候補は定数の対応表 FILTER_COLUMNS と、部品が出す列 (useFields から FilterEditForm が除いたもの) で有限に読める (同じ結果の export の集計のフレームは、渡す type に当たる列を書いている)。session の候補は SESSION_COLUMNS に当たる列 (browser / os / device / country / region / city / language / distinct_id など)、website_event の候補はそれ以外 (url_path / referrer_domain / page_title / url_query / hostname / event_name / tag / utm_* など)"
+    evidence: { file: "src/queries/sql/getValues.ts", line: 56 }
+    suggestion: "io/0 (session) に SESSION_COLUMNS に当たる列を、io/1 と io/2 (website_event) にそれ以外の FILTER_COLUMNS の列を、use: read と filter で足し、根拠に src/lib/constants.ts:77 を足す"
+  - kind: missing_item
+    severity: low
+    where: callstack/api_export_get
+    claim: "CSV の値が数式として読まれる文字 (= + - @ タブ 改行) で始まるときに先頭に ' を付ける処理 (CSV の数式の注入を防ぐ) は業務のルールだが、summary に書いてあるだけで rules に無い"
+    evidence: { file: "src/app/api/websites/[websiteId]/export/route.ts", line: 45 }
+    suggestion: "rules に kind: validation (または calculation) で 1 件足し、根拠に route.ts:45、:48、:49、:63 を書く"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_can_view_shared_website_filters/summary
+    claim: "「呼び先が canViewWebsite だけで終端になるので、書き直した」とあるが、このフレームは権限の確認 (guards) を持つので、終端の決まりを既に満たしている。プロファイルは、書き直しを「終端の決まりを満たせないときだけ」に限るので、q_can_view_website_rw1 から q_get_website_rw1 までの書き直しは要らず、website / share の読み取りが水増しされている。同じことが、q_can_view_shared_website (q_can_view_website_rw2 から)、q_can_view_authenticated_website (q_can_view_website_rw3 から q_get_website_rw4 まで)、q_can_update_website (q_get_website_rw3) にも当てはまる"
+    evidence: { file: "src/permissions/share.ts", line: 93 }
+    suggestion: "4 つの確認のフレームの下の書き直し (_rw のフレーム) を外し、summary に「canViewWebsite (または getWebsite / getTeamUser) も呼ぶ。経路はフレーム q_can_view_website (q_get_website) と同じ」とだけ書く。api_segment_get の下の q_parse_request_rw1 は、確認も読み書きも持たないので、残す"
+notes: "機械チェック (validate result) は OK。根拠の行 1426 件は、すべて対象のファイルに実在し、空行や import の行を指すものは無い。主な段 (WebsiteControls から FilterEditForm、SegmentFilters、PropertyFilters、WebsiteDateFilter、ExportButton、FilterBar と SegmentEditForm、受け口 values / segments / segments/[segmentId] / event-data / session-data / daterange / export、checkAuth、canViewWebsite、canUpdateWebsite、getQueryFilters、fetchWebsite、getValues、getWebsiteDateRange、getSessionMetrics、segment の作成) は、コードを読んで主張と条件を確かめた。分析リポジトリの決まり (checkAuth の CLOUD_MODE と API キーの 1 行、canViewWebsite / canUpdateWebsite の user.isAdmin を別の 1 件、API_URL / BASE_PATH を最初に API を呼ぶ useWebsiteValuesQuery に 1 回、target を作業定義と同じに) は守られている。websiteId で止まるフックの API の呼び出しを conditional にしたこと、届かないように見える getWebsiteSegments の枝を conditional で残したことは、プロファイルの部品の入口の決まりどおりなので、指摘にしなかった。share の確認 (kind: other) の綴りは、ほかの入口の結果とそろっている。最後の指摘 (確認のフレームの下の書き直し) は、ほかの入口の結果 (boards.boardId_d、dashboard、links.linkId_d など) も同じ書き方をしているので、直すなら入口をまたいでそろえるか、決まりの側で「確認だけの段の下も書き直す」と明記するかを、人が決めるとよい。書き直しのフレームの id で、q_get_entity_rw3 の下が q_get_website_rw4 になっている (rw3 は canUpdateWebsite の下で使った) のは、見分けにくいが誤りではない"

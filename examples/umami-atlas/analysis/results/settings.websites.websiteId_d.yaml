@@ -14,7 +14,7 @@ analyzer:
   profile: { id: ui-nextjs, version: "0.4.0" }
   skill_version: "0.4.0"
   model: "claude-opus-5-5"
-  analyzed_at: "2026-11-17T22:16:04Z"
+  analyzed_at: "2026-11-18T20:44:57Z"
   reviewed:
     by: "claude-opus-5-5 (fresh context)"
     at: "2026-11-17T15:22:56Z"
@@ -43,7 +43,7 @@ summary:
     - { file: "src/queries/prisma/website.ts", line: 215 }
     - { file: "src/queries/prisma/website.ts", line: 242 }
     - { file: "src/queries/prisma/website.ts", line: 267 }
-notes: "(1) page は、同じフォルダの WebsiteSettingsPage を import して描く (page.tsx:2、:7)。管理者のメニューの画面 (/admin/websites/[websiteId]) も同じ部品を描くので、木の形はその入口の結果とほぼ同じになる。違いは、URL が /admin で始まらないので、WebsiteData の譲渡の操作が出ること (下の (6))。祖先の layout (ルート、(main)、settings) は別の入口なので辿っていない。 (2) フレームにしなかったもの: WebsiteSettingsHeader / PageHeader / Panel / DialogButton / SharedSharesTable / TypeConfirmationForm / ActionForm (見た目だけ)、WebsiteTrackingCode (設定から計測タグの文字列を組み立てて表示するだけ)、useWebsite (WebsiteContext を読むだけ)、useNavigation、useMessages、useModified (ブラウザの中の更新印)、useApi (URL とヘッダーを組み立てるだけ。API_URL の設定は、これを使うフックと ShareEditForm に書いた)、useConfig (ストアに無いときだけ GET /api/config を呼ぶ。この受け口は skipAuth で認証を通らず、環境変数を返すだけでデータを読まないので、経路の上に無いものとして WebsiteSettings の summary で触れるだけにした)。WebsiteSettingsHeader の戻るリンクは、それを描く WebsiteSettingsPage の links に書いた。 (3) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser は GET /api/websites/[websiteId] (route.ts:22) の下。getWebsite は、canViewSharedWebsite → canViewWebsite → getEntity (entity.ts:6) の下 (route.ts:34 より先に着く)。getTeamUser は canViewWebsite (website.ts:35) の下。canUpdateWebsite と updateWebsite と createShare は POST /api/websites/[websiteId] の下。getShare は GET /api/share/id/[shareId] の下。ShareEditForm は WebsiteShareForm の追加ボタン (WebsiteShareForm.tsx:32) の下。useLoginQuery と useUserTeamsQuery は WebsiteData の下。deleteWebsiteDependentData は resetWebsite の下。 (4) 同じ関数でも、届く先が違うものは分けて書いた: useUpdateQuery (URL が /websites/<id>、/transfer、/reset の 3 つ)、useDeleteQuery (/share/id/<id> と /websites/<id>)、pagedQuery の中の findMany (share と team)、Redis の get (auth:*、team:*、account:*)。updateWebsite は届く先が同じ website なので 1 つにし、呼び出し元ごとに書く列が違うので、I/O を 2 件に分けた。 (5) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id が _rw で終わるフレーム。external の段までは書かず、確認・設定・ルールも繰り返していない): canUpdateWebsite / canDeleteWebsite / canTransferWebsiteToUser / canTransferWebsiteToTeam の下の getWebsite、canViewEntity / canUpdateEntity / canDeleteEntity の下の getEntity → getWebsite、canViewAuthenticatedWebsite の下の canViewWebsite → getEntity → getWebsite、canViewTeam の下の getTeamUser、POST /api/websites/[websiteId]/shares の下の parseRequest → checkAuth (この受け口は、呼び先がすべてほかの呼び出し元の下にある。共有を作る読み書きは、フレーム q_create_share にある)。 (6) 譲渡の小窓 (WebsiteTransferForm と、その先の POST /api/websites/[websiteId]/transfer) は、この入口では URL が /admin で始まらないので出る。押せるかの条件 (自分がオーナーかマネージャーのチームがあるか) を condition に書いた。URL に /teams/ が無いので、チームの画面の側の条件 (WebsiteData.tsx:34-37) はこの入口では使われない。この入口からは条件が成り立たないように見える呼び出しは、消さずに conditional で残して note に理由を書いた: POST /api/websites/[websiteId] の中の deleteSharesByEntityId と createShare (この画面は shareId を送らない)。 (7) 設定: CLOUD_MODE は、ブラウザ側では GET /api/config の cloudMode として届く (config/route.ts:15)。動きが変わる段 (WebsiteReplaySettings、useSubscription、checkAuth、resetWebsite、deleteWebsite) に書いた。共有 URL の行き先を変える CLOUD_MODE は、SharesTable (SharedSharesTable を描く段) にも書いた。計測タグや共有 URL の表示だけを変える設定 (CLOUD_URL、TRACKER_SCRIPT_NAME) と、表示の URL に付く BASE_PATH は、処理の流れも読み書きの相手も変えないので書いていない。API の URL の前に付く BASE_PATH は、API を最初に呼ぶ段 (useWebsiteQuery) にだけ書いた (どのフックにも同じように効き、集計は入口ごとにまとめるので、フックごとに繰り返していない)。GET /api/auth/subscription の fetchTeam / fetchAccount は、Redis が有効かを確かめずに読む (load.ts:43、:49) ので、REDIS_URL を設定として書いていない。 (8) 権限の確認の値は、分析の癖の決まりにそろえた (管理者は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前)。GET /api/users/[userId]/teams の本人の確認は、関数が無く受け口に直接書いてあるので、式 (auth.user.id === userId) を書いた。各権限の関数の先頭にある「ユーザーがいなければ許さない」は、ログイン済みの確認 (checkAuth) と同じなので書いていない。 (9) checkAuth の API キーの経路 (auth.ts:74-76) は書いていない。ブラウザが付けるのは localStorage のログイントークン (useApi.ts:28、client.ts:4) と読んだため。設定 (CLOUD_MODE) にだけ書いた。 (10) Redis の team:* と account:* は、読む側だけがこのリポジトリにある。項目の名前は、受け口が normalizeSubscription で読むものを書いた。website:* は、値 (website の行) をまるごと書く・消すので、項目は * にした。 (11) fields の列名は schema.prisma の @map で確かめた (@map が無い列は属性名と同じ)。行の削除は、name が * で use は write とし、条件の列を filter で書いた。 (12) テストとの対応は、作業定義で選ばれていないので分析していない。 (13) レビューの指摘は medium 6 件と low 4 件。9 件を直した (Prisma の @updatedAt が自動で書く updated_at を、website と share の書き込み 6 件の fields に足した。canViewSharedWebsite の確認の値を関数の名前にそろえた。canViewWebsite の中の共有トークンの比較を、別の確認ではなく ownership の確認の note にまとめた。共有 URL のクラウドモードの行き先 (unknown) と CLOUD_MODE を SharesTable に足した。notes (7) の BASE_PATH の記述と本文の食い違いを直した)。直さなかった 1 件: BASE_PATH を API を呼ぶほかのフックにも書くこと。analysis-conventions.md の決まり (BASE_PATH と API_URL は、API を呼ぶフックごとに書かず、その入口で最初に API を呼ぶフレームに 1 回だけ書く) に従い、最初に API を呼ぶ段 (useWebsiteQuery) だけに書くのが正しい。"
+notes: "(1) page は、同じフォルダの WebsiteSettingsPage を import して描く (page.tsx:2、:7)。管理者のメニューの画面 (/admin/websites/[websiteId]) も同じ部品を描くので、木の形はその入口の結果とほぼ同じになる。違いは、URL が /admin で始まらないので、WebsiteData の譲渡の操作が出ること (下の (6))。祖先の layout (ルート、(main)、settings) は別の入口なので辿っていない。 (2) フレームにしなかったもの: WebsiteSettingsHeader / PageHeader / Panel / DialogButton / SharedSharesTable / TypeConfirmationForm / ActionForm (見た目だけ)、WebsiteTrackingCode (設定から計測タグの文字列を組み立てて表示するだけ)、useWebsite (WebsiteContext を読むだけ)、useNavigation、useMessages、useModified (ブラウザの中の更新印)、useApi (URL とヘッダーを組み立てるだけ。API_URL の設定は、これを使うフックと ShareEditForm に書いた)、useConfig (ストアに無いときだけ GET /api/config を呼ぶ。この受け口は skipAuth で認証を通らず、環境変数を返すだけでデータを読まないので、経路の上に無いものとして WebsiteSettings の summary で触れるだけにした)。WebsiteSettingsHeader の戻るリンクは、それを描く WebsiteSettingsPage の links に書いた。 (3) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って、最初に着いた呼び出し元の下に 1 回だけ書いた。置き場: parseRequest → checkAuth → getUser は GET /api/websites/[websiteId] (route.ts:22) の下。getWebsite は、canViewSharedWebsite → canViewWebsite → getEntity (entity.ts:6) の下 (route.ts:34 より先に着く)。getTeamUser は canViewWebsite (website.ts:35) の下。canUpdateWebsite と updateWebsite と createShare は POST /api/websites/[websiteId] の下。getShare は GET /api/share/id/[shareId] の下。ShareEditForm は WebsiteShareForm の追加ボタン (WebsiteShareForm.tsx:32) の下。useLoginQuery と useUserTeamsQuery は WebsiteData の下。deleteWebsiteDependentData は resetWebsite の下。 (4) 同じ関数でも、届く先が違うものは分けて書いた: useUpdateQuery (URL が /websites/<id>、/transfer、/reset の 3 つ)、useDeleteQuery (/share/id/<id> と /websites/<id>)、pagedQuery の中の findMany (share と team)、Redis の get (auth:*、team:*、account:*)。updateWebsite は届く先が同じ website なので 1 つにし、呼び出し元ごとに書く列が違うので、I/O を 2 件に分けた。 (5) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id が _rw で終わるフレーム。external の段までは書かず、確認・設定・ルールも繰り返していない): canUpdateWebsite / canDeleteWebsite / canTransferWebsiteToUser / canTransferWebsiteToTeam の下の getWebsite、canViewEntity / canUpdateEntity / canDeleteEntity の下の getEntity → getWebsite、canViewAuthenticatedWebsite の下の canViewWebsite → getEntity → getWebsite、canViewTeam の下の getTeamUser、POST /api/websites/[websiteId]/shares の下の parseRequest → checkAuth (この受け口は、呼び先がすべてほかの呼び出し元の下にある。共有を作る読み書きは、フレーム q_create_share にある)。 (6) 譲渡の小窓 (WebsiteTransferForm と、その先の POST /api/websites/[websiteId]/transfer) は、この入口では URL が /admin で始まらないので出る。押せるかの条件 (自分がオーナーかマネージャーのチームがあるか) を condition に書いた。URL に /teams/ が無いので、チームの画面の側の条件 (WebsiteData.tsx:34-37) はこの入口では使われない。この入口からは条件が成り立たないように見える呼び出しは、消さずに conditional で残して note に理由を書いた: POST /api/websites/[websiteId] の中の deleteSharesByEntityId と createShare (この画面は shareId を送らない)。 (7) 設定: CLOUD_MODE は、ブラウザ側では GET /api/config の cloudMode として届く (config/route.ts:15)。動きが変わる段 (WebsiteReplaySettings、useSubscription、checkAuth、resetWebsite、deleteWebsite) に書いた。共有 URL の行き先を変える CLOUD_MODE は、SharesTable (SharedSharesTable を描く段) にも書いた。計測タグや共有 URL の表示だけを変える設定 (CLOUD_URL、TRACKER_SCRIPT_NAME) と、表示の URL に付く BASE_PATH は、処理の流れも読み書きの相手も変えないので書いていない。API の URL の前に付く BASE_PATH は、API を最初に呼ぶ段 (useWebsiteQuery) にだけ書いた (どのフックにも同じように効き、集計は入口ごとにまとめるので、フックごとに繰り返していない)。GET /api/auth/subscription の fetchTeam / fetchAccount は、Redis が有効かを確かめずに読む (load.ts:43、:49) ので、REDIS_URL を設定として書いていない。 (8) 権限の確認の値は、分析の癖の決まりにそろえた (管理者は user.isAdmin、持ち主・所属は確認する関数の名前、権限は定数の名前)。GET /api/users/[userId]/teams の本人の確認は、関数が無く受け口に直接書いてあるので、式 (auth.user.id === userId) を書いた。各権限の関数の先頭にある「ユーザーがいなければ許さない」は、ログイン済みの確認 (checkAuth) と同じなので書いていない。 (9) checkAuth の API キーの経路 (auth.ts:74-76) は書いていない。ブラウザが付けるのは localStorage のログイントークン (useApi.ts:28、client.ts:4) と読んだため。設定 (CLOUD_MODE) にだけ書いた。 (10) Redis の team:* と account:* は、読む側だけがこのリポジトリにある。項目の名前は、受け口が normalizeSubscription で読むものを書いた。website:* は、値 (website の行) をまるごと書く・消すので、項目は * にした。 (11) fields の列名は schema.prisma の @map で確かめた (@map が無い列は属性名と同じ)。行の削除は、name が * で use は write とし、条件の列を filter で書いた。 (12) テストとの対応は、作業定義で選ばれていないので分析していない。 (13) レビューの指摘は medium 6 件と low 4 件。9 件を直した (Prisma の @updatedAt が自動で書く updated_at を、website と share の書き込み 6 件の fields に足した。canViewSharedWebsite の確認の値を関数の名前にそろえた。canViewWebsite の中の共有トークンの比較を、別の確認ではなく ownership の確認の note にまとめた。共有 URL のクラウドモードの行き先 (unknown) と CLOUD_MODE を SharesTable に足した。notes (7) の BASE_PATH の記述と本文の食い違いを直した)。直さなかった 1 件: BASE_PATH を API を呼ぶほかのフックにも書くこと。analysis-conventions.md の決まり (BASE_PATH と API_URL は、API を呼ぶフックごとに書かず、その入口で最初に API を呼ぶフレームに 1 回だけ書く) に従い、最初に API を呼ぶ段 (useWebsiteQuery) だけに書くのが正しい。 共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ"
 callstack:
   - id: page
     layer: page
@@ -294,6 +294,17 @@ callstack:
           - { file: "src/lib/auth.ts", line: 174 }
           - { file: "src/lib/constants.ts", line: 13 }
         note: "checkAuth が呼ぶ補助の関数 parseShareToken (フレームにしていない) の中の検証"
+      - kind: decision
+        value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) で、API キーが有効 (CLOUD_MODE が無い) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+        status: fact
+        evidence:
+          - { file: "src/lib/auth.ts", line: 74 }
+          - { file: "src/lib/auth.ts", line: 75 }
+          - { file: "src/lib/api-key.ts", line: 4 }
+          - { file: "src/lib/api-key.ts", line: 11 }
+          - { file: "src/lib/api-key.ts", line: 33 }
+          - { file: "src/lib/auth.ts", line: 35 }
+        note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログイントークンを付ける (useApi.ts:28、client.ts:4) ので、この枝には入らない"
     io:
       - op: get
         status: fact
@@ -849,16 +860,6 @@ callstack:
         - { file: "src/components/hooks/queries/useUpdateQuery.ts", line: 9 }
         - { file: "src/components/hooks/useApi.ts", line: 49 }
         - { file: "src/app/(main)/websites/[websiteId]/settings/WebsiteReplaySettings.tsx", line: 26 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
 
   - id: api_website_post
     layer: api_route
@@ -1663,16 +1664,6 @@ callstack:
         - { file: "src/components/hooks/queries/useWebsiteSharesQuery.ts", line: 13 }
         - { file: "src/components/hooks/queries/useWebsiteSharesQuery.ts", line: 14 }
         - { file: "src/components/hooks/queries/useWebsiteSharesQuery.ts", line: 16 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
 
   - id: api_shares_get
     layer: api_route
@@ -1916,16 +1907,6 @@ callstack:
         - { file: "src/app/(main)/websites/[websiteId]/settings/ShareEditForm.tsx", line: 85 }
         - { file: "src/app/(main)/websites/[websiteId]/settings/ShareEditForm.tsx", line: 90 }
         - { file: "src/app/(main)/websites/[websiteId]/settings/ShareEditForm.tsx", line: 92 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
     rules:
       - kind: validation
         value: "名前があり、見せる区画が 1 つ以上選ばれていないと保存できない"
@@ -2533,16 +2514,6 @@ callstack:
       evidence:
         - { file: "src/components/hooks/queries/useDeleteQuery.ts", line: 7 }
         - { file: "src/components/hooks/useApi.ts", line: 63 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
 
   - id: api_share_delete
     layer: api_route
@@ -2930,16 +2901,6 @@ callstack:
         - { file: "src/components/hooks/queries/useUserTeamsQuery.ts", line: 10 }
         - { file: "src/components/hooks/queries/useUserTeamsQuery.ts", line: 12 }
         - { file: "src/components/hooks/queries/useUserTeamsQuery.ts", line: 14 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
 
   - id: api_user_teams_get
     layer: api_route
@@ -3172,16 +3133,6 @@ callstack:
       evidence:
         - { file: "src/components/hooks/queries/useUpdateQuery.ts", line: 9 }
         - { file: "src/components/hooks/useApi.ts", line: 49 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
 
   - id: api_transfer_post
     layer: api_route
@@ -3474,16 +3425,6 @@ callstack:
       evidence:
         - { file: "src/components/hooks/queries/useUpdateQuery.ts", line: 9 }
         - { file: "src/components/hooks/useApi.ts", line: 49 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
 
   - id: api_reset_post
     layer: api_route
@@ -3825,16 +3766,6 @@ callstack:
       evidence:
         - { file: "src/components/hooks/queries/useDeleteQuery.ts", line: 7 }
         - { file: "src/components/hooks/useApi.ts", line: 63 }
-    settings:
-      - name: "API_URL"
-        kind: env
-        effect: "設定されていると、API の呼び出しが basePath + /api ではなく、その URL に向く (/auth と /config で始まる URL は除く)"
-        status: fact
-        evidence:
-          - { file: "src/lib/api-url.ts", line: 38 }
-          - { file: "src/lib/api-url.ts", line: 39 }
-          - { file: "next.config.ts", line: 14 }
-          - { file: "next.config.ts", line: 215 }
 
   - id: api_website_delete
     layer: api_route

@@ -18,7 +18,7 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.1
   model: claude-opus-5-5
-  analyzed_at: '2026-11-18T00:53:28Z'
+  analyzed_at: '2026-11-18T20:41:53Z'
   reviewed:
     by: claude-opus-5-5 (fresh context)
     at: '2026-11-18T00:52:33Z'
@@ -97,7 +97,7 @@ summary:
     line: 66
   - file: src/app/api/websites/[websiteId]/metrics/route.ts
     line: 71
-notes: '(1) 部品の入口として分析した。入口のフレームは、登録表の項目 WorldMap (boardComponentRegistry.tsx:359) が指すコンポーネント WorldMap (WorldMap.tsx:21)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、任意の data) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。この項目は設定の項目 (configFields) も componentByEntityType も持たないので、保存された設定で変わる値と、対象の種類で替わる先の部品は無い。対象がピクセルやリンクのときは、その id がそのまま websiteId に入り、サイト用の受け口に送られる (BoardViewColumn.tsx:54)。website を id で探す読み取り (fetchWebsite、getEntity の getWebsite) は行が当たらないと読めるが、読み取りそのものは行われるので、I/O は書いた (ほかの部品の入口と同じ扱い)。(2) 木は、同じフックと受け口を通る part_p.boardComponentRegistry.MetricsTable の結果を出発点にし、根拠の行は対象のコードで確かめた。受け口の前処理・権限の確認・絞り込みの木 (parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment) はそのまま写した。getSessionMetrics は、type が country だけなので、読み書きの fields を country と固定の列だけにし、language / region / city の計算のルールを外した (この部品では、その分かれ道を通らない)。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_metrics) に 1 回だけ書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。結果の target には clone_path を書いていない。(3) 固定の値で閉じている呼び出しは 3 件 (辿らない)。受け口 GET metrics の getEventMetrics (route.ts:64)、getPageviewMetrics (route.ts:66)、getChannelMetrics (route.ts:71)。閉じている値は type: ''country'' で、WorldMap がフックに直接書いて渡す (WorldMap.tsx:32)。確かめた 3 つ: (a) 値は部品の木の中のコードに直接書いてあり、フックは type を送る値の最後に重ねる (useWebsiteMetricsQuery.ts:37) ので、URL の絞り込みでは変わらない。値は HTTP のクエリを通って受け口の分かれ道に効くが、このリポジトリの決まり (値が HTTP のクエリを通ってサーバー側の分かれ道に効く場合も、木の中に直接書いた値として扱う) に従った。(b) 分かれ道 (route.ts:55 / :61 / :62 / :70) は type だけで決まる。(c) 受け口には、この木の中でほかの呼び出し元が無い。フレームに notes が無いので、閉じた呼び出しは受け口のフレーム (api_metrics) の summary と、ここに書いた。getSessionMetrics の呼び出しは、if の中だが、この入口ではいつも成り立つので always にし、理由を call の note に書いた。(4) 迷った点と選んだ扱い。(a) WorldMap の websiteId は型の上では任意 (WorldMap.tsx:17) で、フックは websiteId があるときだけ API を呼ぶ (useWebsiteMetricsQuery.ts:39)。描く側が websiteId の無いときは部品を描かない (BoardComponentRenderer.tsx:30。この項目は requiresWebsite: false を持たない) ので、ほかの部品の入口 (WebsiteMetricsBar、MetricsTable) と同じく GET metrics を always にした。描く側の作りを理由にしているが、プロファイルの決まり (context.md の「どの画面も、その値を渡さない」は理由にしない) は、値を渡さないことで閉じる場合の話と読み、ここには当たらないとした。(b) 地図の形の JSON (MAP_FILE。BASE_PATH の下の /datamaps.world.json を react-simple-maps が読む) と国の名前の翻訳の JSON (useCountryNames) は、同じサーバーの静的なファイルなので、このリポジトリの決まりで段にも読み書きにも書いていない。地図の置き場に BASE_PATH が効くことも、API ではないので settings に書いていない。(c) 任意の data の props は、地図に塗る値を替えるだけで、API の呼び出しは止めないので、フレームを分けず、parameters に書いた。(d) カーソルを重ねたときの小窓は、読んだ値を出すだけで、ほかの入口へのつながりもデータの読み書きも無いので、入口のフレームの summary に書いた。(e) links は 1 件も無い。 (5) レビューへの対応 (1 回。high 0 件、medium 0 件、low 1 件。直した)。入口のフレームの rules と summary の色の言い方を、暗いテーマでも成り立つ「割合が大きいほど基の色に近い色で塗る」に直した。レビューが notes に残した、地図の形の JSON に効く BASE_PATH を settings に書くか (layout_l は翻訳の静的なファイルに効く BASE_PATH を書いている) は、このリポジトリの決まり (同じサーバーの静的なファイルは書かない、BASE_PATH は API を最初に呼ぶフレームに書く) に従って書かなかった。入口をまたいでそろえるかは、人が決める。'
+notes: '(1) 部品の入口として分析した。入口のフレームは、登録表の項目 WorldMap (boardComponentRegistry.tsx:359) が指すコンポーネント WorldMap (WorldMap.tsx:21)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、任意の data) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。この項目は設定の項目 (configFields) も componentByEntityType も持たないので、保存された設定で変わる値と、対象の種類で替わる先の部品は無い。対象がピクセルやリンクのときは、その id がそのまま websiteId に入り、サイト用の受け口に送られる (BoardViewColumn.tsx:54)。website を id で探す読み取り (fetchWebsite、getEntity の getWebsite) は行が当たらないと読めるが、読み取りそのものは行われるので、I/O は書いた (ほかの部品の入口と同じ扱い)。(2) 木は、同じフックと受け口を通る part_p.boardComponentRegistry.MetricsTable の結果を出発点にし、根拠の行は対象のコードで確かめた。受け口の前処理・権限の確認・絞り込みの木 (parseRequest → checkAuth、canViewWebsiteSection → canViewWebsite → getEntity / getTeamUser、getQueryFilters → fetchWebsite / fetchAccount / getWebsiteSegment) はそのまま写した。getSessionMetrics は、type が country だけなので、読み書きの fields を country と固定の列だけにし、language / region / city の計算のルールを外した (この部品では、その分かれ道を通らない)。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_metrics) に 1 回だけ書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。結果の target には clone_path を書いていない。(3) 固定の値で閉じている呼び出しは 3 件 (辿らない)。受け口 GET metrics の getEventMetrics (route.ts:64)、getPageviewMetrics (route.ts:66)、getChannelMetrics (route.ts:71)。閉じている値は type: ''country'' で、WorldMap がフックに直接書いて渡す (WorldMap.tsx:32)。確かめた 3 つ: (a) 値は部品の木の中のコードに直接書いてあり、フックは type を送る値の最後に重ねる (useWebsiteMetricsQuery.ts:37) ので、URL の絞り込みでは変わらない。値は HTTP のクエリを通って受け口の分かれ道に効くが、このリポジトリの決まり (値が HTTP のクエリを通ってサーバー側の分かれ道に効く場合も、木の中に直接書いた値として扱う) に従った。(b) 分かれ道 (route.ts:55 / :61 / :62 / :70) は type だけで決まる。(c) 受け口には、この木の中でほかの呼び出し元が無い。フレームに notes が無いので、閉じた呼び出しは受け口のフレーム (api_metrics) の summary と、ここに書いた。getSessionMetrics の呼び出しは、if の中だが、この入口ではいつも成り立つので always にし、理由を call の note に書いた。(4) 迷った点と選んだ扱い。(a) WorldMap の websiteId は型の上では任意 (WorldMap.tsx:17) で、フックは websiteId があるときだけ API を呼ぶ (useWebsiteMetricsQuery.ts:39)。描く側が websiteId の無いときは部品を描かない (BoardComponentRenderer.tsx:30。この項目は requiresWebsite: false を持たない) ので、ほかの部品の入口 (WebsiteMetricsBar、MetricsTable) と同じく GET metrics を always にした。描く側の作りを理由にしているが、プロファイルの決まり (context.md の「どの画面も、その値を渡さない」は理由にしない) は、値を渡さないことで閉じる場合の話と読み、ここには当たらないとした。(b) 地図の形の JSON (MAP_FILE。BASE_PATH の下の /datamaps.world.json を react-simple-maps が読む) と国の名前の翻訳の JSON (useCountryNames) は、同じサーバーの静的なファイルなので、このリポジトリの決まりで段にも読み書きにも書いていない。地図の置き場に BASE_PATH が効くことも、API ではないので settings に書いていない。(c) 任意の data の props は、地図に塗る値を替えるだけで、API の呼び出しは止めないので、フレームを分けず、parameters に書いた。(d) カーソルを重ねたときの小窓は、読んだ値を出すだけで、ほかの入口へのつながりもデータの読み書きも無いので、入口のフレームの summary に書いた。(e) links は 1 件も無い。 (5) レビューへの対応 (1 回。high 0 件、medium 0 件、low 1 件。直した)。入口のフレームの rules と summary の色の言い方を、暗いテーマでも成り立つ「割合が大きいほど基の色に近い色で塗る」に直した。レビューが notes に残した、地図の形の JSON に効く BASE_PATH を settings に書くか (layout_l は翻訳の静的なファイルに効く BASE_PATH を書いている) は、このリポジトリの決まり (同じサーバーの静的なファイルは書かない、BASE_PATH は API を最初に呼ぶフレームに書く) に従って書かなかった。入口をまたいでそろえるかは、人が決める。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。'
 callstack:
 - id: world_map
   layer: part
@@ -478,6 +478,16 @@ callstack:
       line: 102
     - file: src/lib/redis.ts
       line: 106
+  - name: CLOUD_MODE
+    kind: env
+    effect: 設定されていないときだけ、API キーの形のトークンを API キーとして認証する経路 (checkApiKeyAuth) に入る
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 74
+    - file: src/lib/api-key.ts
+      line: 41
+    note: この部品のフックはログインのトークンを付ける (src/components/hooks/useApi.ts:28) ので、API キーの経路は辿っていない
   rules:
   - kind: validation
     value: 2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない
@@ -705,6 +715,15 @@ callstack:
     - file: src/permissions/website.ts
       line: 35
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 10
+    note: 管理者なら、DB を読まずに許す
   - kind: ownership
     value: canViewWebsite
     status: interpretation

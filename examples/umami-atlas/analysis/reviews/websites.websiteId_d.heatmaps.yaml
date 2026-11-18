@@ -1,42 +1,21 @@
 format_version: 1
-entry_id: websites.websiteId_d.heatmaps
-reviewed_at: "2026-11-17T15:49:38Z"
+entry_id: "websites.websiteId_d.heatmaps"
+reviewed_at: "2026-11-18T19:52:21Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: status_mismatch
+  - kind: reason_mismatch
+    resolved: true
     severity: medium
-    where: callstack/q_check_auth/io/0
-    resolved: true
-    claim: "Redis の読み取りが fact になっているが、読む行 (auth.ts 102 行) のキーは変数 authKey で、auth:* の形は別の関数 saveAuth (auth.ts 150 行) から読み取ったもの。detail もそう書いており、読む場所にそのまま書いてある値ではない"
-    evidence: { file: src/lib/auth.ts, line: 102 }
-    suggestion: "status を interpretation にし、note に、キーの形は saveAuth が作る auth:<ランダム> から読み取ったと書く (概要の画面 websites.websiteId_d の結果も、レビューを受けて interpretation にしている)"
-  - kind: status_mismatch
-    severity: medium
-    where: callstack/api_segments_create/call
-    resolved: true
-    claim: "呼び出しの URL は SegmentEditForm.tsx 44 行で segmentId の有無により /segments と /segments/<segmentId> に切り替わる組み立て式で、POST /segments に決まるのは FilterBar (195 行) が segmentId を渡さないことを読み取った結果なので、fact ではない"
-    evidence: { file: 'src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx', line: 44 }
-    suggestion: "call.status を interpretation にし、note に、URL は segmentId の有無で切り替わり、この入口の FilterBar は segmentId を渡さないので POST /segments に届くと書く (概要の画面の結果と同じ扱い)"
+    where: "callstack/heatmaps_page/links/0"
+    claim: "アップグレードのボタンの行き先 (${process.env.cloudUrl}/settings/billing) は、ホストが環境変数 CLOUD_URL (next.config.ts 17 行、218 行) で決まり、行き先の画面はこのリポジトリのどこにも無いので、語彙の定義では not_traceable_in_repo (環境変数で決まり、リポジトリに書かれていない) に当たる。out_of_scope は、リポジトリの中にあるが作業定義の scope の外にあるものの理由で、scope が「.」(リポジトリ全体) のこの作業定義には当てはまらない。"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/(reports)/heatmaps/HeatmapsPage.tsx", line: 45 }
+    suggestion: "reason を not_traceable_in_repo にする。同じリンクを out_of_scope で書いているほかの入口 (replays、settings.websites.websiteId_d、admin.websites.websiteId_d、websites.websiteId_d.settings) とそろえるかは、分析リポジトリの決まりで 1 つに決める。"
   - kind: missing_item
-    severity: low
-    where: callstack/q_get_heatmap/io/1/fields
     resolved: true
-    claim: "PostgreSQL の website_event の読み取りに、コードに固定で書いてある列が欠けている。直帰の除外の join (prisma.ts 246〜251 行) が絞る event_type と、イベントのプロパティの絞り込み (prisma.ts 574 行) が結ぶ event_id が無い。detail と evidence (prisma.ts 243 行) では直帰の除外の join に触れていて、ClickHouse の側 (io/7) では同じ直帰の除外の列 (event_type など) を書いているので、食い違っている"
-    evidence: { file: src/lib/prisma.ts, line: 246 }
-    suggestion: "io/1 の fields に {name: event_type, use: [filter]} と {name: event_id, use: [filter]} を足し、note に、直帰の除外またはイベントのプロパティの絞り込みがあるときだけと書く"
-  - kind: missing_item
     severity: low
-    where: callstack/q_get_heatmap/io/6/fields
-    resolved: true
-    claim: "ClickHouse の website_event の読み取りに、イベントのプロパティの絞り込みが結ぶ列 website_event.event_id (clickhouse.ts 538 行) が無い。この列は固定で書いてあり、実行時に組み立てる比べる値の列ではない"
-    evidence: { file: src/lib/clickhouse.ts, line: 538 }
-    suggestion: "io/6 の fields に {name: event_id, use: [filter]} を足し、URL にイベントのプロパティの絞り込みがあるときだけと note に書く"
-  - kind: missing_item
-    severity: low
-    where: callstack/q_website_date_range
-    resolved: true
-    claim: "getWebsiteDateRange の PostgreSQL 側も、同じ rawQuery (prisma.ts 737〜746 行) を通るので、DATABASE_REPLICA_URL があれば複製の DB に送られる。それなのに、この設定は getHeatmap の段にしか書いていない。同じ画面で、同じ仕組みの設定が段によって書かれたり書かれなかったりしている"
-    evidence: { file: src/lib/prisma.ts, line: 738 }
-    suggestion: "q_website_date_range の settings に、q_get_heatmap と同じ書き方で DATABASE_REPLICA_URL を足す (根拠は getWebsiteDateRange.ts 23 行と prisma.ts 738・55 行)。ほかの入口のように raw SQL の external の段にそろえて書くのでもよい"
-notes: "指摘にはしなかったが伝えておくこと。(1) unknown + not_analyzed で閉じた 2 つのフレーム (website_filter_button、segment_filter_fields) は、どちらも note に、どこまで読んだかと、なぜ止めたかがある。分析の癖とプロファイルの context.md は打ち切りを禁じていないので、指摘にしていない (続きを分析するかは人が決める)。(2) アップグレードのボタンの行き先は CLOUD_URL で決まるが、settings には書かず、links の note で触れている。同じボタンを持つほかの入口 (settings.websites.websiteId_d、admin.websites.websiteId_d) も同じ書き方なので、指摘にしていない。(3) API_URL を、最初に API を呼ぶ useSubscription ではなく useDateRangeQuery に書いている。/auth で始まる URL には API_URL が効かない (api-url.ts 6・39 行) ことをコードで確かめたので、効く最初の段に書く扱いは妥当と判断した。分析の癖の文に、この例外を足すとよい。(4) 書き直したフレーム (_rw) と、同じ処理の置き場 (入口からコードの順に深さ優先) は、HeatmapsPage の 23・57・102 行と WebsiteControls の 35・40・46 行の順で確かめ、決まりどおりだった。(5) 根拠の行は、page.tsx・HeatmapsPage.tsx・Heatmap.tsx・heatmaps/route.ts・daterange/route.ts・segments/route.ts (POST)・segments/[segmentId]/route.ts (GET)・auth/subscription/route.ts・getHeatmap.ts・getWebsiteDateRange.ts・share.ts・website.ts・team.ts・entity.ts・request.ts・auth.ts・api-key.ts・load.ts・redis.ts・db.ts・prisma.ts・clickhouse.ts・useSubscription.ts・useAnalyticsQuery.ts・useApi.ts・api-url.ts・SegmentEditForm.tsx・FilterBar.tsx・WebsiteControls.tsx・PropertyFilters.tsx・prisma/schema.prisma (各モデルの @@map の行)・db/clickhouse/schema.sql で開いて確かめ、上の指摘のほかは主張と合っていた。"
+    where: "callstack/heatmaps_page"
+    claim: "HeatmapsPage のアップグレードのボタンの行き先は環境変数 CLOUD_URL で変わるが、settings に CLOUD_URL が無い (links/0 の note に書いてあるだけ)。layout_l.main_g の結果は、同じ値で行き先が変わる段の settings に CLOUD_URL を書いている。"
+    evidence: { file: "next.config.ts", line: 17 }
+    suggestion: "heatmaps_page の settings に CLOUD_URL (kind env。effect は、クラウドモードで replays の機能が無いときに出るアップグレードのボタンが、別タブで開く請求の画面のホストを決める。根拠は HeatmapsPage.tsx 45 行と next.config.ts 17 行・218 行) を足す。"
+notes: "機械チェック (validate result) は OK (プロファイルは作業定義の profile.dir から読めた)。WebsiteControls は、決まり (共有の部品) のとおり heatmaps_page で止めて embed (entry_id part_p.shared_a.WebsiteControls、status fact、根拠は 4 行の import と 57 行の描く行) を書いていて、中を辿っていないことは指摘していない。渡す値 (websiteId だけ) と、そこから決まる部品の既定 (WebsiteControls.tsx 12〜17 行、28 行) も summary に書いてあり、コードと合う。共通の段は決まりどおり: checkAuth に CLOUD_MODE と REDIS_URL の settings、API キーの枝の rules 1 行、その下の getUser。canViewWebsite と canViewTeam の guards は、role (user.isAdmin) と ownership (関数の名前) の 2 件ずつ。BASE_PATH は最初に API を呼ぶ useSubscription に、API_URL は /auth 以外を最初に呼ぶ useHeatmapQuery に 1 回ずつ (api-url.ts 6・39 行のとおり /auth には API_URL が効かないので、決まりの「木の書き方」の API_URL の行と合う)。useDateParameters / useDateRange は API を呼ばない (URL のクエリと localStorage だけ) ので、useHeatmapQuery の前に API の段が無いことも確かめた。根拠の行は、page.tsx、HeatmapsPage.tsx、Heatmap.tsx (68・77・84・104〜121・1012〜1050 行)、useSubscription.ts、subscription/route.ts、heatmaps/route.ts、share.ts、website.ts、entity.ts、request.ts、auth.ts、load.ts、redis.ts、getHeatmap.ts (PostgreSQL と ClickHouse の 3 つの問い合わせ、getIframeSnapshot、絞り込みの結合 869〜947 行)、prisma.ts と clickhouse.ts の絞り込みの部分、schema.prisma の @@map の行を開いて、主張を支えていることを確かめた。指摘にしなかったこと: (a) canViewAuthenticatedWebsite の guards (kind other、value auth?.user) は、ほかの入口の結果と同じ綴り。(b) DATABASE_REPLICA_URL の status は interpretation だが、prisma.ts 738 行と 55 行・861 行にまたがる読み取りなので、そのままでよい。(c) Heatmap の iframe の読み込みの unknown + dynamic_dispatch は、ホストが DB の website.domain から実行時に組み立てられるので、理由は合っている。(d) getQueryFilters からの fetchAccount と、getHeatmap からの getWebsite を、最初に着いた呼び出し元の下だけに書き、ほかは summary に「同じ経路」と書いているのは、決まりの重複の扱いに合う。"

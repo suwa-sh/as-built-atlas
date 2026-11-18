@@ -18,7 +18,7 @@ analyzer:
     version: "0.4.0"
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T21:59:08Z"
+  analyzed_at: "2026-11-18T20:00:57Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T11:47:00Z"
@@ -47,7 +47,7 @@ summary:
     line: 75
   - file: "src/app/api/record/route.ts"
     line: 104
-notes: "(1) 入口は page のフレーム 1 つ。画面を包む枠 (ルートと (main) の layout) の処理は、枠の入口の結果にあるので、辿っていない。(2) 計測と記録のスクリプトの扱い: TestConsolePage は、2 つのスクリプトを import ではなく <Script src> で読み込む。プロファイルは「画面を通らない計測の受信は対象にしない」と決めているが、この画面は、計測を試すために、自分でスクリプトを読み込んで window.umami を呼ぶ画面なので、スクリプトのソース (src/tracker/index.ts、src/recorder/index.js。rollup の設定で public/script.js / public/recorder.js になる) を component の層のフレーム (kind: script) にして、送信先の受け口 (POST /api/send、GET recorder、POST /api/record) から、保存の終端まで辿った。スクリプトの読み込みそのもの (同じサーバーの静的なファイル) は、段にも読み書きにも書いていない。スクリプトと受け口のつながりは、作るときの置き換え (__COLLECT_API_HOST__ / __COLLECT_API_ENDPOINT__) と、読み込んだ URL のホストで決まるので、tracker と api_send の call は interpretation にした。/script.js が別の URL へ転送される設定 (TRACKER_SCRIPT_URL、本番の CLOUD_MODE) のときは、動くスクリプトが変わりうる。TRACKER_SCRIPT_URL の転送先は、値がリポジトリに無いので unknown (not_traceable_in_repo) にした。(3) フレームにしなかったもの: PageBody / PageHeader / Panel / Link / Button など (見た目だけ)、useApi (URL とヘッダーを組み立てるだけ。API_URL の設定は、これを使う 4 つのフックに書いた)、useDateRange / useDateParameters / useFilterParameters / useTimezone / useNavigation / useLocale (URL と画面の状態から期間や絞り込みを作るだけ)、PageviewsChart / BarChart / LoadingPanel (描くだけ)、受け口の中の補助の関数 (parseToken / createToken、isbot、hasBlockedIp、getRecorderConfig、getReplayEventCount、withCorsHeaders)。hasBlockedIp の設定 (IGNORE_IP) は、呼ぶ受け口に書いた。(4) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた: parseRequest → checkAuth → getUser と、canViewWebsite → getEntity → getWebsite / getLink / getPixel / getBoard、getTeamUser は、最初に着く GET /api/websites/[websiteId] の下。fetchWebsite と getClientInfo は POST /api/send の下、fetchAccount は POST /api/record の下 (getQueryFilters からは、summary で指した)。呼び先がすべて他の下にあって終端になる 3 か所 (GET recorder、canViewSharedWebsiteFilters、canViewWebsiteSection) は、読み書きを持つ最初の段 (getWebsite) までを、もう一度書いた (id が _rw1 / _rw2 / _rw3 で終わるフレーム。確認・設定・ルールは繰り返していない)。(5) external のフレームは、既にある結果に合わせて、呼ぶ問い合わせの関数ごとに書いた (同じ行 prisma.ts:746、clickhouse.ts:737、kafka.ts:128 を、関数ごとに違うテーブルやトピックで呼ぶため)。(6) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は書いていない。ブラウザのフックが付けるのはログイントークン (useApi.ts:28) と読んだため。共有トークンのヘッダーは、ブラウザの store に share があるときだけ付く (useApi.ts:22-25)。この画面でそれが起きないとは言い切れないので、共有トークンの確認も書いた。(7) この入口からは条件が成り立たないように見えるが、消さずに conditional で書いたもの: GET annotations (WebsiteChart に showAnnotations を渡さない)、saveSessionLink / updateSession (この画面は、利用者の id を付けずに identify を呼ぶ)。(8) 接続先の段 (host、database、broker) は、プロファイルの決まりどおり書いていない。Kafka のトピックの名前と、GeoLite2 のファイルの既定のパスは、コードから読めるので書いた。DATABASE_URL は、決まりどおり設定に書いていない。(9) ClickHouse を使うとき、売上 (revenue) を別に保存する処理は、アプリのコードには無い (saveRevenue は PostgreSQL だけ)。ClickHouse の側で website_event から作る表があるかは、db/clickhouse/schema.sql の表の定義の行しか読んでいないので、書いていない。(11) レビューの指摘の扱い: canViewWebsite の中の共有トークンの確認 (website.ts:13-21) は、別の確認 (kind は other) にしていたのを、ほかの入口の結果 (settings.websites.websiteId_d など) と同じく、持ち主・所属の確認 (canViewWebsite) の根拠と note にまとめた (直した)。share.ts の 3 つの関数の確認の値 (関数の名前) は直していない: いまの結果では、links.linkId_d を含むどの入口も同じ関数の名前で書いていて、綴りはそろっているため。(10) ブラウザの中の保存 (localStorage の umami.disabled、ログイントークン) は、決まりどおり I/O に書いていない。"
+notes: "(1) 入口は page のフレーム 1 つ。画面を包む枠 (ルートと (main) の layout) の処理は、枠の入口の結果にあるので、辿っていない。(2) 計測と記録のスクリプトの扱い: TestConsolePage は、2 つのスクリプトを import ではなく <Script src> で読み込む。プロファイルは「画面を通らない計測の受信は対象にしない」と決めているが、この画面は、計測を試すために、自分でスクリプトを読み込んで window.umami を呼ぶ画面なので、スクリプトのソース (src/tracker/index.ts、src/recorder/index.js。rollup の設定で public/script.js / public/recorder.js になる) を component の層のフレーム (kind: script) にして、送信先の受け口 (POST /api/send、GET recorder、POST /api/record) から、保存の終端まで辿った。スクリプトの読み込みそのもの (同じサーバーの静的なファイル) は、段にも読み書きにも書いていない。スクリプトと受け口のつながりは、作るときの置き換え (__COLLECT_API_HOST__ / __COLLECT_API_ENDPOINT__) と、読み込んだ URL のホストで決まるので、tracker と api_send の call は interpretation にした。/script.js が別の URL へ転送される設定 (TRACKER_SCRIPT_URL、本番の CLOUD_MODE) のときは、動くスクリプトが変わりうる。TRACKER_SCRIPT_URL の転送先は、値がリポジトリに無いので unknown (not_traceable_in_repo) にした。(3) フレームにしなかったもの: PageBody / PageHeader / Panel / Link / Button など (見た目だけ)、useApi (URL とヘッダーを組み立てるだけ。API_URL の設定は、これを使う 4 つのフックに書いた)、useDateRange / useDateParameters / useFilterParameters / useTimezone / useNavigation / useLocale (URL と画面の状態から期間や絞り込みを作るだけ)、PageviewsChart / BarChart / LoadingPanel (描くだけ)、受け口の中の補助の関数 (parseToken / createToken、isbot、hasBlockedIp、getRecorderConfig、getReplayEventCount、withCorsHeaders)。hasBlockedIp の設定 (IGNORE_IP) は、呼ぶ受け口に書いた。(4) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた: parseRequest → checkAuth → getUser と、canViewWebsite → getEntity → getWebsite / getLink / getPixel / getBoard、getTeamUser は、最初に着く GET /api/websites/[websiteId] の下。fetchWebsite と getClientInfo は POST /api/send の下、fetchAccount は POST /api/record の下 (getQueryFilters からは、summary で指した)。呼び先がすべて他の下にあって終端になる 3 か所 (GET recorder、canViewSharedWebsiteFilters、canViewWebsiteSection) は、読み書きを持つ最初の段 (getWebsite) までを、もう一度書いた (id が _rw1 / _rw2 / _rw3 で終わるフレーム。確認・設定・ルールは繰り返していない)。(5) external のフレームは、既にある結果に合わせて、呼ぶ問い合わせの関数ごとに書いた (同じ行 prisma.ts:746、clickhouse.ts:737、kafka.ts:128 を、関数ごとに違うテーブルやトピックで呼ぶため)。(6) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth) は書いていない。ブラウザのフックが付けるのはログイントークン (useApi.ts:28) と読んだため。共有トークンのヘッダーは、ブラウザの store に share があるときだけ付く (useApi.ts:22-25)。この画面でそれが起きないとは言い切れないので、共有トークンの確認も書いた。(7) この入口からは条件が成り立たないように見えるが、消さずに conditional で書いたもの: GET annotations (WebsiteChart に showAnnotations を渡さない)、saveSessionLink / updateSession (この画面は、利用者の id を付けずに identify を呼ぶ)。(8) 接続先の段 (host、database、broker) は、プロファイルの決まりどおり書いていない。Kafka のトピックの名前と、GeoLite2 のファイルの既定のパスは、コードから読めるので書いた。DATABASE_URL は、決まりどおり設定に書いていない。(9) ClickHouse を使うとき、売上 (revenue) を別に保存する処理は、アプリのコードには無い (saveRevenue は PostgreSQL だけ)。ClickHouse の側で website_event から作る表があるかは、db/clickhouse/schema.sql の表の定義の行しか読んでいないので、書いていない。(11) レビューの指摘の扱い: canViewWebsite の中の共有トークンの確認 (website.ts:13-21) は、別の確認 (kind は other) にしていたのを、ほかの入口の結果 (settings.websites.websiteId_d など) と同じく、持ち主・所属の確認 (canViewWebsite) の根拠と note にまとめた (直した)。share.ts の 3 つの関数の確認の値 (関数の名前) は直していない: いまの結果では、links.linkId_d を含むどの入口も同じ関数の名前で書いていて、綴りはそろっているため。(10) ブラウザの中の保存 (localStorage の umami.disabled、ログイントークン) は、決まりどおり I/O に書いていない。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。"
 callstack:
 - id: "page"
   layer: "page"
@@ -523,6 +523,23 @@ callstack:
     - file: "src/lib/constants.ts"
       line: 13
     note: "checkAuth が呼ぶ補助の関数 parseShareToken (フレームにしていない) の中の検証"
+  - kind: "validation"
+    value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+    status: "fact"
+    evidence:
+    - file: "src/lib/auth.ts"
+      line: 74
+    - file: "src/lib/auth.ts"
+      line: 75
+    - file: "src/lib/api-key.ts"
+      line: 4
+    - file: "src/lib/api-key.ts"
+      line: 11
+    - file: "src/lib/api-key.ts"
+      line: 33
+    - file: "src/lib/auth.ts"
+      line: 35
+    note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この画面のブラウザはログイントークンを付ける (useApi.ts:28) ので、この枝には入らない"
 - id: "q_get_user"
   layer: "query"
   kind: "function"
@@ -5168,24 +5185,6 @@ callstack:
       line: 37
     - file: "src/app/(main)/websites/[websiteId]/WebsiteChart.tsx"
       line: 38
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "fact"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 39
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_annotations_get"
   layer: "api_route"
   kind: "route_handler"
@@ -5565,24 +5564,6 @@ callstack:
       line: 42
     - file: "src/app/(main)/console/[websiteId]/TestConsolePage.tsx"
       line: 205
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "fact"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 39
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_pageviews"
   layer: "api_route"
   kind: "route_handler"
@@ -6775,24 +6756,6 @@ callstack:
       line: 21
     - file: "src/components/hooks/queries/useWebsiteEventsSeriesQuery.ts"
       line: 29
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
-    status: "fact"
-    evidence:
-    - file: "src/components/hooks/useApi.ts"
-      line: 32
-    - file: "src/lib/api-url.ts"
-      line: 38
-    - file: "src/lib/api-url.ts"
-      line: 39
-    - file: "src/lib/api-url.ts"
-      line: 44
-    - file: "next.config.ts"
-      line: 14
-    - file: "next.config.ts"
-      line: 215
 - id: "api_events_series"
   layer: "api_route"
   kind: "route_handler"

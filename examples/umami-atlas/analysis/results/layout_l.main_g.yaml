@@ -16,7 +16,7 @@ analyzer:
     version: "0.4.0"
   skill_version: "0.4.0"
   model: "claude-fable-5-2"
-  analyzed_at: "2026-11-17T10:23:23Z"
+  analyzed_at: "2026-11-18T20:15:10Z"
   reviewed:
     by: "claude-fable-5-2 (fresh context)"
     at: "2026-11-17T10:22:39Z"
@@ -41,7 +41,7 @@ summary:
   - {file: "src/app/(main)/App.tsx", line: 87}
   - {file: "src/app/(main)/TopNav.tsx", line: 53}
   - {file: "src/components/hooks/useNavigation.ts", line: 13}
-notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる画面) と、外側のルートの layout (src/app/layout.tsx)、内側の admin / settings / websites/[websiteId] の layout は、別の入口なので辿らない。(2) フレームにしなかったもの: GET /api/config (useConfig。skipAuth で環境変数を返すだけで、データにもライブラリにも届かないので、終端の決まりを満たすフレームにできない)、SideNav / MobileNav / WebsiteNav / SettingsNav / AdminNav / useWebsiteNavItems (リンクを並べるだけ)、TeamsButton (ログインで得た user.teams を出すだけ)、UserButton (ログインのユーザーと設定値、言語と見た目の切り替え。言語の JSON は public/intl の静的ファイルで、翻訳のライブラリと同じ扱い)、TwoFactorSetupModal の取り消し (App は required={true} で描くので、cancel のボタンが出ない)、checkAuth の API キーの枝 (ブラウザが付けるのは、localStorage のログイントークン。src/lib/client.ts:4)。(3) フレームにしなかった部品が持つ、ほかの画面へのリンクと、動きを変える設定は、それを描くフレームに書いた (SideNav / MobileNav / WebsiteNav / SettingsNav / AdminNav / UserButton の分は app_shell、TeamsButton の分は top_nav)。指示書は、設定と業務のルールについて「段になっていない補助の関数にあるときは、それを呼ぶ段に書く」と決めているが、リンクについては決めていない。同じ考え方を当てはめた。外部のサイトを開くだけのリンク (ドキュメント、リリースのページ) は、ほかの入口ではないので、links に書いていない。(4) クラウドモードのときの移動先 (${process.env.cloudUrl} が前に付く) は、値をリポジトリから読めないので、式をそのまま target に書いて unknown (not_traceable_in_repo) にした (app_shell に 2 件、top_nav に 1 件)。(5) 環境変数 UMAMI_SELF_TRACK / UMAMI_SELF_RECORD があるとき、App は /script.js と /recorder.js を読み込み、この画面自身を計測させるが、計測の受信は、このプロファイルの対象外 (context.md の「画面を通らない受け口 (外部向け API、計測の受信) は、分析の対象にならない」) なので、辿っていない。設定としてだけ app_shell に書いた。(6) URL の接頭辞: /auth と /config は、常に basePath + /api。それ以外は、環境変数 API_URL があると、その URL に向く (src/lib/api-url.ts:39)。URL の文字列がコードにそのまま読め、当たる route が 1 つに決まる呼び出しは fact にし、API_URL は、API を呼ぶフックのフレームに settings として書いた。teamId の有無で URL が切り替わる一覧の呼び出しは、context.md の決まりどおり interpretation (note に「引数で切り替わる」) にした。(7) 同じ処理の置き場は、context.md の「入口から辿る順」(コードに書いてある順の深さ優先) で決めた: parseRequest → checkAuth → getUser は、最初に着く POST /api/auth/verify (App.tsx:21 の useLoginQuery) の下。canViewTeam → getTeamUser は、GET /api/teams/[teamId] (App.tsx:24 の useTeamQuery) の下。getWebsite / getLink / getPixel / getBoard は、getEntity (TopNav の最初の選択欄 WebsiteSelect → canViewWebsite) の下。一覧の pagedQuery のライブラリの呼び出しは、同じ行で左に書いてあるチームの一覧 (teamId ? `/teams/…` : …) の下。canViewLink / canViewPixel / canViewBoard は、呼び先 (getXxx と getTeamUser) がどちらもほかの呼び出し元の下に書いた処理なので、決まりどおり、先に呼ぶ getXxx を、ライブラリの呼び出しまでもう一度書いた (q_get_link_rw / q_get_pixel_rw / q_get_board_rw)。(8) src/lib/two-factor の rate-limit.ts と replay-prevention.ts は、関数ごとに呼び出しの条件が違う (recordFailedAttempt は、コードが合わなかったときだけ) ので、ファイル単位ではなく、関数ごとにフレームを分けた。recordFailedAttempt の when は、業務の分かれ道 (入力したコードの照合の結果) とみて conditional にした (処理の失敗の後始末とみれば on_failure とも読める)。(9) POST /api/2fa/setup/initiate と confirm の手前の、CLOUD_MODE と暗号鍵による打ち切りは、設定による切り替えだが、この小窓が開く条件 (GET /api/2fa/status が isRequired を返す) と同じ設定なので、その先の呼び出しは always にし、note に理由を書いた。GET /api/2fa/status の中の CLOUD_MODE の分かれ道は、その先のライブラリの呼び出しを conditional にした。(10) /me/websites (useUserWebsitesQuery の第 3 の枝) には届かない。TopNav は、App がユーザーを得てから描くので、userId が常にある (App.tsx:54)。getAllUserWebsitesIncludingTeamAccess も、TopNav が includeTeams を渡さないので届かない。(11) useNavigation の正規表現は、末尾を固定していない ([a-f0-9-]+) ので、/boards/create では boardId が c になり、BoardSelect が描かれて GET /api/boards/c を呼ぶ。board.id は uuid の列 (prisma/schema.prisma:382) で、getBoard は id の形を確かめずに findUnique するので、c で探すと uuid の形の誤りで失敗し、ボードの選択欄は名前を出せないと読める (実行しての確認はしていない)。データの読み書きの先 (board の read) は変わらない。(12) DB の接続先を決める DATABASE_URL は、クライアントを作る共通のファイル (src/lib/prisma.ts) が読み、どの入口でも同じなので、settings に書いていない (接続先の段を書かないのと同じ扱い)。(13) テストとの対応は、作業定義の analysis.tests が無いので、分析していない。(14) レビューの指摘 4 件 (どれも low) は、すべて直した: 入口の概要の「何も描かない」を、読み込み中 (Loading) と失敗のとき (何も描かない) に書き分けた。SettingsNav / AdminNav のリンクの note を、SideNav と MobileNav で条件が違うことが分かるように直し、根拠の行を足した。app_shell の CLOUD_MODE と CLOUD_URL の effect に、UserButton の分を足した。"
+notes: "(1) 入口は layout (layer: layout) のフレーム 1 つ。children (包まれる画面) と、外側のルートの layout (src/app/layout.tsx)、内側の admin / settings / websites/[websiteId] の layout は、別の入口なので辿らない。(2) フレームにしなかったもの: GET /api/config (useConfig。skipAuth で環境変数を返すだけで、データにもライブラリにも届かないので、終端の決まりを満たすフレームにできない)、SideNav / MobileNav / WebsiteNav / SettingsNav / AdminNav / useWebsiteNavItems (リンクを並べるだけ)、TeamsButton (ログインで得た user.teams を出すだけ)、UserButton (ログインのユーザーと設定値、言語と見た目の切り替え。言語の JSON は public/intl の静的ファイルで、翻訳のライブラリと同じ扱い)、TwoFactorSetupModal の取り消し (App は required={true} で描くので、cancel のボタンが出ない)、checkAuth の API キーの枝 (ブラウザが付けるのは、localStorage のログイントークン。src/lib/client.ts:4)。(3) フレームにしなかった部品が持つ、ほかの画面へのリンクと、動きを変える設定は、それを描くフレームに書いた (SideNav / MobileNav / WebsiteNav / SettingsNav / AdminNav / UserButton の分は app_shell、TeamsButton の分は top_nav)。指示書は、設定と業務のルールについて「段になっていない補助の関数にあるときは、それを呼ぶ段に書く」と決めているが、リンクについては決めていない。同じ考え方を当てはめた。外部のサイトを開くだけのリンク (ドキュメント、リリースのページ) は、ほかの入口ではないので、links に書いていない。(4) クラウドモードのときの移動先 (${process.env.cloudUrl} が前に付く) は、値をリポジトリから読めないので、式をそのまま target に書いて unknown (not_traceable_in_repo) にした (app_shell に 2 件、top_nav に 1 件)。(5) 環境変数 UMAMI_SELF_TRACK / UMAMI_SELF_RECORD があるとき、App は /script.js と /recorder.js を読み込み、この画面自身を計測させるが、計測の受信は、このプロファイルの対象外 (context.md の「画面を通らない受け口 (外部向け API、計測の受信) は、分析の対象にならない」) なので、辿っていない。設定としてだけ app_shell に書いた。(6) URL の接頭辞: /auth と /config は、常に basePath + /api。それ以外は、環境変数 API_URL があると、その URL に向く (src/lib/api-url.ts:39)。URL の文字列がコードにそのまま読め、当たる route が 1 つに決まる呼び出しは fact にし、API_URL は、API を呼ぶフックのフレームに settings として書いた。teamId の有無で URL が切り替わる一覧の呼び出しは、context.md の決まりどおり interpretation (note に「引数で切り替わる」) にした。(7) 同じ処理の置き場は、context.md の「入口から辿る順」(コードに書いてある順の深さ優先) で決めた: parseRequest → checkAuth → getUser は、最初に着く POST /api/auth/verify (App.tsx:21 の useLoginQuery) の下。canViewTeam → getTeamUser は、GET /api/teams/[teamId] (App.tsx:24 の useTeamQuery) の下。getWebsite / getLink / getPixel / getBoard は、getEntity (TopNav の最初の選択欄 WebsiteSelect → canViewWebsite) の下。一覧の pagedQuery のライブラリの呼び出しは、同じ行で左に書いてあるチームの一覧 (teamId ? `/teams/…` : …) の下。canViewLink / canViewPixel / canViewBoard は、呼び先 (getXxx と getTeamUser) がどちらもほかの呼び出し元の下に書いた処理なので、決まりどおり、先に呼ぶ getXxx を、ライブラリの呼び出しまでもう一度書いた (q_get_link_rw / q_get_pixel_rw / q_get_board_rw)。(8) src/lib/two-factor の rate-limit.ts と replay-prevention.ts は、関数ごとに呼び出しの条件が違う (recordFailedAttempt は、コードが合わなかったときだけ) ので、ファイル単位ではなく、関数ごとにフレームを分けた。recordFailedAttempt の when は、業務の分かれ道 (入力したコードの照合の結果) とみて conditional にした (処理の失敗の後始末とみれば on_failure とも読める)。(9) POST /api/2fa/setup/initiate と confirm の手前の、CLOUD_MODE と暗号鍵による打ち切りは、設定による切り替えだが、この小窓が開く条件 (GET /api/2fa/status が isRequired を返す) と同じ設定なので、その先の呼び出しは always にし、note に理由を書いた。GET /api/2fa/status の中の CLOUD_MODE の分かれ道は、その先のライブラリの呼び出しを conditional にした。(10) /me/websites (useUserWebsitesQuery の第 3 の枝) には届かない。TopNav は、App がユーザーを得てから描くので、userId が常にある (App.tsx:54)。getAllUserWebsitesIncludingTeamAccess も、TopNav が includeTeams を渡さないので届かない。(11) useNavigation の正規表現は、末尾を固定していない ([a-f0-9-]+) ので、/boards/create では boardId が c になり、BoardSelect が描かれて GET /api/boards/c を呼ぶ。board.id は uuid の列 (prisma/schema.prisma:382) で、getBoard は id の形を確かめずに findUnique するので、c で探すと uuid の形の誤りで失敗し、ボードの選択欄は名前を出せないと読める (実行しての確認はしていない)。データの読み書きの先 (board の read) は変わらない。(12) DB の接続先を決める DATABASE_URL は、クライアントを作る共通のファイル (src/lib/prisma.ts) が読み、どの入口でも同じなので、settings に書いていない (接続先の段を書かないのと同じ扱い)。(13) テストとの対応は、作業定義の analysis.tests が無いので、分析していない。(14) レビューの指摘 4 件 (どれも low) は、すべて直した: 入口の概要の「何も描かない」を、読み込み中 (Loading) と失敗のとき (何も描かない) に書き分けた。SettingsNav / AdminNav のリンクの note を、SideNav と MobileNav で条件が違うことが分かるように直し、根拠の行を足した。app_shell の CLOUD_MODE と CLOUD_URL の effect に、UserButton の分を足した。共通の段の書き方を、分析リポジトリの決まりにそろえた (ログインの確認の設定と規則、持ち主の確認の中の管理者の確認、API_URL / BASE_PATH の置き場)。直したのは、その項目だけ。"
 callstack:
 - id: "layout"
   layer: "layout"
@@ -738,6 +738,17 @@ callstack:
     - {file: "src/lib/auth.ts", line: 128}
     - {file: "src/lib/auth.ts", line: 129}
     - {file: "src/lib/auth.ts", line: 131}
+  - kind: "decision"
+    value: "トークンが API キーの形 (API_KEY_PREFIX の umami_ で始まる) なら、署名付きトークンとしてではなく、API キーとして認証する (checkApiKeyAuth)。API キーは、アカウントの資格情報や管理の状態を扱うパス (API_KEY_BLOCKED_PATHS。/api/auth、/api/users など) では使えない"
+    status: "fact"
+    evidence:
+    - {file: "src/lib/auth.ts", line: 74}
+    - {file: "src/lib/auth.ts", line: 75}
+    - {file: "src/lib/api-key.ts", line: 4}
+    - {file: "src/lib/api-key.ts", line: 11}
+    - {file: "src/lib/api-key.ts", line: 33}
+    - {file: "src/lib/auth.ts", line: 35}
+    note: "analysis-conventions.md のとおり、API キーの枝はフレームにせず、ここに 1 行だけ書いた。この入口のブラウザはログイントークンを付ける (useApi.ts:28、client.ts:4) ので、この枝には入らない"
 - id: "q_get_user"
   layer: "query"
   kind: "function"
@@ -991,6 +1002,12 @@ callstack:
     - {file: "src/permissions/team.ts", line: 11}
     - {file: "src/permissions/team.ts", line: 15}
     note: "user.isAdmin か、チームのメンバー (getTeamUser(teamId, user.id) が行を返す)"
+  - kind: "role"
+    value: "user.isAdmin"
+    status: "fact"
+    evidence:
+    - {file: "src/permissions/team.ts", line: 11}
+    note: "管理者なら、チームのメンバーかを見ずに許す"
 - id: "q_get_team_user"
   layer: "query"
   kind: "function"
@@ -1157,17 +1174,6 @@ callstack:
     - {file: "src/components/hooks/queries/useTwoFactorStatusQuery.ts", line: 18}
     - {file: "src/components/hooks/queries/useTwoFactorStatusQuery.ts", line: 19}
     - {file: "src/components/hooks/useApi.ts", line: 42}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_2fa_status"
   layer: "api_route"
   kind: "route_handler"
@@ -1500,17 +1506,6 @@ callstack:
     - {file: "src/components/hooks/queries/useWebsiteQuery.ts", line: 12}
     - {file: "src/components/hooks/queries/useWebsiteQuery.ts", line: 13}
     - {file: "src/components/hooks/useApi.ts", line: 42}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_website_get"
   layer: "api_route"
   kind: "route_handler"
@@ -1594,6 +1589,12 @@ callstack:
     - {file: "src/permissions/website.ts", line: 35}
     - {file: "src/permissions/website.ts", line: 37}
     note: "user.isAdmin、共有トークンの対象、entity.userId が本人 (user.id === entity.userId)、または entity.teamId のチームのメンバー (getTeamUser が行を返す) のどれか"
+  - kind: "role"
+    value: "user.isAdmin"
+    status: "fact"
+    evidence:
+    - {file: "src/permissions/website.ts", line: 9}
+    note: "管理者なら、共有トークンや持ち主を見ずに許す"
 - id: "q_get_entity"
   layer: "query"
   kind: "function"
@@ -1871,17 +1872,6 @@ callstack:
     - {file: "src/components/hooks/usePagedQuery.ts", line: 24}
     - {file: "src/components/input/WebsiteSelect.tsx", line: 34}
     - {file: "src/app/(main)/App.tsx", line: 54}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_team_websites_get"
   layer: "api_route"
   kind: "route_handler"
@@ -2243,17 +2233,6 @@ callstack:
     - {file: "src/components/hooks/queries/useLinkQuery.ts", line: 11}
     - {file: "src/components/hooks/queries/useLinkQuery.ts", line: 13}
     - {file: "src/components/hooks/useApi.ts", line: 42}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_link_get"
   layer: "api_route"
   kind: "route_handler"
@@ -2389,17 +2368,6 @@ callstack:
     - {file: "src/components/hooks/usePagedQuery.ts", line: 18}
     - {file: "src/components/hooks/usePagedQuery.ts", line: 24}
     - {file: "src/components/input/LinkSelect.tsx", line: 24}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_team_links_get"
   layer: "api_route"
   kind: "route_handler"
@@ -2633,17 +2601,6 @@ callstack:
     - {file: "src/components/hooks/queries/usePixelQuery.ts", line: 11}
     - {file: "src/components/hooks/queries/usePixelQuery.ts", line: 13}
     - {file: "src/components/hooks/useApi.ts", line: 42}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_pixel_get"
   layer: "api_route"
   kind: "route_handler"
@@ -2779,17 +2736,6 @@ callstack:
     - {file: "src/components/hooks/usePagedQuery.ts", line: 18}
     - {file: "src/components/hooks/usePagedQuery.ts", line: 24}
     - {file: "src/components/input/PixelSelect.tsx", line: 24}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_team_pixels_get"
   layer: "api_route"
   kind: "route_handler"
@@ -3012,17 +2958,6 @@ callstack:
     - {file: "src/components/hooks/queries/useBoardQuery.ts", line: 12}
     - {file: "src/components/hooks/queries/useBoardQuery.ts", line: 13}
     - {file: "src/components/hooks/useApi.ts", line: 42}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_board_get"
   layer: "api_route"
   kind: "route_handler"
@@ -3158,17 +3093,6 @@ callstack:
     - {file: "src/components/hooks/usePagedQuery.ts", line: 18}
     - {file: "src/components/hooks/usePagedQuery.ts", line: 24}
     - {file: "src/components/input/BoardSelect.tsx", line: 24}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_team_boards_get"
   layer: "api_route"
   kind: "route_handler"
@@ -3423,17 +3347,6 @@ callstack:
     evidence:
     - {file: "src/components/hooks/queries/useUpdateQuery.ts", line: 9}
     - {file: "src/components/hooks/useApi.ts", line: 49}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_2fa_initiate"
   layer: "api_route"
   kind: "route_handler"
@@ -3586,17 +3499,6 @@ callstack:
     - {file: "src/components/hooks/queries/useUpdateQuery.ts", line: 9}
     - {file: "src/components/hooks/useApi.ts", line: 49}
     - {file: "src/components/modals/TwoFactorSetupModal.tsx", line: 91}
-  settings:
-  - name: "API_URL"
-    kind: "env"
-    effect: "設定すると、このフックの API の呼び出しが、basePath + /api ではなく、その URL に向く (相対の値なら basePath の下。next.config がその道を /api へ書き換える)"
-    status: "fact"
-    evidence:
-    - {file: "src/lib/api-url.ts", line: 38}
-    - {file: "src/lib/api-url.ts", line: 39}
-    - {file: "next.config.ts", line: 14}
-    - {file: "next.config.ts", line: 131}
-    note: "/auth と /config で始まる URL だけは、この設定に関わらず basePath + /api に向く (src/lib/api-url.ts:6)"
 - id: "api_2fa_confirm"
   layer: "api_route"
   kind: "route_handler"

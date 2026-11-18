@@ -18,14 +18,14 @@ analyzer:
     version: 0.4.0
   skill_version: 0.4.1
   model: claude-opus-5-5
-  analyzed_at: '2026-11-18T01:20:55Z'
+  analyzed_at: '2026-11-18T20:36:14Z'
   reviewed:
     by: claude-opus-5-5 (fresh context)
-    at: '2026-11-18T01:16:52Z'
+    at: '2026-11-18T20:35:00Z'
     findings_open: 0
 summary:
   status: interpretation
-  value: 本人のダッシュボード (利用者 1 人に 1 つの、種類 dashboard のボード) を見る画面。GET /api/dashboard で、id が本人の user の id のボードを読み (持ち主が本人でなければ 401)、部品が 1 つも置かれていなければ「空」の案内だけを出す。見出しには、編集の画面 (/dashboard/edit) へのリンクだけを出す。上に、最初の部品の対象 (サイト・ピクセル・リンク) について、期間と絞り込みの操作 (サイトの画面と同じ部品。values / segments / event-data / session-data / daterange の API と、セグメントの保存の POST) を出す。列ごとに、部品の対象の名前を GET /api/websites|pixels|links/<id> で読んでバッジを出し、対象がまだ読めるかを確かめてから、データベースに保存されたダッシュボードの parameters の部品の type で、登録表 (boardComponentRegistry) から部品を引いて描く。部品 16 種類は、それぞれ別の入口として分析するので、この画面では登録表を引く所で止めて、部品へのつながり (embed) だけを書いた。保存 (POST /api/dashboard) は、この画面からは呼ばない (保存は編集の画面)。各 API の認証は、ログイントークンから user を読む (Redis のセッションを使うときは auth:* も読む)
+  value: 本人のダッシュボード (利用者 1 人に 1 つの、種類 dashboard のボード) を見る画面。GET /api/dashboard で、id が本人の user の id のボードを読み (持ち主が本人でなければ 401)、部品が 1 つも置かれていなければ「空」の案内だけを出す。見出しには、編集の画面 (/dashboard/edit) へのリンクだけを出す。上に、最初の部品の対象 (サイト・ピクセル・リンク) について、期間と絞り込みの操作を出す。対象がサイトなら、共有の部品 WebsiteControls (別の入口。embed で指す) を描き、ピクセルとリンクなら PixelControls / LinkControls を描く (values / segments / event-data / session-data / daterange の API と、セグメントの保存の POST)。列ごとに、部品の対象の名前を GET /api/websites|pixels|links/<id> で読んでバッジを出し、対象がまだ読めるかを確かめてから、データベースに保存されたダッシュボードの parameters の部品の type で、登録表 (boardComponentRegistry) から部品を引いて描く。部品 16 種類は、それぞれ別の入口として分析するので、この画面では登録表を引く所で止めて、部品へのつながり (embed) だけを書いた。保存 (POST /api/dashboard) は、この画面からは呼ばない (保存は編集の画面)。各 API の認証は、ログイントークンから user を読む (Redis のセッションを使うときは auth:* も読む)
   evidence:
   - file: src/app/(main)/dashboard/page.tsx
     line: 5
@@ -51,6 +51,8 @@ summary:
     line: 22
   - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
     line: 24
+  - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
+    line: 4
   - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
     line: 26
   - file: src/app/(main)/websites/[websiteId]/segments/SegmentEditForm.tsx
@@ -81,7 +83,7 @@ summary:
     line: 8
   - file: src/lib/auth.ts
     line: 71
-notes: '指示書 0.4.1 とプロファイル 0.4.0 で分析した (入口の一覧に、登録表 boardComponentRegistry の部品 16 件が part の入口として入ったため、分析し直した)。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。(2) どの部品を描くかは、データベースに保存されたダッシュボードの parameters (行と列と部品の type) で決まる。プロファイルの「登録表から選ばれて描かれる部品」のとおり、登録表を引くフレーム BoardComponentRenderer で止め、部品 16 件を links の embed (target は登録表のキー、entry_id は part_p.boardComponentRegistry.<キー>、状態は interpretation) で書いた。部品の中 (集計の API、問い合わせ、注釈、ゴールやファネルの定義) は、部品の入口で分析する。Metrics bar の、対象の種類ごとの部品 (PixelMetricsBar / LinkMetricsBar) を選ぶ判定は、BoardComponentRenderer の rules に書いた。TextBlock は文字を出すだけで入口ではないので、summary に名前を書いただけ。DashboardProvider と BoardViewColumn も getComponentDefinition で登録表を引くが、定義があるかを確かめるだけで部品を描かないので、embed は書いていない。前の結果では部品の中だけで使っていた設定 (DEFAULT_CURRENCY など)・ルール・権限の確認 (canViewReport など) は、部品の入口の側に移るので、この結果からは消えた。(3) 保存の POST /api/dashboard (と、その先の hasValidBoardReports / getReport / updateBoard / createBoard) を消した。DashboardProvider は保存の関数 saveBoard を文脈で渡すが、呼ぶのは編集の画面の DashboardEditHeader だけで、この入口の木の中には呼ぶ所が無い (boards.boardId_d の結果で、BoardProvider の保存をフレームにしていないのと同じ扱い)。固定の値で閉じている呼び出しとは別の理由 (呼ぶ所が無い) なので、閉じている呼び出しの数には入れていない。(4) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。DashboardViewPage.tsx では DashboardProvider (39 行目) が操作 (43 行目) と部品の並び (44 行目) より前なので、認証の経路 (parseRequest → checkAuth → getUser) と getBoard は GET /api/dashboard の下、canViewWebsite → getEntity (getWebsite / getLink / getPixel) と getTeamUser は、操作 (PixelControls) の GET /api/websites/[websiteId]/values の canViewWebsiteSection の下、canViewSharedWebsite は同じ操作の GET /api/websites/[websiteId]/daterange の下になった。この画面には見出しの対象のバッジが無いので、useBoardEntityBadgeProps と BoardEntityBadge / Favicon は、列 (BoardViewColumn) の下が最初の置き場になった。(5) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。このリポジトリの決まりで、external の段までは書かず、確認・設定・ルールも繰り返していない)。GET /api/websites/[websiteId] (バッジと、対象が読めるかの確かめの 2 か所) は、呼び先がすべてほかの置き場にあるので、いちばん早い parseRequest (route.ts:22) から書き直した。canViewPixel / canViewLink の下は、いちばん早い getPixel / getLink を書き直した (前の結果は getTeamUser を書き直していて、レビューで指摘されていた)。(6) 固定の値で閉じている呼び出し (指示書 0.4.1) は 2 種類、4 か所。(a) ExportButton の GET /api/websites/[websiteId]/export (データの書き出し): BoardControls は PixelControls / LinkControls / WebsiteControls に allowDownload を渡さず (BoardControls.tsx:22、24、26)、既定値は false なので、3 つとも ExportButton を描かない。(b) POST /api/websites/[websiteId]/segments/[segmentId] (セグメントの更新): SegmentEditForm を描くのは FilterBar だけで、segmentId を渡さない (FilterBar.tsx:195-200)。GET /api/websites/[websiteId]/values の getWebsiteSegments の枝 (route.ts:48) は迷った: type は、コードに書いた列の一覧 (useFields) か、URL のクエリのうち FILTER_COLUMNS にある名前だけで、どちらにも segment / cohort が無いが、値の一部が URL から来るので、指示書の 3 つの条件の 1 つ目を確かめきれない。そのため閉じている呼び出しとは扱わず、getWebsiteSegments を values の受け口の下に conditional で書き (入口から辿る順で、segments の受け口より先に着く)、成り立たないように見える理由を note に書いた (boards.boardId_d の結果は、この枝をフレームにしていない)。閉じている呼び出しの名前・値・行は、条件を持つフレーム (3 つの操作の部品と SegmentEditForm) の summary に書いた (指示書は「条件を持つフレームの notes に書く」と言うが、フレームの形式に notes が無いので、このリポジトリの決まりのとおり summary に書いた)。状態・保存されたデータ・URL で決まる条件 (URL の /teams/<id>、ボードの種類、イベントのプロパティのタブのパスの条件) は、固定の値ではないので、conditional で書き、成り立たないように見えるものは理由を note に書いた。イベントのプロパティの絞り込み (PropertyFilters の source: event と、その先の event-data/fields・event-data/values) は、前の結果ではフレームにしていなかった (レビューの medium の指摘) が、このリポジトリの決まりに合わせて足した。DashboardProvider の editing の既定値 false、BoardViewBody の showEntityBadges の既定値 true、PixelControls が WebsiteDateFilter に渡す showAllTime={false} は、データに届く呼び出しを閉じないので、数えていない。(7) 操作の部品 (BoardControls から下) と、列の部品 (BoardViewColumn から下) のフレームは、同じコードを通る boards.boardId_d の結果 (指示書 0.4.1、レビュー済み) から、綴りと書き方を写し、置き場だけをこの入口の順に合わせた。GET /api/dashboard の持ち主の確認の値は、dashboard.edit の結果と同じく、肯定の形 (board.userId === auth.user.id) にそろえた (前のレビューの low の指摘)。(8) checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。設定 (CLOUD_MODE) にだけ書いた。(9) 画面から API を呼ぶ URL は、環境変数 API_URL が設定されていると (/auth と /config 以外は) その URL に向く。既定で同じリポジトリの route に当たり、URL の形は文字列で読めるので call は fact にした。API_URL と BASE_PATH は、このリポジトリの決まりのとおり、最初に API を呼ぶフレーム useDashboardQuery にだけ書いた。GET /api/config (useConfig) は、決まりのとおりフレームにしていない。(10) テストとの対応は、作業定義で選ばれていないので分析していない。(11) レビューの指摘は 4 件 (medium 1、low 3) で、すべて直した: canViewSharedWebsite の確認 (kind: other) を q_can_view_shared_website に足した。checkAuth の API キーの枝を rules に 1 行足した。canViewWebsite の呼び出しの when を、3 か所とも always (この画面ではいつもログイン済み) にそろえた。Favicon の io の note の「リファラーのドメイン」を「バッジの対象のサイトのドメイン」に直した。high が無いので、もう一度のレビューはしていない。レビューの後に、自分の見直しで 1 点直した: 上の (6) の getWebsiteSegments の枝を、閉じている呼び出しとして辿らない扱いから、conditional のフレームに替えた (フレームの数と読み書きの数は変わらない。q_get_website_segments を segments の受け口の下から values の受け口の下へ移した)。'
+notes: '指示書 0.4.1 とプロファイル 0.4.0 で分析した。今回は、入口の一覧に共有の部品 WebsiteControls が別の入口 part_p.shared_a.WebsiteControls として入ったのと、この分析リポジトリの決まり (analysis-conventions.md の「どの入口にも出る共通の段」「共有の部品」) が足されたので、分析し直した。前の結果 (140 段、読み書き 62 件) を出発点にし、変えた所の根拠の行は対象のコードで確かめた。(1) 画面を包む枠 ((main) の layout と、そこから描かれる App / TopNav など) は、別の入口なので辿っていない。書いたのは、page.tsx から描く側だけ。(2) 共有の部品: WebsiteControls を描くのは BoardControls だけ (dashboard と boards の画面と、src/components の中を探して、ほかに描く所が無いことを確かめた)。BoardControls (board_controls) で止め、links に embed (target: WebsiteControls、entry_id: part_p.shared_a.WebsiteControls、status: fact。根拠は BoardControls.tsx:4 の import と :26 の描く行) を書いた。前の結果で、WebsiteControls の下に書いていた 9 段 (website_controls から、書き直しの q_check_auth_rw4 まで。読み書き 1 件) は外した。BoardControls が WebsiteControls に渡す値 (websiteId だけ) と、それで出る操作・出ない操作は、board_controls の summary に書いた。PixelControls と LinkControls は、WebsiteControls と同じ中の部品 (WebsiteFilterButton、WebsiteDateFilter、FilterBar) を描くが、別のコンポーネントで、共有の部品の入口ではないので、これまでどおり辿った (迷った点。決まりは「WebsiteControls の中は辿らない」とだけ言い、同じ中の部品を描く別のコンポーネントの扱いは書いていない)。そのため、絞り込みと期間の木は、入口から辿る順で最初に着く PixelControls (BoardControls.tsx:22) の下に、そのまま残った。(3) どの部品を描くかは、データベースに保存されたダッシュボードの parameters (行と列と部品の type) で決まる。プロファイルの「登録表から選ばれて描かれる部品」のとおり、登録表を引くフレーム BoardComponentRenderer で止め、部品 16 件を links の embed (target は登録表のキー、entry_id は part_p.boardComponentRegistry.<キー>、状態は interpretation) で書いた。Metrics bar の、対象の種類ごとの部品 (PixelMetricsBar / LinkMetricsBar) を選ぶ判定は、BoardComponentRenderer の rules に書いた。TextBlock は文字を出すだけで入口ではないので、summary に名前を書いただけ。DashboardProvider と BoardViewColumn も getComponentDefinition で登録表を引くが、定義があるかを確かめるだけで部品を描かないので、embed は書いていない。(4) 保存の POST /api/dashboard は書いていない。DashboardProvider は保存の関数 saveBoard を文脈で渡すが、呼ぶのは編集の画面の DashboardEditHeader だけで、この入口の木の中には呼ぶ所が無い。固定の値で閉じている呼び出しとは別の理由 (呼ぶ所が無い) なので、閉じている呼び出しの数には入れていない。(5) 同じ関数は、入口から、コードに書いてある順に深さ優先で辿って最初に着いた呼び出し元の下に 1 回だけ書いた。認証の経路 (parseRequest → checkAuth → getUser) と getBoard は GET /api/dashboard の下、canViewWebsite → getEntity (getWebsite / getLink / getPixel) と getTeamUser は、PixelControls の GET /api/websites/[websiteId]/values の canViewWebsiteSection の下、canViewSharedWebsite は同じ操作の GET /api/websites/[websiteId]/daterange の下。useBoardEntityBadgeProps と BoardEntityBadge / Favicon は、列 (BoardViewColumn) の下。(6) 呼び出し元が終端になる所は、いちばん早い呼び先を、読み書きを持つ最初の段までもう一度書いた (id に _rw が付くフレーム。external の段までは書かず、確認・設定・ルールも繰り返していない)。(7) 固定の値で閉じている呼び出し (指示書 0.4.1) は 2 種類、3 か所。(a) ExportButton の GET /api/websites/[websiteId]/export (データの書き出し): BoardControls は PixelControls / LinkControls に allowDownload を渡さず (BoardControls.tsx:22、24)、既定値は false なので、2 つとも ExportButton を描かない (WebsiteControls の中の ExportButton は、部品の入口の側で扱う)。(b) POST /api/websites/[websiteId]/segments/[segmentId] (セグメントの更新): SegmentEditForm を描くのは FilterBar だけで、segmentId を渡さない (FilterBar.tsx:195-200)。閉じている呼び出しの名前・値・行は、条件を持つフレーム (2 つの操作の部品と SegmentEditForm) の summary に書いた (フレームの形式に notes が無いので、このリポジトリの決まりのとおり summary に書いた)。GET /api/websites/[websiteId]/values の getWebsiteSegments の枝 (route.ts:48) は、type の値の一部が URL から来るので、閉じている呼び出しとは扱わず、conditional で書き、成り立たないように見える理由を note に書いた。その else の枝 (getQueryFilters / getValues) は、この画面の列にはいつも当たるので、前の結果のとおり always のまま (note に理由)。部品の入口の結果は、同じ枝を conditional で書いている (部品の入口からは、描く側の値を前提にしないため)。(8) 決まりにそろえた所: checkAuth は settings に CLOUD_MODE と REDIS_URL、rules に API キーの枝の 1 行 (前から書いてある)、その下に getUser。持ち主・所属の確認の関数 (canViewWebsite、canUpdateWebsite、canViewPixel、canViewLink) の guards に、関数の中の管理者の確認を別の 1 件 (kind: role、value: user.isAdmin) で足した (前は note に書くだけだった)。parseRequest の rules に、入力の検査の 1 行を、部品の入口の結果と同じ綴りで足した。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム useDashboardQuery にだけ書いた。GET /api/config (useConfig) はフレームにしていない。結果の target は作業定義と同じ (clone_path も写した)。(9) checkAuth の API キーの経路 (auth.ts:74) は、ブラウザが localStorage のログイントークンを付ける (src/lib/client.ts:4) ので辿っていない。(10) テストとの対応は、作業定義で選ばれていないので分析していない。(11) 段の数は 140 から 131、読み書きは 62 から 61 になった。 (12) レビュー (1 回目) の指摘は medium 1 件で、直した: WebsiteDateFilter の summary を、この画面では描く側が showAllTime={false} を渡すので「すべての期間」を出さない、に直し、根拠に PixelControls.tsx:30 と LinkControls.tsx:30 を足した。レビューの notes の小さな点も直した: api_segment_get の summary の重なった文を消し、canUpdateWebsite の持ち主と権限の確認の状態を、ほかの確認の関数と同じ fact にそろえた (部品の入口の結果と同じ)。high が無いので、もう一度のレビューはしていない。'
 callstack:
 - id: page
   layer: page
@@ -347,6 +349,17 @@ callstack:
       line: 52
     - file: src/lib/request.ts
       line: 55
+  rules:
+  - kind: validation
+    value: 受け口が渡した schema に合わない入力は 400 を返す (GET はクエリを、それ以外は本文を検査する)
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 28
+    - file: src/lib/request.ts
+      line: 30
+    - file: src/lib/request.ts
+      line: 33
 - id: q_check_auth
   layer: query
   kind: function
@@ -707,7 +720,7 @@ callstack:
     condition: URL に /teams/<id> が無いとき
   summary:
     status: interpretation
-    value: '期間と絞り込みの操作。対象は、ボードの対象 (ボードの種類が website / pixel / link のとき) か、無ければ行と列の順で最初に対象を持つ部品の対象。ダッシュボードのボードは種類が dashboard で保存される (POST /api/dashboard が type: dashboard で作る) ので、ボードの対象は無く、ふつうは最初の部品の対象になる。対象が無ければ何も描かない。対象の種類が pixel なら PixelControls、link なら LinkControls、それ以外は WebsiteControls を描く'
+    value: '期間と絞り込みの操作。対象は、ボードの対象 (ボードの種類が website / pixel / link のとき) か、無ければ行と列の順で最初に対象を持つ部品の対象。ダッシュボードのボードは種類が dashboard で保存される (POST /api/dashboard が type: dashboard で作る) ので、ボードの対象は無く、ふつうは最初の部品の対象になる。対象が無ければ何も描かない。対象の種類が pixel なら PixelControls、link なら LinkControls、それ以外は WebsiteControls を描く。WebsiteControls は別の入口 (part_p.shared_a.WebsiteControls) なので、中は辿らず、links の embed で指す。WebsiteControls に渡すのは websiteId (対象の id) だけで、ほかは既定値になる: 絞り込みのボタンといまの絞り込みの帯 (allowFilter が既定で true)、期間の選択 (allowDateFilter が既定で true) は出し、「直帰を除く」(allowBounceFilter)、期間の比較 (allowCompare)、データの書き出し (allowDownload)、月の選択 (allowMonthFilter) は、既定で false か未指定なので出さない'
     evidence:
     - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
       line: 10
@@ -733,6 +746,18 @@ callstack:
       line: 105
     - file: src/app/api/dashboard/route.ts
       line: 61
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 12
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 13
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 14
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 15
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 16
+    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
+      line: 17
   rules:
   - kind: decision
     value: 期間と絞り込みの操作の対象は、ボードの対象があればそれ、無ければ行と列の順で最初に対象を持つ部品の対象
@@ -750,6 +775,17 @@ callstack:
       line: 146
     - file: src/lib/boards.ts
       line: 151
+  links:
+  - kind: embed
+    target: WebsiteControls
+    entry_id: part_p.shared_a.WebsiteControls
+    status: fact
+    evidence:
+    - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
+      line: 4
+    - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
+      line: 26
+    note: 対象の種類が pixel でも link でもないとき (ふつうは website のとき) だけ描く (BoardControls.tsx:21、23)
 - id: pixel_controls
   layer: component
   kind: component
@@ -1123,6 +1159,15 @@ callstack:
     - file: src/permissions/website.ts
       line: 37
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 10
+    note: 管理者は、ほかの確認もデータの読み取りもせずに通る
   - kind: ownership
     value: canViewWebsite
     status: fact
@@ -4294,8 +4339,10 @@ callstack:
     note: allowDateFilter の既定値は true (PixelControls.tsx:13) で、この画面は渡さないので、いつも描く
   summary:
     status: interpretation
-    value: 期間を選ぶ部品 (前後へ送るボタンと、期間の一覧)。データのある期間 (useDateRangeQuery) が取れたときだけ「すべての期間」を選べる。選ぶと、URL の date / offset を書き換えて同じ画面を開き直す
+    value: 期間を選ぶ部品 (前後へ送るボタンと、期間の一覧)。データのある期間を useDateRangeQuery で読む。「すべての期間」は、データのある期間が取れて、かつ showAllTime が真のときだけ選べるが、この画面では PixelControls / LinkControls が showAllTime={false} を渡す (既定値は true) ので、出さない。期間を選ぶと、URL の date / offset を書き換えて同じ画面を開き直す
     evidence:
+    - file: src/components/input/WebsiteDateFilter.tsx
+      line: 19
     - file: src/components/input/WebsiteDateFilter.tsx
       line: 33
     - file: src/components/input/WebsiteDateFilter.tsx
@@ -4306,6 +4353,10 @@ callstack:
       line: 47
     - file: src/components/input/WebsiteDateFilter.tsx
       line: 84
+    - file: src/app/(main)/pixels/[pixelId]/PixelControls.tsx
+      line: 30
+    - file: src/app/(main)/links/[linkId]/LinkControls.tsx
+      line: 30
 - id: use_date_range
   layer: component
   kind: hook
@@ -4791,7 +4842,7 @@ callstack:
     note: API_URL を設定すると、向き先が変わる
   summary:
     status: interpretation
-    value: セグメント 1 件を返す受け口 (無ければ 404)。呼ぶのは parseRequest (route.ts:12)、canViewSharedWebsiteFilters (route.ts:20)、getWebsiteSegment (route.ts:24) で、経路は、フレーム q_parse_request / q_can_view_shared_website_filters / q_get_segment と同じ。parseRequest (src/lib/request.ts) (フレーム q_parse_request) も呼ぶ。経路は、それぞれのフレームと同じ。呼び先がすべてほかの呼び出し元の下に書いてあるので、いちばん早い parseRequest (src/lib/request.ts) から、読み書きを持つ最初の段までを、もう一度書いた
+    value: セグメント 1 件を返す受け口 (無ければ 404)。呼ぶのは parseRequest (route.ts:12)、canViewSharedWebsiteFilters (route.ts:20)、getWebsiteSegment (route.ts:24) で、経路は、フレーム q_parse_request / q_can_view_shared_website_filters / q_get_segment と同じ。呼び先がすべてほかの呼び出し元の下に書いてあるので、いちばん早い parseRequest (src/lib/request.ts) から、読み書きを持つ最初の段までを、もう一度書いた
     evidence:
     - file: src/app/api/websites/[websiteId]/segments/[segmentId]/route.ts
       line: 12
@@ -5018,9 +5069,18 @@ callstack:
     - file: src/permissions/website.ts
       line: 154
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 137
+    - file: src/permissions/website.ts
+      line: 138
+    note: 管理者は、ほかの確認もデータの読み取りもせずに通る
   - kind: ownership
     value: canUpdateWebsite
-    status: interpretation
+    status: fact
     evidence:
     - file: src/permissions/website.ts
       line: 137
@@ -5031,7 +5091,7 @@ callstack:
     note: 管理者 (user.isAdmin) か、サイトの持ち主 (user.id === website.userId) であること。この確認の前に、ログインした利用者がいること (共有トークンだけでは書き換えられない)
   - kind: permission
     value: PERMISSIONS.websiteUpdate
-    status: interpretation
+    status: fact
     evidence:
     - file: src/permissions/website.ts
       line: 151
@@ -5454,282 +5514,6 @@ callstack:
   summary:
     status: interpretation
     value: フレーム q_check_auth と同じ処理。呼び出し元 (q_parse_request_rw3) が終端にならないように、もう一度書いた (確認・設定・ルールは q_check_auth に書いた)
-    evidence:
-    - file: src/lib/auth.ts
-      line: 72
-    - file: src/lib/auth.ts
-      line: 74
-  io:
-  - op: get
-    status: fact
-    resource:
-      kind: kvs
-      levels:
-        key_pattern: auth:*
-    detail: redis.client.get(authKey)。authKey は、saveAuth が作る auth:<ランダム> の形
-    fields:
-    - name: userId
-      use:
-      - read
-    - name: pwd
-      use:
-      - read
-    evidence:
-    - file: src/lib/auth.ts
-      line: 102
-    - file: src/lib/auth.ts
-      line: 104
-    - file: src/lib/auth.ts
-      line: 108
-    - file: src/lib/auth.ts
-      line: 150
-    note: Redis が有効 (REDIS_URL あり) で、トークンに userId が無く authKey が入っているときだけ
-- id: website_controls
-  layer: component
-  kind: component
-  name: WebsiteControls
-  source:
-    file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-    line: 10
-  caller: board_controls
-  call:
-    status: fact
-    when: conditional
-    condition: 対象があり、その種類が pixel でも link でもないとき
-    evidence:
-    - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
-      line: 4
-    - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
-      line: 15
-    - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
-      line: 26
-  summary:
-    status: interpretation
-    value: 'フィルターのボタン、期間の選択、いまのフィルターの帯を並べる。この画面は allowDownload と allowMonthFilter を渡さないので、ExportButton と MonthFilter は描かない。ExportButton がデータを書き出す GET /api/websites/[websiteId]/export は、固定の値で閉じているので辿らない: BoardControls が allowDownload を渡さず (BoardControls.tsx:26)、既定値は false (WebsiteControls.tsx:16) なので、ExportButton は決して描かれない (MonthFilter は API を呼ばない)。useShare は共有画面の設定を読むだけで、データを読まない。WebsiteFilterButton (フレーム website_filter_button)、WebsiteDateFilter (フレーム website_date_filter)、FilterBar (フレーム filter_bar) も呼ぶ。経路は、それぞれのフレームと同じ。呼び先がすべてほかの呼び出し元の下に書いてあるので、いちばん早い WebsiteFilterButton から、読み書きを持つ最初の段までを、もう一度書いた'
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 27
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 35
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 40
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 42
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 43
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 46
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 16
-    - file: src/app/(main)/boards/[boardId]/BoardControls.tsx
-      line: 26
-    - file: src/components/input/ExportButton.tsx
-      line: 20
-  rules:
-  - kind: decision
-    value: 共有画面の設定で allowFilter が false のときは、フィルターのボタンと、いまのフィルターの帯を出さない
-    status: interpretation
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 28
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 34
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 46
-    - file: src/lib/share.ts
-      line: 7
-- id: website_filter_button_rw2
-  layer: component
-  kind: component
-  name: WebsiteFilterButton
-  source:
-    file: src/components/input/WebsiteFilterButton.tsx
-    line: 13
-  caller: website_controls
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 34
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 35
-    - file: src/app/(main)/websites/[websiteId]/WebsiteControls.tsx
-      line: 28
-    note: 'showFilter (WebsiteControls.tsx:28) は、この入口ではいつも真になる: allowFilter の既定値は true で、BoardControls は渡さない。useShare は共有画面の Context を読むが、この画面は共有画面の外なので値が無く、allowShareFilter は true を返す (src/lib/share.ts:7)'
-  summary:
-    status: interpretation
-    value: フレーム website_filter_button と同じ処理。呼び出し元 (website_controls) が終端にならないように、もう一度書いた (確認・設定・ルールは website_filter_button に書いた)
-    evidence:
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 55
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 68
-- id: filter_edit_form_rw2
-  layer: component
-  kind: component
-  name: FilterEditForm
-  source:
-    file: src/components/input/FilterEditForm.tsx
-    line: 22
-  caller: website_filter_button_rw2
-  call:
-    status: fact
-    when: conditional
-    condition: 利用者がフィルターのボタンを押して、小窓を開いたとき
-    evidence:
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 72
-    - file: src/components/input/WebsiteFilterButton.tsx
-      line: 92
-  summary:
-    status: interpretation
-    value: フレーム filter_edit_form と同じ処理。呼び出し元 (website_filter_button_rw2) が終端にならないように、もう一度書いた (確認・設定・ルールは filter_edit_form に書いた)
-    evidence:
-    - file: src/components/input/FilterEditForm.tsx
-      line: 38
-    - file: src/components/input/FilterEditForm.tsx
-      line: 138
-- id: field_filters_rw2
-  layer: component
-  kind: component
-  name: FieldFilters
-  source:
-    file: src/components/input/FieldFilters.tsx
-    line: 34
-  caller: filter_edit_form_rw2
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/input/FilterEditForm.tsx
-      line: 138
-  summary:
-    status: interpretation
-    value: フレーム field_filters と同じ処理。呼び出し元 (filter_edit_form_rw2) が終端にならないように、もう一度書いた (確認・設定・ルールは field_filters に書いた)
-    evidence:
-    - file: src/components/input/FieldFilters.tsx
-      line: 43
-    - file: src/components/input/FieldFilters.tsx
-      line: 44
-- id: filter_record_rw2
-  layer: component
-  kind: component
-  name: FilterRecord
-  source:
-    file: src/components/common/FilterRecord.tsx
-    line: 38
-  caller: field_filters_rw2
-  call:
-    status: fact
-    when: conditional
-    condition: 絞り込みの行が 1 つ以上あるとき (URL に絞り込みがある、または利用者が列を足した)
-    evidence:
-    - file: src/components/input/FieldFilters.tsx
-      line: 157
-    - file: src/components/input/FieldFilters.tsx
-      line: 159
-  summary:
-    status: interpretation
-    value: フレーム filter_record と同じ処理。呼び出し元 (field_filters_rw2) が終端にならないように、もう一度書いた (確認・設定・ルールは filter_record に書いた)
-    evidence:
-    - file: src/components/common/FilterRecord.tsx
-      line: 55
-    - file: src/components/common/FilterRecord.tsx
-      line: 62
-- id: use_values_rw2
-  layer: component
-  kind: hook
-  name: useWebsiteValuesQuery
-  source:
-    file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-    line: 6
-  caller: filter_record_rw2
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/common/FilterRecord.tsx
-      line: 55
-  summary:
-    status: interpretation
-    value: フレーム use_values と同じ処理。呼び出し元 (filter_record_rw2) が終端にならないように、もう一度書いた (確認・設定・ルールは use_values に書いた)
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 51
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 54
-- id: api_values_rw2
-  layer: api_route
-  kind: route_handler
-  name: GET /api/websites/[websiteId]/values
-  source:
-    file: src/app/api/websites/[websiteId]/values/route.ts
-    line: 9
-  caller: use_values_rw2
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 54
-    - file: src/components/hooks/queries/useWebsiteValuesQuery.ts
-      line: 60
-    - file: src/lib/api-url.ts
-      line: 44
-    note: フックの enabled (websiteId・type・期間がそろっていること) は、この画面ではいつも成り立つ (websiteId は BoardControls が渡す対象の id、type は行の列、期間は FieldFilters が作る)。API_URL を設定すると、向き先が変わる
-  summary:
-    status: interpretation
-    value: フレーム api_values と同じ処理。呼び出し元 (use_values_rw2) が終端にならないように、もう一度書いた (確認・設定・ルールは api_values に書いた)
-    evidence:
-    - file: src/app/api/websites/[websiteId]/values/route.ts
-      line: 18
-    - file: src/app/api/websites/[websiteId]/values/route.ts
-      line: 27
-- id: q_parse_request_rw4
-  layer: query
-  kind: function
-  name: parseRequest (src/lib/request.ts)
-  source:
-    file: src/lib/request.ts
-    line: 16
-  caller: api_values_rw2
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/app/api/websites/[websiteId]/values/route.ts
-      line: 18
-  summary:
-    status: interpretation
-    value: フレーム q_parse_request と同じ処理。呼び出し元 (api_values_rw2) が終端にならないように、もう一度書いた (確認・設定・ルールは q_parse_request に書いた)
-    evidence:
-    - file: src/lib/request.ts
-      line: 21
-    - file: src/lib/request.ts
-      line: 23
-- id: q_check_auth_rw4
-  layer: query
-  kind: function
-  name: checkAuth (src/lib/auth.ts)
-  source:
-    file: src/lib/auth.ts
-    line: 71
-  caller: q_parse_request_rw4
-  call:
-    status: fact
-    when: always
-    evidence:
-    - file: src/lib/request.ts
-      line: 3
-    - file: src/lib/request.ts
-      line: 51
-    - file: src/lib/request.ts
-      line: 52
-    note: skipAuth が無く、入力の検査が通ったときだけ呼ぶ。この入口でフレームにした API は、どれも skipAuth を渡さない (渡すのは、フレームにしていない GET /api/config だけ) ので always にした
-  summary:
-    status: interpretation
-    value: フレーム q_check_auth と同じ処理。呼び出し元 (q_parse_request_rw4) が終端にならないように、もう一度書いた (確認・設定・ルールは q_check_auth に書いた)
     evidence:
     - file: src/lib/auth.ts
       line: 72
@@ -6196,6 +5980,15 @@ callstack:
     - file: src/permissions/pixel.ts
       line: 36
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/pixel.ts
+      line: 7
+    - file: src/permissions/pixel.ts
+      line: 8
+    note: 管理者は、ほかの確認もデータの読み取りもせずに通る
   - kind: ownership
     value: canViewPixel
     status: fact
@@ -6373,6 +6166,15 @@ callstack:
     - file: src/permissions/link.ts
       line: 36
   guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/link.ts
+      line: 7
+    - file: src/permissions/link.ts
+      line: 8
+    note: 管理者は、ほかの確認もデータの読み取りもせずに通る
   - kind: ownership
     value: canViewLink
     status: fact

@@ -1,21 +1,35 @@
 format_version: 1
 entry_id: boards.boardId_d.design
-reviewed_at: "2026-11-18T00:58:22Z"
+reviewed_at: "2026-11-18T20:35:29Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: classification_mismatch
-    severity: low
-    where: callstack/q_can_view_website_rw2/call
-    claim: "canViewWebsiteSection から canViewWebsite へ入る枝 (auth.user があるとき) を conditional にしているが、同じ結果の中の、canViewSharedWebsite から canViewWebsite へ入る同じ形の枝 (q_can_view_website_rw) は、この画面ではいつもログイン中なので always にしている。canViewSharedWebsiteFilters の下の q_can_view_website_rw3 (share.ts:92) も conditional で、同じ条件の枝の扱いが 1 つの結果の中で分かれている。前のレビューで同じ指摘を直したが、分析し直しで戻っている。"
-    evidence: { file: src/permissions/share.ts, line: 58 }
-    suggestion: "q_can_view_website_rw2 と q_can_view_website_rw3 の when を、q_can_view_website_rw と同じく always にし、condition を消して「この画面では、ブラウザがログイントークンを付けるので、いつもこちらになる」の note を付ける。"
+  - kind: missing_item
+    severity: medium
     resolved: true
-  - kind: evidence_mismatch
-    severity: low
-    where: callstack/use_board_query/settings/0
-    claim: "API_URL と BASE_PATH (settings/1) の note は「この入口の API を呼ぶフック (useWebsiteQuery、useWebsiteStatsQuery など)」と書くが、useWebsiteStatsQuery は部品の中で呼ぶフックで、部品を part の入口に分けたいまは、この結果のどのフレームにも無い (部品を分けた後に残った、外した部品の中の話)。"
-    evidence: { file: src/components/hooks/queries/useBoardQuery.ts, line: 6 }
-    suggestion: "2 つの note のフックの例を、この結果に残るもの (useBoardQuery、useWebsiteQuery、useWebsiteValuesQuery など) に直す。"
+    where: callstack/api_boards_post
+    claim: "POST /api/boards が呼ぶ canCreateWebsite の中の管理者の確認 (user.isAdmin なら役割の権限を見ずに許す) が、guards に別の 1 件 (role) として書かれていない。permission の 1 件だけで、同じ受け口を書いた boards の結果は role と permission の 2 件で書いている"
+    evidence: { file: src/permissions/website.ts, line: 125 }
+    suggestion: "api_boards_post の guards に kind role、value user.isAdmin の 1 件を足し、根拠に website.ts:125 と boards/route.ts:62 を挙げ、note に canCreateWebsite の中の確認であることを書く (notes の (11) の関数の並びにも canCreateWebsite を足す)"
+  - kind: missing_item
+    severity: medium
     resolved: true
-notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。全ての evidence の file:line が対象に実在し、範囲内であることを機械的に確かめた (登録表の項目の始まりの行 { を指すものは、プロファイルの決まりどおり)。この入口に固有のフレーム (page、BoardDesignPage、BoardProvider、BoardDesignHeader、BoardControls、3 つの操作の部品、BoardEditBody / Row / Column、useBoardEntityAvailability、BoardComponentRenderer、BoardComponentSelect、POST /api/boards/[boardId]・POST /api/boards とその下の権限の確認、funnels・goals の受け口、WebsiteSelect とその下) は、source・call・summary・rules・links・guards を対象のファイルで確かめた。確かめたこと: (1) BoardComponentRenderer の embed 16 件は、入口の一覧の part の入口 16 件 (TextBlock を除く登録表の項目) と 1 対 1 で、target は登録表のキー、状態は interpretation、根拠は登録表を引く行 (BoardComponentRenderer.tsx:17・39) と項目の行。Metrics bar の、対象の種類ごとの部品の判定は rules にある。試し描き (BoardComponentSelect.tsx:507) は同じ関数なので summary で触れるだけでよい。(2) 固定の値で閉じた呼び出しの 3 種類 6 か所は、3 つの条件を満たす: includeTeams は BoardComponentSelect.tsx:340-345 で渡さず、usePagedQuery も URL から includeTeams を足さない (usePagedQuery.ts:18)。allowDownload は BoardControls.tsx:22・24・26 で渡さず、既定値 false。segmentId は FilterBar.tsx:195-200 で渡さず、この木の中で SegmentEditForm を描くのは FilterBar だけ (SegmentFilters などは描かない)。閉じた値と行は、条件を持つフレームの summary と結果の notes に書いてあり、このリポジトリの決まりに合う。(3) 辿る順 (BoardProvider → BoardDesignHeader → BoardControls → BoardEditBody、BoardControls の中では PixelControls → LinkControls → WebsiteControls、列では useBoardEntityAvailability → BoardComponentRenderer → BoardComponentSelect) はコードの順と合い、同じ関数の置き場もその順で最初に着く所にある。(4) この画面のパス (/boards/<id>/design) では、FilterEditForm の isPixelLink が偽になるので、ピクセルやリンクの対象でもセグメントとセッションのプロパティのタブが出る。PixelControls の下に絞り込みの木を全部書いているのは、コードのとおり。指摘にしなかったこと: (a) 絞り込みの部品の下の受け口 (values / segments / event-data / session-data / daterange) と、その下の問い合わせのフレームは、同じコミットでレビュー済みの boards.boardId_d の結果から写したもので、根拠の行は主なものだけを見直し、問い合わせの列までは読み直していない。(b) GET /api/users/[userId]/websites の guards の value が式 (auth.user.id === userId) なのは、確かめる関数が無いためで、ほかの入口の結果とも同じ綴り。(c) テストとの対応は、analyzer.tests が無いので見ていない。"
+    where: callstack/q_can_view_shared_website
+    claim: "canViewSharedWebsite は、ログインした利用者がいなければ共有トークンがサイトを含むかで可否を決める確認の関数で、daterange の受け口はこれが false なら 401 を返すのに、フレームに guards が 1 件も無い。同じ share.ts の q_can_view_website_section と q_can_view_shared_website_filters は kind other の 1 件を持ち、dashboard の結果も canViewSharedWebsite を kind other で書いている"
+    evidence: { file: src/permissions/share.ts, line: 80 }
+    suggestion: "q_can_view_shared_website の guards に kind other、value canViewSharedWebsite の 1 件を足し、根拠に share.ts:80-85 と daterange/route.ts:18 を挙げ、note に共有トークンの条件を書く"
+  - kind: status_mismatch
+    severity: medium
+    resolved: true
+    where: callstack/q_can_update_website/guards/1
+    claim: "canUpdateWebsite の持ち主の確認 (website.userId があれば user.id === website.userId) はコードにそのまま書いてあるのに interpretation になっている。同じ形の canUpdateBoard / canViewWebsite はこの結果で fact、boards.boardId_d の結果でも canUpdateWebsite は fact"
+    evidence: { file: src/permissions/website.ts, line: 147 }
+    suggestion: "status を fact にする"
+  - kind: status_mismatch
+    severity: medium
+    resolved: true
+    where: callstack/q_can_update_website/guards/2
+    claim: "canUpdateWebsite のチームの権限の確認 (hasPermission(teamUser.role, PERMISSIONS.websiteUpdate)) はコードにそのまま書いてあるのに interpretation になっている。boards.boardId_d の結果では fact"
+    evidence: { file: src/permissions/website.ts, line: 154 }
+    suggestion: "status を fact にする"
+notes: "このリポジトリの決まり (analysis-conventions.md の「どの入口にも出る共通の段」「共有の部品」) に照らして確かめ、合っていたもの: BoardControls は WebsiteControls を描く所で止め、links に embed (target WebsiteControls、entry_id part_p.shared_a.WebsiteControls、status fact、根拠は BoardControls.tsx:4 の import と :26 の描く行) を書いている。渡す値 (websiteId だけで、ほかは WebsiteControls.tsx:12-17 の既定値) は summary に書いてあり、WebsiteControls の中は辿っていない。PixelControls / LinkControls は別の入口ではないので、データまで辿っているのも決まりどおり。登録表 (boardComponentRegistry) の部品 16 件は BoardComponentRenderer で止め、embed を 16 件 (entry_id は入口の一覧の part_p.boardComponentRegistry.* と一致) 書いている。TextBlock (requiresWebsite false、文字だけ) を入口にしていないのも合う。checkAuth の CLOUD_MODE と API キーの rules、API_URL / BASE_PATH を最初に API を呼ぶ useBoardQuery にだけ書いた点、書き直した段 (_rw) に確認や設定を繰り返さない点も、決まりどおり。指摘にしなかったもの: (1) share.ts の確認を kind other で書く点と、GET /api/users/[userId]/websites の ownership の値 auth.user.id === userId は、ほかの多くの結果と同じ書き方なので指摘にしない。(2) 登録表の embed の根拠の行が、各項目の type の行の 1 行前 ({ の行) を指しているが、前後 5 行の中で主張を支えている。(3) PixelControls / LinkControls の下の WebsiteFilterButton などが always なのは、共有画面の設定による出し分けが rules に書かれており、通常の画面では成り立つので、指摘にしない。(4) boards.boardId_d.edit と boards の結果にも、canViewSharedWebsite の guards が無い (同じ抜け) が、このレビューの対象外。"
