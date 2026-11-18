@@ -1,0 +1,197 @@
+# プロファイル: Nuxt の画面を持つシステム (画面 → 画面の部品 → 状態の置き場 → API の呼び出し → サーバー側の受け口 → サーバー側の関数 → データストア)
+# ファイルの置き場がルーティングになる作り (pages/)。サーバー側 (server/) を同じリポジトリに持つシステムと、持たずに別のバックエンドを呼ぶシステムの、両方に使う。
+# ツールが読む構造化データ。エージェント向けの説明は context.md。
+format_version: 1
+id: ui-nuxt
+version: "0.1.0"
+label: "Nuxt (page / layout / shell → component → store → API client → server route → server function → {datastore})"
+
+# tier は画面の architecture の図の枠 (画面での呼び名も tier)。external は、ブラウザ側からもサーバー側からも呼ばれるので、どちらにも置かず edge にする
+# label / tier / hierarchy.notes の text は画面に出る。"{id}" は用語集 (schema/vocab/terms.yaml) の呼び名に置き換わる
+layers:
+  - id: page
+    tier: frontend
+    label: page (pages ディレクトリの Vue ファイル 1 つ)
+    role: entry
+    stack: [Nuxt, Vue]
+    invokes_next: "page ファイルが描画するコンポーネントと、呼ぶ composable と store。definePageMeta の middleware に名前で書いた route middleware と、その場で書いた middleware も、この page の経路として辿る。入れ子の親の page (同じ名前のフォルダを持ち、<NuxtPage> を描く page) は別の入口なので、子の page からは辿らない。親の page も、<NuxtPage> の中身 (子の page) は辿らない。layout、app.vue、global の middleware は別の入口なので辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で描く page が、$fetch や、サーバー側のライブラリを直接呼ぶこともある
+  - id: layout
+    tier: frontend
+    label: layout (layouts ディレクトリの Vue ファイル 1 つ)
+    role: entry
+    stack: [Nuxt, Vue]
+    invokes_next: "layout ファイルが描画するコンポーネントと、呼ぶ composable と store。<slot /> の中身 (page) と、<NuxtLayout> で入れ子にした別の layout は、別の入口なので辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: shell
+    tier: frontend
+    label: shell (アプリ全体の枠。app.vue、error.vue、global の route middleware、server middleware、プラグイン、枠が描く共通の component)
+    role: entry
+    stack: [Nuxt, Vue]
+    invokes_next: "枠のファイル自身が呼ぶ composable と store と、その先。<NuxtLayout> と <NuxtPage> の中身は、別の入口 (layout と page) なので辿らない。枠が描く共通の部品を別の入口 (shell) にしたときは、それも辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: part
+    tier: frontend
+    label: part (registry から選ばれて描かれる component)
+    role: entry
+    stack: [Vue]
+    invokes_next: "部品の component が描画する子の component と、呼ぶ composable と store。部品を描く側 (page や、登録表を引く component) は辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: component
+    tier: frontend
+    label: component (Vue component、composable、画面側の補助の関数)
+    stack: [Vue, Composition API]
+    invokes_next: "子のコンポーネントと composable (`useXxx`) の呼び出し。import 文が無くても、Nuxt が自動で読み込む (components / composables / utils のフォルダ)。store の関数の呼び出し。自分のシステムのサーバー側の受け口を、`useFetch` / `$fetch` で URL の文字列で呼ぶこともある (次の api_route)"
+    io: [external_api]
+  - id: store
+    tier: frontend
+    label: store (Pinia。状態と、API を呼ぶ action)
+    stack: [Pinia]
+    invokes_next: "API を呼ぶ関数 (生成された SDK の関数、`$fetch` や axios を包んだ自前の関数、プラグインが provide した API の client) の呼び出し。別の store の呼び出し。自分のシステムのサーバー側の受け口を URL で呼ぶこともある"
+    io: [external_api]
+  - id: api_client
+    tier: frontend
+    label: API client (HTTP や外部のライブラリを包む自前の関数。プラグインが provide したものも)
+    stack: [ofetch, axios, generated API SDK]
+    invokes_next: "HTTP のライブラリ ($fetch、axios、fetch) や、生成された SDK の呼び出し (ここから先は boundary)。自分のシステムのサーバー側の受け口を URL で呼ぶときは、次の api_route"
+    io: [external_api]
+  - id: api_route
+    tier: backend
+    label: API route (server/api、server/routes の handler)
+    stack: [Nitro, h3]
+    invokes_next: "import した、または自動で読み込まれるサーバー側の関数 (server/utils の関数、問い合わせ、認証・権限の検査) の呼び出し。サーバー側の middleware (server/middleware) は、どの要求の前にも動く別の入口 (shell) なので、ここからは辿らない"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # 受け口が直接データを触る書き方もある
+  - id: query
+    tier: backend
+    label: server function (server/utils、問い合わせ、認証・権限、共通の lib)
+    stack: [TypeScript, ORM, SQL]
+    invokes_next: "ORM・DB クライアント・キャッシュ・メッセージ基盤・HTTP クライアントの呼び出し (ここから先は boundary)"
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+  - id: external
+    tier: edge
+    label: external library / SDK (boundary)
+    role: boundary
+    stack: [ofetch, axios, generated API SDK, ORM client, Nitro storage]
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api]
+
+hierarchy:
+  level_labels: [section+, page]   # ファイルの置き場の段。最後の段だけが page、それより前は section
+  derivation: "page ファイルの置き場 (pages ディレクトリからの相対) を '/' で区切り、拡張子を除いたファイル名を最後の段にする。URL ではなく置き場を表す: `index` の段は落とさない (`pages/index.vue` → `/index`、`pages/account/index.vue` → `/account/index`)。入れ子の親の page (`a.vue`) と、その子 (`a/index.vue`、`a/b.vue`) は URL が同じになることがあり、`index` を落とすと区別できないため。URL に出ない入れ物 `(group)` は落とす。実行時に値が入る段 (`[id]`、`[[id]]`、`[...slug]`) はそのまま残す。名前が `-` で始まるファイルとフォルダは、ルーティングの対象外なので拾わない。layout は `/(layout)/<置き場>`、アプリ全体の枠は `/(shell)/app`、`/(shell)/error`、`/(shell)/middleware/<ファイル名>`、`/(shell)/plugin/<ファイル名>`、`/(shell)/server-middleware/<ファイル名>`、`/(shell)/server-plugin/<ファイル名>`、`/(shell)/part/<名前>`"
+  entry_labels:   # 枠の入口は、詳細のページで page ではなく layout / shell と呼ぶ
+    - { contains: "(layout)", label: layout }
+    - { contains: "(shell)", label: shell }
+    - { contains: "(part)", label: part }
+  notes:   # 段の名前に残る Nuxt の書き方を、画面で説明する
+    - { contains: "[", text: "角かっこの段 (例: [id]) は、実行時に値が入る場所。二重の角かっこ ([[id]]) は省ける段、[...slug] は残りの URL をまとめて受ける段。対象のソースのファイル名をそのまま出している" }
+    - { contains: "/index", text: "index の段は、URL には出ない (1 つ上の段と同じ URL)。同じ名前の page ファイルとフォルダが並ぶとき、フォルダの中の page は、その page の中 (<NuxtPage>) に描かれる" }
+    - { contains: "(layout)", text: "(layout) で始まる {entry} は layout ファイル。page が definePageMeta で選ぶか、既定の default が使われる" }
+    - { contains: "(shell)", text: "(shell) で始まる {entry} は、アプリ全体の枠。どの page を開いても動く (app.vue、global の route middleware、プラグインなど)" }
+    - { contains: "(part)", text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前" }
+
+# 入口を包む関係 (within) は宣言しない。入れ子の page は「a.vue が、隣のフォルダ a/ の下を包む」形で、layout は page の definePageMeta で選ばれる。
+# どちらも、いまある決め方 (source_dir: 自分と同じフォルダの下を包む) では表せない。どの親・枠の中で動くかは、入口の summary に書く (context.md)
+
+extractors:
+  - name: nuxt-pages
+    run: abatlas-extract glob
+    layer: page
+    hint: "pages ディレクトリの場所を実際に合わせる (Nuxt 4 の既定は `app/pages`、Nuxt 3 は `pages`。nuxt.config の srcDir / dir.pages も見る)。files・exclude・segments.strip_prefix の 3 つを同じ場所にする。.vue 以外の page (.tsx / .jsx。.ts / .js も page にできるが、補助のファイルと混ざりやすい) を使うシステムでは files に足す。nuxt.config の `ignore` と `.nuxtignore` に書いた page (本番では外す試しの画面など) は exclude に写し、rationale に書く。`pages` 設定 (glob) で拾う page を絞っているシステムも、files と exclude を合わせる。値と静的な文字が混ざる段 (`users-[id]`) は `users-id_d` になる"
+    params:
+      files: ["app/pages/**/*.vue", "app/pages/**/*.tsx", "app/pages/**/*.jsx"]
+      exclude: ["app/pages/-*", "app/pages/*/-*"]   # 名前が - で始まるファイルとフォルダの下は、ルーティングの対象外 (Nuxt の ignorePrefix の既定)。* は / をまたぐので、深い所も外れる
+      segments:
+        strip_prefix: "app/pages"
+        drop_last: false                     # ファイル名 (拡張子を除く) が最後の段。index も残す (置き場を表す)
+        drop: ["\\([^)]+\\)"]                # URL に出ない入れ物 (route group): (marketing) …
+      id:
+        # id は結果のファイル名になるので記号を持てない。段の種類を「_ + 1 文字」の印で表し、名前の中の _ は 2 つ重ねる (ui-nextjs と同じ考え方)
+        #   /users/id → users.id      /users/[id] → users.id_d      /users/[[id]] → users.id_o      /docs/[...slug] → docs.slug_c      /users-[group] → users-group_d
+        replace:
+          - { pattern: "_", with: "__" }                                     # 名前の中の _ を重ねる (最初に行う)
+          - { pattern: "^\\[\\[\\.\\.\\.(.+)\\]\\]$", with: "\\1_o" }     # [[...slug]] → slug_o (省ける、残りをまとめて受ける段)
+          - { pattern: "^\\[\\.\\.\\.(.+)\\]$", with: "\\1_c" }             # [...slug]   → slug_c (catch-all)
+          - { pattern: "\\[\\[([^\\]]+)\\]\\]", with: "\\1_o" }             # [[id]]      → id_o   (省ける段)
+          - { pattern: "\\[([^\\]]+)\\]", with: "\\1_d" }                   # [id]        → id_d   (値が入る段。users-[id] のように、段の一部でもよい)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }                          # 残りの記号を除く。これで同じ id になる page が同居していれば、列挙は失敗して両方のファイルを示す (そのリポジトリ向けに replace を足す)
+      line_match: "^<(script|template)"
+      contains:
+        nested: "<(NuxtPage|nuxt-page)\\b"     # true なら、子の page を描く入れ子の親
+        page_meta: "definePageMeta\\("
+        layout: "\\blayout:\\s*['\"]"          # definePageMeta で layout を名前で選んでいる
+        middleware: "\\bmiddleware:"           # definePageMeta で route middleware を指している
+  - name: nuxt-layouts
+    run: abatlas-extract glob
+    layer: layout
+    hint: "layouts ディレクトリの場所を実際に合わせる (Nuxt 4 の既定は `app/layouts`、Nuxt 3 は `layouts`)。layout ファイルが 1 つも無いシステムでは、この抽出器を入口の一覧に書かない"
+    params:
+      files: ["app/layouts/**/*.vue"]
+      exclude: ["app/layouts/-*", "app/layouts/*/-*"]
+      segments:
+        strip_prefix: "app/layouts"
+        drop_last: false
+        prefix: ["(layout)"]                 # 画面の階層と分ける。layouts/desktop/default.vue → /(layout)/desktop/default
+      id:
+        #   /(layout)/default → layout_l.default      /(layout)/shared-view → layout_l.shared-view
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(layout\\)$", with: "layout_l" }                  # 先頭の固定の段 (segments.prefix)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      line_match: "^<(script|template)"
+  - name: nuxt-app-shell
+    run: abatlas-extract glob
+    layer: shell
+    hint: "アプリの根 (app.vue) と、エラーのときに全体を置き換える画面 (error.vue)。srcDir に合わせる (Nuxt 4 の既定は `app`、Nuxt 3 は scope の直下。そのときは files を `app.vue` / `error.vue` にし、strip_prefix を消す)。どちらも無いシステム (pages だけで動く) では、この抽出器を入口の一覧に書かない"
+    params:
+      files: ["app/app.vue", "app/error.vue"]
+      segments:
+        strip_prefix: "app"
+        drop_last: false
+        prefix: ["(shell)"]                  # app.vue → /(shell)/app
+      id:
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(shell\\)$", with: "shell_s" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      line_match: "^<(script|template)"
+  - name: nuxt-global-middleware
+    run: abatlas-extract glob
+    layer: shell
+    hint: "global の route middleware (名前が .global で終わるファイル。画面を移るたびに、ファイル名の順に動く)。middleware ディレクトリの場所を合わせる (Nuxt 4 の既定は `app/middleware`、Nuxt 3 は `middleware`)。名前付きの middleware (.global の無いもの) は入口にしない (definePageMeta で指す page の経路に書く)。global の middleware が無いシステムでは、この抽出器を入口の一覧に書かない"
+    params:
+      files: ["app/middleware/*.global.ts", "app/middleware/*.global.js"]
+      segments:
+        strip_prefix: "app"
+        drop_last: false
+        prefix: ["(shell)"]                  # middleware/01.auth.global.ts → /(shell)/middleware/01.auth.global
+      id:
+        #   /(shell)/middleware/01.auth.global → shell_s.middleware.01-auth-global
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(shell\\)$", with: "shell_s" }
+          - { pattern: "\\.", with: "-" }                                    # 順番の番号と .global の点を、読める形で残す
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      line_match: "defineNuxtRouteMiddleware"
+  - name: nuxt-server-middleware
+    run: abatlas-extract glob
+    layer: shell
+    hint: "サーバー側の middleware (server/middleware。サーバーへのどの要求の前にも、ファイル名の順に動く。page をサーバー側で描く要求も含む)。server ディレクトリは、Nuxt 4 でも scope の直下 (nuxt.config の serverDir で変えられる)。server/middleware が無いシステム (サーバー側を持たない作り) では、この抽出器を入口の一覧に書かない"
+    params:
+      files: ["server/middleware/*.ts", "server/middleware/*.js"]
+      segments:
+        strip_prefix: "server/middleware"
+        drop_last: false
+        prefix: ["(shell)", "server-middleware"]   # server/middleware/auth.ts → /(shell)/server-middleware/auth
+      id:
+        #   /(shell)/server-middleware/01.log → shell_s.server-middleware.01-log
+        replace:
+          - { pattern: "_", with: "__" }
+          - { pattern: "^\\(shell\\)$", with: "shell_s" }
+          - { pattern: "\\.", with: "-" }
+          - { pattern: "[^A-Za-z0-9_-]", with: "" }
+      line_match: "defineEventHandler"
+# プラグイン (plugins/) のうちデータを読む・外へ送るものと、枠が描く共通の部品は、抽出器では選べない。入口を見つける agent が、
+# `abatlas-extract listed` (名前は agent-listed-shell、layer: shell) で足す。決まりは context.md の「アプリ全体の枠」
+# 登録表から選ばれて描かれる component (層 part) も、抽出器では取れない。分けるときは agent-listed-part (layer: part) で足す
+# サーバー側の受け口 (server/api、server/routes) は入口にしない。画面から辿った途中の段 (api_route) として現れる
+
+marts: []

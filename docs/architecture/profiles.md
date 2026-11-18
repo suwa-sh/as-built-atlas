@@ -14,7 +14,7 @@
 | `context.md` | エージェント | 入口の判別、層ごとに見るもの、事実・解釈・不明の付け方、データの当てはめ |
 | `dbt-template/` | ツール | プロファイル固有の集計表。無くてもよい |
 
-いまあるプロファイルは 9 つです。
+いまあるプロファイルは 10 個です。
 
 | プロファイル | 対象 | 層の連鎖 | 入口と階層 | 抽出器 |
 |---|---|---|---|---|
@@ -25,6 +25,7 @@
 | `api` | サーバー側で操作を受けて処理するシステム。ほかのシステムやアプリから呼ばれる API と、サーバー側で画面を作って返す webapp | operation → handler → logic → adapter → external | 操作 1 つ = 入口 (HTTP なら、URL とメソッドの組)。`[resource+, operation]` | nested-keys (OpenAPI、AsyncAPI の定義ファイル)。定義ファイルが無い API、ツールを提供するサーバー、RPC は、ast か、エージェントが読んで足す (listed) |
 | `batch-github-actions` | GitHub Actions で組んだ自動処理 (テスト、ビルド、公開、定期の処理) | workflow → job → step → program → external | workflow ファイル 1 つ = 入口。`[group+, workflow]` | glob (`.github/workflows/*.yml`) |
 | `transform-dbt` | dbt で組んだデータの変換 | model → macro → external | model 1 つ = 入口 (snapshot も)。`[folder+, model]` | glob (`models/**/*.sql`、`snapshots/**/*.sql`) |
+| `ui-nuxt` | Nuxt の画面を持つシステム (サーバー側 `server/` を持つものも、別のバックエンドを呼ぶものも) | page / layout / shell / part → component → store → api_client → (api_route → query) → external | page ファイル 1 つ = 入口、layout ファイル 1 つ = 入口、app.vue・global の route middleware・server middleware・データに届くプラグイン = 入口 (shell)。`[section+, page]` (階層は置き場。`index` も段に残す) | glob (`pages/**/*.vue`、`layouts/**/*.vue`、`app.vue`、`middleware/*.global.ts`、`server/middleware/*`)。プラグインと、枠が描く共通の部品は、エージェントが読んで足す (listed) |
 | `ui-android` | Android のアプリ (Jetpack Compose / Navigation 3 / Fragment。端末の中の保存とサーバーの API を使う) | screen / activity / shell / background → ui → viewmodel → usecase → repository → datasource → external | Navigation の destination 1 つ = 入口 (画面)。manifest の Activity 1 つ、枠が描く共通の composable 1 つ、OS から起動される class (Application、Service、Receiver、Provider、Worker) 1 つも入口。`[section+, screen]` | ast (Kotlin の `entry<K>` / `composable<R>` / `composable("...")`、`html` で読む manifest と navigation の XML、Worker の継承)。定数の route と、枠の composable は、エージェントが読んで足す (listed) |
 | `ui-ios` | iOS のアプリ (SwiftUI、UIKit)。端末の中の保存もデータとして扱う | screen / shell / system → view → view_model → repository → client → external | 行き先の enum の case 1 つ = 入口 (画面)。アプリ全体の枠、OS から起動される入口 (ウィジェット、App Intents、拡張、URL の受け口) も入口。`[section+, screen]` | ast (行き先の enum の case、準拠するプロトコル)。push で開く View、UIKit の画面、枠、Info.plist だけで決まる入口は、エージェントが読んで足す (listed) |
 
@@ -238,7 +239,7 @@ flowchart TB
 
 ## プロファイルを増やす手順
 
-2 本目の `ui-nextjs`、3 本目の `ui-vue-router`、4 本目の `cli`、5 本目の `api`、6 本目の `batch-github-actions`、7 本目の `transform-dbt`、8 本目の `ui-android`、9 本目の `ui-ios` も、この手順で作りました。
+2 本目の `ui-nextjs`、3 本目の `ui-vue-router`、4 本目の `cli`、5 本目の `api`、6 本目の `batch-github-actions`、7 本目の `transform-dbt`、8 本目の `ui-android`、9 本目の `ui-ios`、10 本目の `ui-nuxt` も、この手順で作りました。
 
 | 手順 | やること |
 |---|---|
@@ -374,6 +375,20 @@ umami での試し分析で、3 つありました。`context.md` で、次の�
 | 列は、最後の `select` が出す列を「書く」、相手から取り出す列を「読む」 | 結合・絞り込み・集計の区切りに使う列は「条件」 | 列の単位の系譜を、列の読み書きの表から追える |
 | macro は、表を読む・問い合わせを実行する・業務のルールを持つものだけを段にする | SQL の断片を返すだけの macro は、段にしない | 処理の段を、意味のあるものに絞る |
 | テストは、YAML に書いたテストと、model を参照する SQL のテスト | データを確かめるテストは integration、`unit_tests` は unit | テストとの対応の表で、テストの無い model が分かる |
+
+## `ui-nuxt` の決まり
+
+ファイルの置き場がルーティングになる点は `ui-nextjs` と同じです。自動で読み込まれる component / composable / store と、バックエンドを `external_api` で閉じる点は `ui-vue-router` と同じです。違う所だけを書きます。
+
+| 所 | 決まり | 理由 |
+|---|---|---|
+| 階層 | URL ではなく、置き場。拡張子を除いたファイル名を最後の段にし、`index` も残す | 入れ子の親 (`a.vue`) と子 (`a/index.vue`、`a/index/index.vue`) は、URL が同じ。`index` を落とすと、id がぶつかる |
+| 入れ子の page | 親も子も入口。親は `<NuxtPage>` の中身を辿らず、子は親を辿らない。`within` は付かない (どの親の中で動くかは、階層パスと summary で見る) | 包む側の `a.vue` と、包まれる側のフォルダ `a/` が隣り合う形を、いまの包む関係の決め方 (`source_dir`) では表せない |
+| layout | ファイル 1 つ = 入口。`within` は付かない | どの page がどの layout を使うかは、`definePageMeta` で決まり、置き場からは決まらない |
+| アプリ全体の枠 (`shell`) | app.vue、error.vue、global の route middleware、server middleware は、ファイル 1 つ = 入口 (glob)。起動のときにデータを読む・外へ送るプラグインは、エージェントが足す (listed) | どの画面・要求でも動く処理を、入口の数だけ繰り返さない。置き場から決定論で取れるものは、抽出器で取る |
+| 名前付きの route middleware | 入口にしない。`definePageMeta` で指す page の経路に書く | その page のときだけ動く |
+| サーバー側 | `server/api`、`server/routes` は入口にしない (画面から URL で辿る途中の段 `api_route`)。`server/` が無いシステムは、`external_api` で閉じる | 1 つのプロファイルで、両方の作りを扱う |
+| 自動で読み込まれるもの | 名前から定義を探す場所 (`components.dirs`、`imports.dirs`、生成された型の定義) を、先に確かめる。定義が 1 つに決まれば `fact`。`extends` の layer での上書きは、notes に書くだけ | import を辿るだけでは、呼び先に着かない |
 
 ## `ui-android` の決まり
 
