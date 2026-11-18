@@ -218,6 +218,8 @@ flowchart LR
 
 数えるのは、API の `groups` です ([api.md](api.md))。画面は、全行を読みません。
 
+集計のときの検査は、列の型も見ます: `rollup.flag` は真偽の列、`heat` の `value` と `order`、`tree` の `value` は数の列。
+
 `tags: within` の表は、入口の詳細の画面が次のように引きます。この表は `subject` を持ちません (入口の一覧の表と取り違えず、メニューにも出さないため)。
 
 | `keys` | 意味 |

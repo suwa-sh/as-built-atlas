@@ -38,6 +38,10 @@ def test_new_views_declare_their_keys():
     heat = {"origin": "core", "view": "heat", "level": "entry", "keys": {"row": "path", "col": "k", "value": "val"}}
     assert check_declaration("m", heat, COLS) == []
     assert any("keys.value" in p for p in check_declaration("m", {**heat, "keys": {"row": "path", "col": "k"}}, COLS))
+    assert check_declaration("m", heat, COLS, types={"val": "BIGINT"}) == [] and check_declaration("m", heat, COLS, types={"val": "DECIMAL(18,3)"}) == []
+    assert any("keys.value の列 'val' は数の列" in p for p in check_declaration("m", heat, COLS, types={"val": "VARCHAR"}))
+    tree = {"origin": "core", "view": "tree", "level": "path", "keys": {"id": "k", "parent": "sub", "label": "thing", "value": "val"}}
+    assert any("数の列" in p for p in check_declaration("m", tree, COLS, types={"val": "VARCHAR"}))
 
 
 def test_every_aspect_mart_has_a_topic_and_rollups_point_at_real_columns(repo: Path):  # noqa: F811

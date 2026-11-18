@@ -43,6 +43,12 @@ SUBJECTS = {"entry", "data", "external", "frame", "aspect", "analysis"}
 # 分析の観点の表 (subject: aspect) が答える問いの組。観点のページは、この組ごとに表をまとめる (無い表は「そのほか」に出る)
 TOPICS = {"access", "data_detail", "links", "behavior", "coverage"}
 ROLLUP_KEYS = {"by", "member", "flag", "chip"}
+NUMERIC_KEYS = {"heat": ("value", "order"), "tree": ("value",)}  # 画面が数として読む keys (集計のときに、列の型を見る)
+
+
+def _is_numeric(data_type: str) -> bool:
+    t = data_type.upper()
+    return any(t.startswith(p) for p in ("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "HUGEINT", "UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT", "FLOAT", "DOUBLE", "DECIMAL", "REAL"))
 TEXT_FIELDS = ("title", "hint")
 FILTER_SUFFIXES = ("__prefix", "__under", "__contains", "__min", "__max", "__empty")
 
@@ -188,6 +194,11 @@ def check_declaration(name: str, meta, columns: set[str] | None, description: st
                 problems.append(f"{name}: rollup の列 '{col}' が mart に無い")
         if rollup and types and rollup.get("flag") in types and types[rollup["flag"]].upper() != "BOOLEAN":
             problems.append(f"{name}: rollup.flag の列 '{rollup['flag']}' は真偽の列でなければならない (型: {types[rollup['flag']]})")
+        # 画面が数として読む列 (数の表の値と列の並び順、ツリーの数)。文字の列を宣言すると、図の数や順が黙って消える
+        for k in NUMERIC_KEYS.get(view, ()):
+            col = keys.get(k)
+            if types and col in types and not _is_numeric(types[col]):
+                problems.append(f"{name}: keys.{k} の列 '{col}' は数の列でなければならない (型: {types[col]})")
         for col in (labels or {}) if isinstance(labels, dict) else {}:
             if col not in columns:
                 problems.append(f"{name}: labels の列 '{col}' が mart に無い")

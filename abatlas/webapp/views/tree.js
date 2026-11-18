@@ -34,7 +34,8 @@ export function tree(m, data) {
     const varying = data.columns.filter((c) => !used.has(c) && new Set(list.map((r) => r[c])).size > 1);
     const seen = new Set();
     // 数の列 (keys.value) があるとき: 名前の横に棒と数を出し、子は数の多い順に並べて、畳んで出す (フォルダごとの件数など)
-    const num = (r) => (k.value && typeof r[k.value] === "number" ? r[k.value] : 0);
+    const has = (r) => typeof r[k.value] === "number"; // 数の無い行 (null) は、0 と区別して「?」で出し、棒を引かない
+    const num = (r) => (k.value && has(r) ? r[k.value] : 0);
     const top = k.value ? Math.max(1, ...roots.map(num)) : 0;
     if (k.value) { roots.sort((a, b) => num(b) - num(a)); for (const kids of children.values()) kids.sort((a, b) => num(b) - num(a)); }
     function node(r) {
@@ -49,7 +50,7 @@ export function tree(m, data) {
         el("span", { class: "node", title },
           sub ? el("button", { class: "toggle", "aria-expanded": String(!k.value), title: "下の階層を開く・畳む", onclick: (ev) => { sub.hidden = !sub.hidden; ev.target.textContent = sub.hidden ? "+" : "−"; ev.target.setAttribute("aria-expanded", String(!sub.hidden)); } }, k.value ? "+" : "−") : (k.value ? el("span", { class: "toggle-gap" }) : null),
           el("span", { class: "lbl" }, fmt(r[k.label])),
-          k.value ? [el("span", { class: "tbar" }, el("i", { style: `width:${Math.max(1, Math.round((num(r) / top) * 100))}%` })), el("span", { class: "tnum" }, fmt(num(r)))] : null,
+          k.value ? [el("span", { class: "tbar" }, has(r) ? el("i", { style: `width:${Math.max(1, Math.round((num(r) / top) * 100))}%` }) : null), el("span", { class: "tnum", title: has(r) ? null : "値が無い" }, has(r) ? fmt(num(r)) : "?")] : null,
           k.value ? null : tags.map((t) => el("span", { class: "tag" }, t))),
         k.detail && r[k.detail] ? el("details", { class: "det" }, el("summary", null, labelOf(m, k.detail)), el("p", null, r[k.detail])) : null,
         sub);
