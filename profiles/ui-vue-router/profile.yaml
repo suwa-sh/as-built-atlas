@@ -22,6 +22,13 @@ layers:
     stack: [Vue, Vue Router]
     invokes_next: "枠のファイル自身が呼ぶ store と、その先。枠が描く共通の部品 (上のバー、メニュー、通知、再ログインの小窓など) は、部品ごとに別の入口 (shell) なので、根のコンポーネントやレイアウトの入口からは辿らない。部品の入口では、その部品が描くコンポーネントと、呼ぶ store を辿る。`<router-view>` の中身は、包まれる側の入口 (screen) なので辿らない"
     io: [external_api]
+  - id: part
+    tier: frontend
+    label: part (registry から選ばれて描かれる component)
+    role: entry
+    stack: [Vue]
+    invokes_next: "部品の component が描画する子の component と、呼ぶ composable と store。部品を描く側 (screen や、登録表を引く component) は辿らない"
+    io: [external_api]
   - id: component
     tier: frontend
     label: component (Vue component、composable、画面側の補助の関数)
@@ -52,9 +59,11 @@ hierarchy:
   derivation: "route の `path` を '/' で区切って段にする。実行時に値が入る段 (`:id`) はそのまま残す。全部の画面に付く共通の段 (例: 省ける先頭の `:tenant?`) は落としてよい。URL が / だけの route は `(root)` という 1 段にする。入れ子の route (`children`) は、親の画面に含める (別の入口にしない)。枠 (shell) は `/(shell)` で始める (`/(shell)/app`、`/(shell)/layout/<名前>`、`/(shell)/part/<名前>`、`/(shell)/guard`)"
   entry_labels:   # 枠の入口は、詳細のページで screen ではなく shell と呼ぶ
     - { contains: "(shell)", label: shell }
+    - { contains: "(part)", label: part }
   notes:   # 段の名前に残る Vue Router の書き方を、画面で説明する
     - { contains: ":", text: "コロンで始まる段 (例: :id) は、実行時に値が入る場所。後ろの ? は省ける段、かっこは値の形 (正規表現)。対象のソースの書き方をそのまま出している" }
     - { contains: "(shell)", text: "(shell) で始まる {entry} は、アプリ全体の枠。どの画面を開いても動く" }
+    - { contains: "(part)", text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前" }
 
 extractors:
   - name: vue-routes
@@ -105,5 +114,8 @@ extractors:
             all:
               - has: { field: key, regex: "^(name|path|children)$" }
               - not: { has: { field: value, kind: string } }
+
+# 登録表から選ばれて描かれる component (層 part) は、抽出器では取れない。分けるときは、入口を見つける agent が、
+# `abatlas-extract listed` (名前は agent-listed-part、layer: part) で足す。決まりは context.md の「登録表から選ばれて描かれる部品」
 
 marts: []

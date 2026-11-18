@@ -150,9 +150,10 @@ flowchart LR
 | `reviewed` | `by`<br>`at`<br>`findings_open` | レビューの記録 | レビューの後 |
 | `run` | `cost_usd`<br>`duration_s`<br>`by` | 費用と時間。任意 | エージェントを呼び出した側 |
 
-**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致し、テストとの対応の選択 (作業定義の `analysis.tests` と、結果の `analyzer.tests`) も同じ結果があるとき。判定は、運用側のランナーが行います (コアは項目を持つだけです)。
+**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致し (skill の版は、2 つ目の数字までを比べる。3 つ目だけの違いは、同じと見る)、テストとの対応の選択 (作業定義の `analysis.tests` と、結果の `analyzer.tests`) も同じ結果があるとき。判定は、運用側のランナーが行います (コアは項目を持つだけです)。
 
 | 決まり | 理由 |
 |---|---|
 | skill の版を上げるのは、出力の形や判断の規則が変わったときだけ。変えた理由を、skill の末尾に書く | 版を上げると、旧版で書かれた結果がすべて再分析の対象になる |
+| 前の版の結果も誤りではない小さな直しは、3 つ目の数字だけを上げる | 3 つ目の数字だけが違う結果は、再分析の対象にしない (例: 0.4.1 は、固定の値で閉じた枝を辿らないことにした。0.4.0 の結果は、その枝を余分に持つだけ) |
 | 分析 skill は `analyzer.run` を書かない | 実行中のセッションは、自身の費用を知れない。`claude -p` などを呼んだ側が、終了後に書く。進み具合の集計表の見積もりに使う |

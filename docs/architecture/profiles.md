@@ -20,7 +20,7 @@
 |---|---|---|---|---|
 | `batch-kestra` | Kestra で定期起動されるバッチ | scheduler → shell → agent_skill / program → external | Flow 1 本 = 入口。`[namespace+, flow]` | structured-query (Flow 定義の YAML) |
 | `ui-nextjs` | Next.js (App Router) の画面を持つシステム | page / layout / part → component → api_route → query → external | page ファイル 1 つ = 入口 (画面)、layout ファイル 1 つ = 入口 (画面を包む共通の枠)。保存された設定で選ばれて描かれる部品 (part) も、分けたときは入口。`[section+, page]` | glob (`app/**/page.*` と `app/**/layout.*`) |
-| `ui-vue-router` | Vue Router の画面を持つシステム。画面の定義をコードの中に書き、バックエンドは範囲の外 | screen / shell → component → store → api_client → external | route 1 つ = 入口 (画面)、アプリ全体の枠 = 入口。`[section+, screen]` | ast (routes の配列)。取れない定義と、アプリ全体の枠は、エージェントが読んで足す (listed) |
+| `ui-vue-router` | Vue Router の画面を持つシステム。画面の定義をコードの中に書き、バックエンドは範囲の外 | screen / shell / part → component → store → api_client → external | route 1 つ = 入口 (画面)、アプリ全体の枠 = 入口。保存された設定で選ばれて描かれる部品 (part) も、分けたときは入口。`[section+, screen]` | ast (routes の配列)。取れない定義と、アプリ全体の枠は、エージェントが読んで足す (listed) |
 | `cli` | コマンドラインから起動する道具。スケジューラの定義がリポジトリに無く、呼ばれる側のコマンドだけがある対象 | command → logic → adapter → external | 実行ファイル 1 つ = 入口。サブコマンドがあれば、サブコマンド 1 つ。`[group+, command]` | glob (`bin/*` など)。コードの中で定義したサブコマンドは、ast か、エージェントが読んで足す (listed) |
 | `api` | サーバー側で操作を受けて処理するシステム。ほかのシステムやアプリから呼ばれる API と、サーバー側で画面を作って返す webapp | operation → handler → logic → adapter → external | 操作 1 つ = 入口 (HTTP なら、URL とメソッドの組)。`[resource+, operation]` | nested-keys (OpenAPI、AsyncAPI の定義ファイル)。定義ファイルが無い API、ツールを提供するサーバー、RPC は、ast か、エージェントが読んで足す (listed) |
 | `batch-github-actions` | GitHub Actions で組んだ自動処理 (テスト、ビルド、公開、定期の処理) | workflow → job → step → program → external | workflow ファイル 1 つ = 入口。`[group+, workflow]` | glob (`.github/workflows/*.yml`) |
@@ -314,6 +314,7 @@ umami での試し分析で、3 つありました。`context.md` で、次の�
 | アプリ全体の枠 (`shell`) | 根のコンポーネント、共通のレイアウト、枠が描く共通の部品 (通知、メニューなど。部品 1 つ = 入口 1 件)、ルーターの共通の guard を、入口として 1 回だけ分析する。エージェントが `listed` で足す。部品を分けるのは、枠を 1 件にまとめると、1 件の分析が大きくなりすぎるため。どの画面がどの枠を通るかの関係 (`within`) は、持たない | どの画面でも動く処理を、画面の数だけ繰り返さない。枠は、置き場のフォルダからは決まらない |
 | データの読み書き | すべて、バックエンドの API の呼び出し (`external_api`) として書く。`path` は「HTTP メソッド + URL の形」。生成された SDK の関数しか読めないときは、`sdk:<モジュール>.<関数>` と書き、URL を推測しない | バックエンドは、分析の範囲の外にある |
 | ブラウザの中の保存 | 読み書きに書かない | サーバーのデータではない |
+| 保存された設定で、描く部品が決まる画面 | `ui-nextjs` と同じ決まりで、部品を別の入口 (`part`) に分けられる。対応表が、ファイルの置き場から作られるときは、ファイル 1 つを項目 1 つと数える。枠が描く共通の部品 (`shell`) とは別のもの | 利用者が組むダッシュボードは、Vue の画面にもある |
 
 ## `cli` の決まり
 

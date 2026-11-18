@@ -373,8 +373,9 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
         for i, ln in enumerate(f.get("links", [])):
             if ln.get("kind") == "embed" and not ln.get("entry_id"):
                 findings.append(f"{w}/links/{i}: embed には entry_id が要る (この入口の中に描く部品が、どの入口か。入口になっていない部品は、embed に書かない)")
-            if ln.get("entry_id") and ln["entry_id"] == (result.get("entry") or {}).get("id"):
-                findings.append(f"{w}/links/{i}: entry_id が、この入口自身を指している (つながりは、ほかの入口への行き先を書く)")
+            # 自分自身への遷移 (保存の後に同じ画面を開き直す) や、自分を起動し直す処理は、ある。自分の中に自分を描くことだけは、無い
+            if ln.get("kind") == "embed" and ln.get("entry_id") and ln["entry_id"] == (result.get("entry") or {}).get("id"):
+                findings.append(f"{w}/links/{i}: embed の entry_id が、この入口自身を指している (embed は、この入口の中に描く、ほかの入口を書く)")
             if entry_ids is not None and ln.get("entry_id") and ln["entry_id"] not in entry_ids:
                 findings.append(f"{w}/links/{i}: entry_id '{ln['entry_id']}' が、入口の一覧に無い (rejected の入口も、行き先にできない)")
         if f.get("caller") is None and (f.get("call") or {}).get("when"):

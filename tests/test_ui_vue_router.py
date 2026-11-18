@@ -71,7 +71,7 @@ def test_ui_vue_router_profile_is_valid():
     assert validate_profile(profile) == []
     assert (PROFILE.parent / "context.md").is_file()
     roles = {t["id"]: t.get("role", "intermediate") for t in profile["layers"]}
-    assert roles == {"screen": "entry", "shell": "entry", "component": "intermediate", "store": "intermediate", "api_client": "intermediate", "external": "boundary"}
+    assert roles == {"screen": "entry", "shell": "entry", "part": "entry", "component": "intermediate", "store": "intermediate", "api_client": "intermediate", "external": "boundary"}
     # 対象はブラウザで動く画面だけ。データの読み書きは、バックエンドの API の呼び出しとして、どの層にも書ける
     assert all(t["io"] == ["external_api"] for t in profile["layers"])
     assert "within" not in profile, "画面と枠の関係は、このプロファイルでは持たない"
