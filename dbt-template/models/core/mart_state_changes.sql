@@ -10,5 +10,9 @@ from {{ ref('stg_io_fields') }} f
 join {{ ref('stg_entries') }} e using (entry_id)
 join {{ ref('stg_frames') }} fr on fr.entry_id = f.entry_id and fr.frame_id = f.frame_id
 where f.set_to <> ''
+  -- もう一度書いたフレームは、同じ書き込みの写しなので出さない。ただし、その値が、写しにだけ書いてあるときは、出す (落とさない)
+  and (not f.is_repeat or not exists (
+    select 1 from {{ ref('stg_io_fields') }} o
+    where o.entry_id = f.entry_id and o.resource_path = f.resource_path and o.name = f.name and o.set_to = f.set_to and not o.is_repeat))
 group by f.resource_path, f.name, f.set_to, f.entry_id, e.entry_id, e.path, f.frame_id, fr.name, fr.layer, fr.call_when
 order by f.resource_path, f.name, f.set_to, e.path, fr.name

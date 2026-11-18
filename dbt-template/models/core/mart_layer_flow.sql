@@ -11,6 +11,7 @@ with calls as (
   select f.layer as from_node, '/' || i.kind as to_node, 'io' as edge_kind, i.entry_id, i.status
   from {{ ref('stg_io') }} i
   join {{ ref('stg_frames') }} f on f.entry_id = i.entry_id and f.frame_id = i.frame_id
+  where not i.is_repeat   -- もう一度書いたフレームの読み書きは、数えない
 ), edges as (
   select * from calls union all select * from ios
 )

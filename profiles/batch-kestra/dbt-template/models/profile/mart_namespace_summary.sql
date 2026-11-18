@@ -11,6 +11,7 @@ with flows as (
     count(*) filter (where i.kind = 'external_api') as external_api_io
   from {{ ref('stg_io') }} i
   join {{ ref('stg_entries') }} e using (entry_id)
+  where not i.is_repeat   -- もう一度書いたフレームの読み書きは、数えない (入口の概要の数と合わせる)
   group by e.level1
 )
 select

@@ -266,6 +266,7 @@ flowchart TB
 | Pages Router の画面 | 拡張子を除いたファイル名が最後の段。ファイル名の `index` は段にしない (`pages/index.tsx` → `/(root)`)。段の印は App Router と同じなので、同じ URL は同じ id (移行しても変わらない) |
 | Pages Router の `_app` | 階層は `/(layout)/_app`、id は `layout_l.app_a`。`pages` の下の画面だけを包む |
 | middleware | 階層は `/(layout)/_middleware`、id は `layout_l.middleware_a`。データか外部への送信に至るときだけ入口にする。包むのは、middleware の置き場のフォルダの下にある入口 (範囲の直下に置けば、すべての入口。`matcher` で絞っていても)。`src/middleware.ts` と、`src` の外の `pages/` が同居する配置では、`pages/` の画面を包む関係が付かない (枠の要約に書く) |
+| 多くの入口が自分で描く、大きな部品 (共有の部品) | 階層は `/(part)/_shared/<コンポーネントの名前>`、id は `part_p.shared_a.<名前>`。候補は、数件を分析した後に、集計表 (別の入口に分ける候補) から選び、人が承認で決める。描く側は、部品を描く段で止めて、つながり (`embed`) で指す (経緯は ADR 0014。`ui-vue-router`、`ui-nuxt`、`ui-sveltekit` も同じ) |
 | 多くの page が自分で描く共通の枠 (`getLayout`、`<AppLayout>`) | 3 つ以上の page が描き、データに届くものを、エージェントが足す。階層は `/(layout)/_shared/<名前>`、id は `layout_l.shared_a.<名前>`。page は枠を辿らず、つながり (`embed`) で指す |
 
 ### 既定では入口にならないもの

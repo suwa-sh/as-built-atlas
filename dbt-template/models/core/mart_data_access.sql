@@ -3,7 +3,7 @@
 -- 画面は kind で絞って種類ごとの表にし、行 (path) と列 (resource_path) を節ごとに畳む (畳んだ値は API の pivot が集計する)
 with letters as (
   select i.entry_id, i.kind, i.resource_path, i.op_letter, min(i.op_rank) as op_rank,
-    count(*) as io_count, bool_or(i.status = 'unknown') as has_unknown
+    count(*) filter (where not i.is_repeat) as io_count, bool_or(i.status = 'unknown') as has_unknown   -- 箇所の数は、もう一度書いたフレームの分を除く。不明の印は、写しの分も合わせる (落とさない)
   from {{ ref('stg_io') }} i
   where i.kind <> 'external_api'
   group by i.entry_id, i.kind, i.resource_path, i.op_letter

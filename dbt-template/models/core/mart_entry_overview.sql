@@ -2,7 +2,7 @@ with io_counts as (
   select entry_id,
     count(*) as io_count,
     count(*) filter (where status = 'unknown') as io_unknown
-  from {{ ref('stg_io') }} group by entry_id
+  from {{ ref('stg_io') }} where not is_repeat group by entry_id   -- もう一度書いたフレームの読み書きは、数えない
 ), claim_counts as (
   select entry_id,
     count(*) as claim_count,
