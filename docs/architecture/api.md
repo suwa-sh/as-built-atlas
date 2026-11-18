@@ -23,6 +23,7 @@ flowchart LR
 | `GET /marts/{name}` | 説明と件数 |
 | `GET /marts/{name}/rows` | 行 (下の「行を読む」) |
 | `GET /marts/{name}/tree` | 階層の 1 段 (下の「階層を 1 段ずつ降りる」) |
+| `GET /marts/{name}/groups` | 列の値ごとにまとめた件数 (下の「物ごとにまとめる」) |
 | `POST /marts/{name}/pivot` | 行の節 × 列の節 で畳んだ値 (下の「畳んだ値を読む」) |
 | `POST /recompute` | 集計のやり直し (ETL → dbt build) |
 | `POST /mcp` | MCP (streamable HTTP) |
@@ -39,6 +40,7 @@ flowchart LR
 | `<列>__contains=` | 部分一致 (大文字と小文字を区別しない) |
 | `<列>__under=` | 階層パスが、そのパス自身か、その下 |
 | `<列>__min=`、`<列>__max=` | 数値の範囲 |
+| `<列>__empty=1` | 値が無い行 (null か、空の文字) |
 
 - `order=列` で並べ替えます。先頭に `-` を付けると降順です。
 - 宣言に無い列で絞ると、400 を返します。
@@ -58,6 +60,25 @@ flowchart LR
 | `distinct` 列の相異なる数 | その子の下の、別の列の種類の数 |
 
 入口の階層もデータの階層も、画面はこれで 1 段ずつ降ります。全行は読みません。
+
+## 物ごとにまとめる (`groups`)
+
+`GET /marts/{name}/groups?by=&member=&flag=&chip=&q=&order=&limit=&offset=&<絞り込み>`
+
+入口をまたいで見る表は、同じ物 (設定、列、権限の確認) が、入口の数だけ行になっています。`groups` は、列 `by` の値ごとに行をまとめて、「1 つの物 = 1 件」で返します。
+
+| 指定 | 意味 |
+|---|---|
+| `by` | まとめる列 (必須) |
+| `member` | 数える列 (ふつうは、入口のパスの列)。相異なる数を `members` に返す。無ければ、行の数 |
+| `flag` | 真偽の列。真の `member` の相異なる数を、`flagged` に返す (例: 書く入口の数) |
+| `chip` | 相異なる値を `chips` に返す列 (12 個まで。残りの数は `chips_more`) |
+| `q` | `by` の値の部分一致 |
+| `order` | `-members` (多い順。既定) / `members` (少ない順) / `key` (名前の順) |
+
+- 絞り込みは `rows` と同じです。`total` は件の数、`member_total` は、絞り込みの中の `member` の相異なる数です (画面の棒の長さの基準)。
+- `by` の値が無い行は、`key` が空の文字の 1 件にまとまります。その行を読むときは、`<列>__empty=1` で絞ります。
+- どの列でまとめるとよいかは、宣言の `rollup` に書いてあります ([pipeline.md](pipeline.md))。
 
 ## 畳んだ値を読む (`pivot`)
 
@@ -88,6 +109,7 @@ MCP は、API の薄いラッパーです。
 | `list_marts` | `GET /marts` |
 | `describe_mart` | `GET /marts/{name}` |
 | `query_mart` | `GET /marts/{name}/rows` |
+| `group_mart` | `GET /marts/{name}/groups` |
 | `recompute` | `POST /recompute` |
 
 | つなぎ方 | 動き |

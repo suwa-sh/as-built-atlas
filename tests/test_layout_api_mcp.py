@@ -233,7 +233,7 @@ def test_mcp_is_thin_wrapper(repo: Path):
     assert asyncio.run(api.describe_mart("missing"))["status"] == 404
     server = build_server(api)
     tools = asyncio.run(server.list_tools())
-    assert {t.name for t in tools} == {"list_marts", "describe_mart", "query_mart", "recompute", "describe_atlas"}
+    assert {t.name for t in tools} == {"list_marts", "describe_mart", "query_mart", "group_mart", "recompute", "describe_atlas"}
 
 
 def test_serve_combines_api_and_mcp_over_http(repo: Path):

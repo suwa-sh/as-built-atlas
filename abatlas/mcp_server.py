@@ -41,6 +41,12 @@ class ApiClient:
         params = {**(filters or {}), "limit": limit, "offset": offset}
         return self._json(await self.client.get(f"/marts/{name}/rows", params=params))
 
+    async def group_mart(self, name: str, by: str, member: str | None = None, flag: str | None = None, chip: str | None = None,
+                         filters: dict[str, str] | None = None, q: str | None = None, order: str = "-members", limit: int = 50, offset: int = 0) -> Any:
+        params = {**(filters or {}), "by": by, "order": order, "limit": limit, "offset": offset}
+        params.update({k: v for k, v in (("member", member), ("flag", flag), ("chip", chip), ("q", q)) if v})
+        return self._json(await self.client.get(f"/marts/{name}/groups", params=params))
+
     async def recompute(self) -> Any:
         return self._json(await self.client.post("/recompute"))
 
@@ -61,7 +67,7 @@ def build_server(api: ApiClient):
 
     mcp = _Server("as-built-atlas", instructions=(
         "対象システムの竣工図 (as-built) の集計表を読む。まず list_marts で何があるかを見て、"
-        "describe_mart で列と宣言 (view の種類・階層・キー) を確かめ、query_mart で絞り込んで読む。"
+        "describe_mart で列と宣言 (view の種類・階層・キー) を確かめ、query_mart で絞り込んで読む。行が多い表は、group_mart で、物ごとの数に先にまとめる。"
         "主張には fact / interpretation / unknown の区別があり、unknown は理由が付く。"))
 
     @mcp.tool()
@@ -78,6 +84,14 @@ def build_server(api: ApiClient):
     async def query_mart(name: str, filters: dict[str, str] | None = None, limit: int = 200, offset: int = 0) -> Any:
         """mart の行を読む。filters は {列名: 値} の等値絞り込み。limit は最大 10000。"""
         return await api.query_mart(name, filters, limit, offset)
+
+    @mcp.tool()
+    async def group_mart(name: str, by: str, member: str | None = None, flag: str | None = None, chip: str | None = None,
+                         filters: dict[str, str] | None = None, q: str | None = None, order: str = "-members", limit: int = 50, offset: int = 0) -> Any:
+        """mart の行を、列 by の値ごとにまとめる (1 つの物 = 1 件)。同じ物が、入口の数だけ行になっている表を、物の一覧として読む。
+        members = 列 member の相異なる数 (ふつうは入口のパスの列。無ければ行の数)、flagged = そのうち真偽の列 flag が真のもの、chips = 列 chip の相異なる値。
+        宣言に rollup があれば、その by / member / flag / chip を使うとよい。q は by の値の部分一致。order は -members / members / key。"""
+        return await api.group_mart(name, by, member, flag, chip, filters, q, order, limit, offset)
 
     @mcp.tool()
     async def recompute() -> Any:

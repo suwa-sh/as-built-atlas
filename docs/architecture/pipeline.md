@@ -107,8 +107,13 @@ flowchart LR
 | `mart_rules` | 表 | 業務のルールの一覧。内容と、根拠の場所 |
 | `mart_test_coverage` | 表 | 処理ごとの、それを直接呼ぶテストの数と名前。テストとの対応を分析した結果だけ |
 | `mart_sensitive_data` | 表 | 個人情報などの流れ。データの辞書で承認した列を使う入口と、同じ入口が呼ぶ外部の接続先 |
-| `mart_data_links` | 表 | データを介したつながり。同じデータを、書く入口と読む入口が別にあるもの (キューやテーブルやファイルを介して動く入口) |
+| `mart_data_links` | 3 列のつながり | データを介したつながり。同じデータを、書く入口と読む入口が別にあるもの (キューやテーブルやファイルを介して動く入口) |
 | `mart_unreached_files` | 表 | どの入口からも辿られないファイル。対象の範囲にあって、分析結果のどこにも出てこないもの |
+| `mart_guard_map` | 数の表 | 入口 × 権限の確認の種類。その入口に効く確認の数 (包む入口の分を含む)。認証の確認が無い入口に、印が付く |
+| `mart_behavior_map` | 数の表 | 入口 × 動きを変える物の種類 (条件つきの呼び出し、業務のルールの種類、設定)。数の多い入口が分かる |
+| `mart_setting_spread` | 数の表 | 設定 × 入口の階層の最初の段。その設定に動きを左右される入口の数 |
+| `mart_entry_link_hubs` | 3 列のつながり | 入口どうしのつながりを、入口 1 件を真ん中にして見る。そこへ来る入口と、そこから行く入口 |
+| `mart_unreached_dirs` | ツリー | どの入口からも辿られないファイルを、フォルダごとに数えたもの |
 
 補足です。
 
@@ -174,7 +179,9 @@ flowchart LR
 | `origin` | ○ | 集計表の持ち主: `core` / `profile` / `repo` |
 | `view` | ○ | 表示の種類 (下の表) |
 | `level` | ○ | `entry` / `path` |
-| `subject` | | 何についての表か: `entry` / `data` / `external` / `frame` / `analysis`。画面のメニューの項目になる |
+| `subject` | | 何についての表か: `entry` / `data` / `external` / `frame` / `aspect` / `analysis`。画面のメニューの項目になる |
+| `topic` | | `subject: aspect` の表が答える問いの組: `access` (権限) / `data_detail` (データの細部) / `links` (つながり) / `behavior` (動きを変える物) / `coverage` (分析の届く範囲)。観点のページは、組ごとに表をまとめる。無い表は「そのほか」に出る |
+| `rollup` | | 物ごとのまとめ方 (下の「物ごとのまとめ」) |
 | `title` | | 論理名 (画面の見出し) |
 | `hint` | | 読み方の 1 行 |
 | `attach` | | 入口の画面のどの段に貼るか: `any` / `root` / `level1`〜`level5` |
@@ -184,7 +191,7 @@ flowchart LR
 | `labels` | | 列の表示名 |
 | `filters` | | 一覧の絞り込みの候補 (`{label, where}`) |
 
-表示の種類 (`view`) は 7 つです。必須と任意の `keys` の正本は、`dbt-template/models/core/schema.yml` の冒頭と、`abatlas/declarations.py` の `VIEWS` です。
+表示の種類 (`view`) は 9 つです。必須と任意の `keys` の正本は、`dbt-template/models/core/schema.yml` の冒頭と、`abatlas/declarations.py` の `VIEWS` です。
 
 | `view` | 描くもの | 任意で持てる `keys` の例 |
 |---|---|---|
@@ -193,8 +200,23 @@ flowchart LR
 | `graph` | 有向グラフ | `label` / `status` / `path` |
 | `layers` | 層の図。層どうしのつながりの表だけが使う | `label` / `status` |
 | `sequence` | シーケンス | `node` / `evidence` |
-| `tree` | ツリー | `source` / `tag` |
+| `tree` | ツリー | `source` / `tag` / `value` (数の列。あれば、棒と数を出し、子を畳んで出す) |
 | `stat` | 指標 | — |
+| `heat` | 数の表。行と列の値の組ごとに、数を 1 つ出す (階層で畳まない) | `flag` (真なら、注意して見るセル) / `order` (列の並び順) |
+| `bridge` | 3 列のつながり。真ん中の物 (`id`) と、左右につながる入口 (`left` / `right`。パスを `, ` で連ねた列) | `label` / `kind` |
+
+### 物ごとのまとめ (`rollup`)
+
+入口をまたいで見る表は、同じ物が、入口の数だけ行になります (見本の umami では、列の読み書きの 5,103 行が、501 個の列の話でした)。`rollup` を宣言すると、観点のページは、行の一覧の代わりに「1 つの物 = 1 行」のまとめを先に出します。行の一覧にも、切り替えられます。
+
+| 項目 | 内容 |
+|---|---|
+| `by` | まとめる列 (1〜3 段)。左の列でまとめ、開くと次の列でまとめ、最後に行の一覧 |
+| `member` | 数える列。ふつうは、入口のパス |
+| `flag` | 任意。真偽の列。真の `member` を、別に数える (例: 書く入口) |
+| `chip` | 任意。相異なる値を、札で並べる列 (例: 状態の値) |
+
+数えるのは、API の `groups` です ([api.md](api.md))。画面は、全行を読みません。
 
 `tags: within` の表は、入口の詳細の画面が次のように引きます。この表は `subject` を持ちません (入口の一覧の表と取り違えず、メニューにも出さないため)。
 

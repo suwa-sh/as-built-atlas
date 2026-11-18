@@ -26,7 +26,12 @@ VIEWS: dict[str, dict[str, list[str]]] = {
     # node = そのメッセージを起こした処理の id (tree の id と対応する列)、evidence = 根拠の場所 (file:line) の列。画面はこの 2 つで「入口から終点までの経路」を引く
     "sequence": {"required": ["group", "seq", "from", "to"], "optional": ["label", "status", "path", "node", "evidence"]},
     # source = 定義場所 (file:line) の列、tag = 処理の種類 (層など) の短い札の列
-    "tree": {"required": ["id", "parent", "label"], "optional": ["group", "detail", "path", "source", "tag"]},
+    # value = 数の列。あれば、名前の横に棒と数を出し、子を畳んで出す (フォルダごとの件数など)
+    "tree": {"required": ["id", "parent", "label"], "optional": ["group", "detail", "path", "source", "tag", "value"]},
+    # 行と列の値の組ごとに、数を 1 つ出す平らな表 (階層で畳まない)。flag = 真なら、注意して見るセル。order = 列の並び順の列 (数)
+    "heat": {"required": ["row", "col", "value"], "optional": ["flag", "path", "order"]},
+    # 真ん中の物 (id) と、その左右につながる入口。left / right = 入口のパスを ", " で連ねた列。1 つ選ぶと、左 → 物 → 右 の 3 列で描く
+    "bridge": {"required": ["id", "left", "right"], "optional": ["label", "kind"]},
     "stat": {"required": ["value"], "optional": ["group", "total", "path"]},
 }
 ORIGINS = {"core", "profile", "repo"}
@@ -35,8 +40,11 @@ ATTACH = {"any", "root", *(f"level{i}" for i in range(1, 6))}
 TAGS = {"monitor", "within"}  # within = 入口を包む入口の表 (入口の詳細の画面が、包む入口・中で動く入口のカードに使う)
 # この表が何についての表か。webapp のナビの区分 (その区分の表が無ければ区分は出ない)
 SUBJECTS = {"entry", "data", "external", "frame", "aspect", "analysis"}
+# 分析の観点の表 (subject: aspect) が答える問いの組。観点のページは、この組ごとに表をまとめる (無い表は「そのほか」に出る)
+TOPICS = {"access", "data_detail", "links", "behavior", "coverage"}
+ROLLUP_KEYS = {"by", "member", "flag", "chip"}
 TEXT_FIELDS = ("title", "hint")
-FILTER_SUFFIXES = ("__prefix", "__under", "__contains", "__min", "__max")
+FILTER_SUFFIXES = ("__prefix", "__under", "__contains", "__min", "__max", "__empty")
 
 def declaration_texts(meta: dict) -> list[tuple[str, str]]:
     """宣言のうち画面に出る文字 (どこか, 文字)。"""
@@ -125,6 +133,15 @@ def check_declaration(name: str, meta, columns: set[str] | None, description: st
         for ref in term_refs(text):
             if ref not in terms:
                 problems.append(f"{name}: {where} の用語 '{{{ref}}}' が用語集に無い (schema/vocab/terms.yaml)")
+    if "topic" in meta and (meta.get("subject") != "aspect" or meta["topic"] not in TOPICS):
+        problems.append(f"{name}: topic '{meta.get('topic')}' は subject: aspect の表にだけ書け、{sorted(TOPICS)} のどれか")
+    rollup = meta.get("rollup")
+    if rollup is not None:
+        by = rollup.get("by") if isinstance(rollup, dict) else None
+        if not (isinstance(rollup, dict) and set(rollup) <= ROLLUP_KEYS and isinstance(by, list) and 1 <= len(by) <= 3 and all(isinstance(c, str) and c for c in by)
+                and isinstance(rollup.get("member"), str) and all(isinstance(rollup.get(k, ""), str) for k in ("flag", "chip"))):
+            problems.append(f"{name}: rollup は {{by: [まとめる列 (1〜3 段)], member: 数える列, flag: 任意 (真偽の列), chip: 任意 (値を札で並べる列)}}")
+            rollup = None
     tags = meta.get("tags", [])
     if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags) or not set(tags) <= TAGS:
         problems.append(f"{name}: tags {tags!r} は {sorted(TAGS)} の中から並べる")
@@ -165,6 +182,9 @@ def check_declaration(name: str, meta, columns: set[str] | None, description: st
         for col in (show or []) if isinstance(show, list) else []:
             if col not in columns:
                 problems.append(f"{name}: show の列 '{col}' が mart に無い")
+        for col in ([*rollup["by"], rollup["member"], *(rollup[k] for k in ("flag", "chip") if k in rollup)] if rollup else []):
+            if col not in columns:
+                problems.append(f"{name}: rollup の列 '{col}' が mart に無い")
         for col in (labels or {}) if isinstance(labels, dict) else {}:
             if col not in columns:
                 problems.append(f"{name}: labels の列 '{col}' が mart に無い")

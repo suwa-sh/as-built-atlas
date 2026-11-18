@@ -4,13 +4,18 @@ version: 2
 
 # mart の宣言。`meta.abatlas` が webapp / MCP への契約。webapp は宣言しか読まない (mart の名前を知らない)。
 #   origin:  core | profile | repo   (3 層のどれか)
-#   view:    table | matrix | graph | layers | sequence | tree | stat   (表示の種類。コアで固定した 7 つ)
+#   view:    table | matrix | graph | layers | sequence | tree | stat | heat | bridge   (表示の種類。コアで固定した 9 つ)
 #   level:   entry | path  (入口ごとの表か、階層パスで畳める表か)
 #   subject: 任意。この表が「何について」の表か。webapp のナビの区分になる (その区分の表が 1 つも無ければ区分は出ない)
 #              entry = 入口 / data = データ (読み書き) / external = 外部接続 / frame = 共有処理 (部品) / aspect = 分析の観点 (入口をまたいで見る表。観点のページのタブと、入口のページのタブに出る) / analysis = 分析の状態
 #   title:   任意。人向けの論理名 (見出しに出る。無ければ物理名)
 #   hint:    任意。「この図の読み方」の 1 行 (無ければ表示の種類ごとの既定文)
 #   show:    任意。表に出す列とその順 (無ければ全部の列)。左から概念を絞り込む順に並べる (layer → kind → 個々のもの → その中身と数)
+#   topic:   任意 (subject: aspect の表だけ)。この表が答える問いの組。観点のページは、組ごとに表をまとめる (無い表は「そのほか」に出る)
+#              access = 権限 / data_detail = データの細部 / links = つながり / behavior = 動きを変える物 / coverage = 分析の届く範囲
+#   rollup:  任意。「同じ物が、入口の数だけ行になっている表」を、物ごとにまとめて読むための指定。観点のページは、行の一覧の代わりに、まとめを先に出す
+#              by = まとめる列 (1〜3 段。左から開いていく)、member = 数える列 (ふつうは入口のパス)、flag = 任意 (真偽の列。真の member を、別に数える)、
+#              chip = 任意 (相異なる値を、札で並べる列)。まとめは API の groups が計算する
 #   attach:  階層ページのどの段に貼るか (any = どの段でも、root = 最上位だけ、level1〜level5 = その段だけ)
 #   tags:    任意。monitor を付けると分析の状態の画面にも載る。
 #            within は「入口を包む入口」の表の印 (table で keys.path / keys.members / keys.order を持つ。1 行 = 包まれる入口 × 包む入口。
@@ -31,6 +36,9 @@ version: 2
 #             evidence は任意: 根拠の場所 (file:line) の列。画面は node と evidence で「入口から終点までの経路」を引く)
 #   tree:     id parent label (group / detail は任意。source は任意: 定義場所 (file:line) の列。tag は任意: 処理の種類の短い札の列)
 #   stat:     value         (group / total は任意。total があれば value / total の割合を出す)
+#   tree の value は任意: 数の列。あれば、名前の横に棒と数を出し、子を畳んで出す
+#   heat:     row col value (行と列の値の組ごとに、数を 1 つ出す平らな表。flag は任意: 真なら、注意して見るセル。order は任意: 列の並び順の列 (数))
+#   bridge:   id left right (真ん中の物と、左右につながる入口。left / right は、入口のパスを ", " で連ねた列。label / kind は任意)
 
 #   文字 (description / title / hint / labels / filters の label) の中の "{id}" は、用語集 (schema/vocab/terms.yaml) の呼び名に置き換わる (文字どおりの {id} は \{id} と書く)。
 #   core の title と labels は "{id}" と記号・単位だけで組む (呼び名を直接書かない。tests/test_terms.py が検査する)
@@ -244,12 +252,14 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: data_detail
+        rollup: { by: [resource_path, field], member: path, flag: writes }
         title: "{field} {data_access}"
         hint: "1 行が {entry} × {datastore} × {field}。{field_use} は R = {read}、W = {write}、F = {filter}。* はすべての {field}"
         attach: any
         keys: { id: field_key, path: path, label: field }
         show: [kind, resource_path, field, uses, set_to, path]
-        labels: { kind: "{kind}", resource_path: "{datastore}", field: "{field}", uses: "{field_use}", set_to: "{set_to}", path: "{entry}", io_count: "{call_sites}", has_unknown: "{has_unknown}" }
+        labels: { kind: "{kind}", resource_path: "{datastore}", field: "{field}", uses: "{field_use}", set_to: "{set_to}", path: "{entry}", io_count: "{call_sites}", has_unknown: "{has_unknown}", writes: "{write}" }
         filters:
           - { label: "{write}", where: { uses__contains: "W" } }
 
@@ -261,12 +271,14 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: data_detail
+        rollup: { by: [field_key], member: path, chip: set_to }
         title: "{state_change}"
         hint: "1 行が {datastore} の {field} に、決まった値 ({set_to}) を {write} する {frame} 1 つ"
         attach: any
         keys: { id: change_key, path: path, label: field }
         show: [resource_path, field, set_to, path, frame_name, call_when]
-        labels: { resource_path: "{datastore}", field: "{field}", set_to: "{set_to}", path: "{entry}", frame_name: "{frame}", layer: "{layer}", call_when: "{when}", io_count: "{call_sites}" }
+        labels: { resource_path: "{datastore}", field: "{field}", field_key: "{field}", set_to: "{set_to}", path: "{entry}", frame_name: "{frame}", layer: "{layer}", call_when: "{when}", io_count: "{call_sites}" }
 
   - name: mart_entry_links
     description: "{entry} から、ほかの {entry} への {link} ({kind}: navigate / trigger / overlay / embed)。{link_to} は、{entry} の一覧と結べたときだけ入る"
@@ -276,6 +288,8 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: links
+        rollup: { by: [target], member: path }
         title: "{link}"
         hint: "1 行が {entry} から行き先 1 つへの {link}。{link_to} が空の行は、行き先が {entry} の一覧に無い ({link_target} は、コードに書いてあるとおり)"
         attach: any
@@ -293,6 +307,7 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: access
         title: "{access_control}"
         hint: "1 行が {analyzed} の {entry} 1 件。{authentication} が false の行は、{authentication} の {guard} が見つからなかった {entry}。{unknown} の {guard} は、{authentication} に数えない。{enclosing} が {not_analyzed} なら、そこにある {guard} は数えられていない"
         attach: any
@@ -314,6 +329,8 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: access
+        rollup: { by: [kind, value], member: path }
         title: "{guard}"
         hint: "1 行が {guard} 1 つ。{nested} の数が 1 以上の行は、その {nested} すべてに効く。{entry} ごとの効き方は {access_control} の表"
         attach: any
@@ -329,6 +346,8 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: behavior
+        rollup: { by: [call_condition], member: path }
         title: "{conditional_call}"
         hint: "1 行が {call} 1 つ。on_failure は、{caller} が失敗したときだけ動く {frame} (通知、後片付け、やり直し)"
         attach: any
@@ -346,6 +365,8 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: behavior
+        rollup: { by: [setting], member: path }
         title: "{setting}"
         hint: "1 行が {setting} × {entry}。{effect} は、その {setting} で動きがどう変わるか"
         attach: any
@@ -361,6 +382,8 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: behavior
+        rollup: { by: [kind, rule], member: path }
         title: "{rule}"
         hint: "1 行が {rule} 1 つ。{source} は、式や条件のある行"
         attach: any
@@ -376,6 +399,8 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: coverage
+        rollup: { by: [layer, frame_name], member: path }
         title: "{test}"
         hint: "1 行が {frame} 1 つ。{test} の数が 0 の行は、直接呼ぶ {test} が見つからなかった"
         attach: any
@@ -393,6 +418,8 @@ models:
         view: table
         level: entry
         subject: aspect
+        topic: data_detail
+        rollup: { by: [category_label, resource_path], member: path }
         title: "{sensitive_data}"
         hint: "1 行が {entry} × {datastore} × {field}。{external} は、同じ {entry} が呼ぶ {host}。{dictionary} で {approved} にした {field} だけが出る"
         attach: any
@@ -408,6 +435,8 @@ models:
         view: table
         level: path
         subject: aspect
+        topic: coverage
+        rollup: { by: [top, ext], member: file }
         title: "{unreached_file}"
         hint: "1 行がファイル 1 つ。使われていないものの候補と、分析が届いていない範囲が混ざる。{analyzed} が {approved} より少ない間は、分析の残りを先に見る"
         attach: any
@@ -420,12 +449,88 @@ models:
     meta:
       abatlas:
         origin: core
-        view: table
+        view: bridge
         level: path
         subject: aspect
+        topic: links
         title: "{data_link}"
-        hint: "1 行が {datastore} 1 つ。左の {entry} が {write} したものを、右の {entry} が {read} する。向きだけを見ていて、同じ行を受け渡しているかまでは追っていない"
+        hint: "{datastore} を 1 つ選ぶ。左の {entry} が {write} したものを、右の {entry} が {read} する。向きだけを見ていて、同じ行を受け渡しているかまでは追っていない"
         attach: any
-        keys: { id: resource_path, label: resource_path }
+        keys: { id: resource_path, left: writers, right: readers, label: resource_path, kind: kind }
         show: [kind, resource_path, writer_count, writers, reader_count, readers]
         labels: { kind: "{kind}", resource_path: "{datastore}", writer_count: "{write} ({entry})", writers: "{write}", reader_count: "{read} ({entry})", readers: "{read}" }
+
+  - name: mart_guard_map
+    description: "{entry} × {guard} の {kind}。その {entry} に効く {guard} の数 ({enclosing} の {guard} を含む)。{authentication} の {guard} が 0 の {entry} が、{no_authentication}"
+    meta:
+      abatlas:
+        origin: core
+        view: heat
+        level: entry
+        subject: aspect
+        topic: access
+        title: "{guard_map}"
+        hint: "行が {entry}、列が {guard} の {kind}。数は、その {entry} に効く {guard} の数 ({enclosing} の分を含む)。朱のセルは {no_authentication}"
+        attach: any
+        keys: { row: path, col: kind, value: guard_count, flag: no_authentication, order: kind_order }
+        labels: { path: "{entry}", kind: "{kind}", guard_count: "{guard}", no_authentication: "{no_authentication}" }
+
+  - name: mart_behavior_map
+    description: "{entry} ごとの、動きを変える物の数。{conditional_call}、{rule} ({kind} ごと)、{setting}"
+    meta:
+      abatlas:
+        origin: core
+        view: heat
+        level: entry
+        subject: aspect
+        topic: behavior
+        title: "{behavior_map}"
+        hint: "行が {entry}、列が {kind}。conditional_call = {conditional_call}、decision / validation / calculation = {rule}、setting = {setting}。濃いセルほど、数が多い"
+        attach: any
+        keys: { row: path, col: kind, value: item_count, order: kind_order }
+        labels: { path: "{entry}", kind: "{kind}", item_count: "{call_sites}" }
+
+  - name: mart_setting_spread
+    description: "{setting} の広がり。{setting} × {entry} の階層の最初の段ごとに、その {setting} で動きが変わる {entry} の数"
+    meta:
+      abatlas:
+        origin: core
+        view: heat
+        level: path
+        subject: aspect
+        topic: behavior
+        title: "{setting_spread}"
+        hint: "行が {setting}、列が {entry} の階層の最初の段。数は、その段の下で、その {setting} に動きを左右される {entry} の数"
+        attach: any
+        keys: { row: setting, col: section, value: entry_count }
+        labels: { setting: "{setting}", section: "{section}", entry_count: "{entry}" }
+
+  - name: mart_entry_link_hubs
+    description: "{link} を、{entry} 1 件を真ん中にして見る。その {entry} へ来る {entry} と、そこから行く {entry}"
+    meta:
+      abatlas:
+        origin: core
+        view: bridge
+        level: path
+        subject: aspect
+        topic: links
+        title: "{link_hub}"
+        hint: "{entry} を 1 つ選ぶ。左が、そこへ来る {entry}。右が、そこから行く {entry}。行き先が {resolved} の {link} だけ"
+        attach: any
+        keys: { id: path, left: incoming, right: outgoing, label: path }
+        labels: { path: "{entry}", incoming: "{incoming}", outgoing: "{outgoing}", incoming_count: "{incoming}", outgoing_count: "{outgoing}" }
+
+  - name: mart_unreached_dirs
+    description: "{unreached_file} を、フォルダごとに数えたもの。数は、そのフォルダの下 (さらに下のフォルダも含む) のファイルの数"
+    meta:
+      abatlas:
+        origin: core
+        view: tree
+        level: path
+        subject: aspect
+        topic: coverage
+        title: "{unreached_dir}"
+        hint: "フォルダごとの、{unreached_file} の数。+ で、下のフォルダを開く。ファイルの名前は、下の {unreached_file} の表で見る"
+        attach: any
+        keys: { id: dir, parent: parent, label: name, value: file_count }
+        labels: { dir: "{file}", name: "{name}", file_count: "{unreached_file}" }

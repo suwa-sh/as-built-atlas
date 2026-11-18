@@ -38,6 +38,8 @@ export async function tree(mart, col, under, extra) {
   if (!treeCache.has(key)) treeCache.set(key, api(`marts/${enc(mart.name)}/tree`, params).then((r) => r.children));
   return treeCache.get(key);
 }
+// 列 by の値ごとに、行をまとめる (物ごとの件数。サーバで数える)
+export const groups = (mart, params) => api(`marts/${enc(mart.name)}/groups`, params);
 export const pivot = (mart, body) => post(`marts/${enc(mart.name)}/pivot`, body);
 export async function countOf(mart, params) { return (await rows(mart, params, 1)).total; }
 // 階層 (tree) のキャッシュを捨てる。カタログを読み直したとき (再計算の後) に古い階層を残さない

@@ -30,27 +30,32 @@ export function tree(m, data) {
       if (p == null || p === "" || !byId.has(String(p))) roots.push(r);
       else { if (!children.has(String(p))) children.set(String(p), []); children.get(String(p)).push(r); }
     }
-    const used = new Set([k.id, k.parent, k.label, k.group, k.detail].filter(Boolean));
+    const used = new Set([k.id, k.parent, k.label, k.group, k.detail, k.value].filter(Boolean));
     const varying = data.columns.filter((c) => !used.has(c) && new Set(list.map((r) => r[c])).size > 1);
     const seen = new Set();
+    // 数の列 (keys.value) があるとき: 名前の横に棒と数を出し、子は数の多い順に並べて、畳んで出す (フォルダごとの件数など)
+    const num = (r) => (k.value && typeof r[k.value] === "number" ? r[k.value] : 0);
+    const top = k.value ? Math.max(1, ...roots.map(num)) : 0;
+    if (k.value) { roots.sort((a, b) => num(b) - num(a)); for (const kids of children.values()) kids.sort((a, b) => num(b) - num(a)); }
     function node(r) {
       const id = String(r[k.id]);
       if (seen.has(id)) return el("li", { class: "err" }, `循環: ${fmt(r[k.label])} (${id}) は既に上に出ている`);
       seen.add(id);
       const kids = children.get(id) || [];
-      const sub = kids.length ? el("ul", null, kids.map(node)) : null;
+      const sub = kids.length ? el("ul", { hidden: !!k.value }, kids.map(node)) : null;
       const title = data.columns.map((c) => `${labelOf(m, c)}: ${fmt(r[c])}`).join("\n");
       const tags = [...new Set(varying.filter((c) => typeof r[c] === "string" && r[c] && r[c].length <= 24 && !/^\d+$/.test(r[c])).slice(0, 2).map((c) => r[c]))];
       return el("li", null,
         el("span", { class: "node", title },
-          sub ? el("button", { class: "toggle", onclick: (ev) => { sub.hidden = !sub.hidden; ev.target.textContent = sub.hidden ? "+" : "−"; } }, "−") : null,
+          sub ? el("button", { class: "toggle", "aria-expanded": String(!k.value), title: "下の階層を開く・畳む", onclick: (ev) => { sub.hidden = !sub.hidden; ev.target.textContent = sub.hidden ? "+" : "−"; ev.target.setAttribute("aria-expanded", String(!sub.hidden)); } }, k.value ? "+" : "−") : (k.value ? el("span", { class: "toggle-gap" }) : null),
           el("span", { class: "lbl" }, fmt(r[k.label])),
-          tags.map((t) => el("span", { class: "tag" }, t))),
+          k.value ? [el("span", { class: "tbar" }, el("i", { style: `width:${Math.max(1, Math.round((num(r) / top) * 100))}%` })), el("span", { class: "tnum" }, fmt(num(r)))] : null,
+          k.value ? null : tags.map((t) => el("span", { class: "tag" }, t))),
         k.detail && r[k.detail] ? el("details", { class: "det" }, el("summary", null, labelOf(m, k.detail)), el("p", null, r[k.detail])) : null,
         sub);
     }
     if (groups.size > 1) out.append(el("div", { class: "group-title" }, linkValue(g)));
-    out.append(el("ul", { class: "tree" }, roots.map(node)));
+    out.append(el("ul", { class: k.value ? "tree valued" : "tree" }, roots.map(node)));
     const orphans = list.filter((r) => !seen.has(String(r[k.id])));
     if (orphans.length) {
       out.append(el("p", { class: "err" }, `${orphans.length} 行は根から辿れない (親子関係が循環している)。以下にそのまま出す`));

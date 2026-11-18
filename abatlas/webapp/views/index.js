@@ -11,8 +11,10 @@ import { graph } from "./graph.js";
 import { tree } from "./tree.js";
 import { sequence } from "./sequence.js";
 import { layerFlow } from "./layer-flow.js";
+import { heat } from "./heat.js";
+import { bridge } from "./bridge.js";
 
-export const renderers = { table, stat, graph, tree, sequence, layers: layerFlow };
+export const renderers = { table, stat, graph, tree, sequence, layers: layerFlow, heat, bridge };
 export function render(m, data, ctx) {
   const fn = renderers[m.declaration.view] || renderers.table;
   try { return fn(m, data, ctx); } catch (e) { return el("p", { class: "err" }, `描けない: ${e.message}`); }

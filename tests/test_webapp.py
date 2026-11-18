@@ -385,10 +385,10 @@ def test_sequence_seq_is_dense_per_entry(repo: Path):
 
 
 def test_every_scoped_view_declares_path_for_hierarchy_pages(repo: Path):
-    """階層ページで節に絞れる core mart は keys.path / row / group のどれかを宣言している (列名の決め打ちに頼らない)。"""
+    """階層ページで節に絞れる core mart は keys.path / row / group のどれかを宣言している (列名の決め打ちに頼らない)。分析の観点の表は、階層ページに貼らないので見ない。"""
     for m in client(repo).get("/marts").json():
         k = m["declaration"]["keys"]
-        if m["declaration"]["origin"] == "core" and m["declaration"]["view"] in ("graph", "sequence", "tree"):
+        if m["declaration"]["origin"] == "core" and m["declaration"]["view"] in ("graph", "sequence", "tree") and m["declaration"].get("subject") != "aspect":
             assert "path" in k, m["name"]
 
 

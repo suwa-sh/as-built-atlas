@@ -41,7 +41,7 @@ flowchart LR
 | ![入口の詳細](docs/images/webapp-entry.jpg) | ![データの読み書き](docs/images/webapp-datastore.jpg) |
 | 左が触る相手 (データと外部 API)、右が、選んだ相手までの通り道。根拠のファイルと行が付く | 行 = 入口、列 = データ。どちらも階層ごとに開閉でき、セルは操作 (C / R / U / D) の和 |
 
-画面のメニューは次の 7 つです。同じ内容を、エージェントは MCP (`describe_atlas` / `query_mart`) で読みます。
+画面のメニューは次の 8 つです。同じ内容を、エージェントは MCP (`describe_atlas` / `query_mart`) で読みます。
 
 | メニュー | 答える問い |
 |---|---|
@@ -50,6 +50,7 @@ flowchart LR
 | datastore | このデータを、どの入口が読み書きするか |
 | external API | この外部サービスを、どの入口が呼ぶか |
 | shared function | この共通処理を直すと、どの入口に影響するか |
+| aspects | この列・設定・権限の確認を直すと、どの入口に響くか。認証の要らない入口はどれか。分析はどこまで届いたか |
 | analysis status | 分析はどこまで進んだか。不明な点は何か |
 | mart (API / MCP) | 集計表そのものと、API・MCP での読み方 |
 

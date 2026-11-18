@@ -56,7 +56,7 @@ def _where(mart: str, names: set[str], filters: dict[str, str]) -> tuple[list[st
     where, params = [], []
     for k, v in filters.items():
         col, op = k, "eq"
-        for suffix in ("__prefix", "__under", "__contains", "__min", "__max"):
+        for suffix in ("__prefix", "__under", "__contains", "__min", "__max", "__empty"):
             if k.endswith(suffix):
                 col, op = k[: -len(suffix)], suffix[2:]
         if col not in names:
@@ -69,6 +69,8 @@ def _where(mart: str, names: set[str], filters: dict[str, str]) -> tuple[list[st
                 raise HTTPException(400, f"{k} は数値で指定する")
             where.append(f"try_cast({_q(col)} as double) {'>=' if op == 'min' else '<='} ?")
             params.append(num)
+        elif op == "empty":  # 値が無い行 (null か、空の文字)。値は見ない
+            where.append(f"({_q(col)} is null or {c} = '')")
         elif op == "prefix":
             where.append(f"starts_with({c}, ?)")
             params.append(v)
@@ -306,6 +308,50 @@ def create_app(repo: Path) -> FastAPI:
         prefix = "" if under == "/" else under
         return {"name": name, "col": col, "under": under, "children": [
             {"name": r[0], "key": f"{prefix}/{r[0]}", "leaves": r[1], "rows": r[2], "is_leaf": bool(r[3]), "has_flag": bool(r[4]), "distinct": r[5]} for r in rows]}
+
+    @app.get("/marts/{name}/groups")
+    def groups(name: str, request: Request, by: str, member: str | None = None, flag: str | None = None, chip: str | None = None, q: str | None = None,
+               limit: int = Query(50, ge=1, le=1000), offset: int = Query(0, ge=0), order: str = "-members"):
+        """列 `by` の値ごとに、行をまとめる (1 つの物 = 1 件)。「同じ物が、入口の数だけ行になっている表」を、物の一覧として読むためのもの。
+
+        件ごとに: members = 列 `member` の相異なる数 (無ければ行の数)、flagged = そのうち真偽の列 `flag` が真のもの、rows = 行の数、
+        chips = 列 `chip` の相異なる値 (12 個まで。それより多いときは chips_more に残りの数)。
+        q は `by` の値の部分一致。order は -members (多い順。既定) / members (少ない順) / key (名前の順)。ほかのクエリは、rows と同じ絞り込み。
+        total は件の数、member_total は絞り込みの中の `member` の相異なる数 (棒の長さの基準)。
+        """
+        reserved = ("by", "member", "flag", "chip", "q", "limit", "offset", "order")
+        filters = {k: v for k, v in request.query_params.multi_items() if k not in reserved}
+        orders = {"-members": "members desc, key", "members": "members, key", "key": "key"}
+        if order not in orders:
+            raise HTTPException(400, f"order は {sorted(orders)} のどれか")
+        with catalog.connect() as con:
+            d = _mart(name, con)
+            rel = d["relation"]
+            cols = {c["name"]: c["type"] for c in catalog.columns(con, rel)}
+            for c in (by, member, flag, chip):
+                if c is not None and c not in cols:
+                    raise HTTPException(400, f"列 {c} は mart {name} に無い")
+            if flag is not None and cols[flag].upper() != "BOOLEAN":
+                raise HTTPException(400, f"flag の列 {flag} は真偽の列でなければならない")
+            where, params = _where(name, set(cols), filters)
+            base = f"from {_rel(rel)}" + ((" where " + " and ".join(where)) if where else "")
+            key = f"coalesce(cast({_q(by)} as varchar), '')"
+            count = f"count(distinct {_q(member)})" if member else "count(*)"
+            member_total = con.execute(f"select {count} {base}", params).fetchone()[0]
+            if q:
+                base += (" and " if where else " where ") + f"{key} ilike ? escape '\\'"
+                params = [*params, "%" + _escape_like(q) + "%"]
+            flagged = f"{count} filter (where {_q(flag)})" if flag else "0"
+            chip_sql = f"list(distinct cast({_q(chip)} as varchar)) filter (where {_q(chip)} is not null and cast({_q(chip)} as varchar) <> '')" if chip else "null"
+            total = con.execute(f"select count(distinct {key}) {base}", params).fetchone()[0]
+            rows = con.execute(
+                f"select {key} as key, {count} as members, {flagged} as flagged, count(*) as n, {chip_sql} as chips {base} "
+                f"group by key order by {orders[order]} limit {int(limit)} offset {int(offset)}", params).fetchall()
+        out = []
+        for r in rows:
+            chips = sorted(r[4] or [])
+            out.append({"key": r[0], "members": r[1], "flagged": r[2], "rows": r[3], "chips": chips[:12], "chips_more": max(0, len(chips) - 12)})
+        return {"name": name, "by": by, "member": member, "groups": out, "total": total, "member_total": member_total, "limit": limit, "offset": offset}
 
     @app.post("/marts/{name}/pivot")
     def pivot(name: str, body: dict = Body(...)):
