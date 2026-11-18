@@ -112,3 +112,57 @@ def test_a_ref_at_the_root_is_reported(tmp_path: Path, capsys):
     with pytest.raises(SystemExit, match="読めなかった参照の先"):
         extract(target, {"files": ["docs/openapi.yaml"], "root": "paths", "levels": [{"split": "/"}, {"match": "get"}]}, "operation")
     assert "読めなかった参照: docs/openapi.yaml:2: paths: $ref ./paths.yaml" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------- HTTP の path でない操作 (種類の段) と、id の規則
+
+MCP_SERVER = '''from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("demo")
+
+
+@mcp.tool()
+async def query_mart(name: str, limit: int = 200) -> dict:
+    """mart の行を読む。"""
+    return {}
+
+
+@mcp.resource("demo://x")
+async def not_a_tool() -> str:
+    return ""
+'''
+
+
+def test_mcp_tools_get_a_kind_segment_and_the_shared_id_rules(tmp_path: Path, capsys):
+    """MCP のツールは、先頭に (mcp) の段を置く (HTTP の path と同じ木に入らない)。id は、定義ファイルの抽出器の規則を、そのまま写して使う。"""
+    target = tmp_path / "target"
+    (target / "srv").mkdir(parents=True)
+    (target / "srv" / "server.py").write_text(MCP_SERVER, encoding="utf-8")
+    (target / "docs").mkdir()
+    (target / "docs" / "openapi.yaml").write_text("openapi: 3.0.0\npaths:\n  /files/{name}.png:\n    get: {}\n  /~{user}/items:\n    get: {}\n", encoding="utf-8")
+    repo = tmp_path / "atlas"
+    repo.mkdir()
+    init_repo(repo, "api", targets="claude-code")
+    profile = yaml.safe_load(PROFILE.read_text(encoding="utf-8"))
+    openapi = {k: v for k, v in profile["extractors"][0].items() if k != "hint"}
+    openapi["rationale"] = "定義ファイルは docs/openapi.yaml"
+    tools = {"name": "mcp-tools", "run": "abatlas-extract ast", "layer": "operation", "rationale": "MCP のツールは、@mcp.tool() を付けた関数",
+             "params": {"files": ["srv/*.py"], "language": "python",
+                        "rule": {"pattern": "@mcp.tool()\nasync def $NAME($$$ARGS) -> $R:\n    $$$BODY"},
+                        "fields": {"path": "{NAME}", "name": "tool {NAME}"},
+                        "segments": {"prefix": ["(mcp)", "tools"]},
+                        "id": openapi["params"]["id"],
+                        "unresolved": {"any": [{"pattern": "@mcp.resource($$$A)"}]}}}
+    el_path = repo / "analysis" / "entry-list.yaml"
+    el_path.write_text(yaml.safe_dump({
+        "format_version": 1, "target": {"repo": "example/kotori-api", "clone_path": str(target), "scope": ".", "commit": "0a1b2c3d4e"},
+        "profile": {"id": "api", "version": profile["version"]}, "extractors": [openapi, tools], "entries": []}, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    enumerate_entries(el_path, PROFILE)
+    el = yaml.safe_load(el_path.read_text(encoding="utf-8"))
+    assert validate_entry_list(el, profile) == []
+    assert {e["id"]: e["path"] for e in el["entries"]} == {
+        "mcp_x.tools.query__mart": "/(mcp)/tools/query_mart",      # 種類の段は mcp_x。名前の中の _ は重ねる
+        "files.name_d-png.get": "/files/{name}.png/get",           # 値が入る所は、段の途中にあっても _d。. は -
+        "user_d.items.get": "/~{user}/items/get",
+    }
+    assert "resource" in capsys.readouterr().err, "ツールでない登録 (resource) は、読めなかった参照として知らせる"

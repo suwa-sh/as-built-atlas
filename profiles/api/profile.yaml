@@ -41,9 +41,12 @@ layers:
 
 hierarchy:
   level_labels: [resource+, operation]   # 最後の段が操作 (HTTP なら method)。それより前は、URL の区切り (または、channel や service の名前)
-  derivation: "HTTP の API は、URL の path を '/' で区切って段にし、最後に method (小文字) を置く (例: GET /users/{id} → /users/{id}/get)。path が '/' だけの操作は、(root) という 1 段と method にする。定義ファイルの servers が持つ共通の接頭辞 (/api など) は、path に書かれていないので、段にしない。接頭辞の外に登録された route (コードにだけある) は、path をそのまま段にし、接頭辞の中の route と同じ段になるときだけ、先頭に (outside) という段を置く。メッセージの API は、channel の名前と操作 (publish / subscribe、または操作の id)。tool や RPC は、まとまり (service、分類) と名前"
+  derivation: "HTTP の API は、URL の path を '/' で区切って段にし、最後に method (小文字) を置く (例: GET /users/{id} → /users/{id}/get)。path が '/' だけの操作は、(root) という 1 段と method にする。定義ファイルの servers が持つ共通の接頭辞 (/api など) は、path に書かれていないので、段にしない。接頭辞の外に登録された route (コードにだけある) は、path をそのまま段にし、接頭辞の中の route と同じ段になるときだけ、先頭に (outside) という段を置く。メッセージの API は、channel の名前と操作 (publish / subscribe、または操作の id)。HTTP の path でない操作 (ツール、RPC、GraphQL) は、先頭に、かっこで囲んだ種類の段を置く (HTTP の path と同じ木に入らない): MCP のサーバーは (mcp)、種類 (tools / resources / prompts)、登録の名前 (例: /(mcp)/tools/query_mart)。gRPC は (grpc)、<package>.<Service>、<Method> (例: /(grpc)/shop.CheckoutService/PlaceOrder。package と service は、. を含めて 1 段)。GraphQL は (graphql)、query / mutation / subscription、field の名前 (例: /(graphql)/query/pets)"
   notes:   # 段の名前に残る書き方を、画面で説明する
     - { contains: "{", text: "波かっこの段は、実行時に値が入る場所。API の定義の書き方をそのまま出している" }
+    - { contains: "(mcp)", text: "(mcp) で始まる {entry} は、MCP のサーバーが出すもの。後ろの段は、{kind} (tools / resources / prompts) と、登録の名前" }
+    - { contains: "(grpc)", text: "(grpc) で始まる {entry} は、gRPC の method。後ろの段は、package と service の名前、method の名前" }
+    - { contains: "(graphql)", text: "(graphql) で始まる {entry} は、GraphQL の操作。後ろの段は、query / mutation / subscription と、field の名前" }
 
 extractors:
   - name: openapi-operations
@@ -65,11 +68,14 @@ extractors:
         deprecated: deprecated
       id:
         # id は結果のファイル名になるので記号を持てない。値が入る段を「_ + 1 文字」の印で表し、名前の中の _ は 2 つ重ねる
-        #   /users/{id} get → users.id_d.get      /users/id get → users.id.get      / get → root_r.get
+        #   /users/{id} get → users.id_d.get      /users/id get → users.id.get      / get → root_r.get      /files/{name}.png get → files.name_d-png.get
+        # ast や listed で入口を足すときも、この並びをそのまま写す (context.md の「id の作り方」)
         replace:
-          - { pattern: "_", with: "__" }
-          - { pattern: "^\\{(.+)\\}$", with: "\\1_d" }
+          - { pattern: "_", with: "__" }                       # 名前の中の _ を重ねる (最初に行う)
+          - { pattern: "\\{([^}]+)\\}", with: "\\1_d" }         # 値が入る所 (段の途中にあっても)
           - { pattern: "^\\(root\\)$", with: "root_r" }
+          - { pattern: "^\\((mcp|grpc|graphql|outside)\\)$", with: "\\1_x" }   # 種類の段と、接頭辞の外の印
+          - { pattern: "\\.", with: "-" }                        # 段の中の . (拡張子、package の区切り)
           - { pattern: "[^A-Za-z0-9_-]", with: "" }
   - name: asyncapi-operations
     run: abatlas-extract nested-keys

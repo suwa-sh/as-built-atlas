@@ -15,7 +15,7 @@
 - 分析の skill に、複数の入口をまとめて分析するときの進め方 (先に少ない件数で試して、決まりを固めてから残りを流す)
 - **プロファイル** `ui-android`。Android のアプリ。入口は、Navigation の行き先 1 つ、Activity 1 つ、枠が描く共通の composable 1 つ、OS から起動される class (Application、Service、Receiver、Provider、Worker) 1 つ。端末の中の保存 (Room、DataStore) を読み書きに書くので、Worker が書く表と画面が読む表が、データを介したつながりの表に出る
 - **プロファイル** `ui-ios`。iOS のアプリ。入口は、行き先の enum の case 1 つ、アプリ全体の枠、OS から起動される入口 (ウィジェット、App Intents、拡張、URL の受け口)。端末の中の保存 (SwiftData、UserDefaults、Keychain) を読み書きに書く
-- **プロファイル** `api`。サーバー側で操作を受けて処理するシステム (ほかのシステムから呼ばれる API、サーバー側で画面を作って返す webapp)。入口は、操作 1 つ (HTTP なら、URL とメソッドの組)
+- **プロファイル** `api`。サーバー側で操作を受けて処理するシステム (ほかのシステムから呼ばれる API、サーバー側で画面を作って返す webapp)。入口は、操作 1 つ (HTTP なら、URL とメソッドの組)。定義ファイルのある HTTP の API のほかに、定義ファイルの無い API、MCP のサーバー、gRPC、サーバー側で画面を作る webapp (Rails) で、実物を通して、決まりを足した
 - **プロファイル** `transform-dbt`。dbt で組んだデータの変換。入口は、model 1 つ。上流の model は、呼び出しではなく読み書きで表すので、model の依存が、データを介したつながりの表に出る
 - **プロファイル** `batch-github-actions`。GitHub Actions で組んだ自動処理。入口は、workflow 1 つ
 - **抽出器** `abatlas-extract nested-keys`。定義ファイルの、入れ子のキーの組を入口にする (OpenAPI の `paths.<URL>.<メソッド>`、AsyncAPI の `channels.<チャネル>.<操作>`)
