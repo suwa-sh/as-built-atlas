@@ -25,9 +25,12 @@ export function heat(m, data) {
   }
   const allCols = [...cols.keys()].sort((a, b) => cols.get(a) - cols.get(b) || a.localeCompare(b));
   // 行と列の種類がどちらも多い表は、全部の組を描くと画面が止まる。列は MAX_COLS まで、行は MAX_ROWS までを描き、切ったことを出す
-  const colKeys = allCols.slice(0, MAX_COLS);
+  // 切るときは、印のあるセルを持つ列を先に残す (「印だけ」で残った行の理由が、描いた列の中に必ず見える)。残した列は、元の並び順に戻す
+  const flagCols = new Set(k.flag ? data.rows.filter((r) => r[k.flag] === true).map((r) => String(r[k.col] ?? "")) : []);
+  const kept = new Set(allCols.length > MAX_COLS ? [...allCols.filter((c) => flagCols.has(c)), ...allCols.filter((c) => !flagCols.has(c))].slice(0, MAX_COLS) : allCols);
+  const colKeys = allCols.filter((c) => kept.has(c));
   const val = (cells, c) => { const r = cells.get(c); return r && typeof r[k.value] === "number" ? r[k.value] : 0; };
-  const flagged = (cells) => !!k.flag && [...cells.values()].some((r) => r[k.flag] === true);
+  const flagged = (cells) => !!k.flag && colKeys.some((c) => { const r = cells.get(c); return !!r && r[k.flag] === true; }); // 描いている列だけで判定する
   const max = Object.fromEntries(colKeys.map((c) => [c, Math.max(1, ...[...rows.values()].map((cells) => val(cells, c)))]));
   const st = { q: "", flagOnly: false, sort: null };
   const body = el("tbody");
