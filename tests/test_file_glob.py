@@ -15,6 +15,8 @@ from abatlas.validate import validate_entry_list, validate_profile
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROFILE = REPO_ROOT / "profiles" / "ui-nextjs" / "profile.yaml"
+# App Router の抽出器。Pages Router と middleware の抽出器は、置き場が無いシステムでは入口の一覧に書かない (tests/test_ui_nextjs_pages_router.py)
+APP_ROUTER_EXTRACTORS = ("next-pages", "next-layouts")
 
 # Next.js (App Router) の置き場の見本。値は (ファイル, 中身)
 PAGES = {
@@ -292,7 +294,8 @@ def ui_entry_list(app: Path, tmp_path_factory):
         "format_version": 1,
         "target": {"repo": "example/app", "commit": "0" * 40, "clone_path": str(app)},
         "profile": {"id": profile["id"], "version": profile["version"]},
-        "extractors": [{"name": ex["name"], "run": ex["run"], "layer": ex["layer"], "params": ex["params"], "rationale": "test"} for ex in profile["extractors"]],
+        "extractors": [{"name": ex["name"], "run": ex["run"], "layer": ex["layer"], "params": ex["params"], "rationale": "test"}
+                       for ex in profile["extractors"] if ex["name"] in APP_ROUTER_EXTRACTORS],
     }
     path = repo / "analysis" / "entry-list.yaml"
     path.write_text(yaml.safe_dump(entry_list, allow_unicode=True, sort_keys=False), encoding="utf-8")

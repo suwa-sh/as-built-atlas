@@ -19,7 +19,7 @@
 | プロファイル | 対象 | 層の連鎖 | 入口と階層 | 抽出器 |
 |---|---|---|---|---|
 | `batch-kestra` | Kestra で定期起動されるバッチ | scheduler → shell → agent_skill / program → external | Flow 1 本 = 入口。`[namespace+, flow]` | structured-query (Flow 定義の YAML) |
-| `ui-nextjs` | Next.js (App Router) の画面を持つシステム | page / layout / part → component → api_route → query → external | page ファイル 1 つ = 入口 (画面)、layout ファイル 1 つ = 入口 (画面を包む共通の枠)。保存された設定で選ばれて描かれる部品 (part) も、分けたときは入口。`[section+, page]` | glob (`app/**/page.*` と `app/**/layout.*`) |
+| `ui-nextjs` | Next.js の画面を持つシステム (App Router と Pages Router。両方が同居する、移行の途中のものも) | page / layout / part → component → api_route → query → external | page ファイル 1 つ = 入口 (画面。Pages Router は pages の下のファイル 1 つ)、layout ファイル 1 つ = 入口 (画面を包む共通の枠)。Pages Router の `_app`、データに届く middleware、多くの page が自分で描く共通の枠も、枠の入口。保存された設定で選ばれて描かれる部品 (part) も、分けたときは入口。`[section+, page]` | glob (`app/**/page.*`、`app/**/layout.*`、`pages/**/*`、`pages/_app.*`、`middleware.ts`)。page が自分で描く共通の枠は、エージェントが読んで足す (listed) |
 | `ui-vue-router` | Vue Router の画面を持つシステム。画面の定義をコードの中に書き、バックエンドは範囲の外 | screen / shell / part → component → store → api_client → external | route 1 つ = 入口 (画面)、アプリ全体の枠 = 入口。保存された設定で選ばれて描かれる部品 (part) も、分けたときは入口。`[section+, screen]` | ast (routes の配列)。取れない定義と、アプリ全体の枠は、エージェントが読んで足す (listed) |
 | `cli` | コマンドラインから起動する道具。スケジューラの定義がリポジトリに無く、呼ばれる側のコマンドだけがある対象 | command → logic → adapter → external | 実行ファイル 1 つ = 入口。サブコマンドがあれば、サブコマンド 1 つ。`[group+, command]` | glob (`bin/*` など)。コードの中で定義したサブコマンドは、ast か、エージェントが読んで足す (listed) |
 | `api` | サーバー側で操作を受けて処理するシステム。ほかのシステムやアプリから呼ばれる API と、サーバー側で画面を作って返す webapp | operation → handler → logic → adapter → external | 操作 1 つ = 入口 (HTTP なら、URL とメソッドの組)。`[resource+, operation]` | nested-keys (OpenAPI、AsyncAPI の定義ファイル)。定義ファイルが無い API、ツールを提供するサーバー、RPC は、ast か、エージェントが読んで足す (listed) |
@@ -263,6 +263,10 @@ flowchart TB
 | `_folder` の下 | 拾わない |
 | id | 記号を除き、段の種類を印で区別する (`[id]` → `id_d`、`@modal` → `modal_s`、app 直下 → `root_r`)。名前の中の `_` は重ねるので、同じ名前の静的な段と同居できる |
 | 小窓版 (並行ルート + 割り込みルート) | 階層は、割り込み先の URL ではなく、置き場を表す |
+| Pages Router の画面 | 拡張子を除いたファイル名が最後の段。ファイル名の `index` は段にしない (`pages/index.tsx` → `/(root)`)。段の印は App Router と同じなので、同じ URL は同じ id (移行しても変わらない) |
+| Pages Router の `_app` | 階層は `/(layout)/_app`、id は `layout_l.app_a`。`pages` の下の画面だけを包む |
+| middleware | 階層は `/(layout)/_middleware`、id は `layout_l.middleware_a`。データか外部への送信に至るときだけ入口にする。置き場が直下なので、すべての入口を包む (`matcher` で絞っていても) |
+| 多くの page が自分で描く共通の枠 (`getLayout`、`<AppLayout>`) | 3 つ以上の page が描き、データに届くものを、エージェントが足す。階層は `/(layout)/_shared/<名前>`、id は `layout_l.shared_a.<名前>`。page は枠を辿らず、つながり (`embed`) で指す |
 
 ### 既定では入口にならないもの
 
@@ -270,6 +274,8 @@ flowchart TB
 |---|---|
 | API の受け口 (`route` ファイル) | 入口にしない。画面から辿った途中の段として現れる。画面を通らない受け口 (外部向けの API、計測の受信) は、分析の対象にならない |
 | `template`、`loading`、`error`、`not-found`、`default` のファイル | 既定の抽出器では拾わない。画面も枠もこれらを辿らないので、入口を発見するときに、有無と中身を確かめる |
+| Pages Router の API の受け口 (`pages/api`) | 入口にしない。`route` ファイルと同じく、画面から辿った途中の段 (HTTP メソッドの分岐ごと) |
+| `_document`、`_error`、`404`、`500` | 既定の抽出器では拾わない。入口を発見するときに中身を確かめ、データに届くときだけ足す |
 
 枠の動きが、画面や URL によって変わることがあります。その差は、枠の要約に文で書くだけで、表にはなりません。
 
@@ -283,6 +289,7 @@ flowchart TB
 |---|---|---|
 | URL (Route Handler) | ブラウザ側のフックが呼ぶ URL の文字列 (例 ``get(`/websites/${websiteId}/stats`)``) を、その形に当たる `route` ファイルの、HTTP メソッドの関数に対応付ける | URL の行。形が決まらなければ `unknown` + `dynamic_dispatch` |
 | 関数の参照 (`'use server'` の Server Function) | URL を通らないので、import や props を辿って、関数の定義へ行く | — |
+| サーバー側のデータ取得の関数 (Pages Router の `getServerSideProps` / `getStaticProps` / `getInitialProps`) | page と別の段 (`api_route`) にする。Next.js が名前で呼ぶので、根拠は定義の行 | — |
 
 同じ `route` ファイルの GET と POST は、別の段にします。突き合わせ (`evaluate`) は、ファイル単位で照合します (メソッドの取り違えは、読み書きの照合に現れます)。
 
