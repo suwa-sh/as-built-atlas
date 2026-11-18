@@ -47,7 +47,7 @@ page (app/**/page.tsx。URL 1 つ = 画面 1 つ)
 
 - **入口を発見するときに、中身を確かめる**。データの読み書きか外部への送信に至る (トークンの検証で DB を読む、計測を外へ送る、など) ときだけ、抽出器 `next-middleware` を入口の一覧に書く。転送や書き換えだけなら書かない (確かめたことを報告に書く)
 - 階層は `/(layout)/_middleware`、id は `layout_l.middleware_a`。層は `layout` (画面を包む共通の枠と同じ扱い)
-- 置き場がリポジトリの直下 (か `src`) なので、列挙ツールは、これが**すべての入口を包む**と決める。`config.matcher` で動く URL を絞っていても、包む関係は絞らない。どの URL で動くかは、入口の `summary` に書く
+- 列挙ツールは、middleware の**置き場のフォルダの下にある入口を包む**と決める。範囲の直下に置けば、すべての入口を包む。`src/middleware.ts` は、`src` の下の入口だけを包む (`src` の外に `pages/` や `app/` が同居する配置では、そちらの画面を包む関係が付かない。実際には、その画面の前でも動くので、入口の `summary` に書く)。`config.matcher` で動く URL を絞っていても、包む関係は絞らない。どの URL で動くかは、入口の `summary` に書く
 - 画面と枠は middleware を辿らない (入口の一覧に入れていなくても、辿らない)。middleware を分析するときは、`middleware` の関数から呼ぶ関数を、枠と同じ基準で終端まで辿る。URL や host で分かれる処理は、それぞれを `conditional` にして、条件を `summary` に書く
 
 ## Pages Router の画面

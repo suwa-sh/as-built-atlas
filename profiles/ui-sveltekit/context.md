@@ -99,7 +99,7 @@ page (+page.svelte。URL 1 つ = 画面 1 つ)
 - **`external` フレームの場所 (`source`)**: ライブラリのソースはリポジトリに無いので、`source` には**ライブラリの関数・メソッドを実際に呼んでいる行**を書く (例: `collections.users.findOne(…)` の行、`client.get(key)` の行)。クライアントを作る・設定するだけの共通ファイルの行 (`new MongoClient(...)`、`db.collection("users")`) や、import の行を `source` にしない
 - **`external` フレームの数**: 読み書きの相手とメソッドの組ごとに 1 つ (`sessions.findOne` と `users.findOne` は別のフレーム。別の SDK のメソッド `users.info` と `conversations.info` も別)。1 つの関数の中で、同じ相手の同じメソッドを何度も呼ぶときだけ、最初の行の 1 つにまとめる
 - **画面の遷移のライブラリ** (`goto`、`redirect`): 遷移は `links` の `navigate` に書く (フレームにしない)。遷移の先が `+server.ts` (例: `/login`、ログインの戻り先) で、画面の入口ではないときも、`navigate` に URL の形を書き、`entry_id` は書かない。遷移しか持たない枠や画面を閉じるための `external` フレームは、最初の遷移の行に 1 つだけ書く (遷移の行ごとに増やさない)
-- **終端の決まり**: 機械チェックは、終端のフレーム (誰からも呼ばれないフレーム) が「`external` の層」「I/O を持つ」「業務のルールを持つ」「行き先の入口が分かっているつながり (`links` の `embed` / `trigger` と `entry_id`) を持つ」「`unknown` の主張を持つ」のどれかであることを求める。だから、経路は必ずデータの I/O か `external` のライブラリまで書き切る
+- **終端の決まり**: 機械チェックは、終端のフレーム (誰からも呼ばれないフレーム) が「`external` の層」「I/O を持つ」「業務のルールを持つ」「行き先の入口が分かっているつながり (`links` の `embed` / `trigger` と `entry_id`) を持つ」「権限の確認を持つ」「`unknown` の主張を持つ」のどれかであることを求める。だから、経路は必ずデータの I/O か `external` のライブラリまで書き切る
 - **データに届かない画面・枠** (別の画面へ転送するだけ、固定の文言を出すだけ): 入口のフレームから、それが最後に頼るライブラリ (転送なら `@sveltejs/kit` の `redirect` や `$app/navigation` の `goto`) を `external` フレームとして 1 つ書いて閉じる。I/O は無し。「データを読まない」ことは入口の `summary` に書く
 - **同じファイルに複数の関数**: フレームはファイル単位を基本にする。`+server.ts` は HTTP メソッドごとにフレームを分ける (`name` に `GET /api/…` のように書く)。`+page.server.ts` は `load` と、action ごとに分ける。remote functions のファイルも、呼ばれる関数ごとに分ける
   - 正解との突き合わせ (`abatlas evaluate`) は、フレームを「層と `source.file`」で照合するので、同じファイルの別の関数は 1 つに数えられる。フレームを分けるのは、画面と図で呼び出しの関係を正しく見せるため

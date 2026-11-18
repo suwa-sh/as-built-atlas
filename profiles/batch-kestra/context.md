@@ -13,7 +13,7 @@ scheduler (Kestra Flow YAML)
 ```
 
 - `scheduler` が `role: entry`。Flow 1 本 = 入口 1 件
-- Subflow (`io.kestra.plugin.core.flow.Subflow`) で呼ばれる Flow も入口として列挙する。呼ぶ側は、Subflow を呼ぶ段と `links` (`kind: trigger`、`entry_id` は子の Flow の入口) で止め、子の Flow の中は辿らない (子の入口の結果にある)。`finally` の Subflow も同じ
+- Subflow (`io.kestra.plugin.core.flow.Subflow`) で呼ばれる Flow も入口として列挙する。親子関係はコールスタックのフレームで表す (親 Flow のフレームから子 Flow のフレームを `caller` で指す)。呼ぶ段には、`links` (`kind: trigger`、`entry_id` は子の Flow の入口) も書く。`finally` の Subflow も同じ
 - `external` が `role: boundary`。ライブラリ・SDK・CLI の呼び出しに達したらコールスタックを閉じる
 - **分析の範囲**: 呼び先 (skill の本体、persona、起動スクリプトが呼ぶスクリプト) が、Flow の置き場の外 (リポジトリのルートの skill の置き場など) にあることが多い。そのときは、作業定義の `target.scope` をリポジトリのルートにし、入口は抽出器の `files` で絞る。後から範囲を広げると、入口を定義するファイルのパスが変わり、承認がすべて外れ、前の結果が検査に落ちる
 

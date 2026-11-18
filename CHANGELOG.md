@@ -14,6 +14,7 @@
 - 作業定義の `analysis.models`。分析とレビューをサブエージェントに任せるときのモデルを、分析リポジトリで決められる (`analyze` と `review`)。書かないと、起動した側と同じモデルで動き、入口が多いと費用がかさむ
 - 分析の skill に、複数の入口をまとめて分析するときの進め方 (先に少ない件数で試して、決まりを固めてから残りを流す)
 - プロファイル `ui-nextjs` を、Next.js の Pages Router (`pages/`) にも使えるようにした。pages の下のファイル 1 つが画面、`_app` と、データに届く middleware と、多くの画面が自分で描く共通の枠が、画面を包む入口になる。`getServerSideProps` などは、page と別の段。App Router と同じ印で id を作るので、移行の途中の (両方がある) リポジトリでも、同じ URL は同じ id になる。入口の一覧に足したときだけ効くので、これまでの結果は、そのまま使える (版は 0.4.0 のまま)
+- プロファイル `ui-vue-router` の版を 0.4.0 に上げた。保存された設定で選ばれる部品を別の入口に分ける決まりを、実物 (Kestra の画面) で試して補い、入口のファイルの中の見張り (`watch`) の扱いなどを決め直した。0.3.0 の結果は、再分析の対象になる
 - **プロファイル** `ui-sveltekit`。SvelteKit の画面を持つシステム。`+page.svelte` / `+layout.svelte` / `hooks.server` を入口にし、`hooks.server` (shell) がすべての入口を包む
 - **プロファイル** `ui-nuxt`。Nuxt の画面を持つシステム。pages / layouts / app.vue / global の route middleware / server middleware を glob で取り、プラグインはエージェントが足す。サーバー側 (`server/api`) を持つ作りと、別のバックエンドを呼ぶ作りの両方に使う
 - **プロファイル** `ui-android`。Android のアプリ。入口は、Navigation の行き先 1 つ、Activity 1 つ、枠が描く共通の composable 1 つ、OS から起動される class (Application、Service、Receiver、Provider、Worker) 1 つ。端末の中の保存 (Room、DataStore) を読み書きに書くので、Worker が書く表と画面が読む表が、データを介したつながりの表に出る
