@@ -1,0 +1,1928 @@
+format_version: 1
+entry:
+  id: part_p.boardComponentRegistry.RevenueMetricsBar
+  path: /(part)/boardComponentRegistry/RevenueMetricsBar
+  name: BoardRevenueMetricsBar
+  layer: part
+  source:
+    file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 261
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile:
+    id: ui-nextjs
+    version: 0.4.0
+  skill_version: 0.4.1
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-18T00:43:08Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T00:42:04Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "ボードに置く「売上の帯」の部品 (登録表の type: RevenueMetricsBar)。部品の設定の通貨 (無ければブラウザに保存した通貨、DEFAULT_CURRENCY、USD の順) と、描く画面の URL の期間・compare・絞り込みで、GET /api/websites/[websiteId]/revenue/stats から売上の合計・平均・ARPU・注文の数・顧客の数を読み、比較の期間との差と一緒に出す。受け口は、最初にログインの確認 (user。REDIS_URL があれば Redis の auth:*) を行い、canViewWebsiteSection (セクションは revenue) でサイトを見てよいかを確かめ (ログインした利用者なら canViewWebsite が website / link / pixel / board / share / team_user を読む)、getQueryFilters で期間と絞り込みをまとめ (サイトの情報を読み、REDIS_URL があれば Redis の website:* に読み書きする。CLOUD_MODE で個人のサイトなら account:* も読む。URL に segment / cohort があれば segment も読む)、getRevenueStats で website_event と revenue (ClickHouse では website_revenue) を、いまの期間と比較の期間で 2 回集計する。絞り込みに応じて session / event_data / session_data も読む。CLICKHOUSE_URL の有無で PostgreSQL 用か ClickHouse 用の SQL のどちらかが動く。書き込みは無い。ほかの入口へのつながりは無い"
+  evidence:
+  - file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 261
+  - file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 268
+  - file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 269
+  - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+    line: 14
+  - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/useBoardRevenueCurrency.ts
+    line: 5
+  - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+    line: 15
+  - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+    line: 16
+  - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+    line: 43
+  - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+    line: 26
+  - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+    line: 19
+  - file: src/lib/request.ts
+    line: 52
+  - file: src/lib/auth.ts
+    line: 94
+  - file: src/lib/auth.ts
+    line: 102
+  - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+    line: 27
+  - file: src/permissions/share.ts
+    line: 59
+  - file: src/permissions/website.ts
+    line: 24
+  - file: src/lib/entity.ts
+    line: 5
+  - file: src/permissions/website.ts
+    line: 35
+  - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+    line: 32
+  - file: src/lib/request.ts
+    line: 130
+  - file: src/lib/load.ts
+    line: 10
+  - file: src/lib/request.ts
+    line: 104
+  - file: src/lib/request.ts
+    line: 133
+  - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+    line: 39
+  - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+    line: 40
+  - file: src/queries/sql/revenue/getRevenueStats.ts
+    line: 44
+  - file: src/queries/sql/revenue/getRevenueStats.ts
+    line: 54
+  - file: src/queries/sql/revenue/getRevenueStats.ts
+    line: 113
+  - file: src/lib/prisma.ts
+    line: 309
+  - file: src/lib/prisma.ts
+    line: 313
+  - file: src/lib/db.ts
+    line: 27
+notes: "(1) 部品の入口として分析した。入口のフレームは、登録表の項目 RevenueMetricsBar (boardComponentRegistry.tsx:261) が指すコンポーネント BoardRevenueMetricsBar (BoardRevenueMetricsBar.tsx:7)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、currency) と、描く画面の URL のクエリ (期間、compare、絞り込み) を、入口のフレームの parameters に書いた。この項目には componentByEntityType が無いので、対象の種類で替わる部品は無い。(2) 同じ受け口の前処理・権限の確認・絞り込み (parseRequest から getWebsiteSegment まで) は、同じ処理を書いた部品の結果 (part_p.boardComponentRegistry.WebsiteMetricsBar) の綴りと木を、getRevenueStats とその先は、売上の画面の結果 (websites.websiteId_d.revenue) の綴りを出発点にし、受け口に依存する行 (route.ts:19 / :27 / :32 / :39 / :40) と文は、売上の受け口に合わせて書き直した。この入口では、どの処理も api_revenue_stats の下に最初に着くので、書き直し (_rw) のフレームは無い。API_URL と BASE_PATH は、最初に API を呼ぶフレーム (use_revenue_stats) に書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。(3) 固定の値で閉じている呼び出しは無い (0 件)。確かめたこと: (a) 受け口が canViewWebsiteSection に固定の値 revenue を渡すが、その値が効くのは、ログインしていない共有トークンの経路で、共有の設定との組み合わせで決まるので、閉じていない (呼び先のフレームも無い)。(b) フックが useFilterParameters に固定の値 includePagination: false を渡すが、送る値 (page / pageSize) を変えるだけで、呼び出しを閉じない。parameters に書いた。(c) getQueryFilters には、受け口がいつも websiteId を渡すので、fetchWebsite は always にした。(4) 迷った点と選んだ扱い。(a) DEFAULT_CURRENCY は、部品を選ぶ画面が登録表の既定 (USD) を部品の設定に入れて保存するので、ふつうは効かない。ただ、保存された設定は部品の入口の外の値で、設定に通貨が無い経路を否定できないので、入口のフレームの settings に書いた (判定する補助の関数 useBoardRevenueCurrency は段にしていない)。(b) RevenueMetricsBar (表示の子) が持つ「比較の期間との差」の計算は、子をフレームにしないので、入口のフレームの rules に書いた (WebsiteMetricsBar の結果と同じ扱い)。(c) useDateRange と useBoardRevenueCurrency がブラウザに保存した期間・通貨 (localStorage) を読むが、サーバーのデータではないので I/O に書かず、parameters に書いた。(d) links は 1 件も無い。この部品は、ほかの入口への遷移もつながりも持たない。(5) レビューへの対応 (1 回。high 0 件、medium 1 件、low 2 件。すべて直した)。(a) canViewWebsite に、管理者の確認を role の guard (user.isAdmin) として足し、ownership の note から外した。(b) 受け口の呼び出しを conditional (websiteId と通貨があるとき) にした (enabled で止める作りの決まり)。(c) 入口のフレームの「絞り込みのクエリ」で、allowFilter の条件が search 以外のすべてに掛かるように文を直し、根拠に useFilterParameters.ts:19 を足した。"
+callstack:
+- id: revenue_metrics_bar
+  layer: part
+  kind: component
+  name: BoardRevenueMetricsBar
+  source:
+    file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+    line: 7
+  caller: null
+  parameters:
+  - name: websiteId
+    value: "売上を出す対象 (サイト) の id。描く側から props で受け取る (必須)"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 8
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 11
+    - file: src/app/(main)/boards/[boardId]/BoardComponentRenderer.tsx
+      line: 40
+  - name: currency
+    value: "売上を数える通貨。描く側が、保存された部品の設定 (props) から渡す (任意)。登録表の既定は DEFAULT_CURRENCY (USD) で、選べる通貨は CURRENCY_OPTIONS。渡されなければ、ブラウザに保存した通貨 (umami.currency)、環境変数 DEFAULT_CURRENCY、USD の順に使う"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 9
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 12
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 14
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/useBoardRevenueCurrency.ts
+      line: 5
+    - file: src/app/(main)/boards/boardComponentRegistry.tsx
+      line: 269
+    - file: src/app/(main)/boards/boardComponentRegistry.tsx
+      line: 272
+    - file: src/app/(main)/boards/boardComponentRegistry.tsx
+      line: 275
+    - file: src/app/(main)/boards/[boardId]/BoardComponentRenderer.tsx
+      line: 42
+  - name: "date / unit / offset / compare"
+    value: "描く画面の URL のクエリ。期間・単位・ずらし・比較の期間の選び方 (compare が無ければ prev)。date が無ければ、ブラウザに保存した期間か既定の期間を使う"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 15
+    - file: src/components/hooks/useDateRange.ts
+      line: 10
+    - file: src/components/hooks/useDateRange.ts
+      line: 15
+    - file: src/components/hooks/useDateParameters.ts
+      line: 16
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 34
+  - name: "絞り込みのクエリ"
+    value: "描く画面の URL のクエリのうち、search と、共有の設定の allowFilter が false でないときだけ送るもの (絞り込みの列 (FILTER_COLUMNS) とセッションのプロパティ (spf<n>) に当たるもの、イベントのプロパティ (epf<n>。描く画面のパスが /events で終わるときだけ)、segment / cohort / excludeBounce / match)。売上の API にそのまま送る (segment と cohort は、受け口で保存した定義を読む条件になる)。page / pageSize は送らない (フックが includePagination: false で呼ぶ)"
+    status: fact
+    evidence:
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 35
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 48
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 13
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 14
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 19
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 20
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 23
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 24
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 25
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 34
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 35
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 36
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 37
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 38
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 41
+  summary:
+    status: interpretation
+    value: "ボードに置く「売上の帯」の部品。通貨を決め (useBoardRevenueCurrency)、URL の compare と一緒に useRevenueStatsQuery で売上の合計を読み、読めたら RevenueMetricsBar で、合計・注文あたりの平均 (AOV)・訪問者あたりの売上 (ARPU)・注文の数・顧客の数を、比較の期間との差と一緒に出す。期間が「すべて」のときは差を出さない。RevenueMetricsBar は受け取った値を描くだけで API を呼ばないので、フレームにしていない (MetricsBar、MetricCard、LoadingPanel も見た目だけの部品)"
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 14
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 15
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 16
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 24
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 26
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 82
+  settings:
+  - name: DEFAULT_CURRENCY
+    kind: env
+    effect: "部品の設定に通貨が無く、ブラウザに保存した通貨も無いとき、この通貨の売上を読む (設定も無ければ USD)"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/useBoardRevenueCurrency.ts
+      line: 5
+    - file: next.config.ts
+      line: 20
+    - file: next.config.ts
+      line: 220
+    - file: src/lib/constants.ts
+      line: 34
+    note: "部品を選ぶ画面は、登録表の既定 (currency: DEFAULT_CURRENCY = USD) を部品の設定に入れて保存する (BoardComponentSelect.tsx:249) が、保存された設定は部品の入口の外の値なので、この設定が効く経路を残した。判定する補助の関数 useBoardRevenueCurrency は段にしていないので、その結果を使うこのフレームに書いた"
+  rules:
+  - kind: decision
+    value: "通貨は、部品の設定の通貨、ブラウザに保存した通貨、DEFAULT_CURRENCY、USD の順に、最初にあるものを使う"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/useBoardRevenueCurrency.ts
+      line: 5
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 14
+  - kind: calculation
+    value: "変化 = いまの期間の値 − 比較の期間の値 (合計・平均・ARPU・注文の数・顧客の数のそれぞれ。期間が「すべて」のときは出さない)"
+    status: interpretation
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 23
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 30
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 42
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 54
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 60
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 66
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/RevenueMetricsBar.tsx
+      line: 82
+- id: use_revenue_stats
+  layer: component
+  kind: hook
+  name: useRevenueStatsQuery
+  source:
+    file: src/components/hooks/queries/useRevenueStatsQuery.ts
+    line: 21
+  caller: revenue_metrics_bar
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueMetricsBar.tsx
+      line: 16
+  summary:
+    status: interpretation
+    value: "売上の合計を GET /websites/<id>/revenue/stats から読むフック。通貨・compare・期間 (startAt / endAt)・URL の絞り込みを送る"
+    evidence:
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 34
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 35
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 43
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 44
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 45
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 46
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 47
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 48
+  settings:
+  - name: API_URL
+    kind: env
+    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
+    status: interpretation
+    evidence:
+    - file: src/components/hooks/useApi.ts
+      line: 32
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 44
+    - file: next.config.ts
+      line: 14
+    - file: next.config.ts
+      line: 215
+    note: "この入口の API を呼ぶフック (useRevenueStatsQuery の 1 つだけ) に効く。このリポジトリの決まりで、最初に API を呼ぶこのフレームに書いた"
+  - name: BASE_PATH
+    kind: env
+    effect: "API の URL の前に付く"
+    status: fact
+    evidence:
+    - file: next.config.ts
+      line: 15
+    - file: next.config.ts
+      line: 216
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 44
+    note: "この入口の API を呼ぶフック (useRevenueStatsQuery の 1 つだけ) に効く。このリポジトリの決まりで、最初に API を呼ぶこのフレームに書いた"
+- id: api_revenue_stats
+  layer: api_route
+  kind: route_handler
+  name: "GET /api/websites/[websiteId]/revenue/stats"
+  source:
+    file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+    line: 10
+  caller: use_revenue_stats
+  call:
+    status: fact
+    when: conditional
+    condition: "websiteId と通貨があるとき (通貨は、最後に USD に決まるので、いつもある)"
+    evidence:
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 42
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 43
+    - file: src/components/hooks/queries/useRevenueStatsQuery.ts
+      line: 50
+    - file: src/app/(main)/websites/[websiteId]/(reports)/revenue/useBoardRevenueCurrency.ts
+      line: 5
+    - file: src/lib/api-url.ts
+      line: 44
+    note: "context.md の決まり (フックが enabled で API の呼び出しを止める作りでは、API を呼ぶ段を conditional にする) に従った。websiteId は部品の必須の props だが、渡すかどうかは描く側が決めることなので、理由にしていない"
+  summary:
+    status: interpretation
+    value: "期間・通貨 (必須)・絞り込みをスキーマで検査して認証し (parseRequest)、canViewWebsiteSection (セクションは revenue) で見てよいかを確かめる (だめなら 401)。getQueryFilters で条件を作り、比較の期間を決めて、getRevenueStats を、いまの期間と比較の期間で並べて呼び、合計と comparison を返す"
+    evidence:
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 14
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 15
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 19
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 27
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 28
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 32
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 35
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 39
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 40
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 43
+  rules:
+  - kind: calculation
+    value: "比較の期間は、compare の指定 (無ければ prev = 前の期間) と、いまの期間から決める"
+    status: fact
+    evidence:
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 34
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 35
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 36
+- id: q_parse_request
+  layer: query
+  kind: function
+  name: "parseRequest (src/lib/request.ts)"
+  source:
+    file: src/lib/request.ts
+    line: 16
+  caller: api_revenue_stats
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 19
+  summary:
+    status: interpretation
+    value: "受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す"
+    evidence:
+    - file: src/lib/request.ts
+      line: 22
+    - file: src/lib/request.ts
+      line: 23
+    - file: src/lib/request.ts
+      line: 30
+    - file: src/lib/request.ts
+      line: 52
+    - file: src/lib/request.ts
+      line: 59
+  rules:
+  - kind: validation
+    value: "受け口が渡した schema に合わない入力は 400 を返す (GET はクエリを、それ以外は本文を検査する)"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 28
+    - file: src/lib/request.ts
+      line: 30
+    - file: src/lib/request.ts
+      line: 33
+- id: q_check_auth
+  layer: query
+  kind: function
+  name: "checkAuth (src/lib/auth.ts)"
+  source:
+    file: src/lib/auth.ts
+    line: 71
+  caller: q_parse_request
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/request.ts
+      line: 52
+    note: "この部品の受け口は skipAuth を渡さない。入力の誤りがあるときだけ、呼ばずに打ち切る (src/lib/request.ts:51)"
+  summary:
+    status: interpretation
+    value: "リクエストの Bearer トークンと共有トークンから、利用者を決める。トークンに userId があれば user を読む。無くて authKey があり、Redis が有効なら auth:* を読み、そこにある userId で user を読む。利用者も共有トークンも無ければ null (受け口が 401 を返す)。umami_ で始まるトークンを API キーとして調べる経路 (auth.ts:75 の checkApiKeyAuth) は、部品のフックがログインのトークンを付けるので、この入口からは辿っていない"
+    evidence:
+    - file: src/lib/auth.ts
+      line: 72
+    - file: src/lib/auth.ts
+      line: 78
+    - file: src/lib/auth.ts
+      line: 88
+    - file: src/lib/auth.ts
+      line: 94
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/auth.ts
+      line: 105
+    - file: src/lib/auth.ts
+      line: 122
+    - file: src/lib/auth.ts
+      line: 140
+    - file: src/components/hooks/useApi.ts
+      line: 28
+  io:
+  - op: get
+    status: interpretation
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "auth:*"
+    fields:
+    - name: "*"
+      use:
+      - read
+    evidence:
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/auth.ts
+      line: 150
+    note: "REDIS_URL が設定されていて、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts:150) から読み取った"
+  guards:
+  - kind: authentication
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 122
+    - file: src/lib/auth.ts
+      line: 124
+    - file: src/lib/request.ts
+      line: 54
+    - file: src/lib/request.ts
+      line: 55
+    note: "ログインした利用者も、共有トークンも無ければ通さない"
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: "設定されていると、トークンに userId が無く authKey があるとき、Redis の auth:* からログインの情報を読む。設定されていなければ、トークンの userId だけを使う"
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 101
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/redis.ts
+      line: 106
+  rules:
+  - kind: validation
+    value: "2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 83
+    - file: src/lib/auth.ts
+      line: 85
+  - kind: validation
+    value: "トークン (または Redis のログイン情報) にパスワードの指紋 (pwd) があり、いまのパスワードのハッシュと違えば、ログインしていない扱いにする (パスワードを変える前のトークンを無効にする)"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 98
+    - file: src/lib/auth.ts
+      line: 99
+    - file: src/lib/auth.ts
+      line: 108
+  - kind: validation
+    value: "共有トークンは、type が共有用のものだけを受け付ける。利用者がいなくて共有トークンだけのときは、共有画面からの印のヘッダー (SHARE_CONTEXT_HEADER) が無ければ受け付けない"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 127
+    - file: src/lib/auth.ts
+      line: 128
+    - file: src/lib/auth.ts
+      line: 129
+    - file: src/lib/auth.ts
+      line: 174
+  - kind: validation
+    value: "umami_ で始まるトークンは、API キーとして調べる (checkApiKeyAuth)。この部品のフックはログインのトークンを付けるので、この入口からは通らない"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 72
+    - file: src/lib/auth.ts
+      line: 74
+    - file: src/lib/auth.ts
+      line: 75
+    - file: src/components/hooks/useApi.ts
+      line: 28
+- id: q_get_user
+  layer: query
+  kind: function
+  name: "getUser → findUser (src/queries/prisma/user.ts)"
+  source:
+    file: src/queries/prisma/user.ts
+    line: 49
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: "トークンに userId があるとき (Redis の auth:* から userId が取れたときも、auth.ts:105 で同じ関数を呼ぶ)"
+    evidence:
+    - file: src/lib/auth.ts
+      line: 93
+    - file: src/lib/auth.ts
+      line: 94
+  summary:
+    status: interpretation
+    value: "user を id で 1 件読む。削除済み (deleted_at がある) の利用者は読まない。checkAuth はパスワードの指紋を比べるために password も取り出す"
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 32
+    - file: src/queries/prisma/user.ts
+      line: 36
+    - file: src/queries/prisma/user.ts
+      line: 41
+    - file: src/queries/prisma/user.ts
+      line: 50
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: user
+    fields:
+    - name: user_id
+      use:
+      - read
+      - filter
+    - name: username
+      use:
+      - read
+    - name: password
+      use:
+      - read
+    - name: role
+      use:
+      - read
+    - name: created_at
+      use:
+      - read
+    - name: two_factor_required
+      use:
+      - read
+    - name: deleted_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 32
+    - file: src/queries/prisma/user.ts
+      line: 34
+    - file: src/queries/prisma/user.ts
+      line: 38
+    - file: prisma/schema.prisma
+      line: 37
+- id: ext_prisma_user
+  layer: external
+  kind: library
+  name: "Prisma Client user.findUnique"
+  source:
+    file: src/queries/prisma/user.ts
+    line: 32
+  caller: q_get_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 50
+    - file: src/queries/prisma/user.ts
+      line: 32
+- id: ext_redis_auth
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get — auth:*"
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: "REDIS_URL が設定されていて、トークンに userId が無く authKey があるとき"
+    evidence:
+    - file: src/lib/auth.ts
+      line: 101
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/redis.ts
+      line: 37
+- id: q_can_view_website_section
+  layer: query
+  kind: function
+  name: "canViewWebsiteSection (src/permissions/share.ts)"
+  source:
+    file: src/permissions/share.ts
+    line: 53
+  caller: api_revenue_stats
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 27
+  summary:
+    status: interpretation
+    value: "サイトの、あるセクションを見てよいかを決める (売上の stats の GET は revenue を渡す)。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める"
+    evidence:
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 27
+    - file: src/permissions/share.ts
+      line: 58
+    - file: src/permissions/share.ts
+      line: 59
+    - file: src/permissions/share.ts
+      line: 64
+    - file: src/permissions/share.ts
+      line: 69
+    - file: src/permissions/share.ts
+      line: 77
+  guards:
+  - kind: other
+    value: canViewWebsiteSection
+    status: interpretation
+    evidence:
+    - file: src/permissions/share.ts
+      line: 40
+    - file: src/permissions/share.ts
+      line: 64
+    - file: src/permissions/share.ts
+      line: 69
+    - file: src/permissions/share.ts
+      line: 73
+    - file: src/permissions/share.ts
+      line: 77
+    note: "ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと。共有の設定にセクションごとの可否があれば、受け口が渡したセクション (この受け口では revenue) が true であること"
+- id: q_can_view_website
+  layer: query
+  kind: function
+  name: "canViewWebsite (src/permissions/website.ts)"
+  source:
+    file: src/permissions/website.ts
+    line: 8
+  caller: q_can_view_website_section
+  call:
+    status: fact
+    when: conditional
+    condition: "ログインした利用者がいるとき (共有トークンだけのときは呼ばない)"
+    evidence:
+    - file: src/permissions/share.ts
+      line: 58
+    - file: src/permissions/share.ts
+      line: 59
+  summary:
+    status: interpretation
+    value: "利用者がサイトを見てよいかを決める。管理者と、共有トークンの対象は、DB を読まずに許す。それ以外は、対象を getEntity で読み、持ち主か、持ち主のチームのメンバー (getTeamUser) かを確かめる"
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 13
+    - file: src/permissions/website.ts
+      line: 24
+    - file: src/permissions/website.ts
+      line: 31
+    - file: src/permissions/website.ts
+      line: 35
+  guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/lib/auth.ts
+      line: 137
+    note: "管理者 (role が admin) なら、DB を読まずに許す"
+  - kind: ownership
+    value: canViewWebsite
+    status: interpretation
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 13
+    - file: src/permissions/website.ts
+      line: 26
+    - file: src/permissions/website.ts
+      line: 30
+    - file: src/permissions/website.ts
+      line: 31
+    - file: src/permissions/website.ts
+      line: 34
+    - file: src/permissions/website.ts
+      line: 35
+    - file: src/permissions/website.ts
+      line: 37
+    note: "共有トークンの対象か、対象の持ち主 (user.id === entity.userId) であること。対象がチームのもの (entity.teamId) なら、そのチームのメンバー (team_user に行がある) であること。管理者の確認は、role の guard に書いた"
+- id: q_get_entity
+  layer: query
+  kind: function
+  name: "getEntity (src/lib/entity.ts)"
+  source:
+    file: src/lib/entity.ts
+    line: 4
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: "利用者が管理者でなく、共有トークンの対象でもないとき"
+    evidence:
+    - file: src/permissions/website.ts
+      line: 24
+  summary:
+    status: interpretation
+    value: "同じ id で website / link / pixel / board を並べて読み、最初に見つかったものを返す (id がどの種類のものかを、呼ぶ側が知らないため)"
+    evidence:
+    - file: src/lib/entity.ts
+      line: 5
+    - file: src/lib/entity.ts
+      line: 6
+    - file: src/lib/entity.ts
+      line: 7
+    - file: src/lib/entity.ts
+      line: 8
+    - file: src/lib/entity.ts
+      line: 9
+    - file: src/lib/entity.ts
+      line: 12
+- id: q_get_website
+  layer: query
+  kind: function
+  name: "getWebsite → findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)"
+  source:
+    file: src/queries/prisma/website.ts
+    line: 80
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 6
+  summary:
+    status: interpretation
+    value: "website を id で 1 件読み、見つかれば、いちばん新しい共有 (share) の slug を shareId として付ける。id が UUID の形でなければ、読まずに null を返す。fetchWebsite (src/lib/load.ts:10 / :12) も同じ関数を呼ぶ。経路はここと同じ"
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 81
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: src/queries/prisma/website.ts
+      line: 91
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: src/queries/prisma/website.ts
+      line: 304
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website
+    fields:
+    - name: "*"
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 77
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: prisma/schema.prisma
+      line: 130
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    fields:
+    - name: slug
+      use:
+      - read
+    - name: entity_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 304
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: prisma/schema.prisma
+      line: 412
+    note: "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- id: ext_prisma_website
+  layer: external
+  kind: library
+  name: "Prisma Client website.findUnique"
+  source:
+    file: src/queries/prisma/website.ts
+    line: 77
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: src/queries/prisma/website.ts
+      line: 77
+    note: "id が UUID の形でないときだけ、呼ばずに打ち切る (website.ts:81)"
+- id: ext_prisma_share
+  layer: external
+  kind: library
+  name: "Prisma Client share.findFirst"
+  source:
+    file: src/queries/prisma/website.ts
+    line: 304
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: src/queries/prisma/website.ts
+      line: 304
+    note: "サイトが見つからなかったときだけ、呼ばずに打ち切る (website.ts:91)"
+- id: q_get_link
+  layer: query
+  kind: function
+  name: "getLink → findLink (src/queries/prisma/link.ts)"
+  source:
+    file: src/queries/prisma/link.ts
+    line: 12
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 7
+  summary:
+    status: interpretation
+    value: "link を id で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 9
+    - file: src/queries/prisma/link.ts
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: link
+    fields:
+    - name: "*"
+      use:
+      - read
+    - name: link_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 9
+    - file: src/queries/prisma/link.ts
+      line: 15
+    - file: prisma/schema.prisma
+      line: 358
+- id: ext_prisma_link
+  layer: external
+  kind: library
+  name: "Prisma Client link.findUnique"
+  source:
+    file: src/queries/prisma/link.ts
+    line: 9
+  caller: q_get_link
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 13
+    - file: src/queries/prisma/link.ts
+      line: 9
+- id: q_get_pixel
+  layer: query
+  kind: function
+  name: "getPixel → findPixel (src/queries/prisma/pixel.ts)"
+  source:
+    file: src/queries/prisma/pixel.ts
+    line: 12
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 8
+  summary:
+    status: interpretation
+    value: "pixel を id で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+    - file: src/queries/prisma/pixel.ts
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: pixel
+    fields:
+    - name: "*"
+      use:
+      - read
+    - name: pixel_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+    - file: src/queries/prisma/pixel.ts
+      line: 15
+    - file: prisma/schema.prisma
+      line: 378
+- id: ext_prisma_pixel
+  layer: external
+  kind: library
+  name: "Prisma Client pixel.findUnique"
+  source:
+    file: src/queries/prisma/pixel.ts
+    line: 9
+  caller: q_get_pixel
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 13
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+- id: q_get_board
+  layer: query
+  kind: function
+  name: "getBoard → findBoard (src/queries/prisma/board.ts)"
+  source:
+    file: src/queries/prisma/board.ts
+    line: 13
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 9
+  summary:
+    status: interpretation
+    value: "board を id で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 10
+    - file: src/queries/prisma/board.ts
+      line: 14
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: board
+    fields:
+    - name: "*"
+      use:
+      - read
+    - name: board_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 10
+    - file: src/queries/prisma/board.ts
+      line: 16
+    - file: prisma/schema.prisma
+      line: 398
+- id: ext_prisma_board
+  layer: external
+  kind: library
+  name: "Prisma Client board.findUnique"
+  source:
+    file: src/queries/prisma/board.ts
+    line: 10
+  caller: q_get_board
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 14
+    - file: src/queries/prisma/board.ts
+      line: 10
+- id: q_get_team_user
+  layer: query
+  kind: function
+  name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+  source:
+    file: src/queries/prisma/teamUser.ts
+    line: 19
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: "対象に持ち主の利用者 (userId) が無く、チーム (teamId) があるとき"
+    evidence:
+    - file: src/permissions/website.ts
+      line: 34
+    - file: src/permissions/website.ts
+      line: 35
+  summary:
+    status: interpretation
+    value: "チームと利用者の組で team_user を 1 件読む (削除済みのチームは除く)"
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+    - file: src/queries/prisma/teamUser.ts
+      line: 22
+    - file: src/queries/prisma/teamUser.ts
+      line: 23
+    - file: src/queries/prisma/teamUser.ts
+      line: 24
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team_user
+    fields:
+    - name: "*"
+      use:
+      - read
+    - name: team_id
+      use:
+      - filter
+    - name: user_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+    - file: src/queries/prisma/teamUser.ts
+      line: 22
+    - file: src/queries/prisma/teamUser.ts
+      line: 23
+    - file: prisma/schema.prisma
+      line: 265
+  - op: read
+    status: interpretation
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team
+    fields:
+    - name: team_id
+      use:
+      - filter
+    - name: deleted_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 24
+    - file: prisma/schema.prisma
+      line: 249
+    note: "TeamUser.team の関連の条件 (deletedAt: null) として読まれる。テーブル名はコードに直接は出ない"
+- id: ext_prisma_team_user
+  layer: external
+  kind: library
+  name: "Prisma Client teamUser.findFirst"
+  source:
+    file: src/queries/prisma/teamUser.ts
+    line: 20
+  caller: q_get_team_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+- id: q_get_query_filters
+  layer: query
+  kind: function
+  name: "getQueryFilters → setWebsiteDate (src/lib/request.ts)"
+  source:
+    file: src/lib/request.ts
+    line: 118
+  caller: api_revenue_stats
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 32
+  summary:
+    status: interpretation
+    value: "クエリから、期間・単位・列の絞り込み・プロパティの絞り込み・compare を取り出して、問い合わせ用の条件にまとめる。websiteId を渡されるので、サイトの情報 (fetchWebsite) で期間の開始を直し、URL に segment / cohort があれば、保存した定義 (getWebsiteSegment) を絞り込みに足す"
+    evidence:
+    - file: src/lib/request.ts
+      line: 122
+    - file: src/lib/request.ts
+      line: 123
+    - file: src/lib/request.ts
+      line: 129
+    - file: src/lib/request.ts
+      line: 130
+    - file: src/lib/request.ts
+      line: 133
+    - file: src/lib/request.ts
+      line: 145
+    - file: src/lib/request.ts
+      line: 177
+  settings:
+  - name: CLOUD_MODE
+    kind: env
+    effect: "設定されていて、個人のサイト (teamId が無い) で、持ち主に契約 (hasSubscription) が無いときは、期間の開始を 6 か月前の月初より前にしない (Redis の account:* を読む)"
+    status: fact
+    evidence:
+    - file: src/lib/request.ts
+      line: 101
+    - file: src/lib/request.ts
+      line: 103
+    - file: src/lib/request.ts
+      line: 104
+    - file: src/lib/request.ts
+      line: 106
+    - file: src/lib/request.ts
+      line: 107
+  rules:
+  - kind: calculation
+    value: "集計の単位 (unit) が期間に許されないものなら、期間に合う最小の単位にする"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 80
+    - file: src/lib/request.ts
+      line: 81
+    - file: src/lib/request.ts
+      line: 82
+  - kind: calculation
+    value: "サイトにリセットの日時 (resetAt) があれば、期間の開始をそれより前にしない"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 111
+    - file: src/lib/request.ts
+      line: 112
+  - kind: decision
+    value: "URL に segment があれば、保存したセグメントの絞り込み (filters、sessionPropertyFilters、match) を、いまの絞り込みに足す"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 132
+    - file: src/lib/request.ts
+      line: 136
+    - file: src/lib/request.ts
+      line: 137
+    - file: src/lib/request.ts
+      line: 139
+  - kind: decision
+    value: "URL に cohort があれば、保存したコホートの条件を cohort_ で始まる絞り込み (期間、列の条件、行動) に直して足す"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 144
+    - file: src/lib/request.ts
+      line: 148
+    - file: src/lib/request.ts
+      line: 150
+    - file: src/lib/request.ts
+      line: 155
+    - file: src/lib/request.ts
+      line: 161
+- id: q_fetch_website
+  layer: query
+  kind: function
+  name: "fetchWebsite (src/lib/load.ts)"
+  source:
+    file: src/lib/load.ts
+    line: 6
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/request.ts
+      line: 130
+    - file: src/lib/request.ts
+      line: 100
+    note: "websiteId を渡されたときだけ (request.ts:129)。売上の stats の受け口は websiteId を渡す (route.ts:32) ので、いつも呼ぶ"
+  summary:
+    status: interpretation
+    value: "サイトの情報を読む。Redis が有効なら website:<id> のキャッシュから読み、無ければ getWebsite で DB から読んで 86400 秒キャッシュする。無効なら毎回 getWebsite で読む。getWebsite の経路は、フレーム q_get_website と同じ"
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/load.ts
+      line: 12
+    - file: src/lib/load.ts
+      line: 15
+  io:
+  - op: get
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "website:*"
+    fields:
+    - name: "*"
+      use:
+      - read
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 85
+    - file: src/lib/redis.ts
+      line: 37
+    note: "REDIS_URL が設定されているときだけ"
+  - op: set
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "website:*"
+    fields:
+    - name: "*"
+      use:
+      - write
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 92
+    - file: src/lib/redis.ts
+      line: 51
+    note: "REDIS_URL が設定されていて、キャッシュに無く、DB から読めたときだけ。有効期限は 86400 秒"
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: "設定されていると、サイトの情報を Redis の website:<id> から読み、無ければ DB から読んでキャッシュする。設定されていなければ、毎回 DB から読む"
+    status: fact
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/load.ts
+      line: 12
+    - file: src/lib/redis.ts
+      line: 106
+  rules:
+  - kind: decision
+    value: "削除済み (deletedAt がある) のサイトは、無いものとして扱う"
+    status: interpretation
+    evidence:
+    - file: src/lib/load.ts
+      line: 15
+    - file: src/lib/load.ts
+      line: 16
+- id: ext_redis_website_get
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get — website:*"
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_fetch_website
+  call:
+    status: fact
+    when: conditional
+    condition: "REDIS_URL が設定されているとき"
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 85
+    - file: src/lib/redis.ts
+      line: 37
+- id: ext_redis_website_set
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) set — website:*"
+  source:
+    file: src/lib/redis.ts
+    line: 51
+  caller: q_fetch_website
+  call:
+    status: fact
+    when: conditional
+    condition: "REDIS_URL が設定されていて、キャッシュに無く、DB から読めたとき"
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 89
+    - file: src/lib/redis.ts
+      line: 92
+    - file: src/lib/redis.ts
+      line: 51
+- id: q_fetch_account
+  layer: query
+  kind: function
+  name: "fetchAccount (src/lib/load.ts)"
+  source:
+    file: src/lib/load.ts
+    line: 42
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "CLOUD_MODE が設定されていて、サイトが個人のもの (teamId が無い) のとき"
+    evidence:
+    - file: src/lib/request.ts
+      line: 103
+    - file: src/lib/request.ts
+      line: 104
+  summary:
+    status: interpretation
+    value: "持ち主の契約の情報を、Redis の account:<userId> から読む"
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+  io:
+  - op: get
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "account:*"
+    fields:
+    - name: "*"
+      use:
+      - read
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+    - file: src/lib/redis.ts
+      line: 37
+- id: ext_redis_account
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get — account:*"
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_fetch_account
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+    - file: src/lib/redis.ts
+      line: 37
+- id: q_get_segment
+  layer: query
+  kind: function
+  name: "getWebsiteSegment (src/queries/prisma/segment.ts)"
+  source:
+    file: src/queries/prisma/segment.ts
+    line: 36
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "URL に segment があるとき (cohort があるときも、request.ts:145 で同じ関数を呼ぶ)"
+    evidence:
+    - file: src/lib/request.ts
+      line: 132
+    - file: src/lib/request.ts
+      line: 133
+  summary:
+    status: interpretation
+    value: "セグメント (またはコホート) を、id とサイトの組で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 37
+    - file: src/queries/prisma/segment.ts
+      line: 38
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: segment
+    fields:
+    - name: "*"
+      use:
+      - read
+    - name: segment_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 37
+    - file: src/queries/prisma/segment.ts
+      line: 38
+    - file: prisma/schema.prisma
+      line: 317
+- id: ext_prisma_segment_find
+  layer: external
+  kind: library
+  name: "Prisma Client segment.findFirst"
+  source:
+    file: src/queries/prisma/segment.ts
+    line: 37
+  caller: q_get_segment
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 37
+- id: q_revenue_stats
+  layer: query
+  kind: function
+  name: "getRevenueStats (src/queries/sql/revenue/getRevenueStats.ts)"
+  source:
+    file: src/queries/sql/revenue/getRevenueStats.ts
+    line: 16
+  caller: api_revenue_stats
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 8
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 39
+    - file: src/app/api/websites/[websiteId]/revenue/stats/route.ts
+      line: 40
+  summary:
+    status: interpretation
+    value: "期間と絞り込みに当たるセッションを website_event から集め、そのセッションの、期間と通貨に当たる売上の行から、合計・注文の数・顧客の数を出し、平均 (注文あたり) と ARPU (セッションあたり) を計算する。受け口は、いまの期間と比較の期間で 2 回呼ぶ (読む表は同じ)。runQuery が CLICKHOUSE_URL の有無で PostgreSQL 用か ClickHouse 用の SQL のどちらかを動かす"
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 19
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 43
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 53
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 64
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 73
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 74
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 102
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 112
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 132
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 133
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: fact
+    evidence:
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 32
+    - file: src/lib/db.ts
+      line: 38
+  rules:
+  - kind: calculation
+    value: "合計 = 売上の和、注文の数 = 売上の event_id の種類の数、顧客の数 = 売上の session_id の種類の数、平均 = 合計 ÷ 注文の数 (0 件なら 0)、ARPU = 合計 ÷ 絞り込みに当たるセッションの数 (0 なら 0)"
+    status: fact
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 64
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 65
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 66
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 67
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 73
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 74
+  - kind: decision
+    value: "売上は、通貨を大文字にして、指定の通貨と同じ行だけを数える。性能の計測 (event_type = 5) だけのセッションは数えない"
+    status: fact
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 49
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 61
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 107
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 120
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website_event
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: event_type
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    note: "期間の条件 (created_at) は、parseFilters が dateQuery に組み立てる"
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 44
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 45
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 48
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 49
+    - file: prisma/schema.prisma
+      line: 183
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 50
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: revenue
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+      - filter
+    - name: event_id
+      use:
+      - read
+    - name: revenue
+      use:
+      - read
+    - name: created_at
+      use:
+      - filter
+    - name: currency
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 54
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 55
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 57
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 58
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 59
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 60
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 61
+    - file: prisma/schema.prisma
+      line: 337
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session
+    fields:
+    - name: session_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    note: "セッションの列 (browser / os / country など) かリファラーで絞るとき (joinSessionQuery) と、コホートを指定したとき (cohortQuery) だけ join する。絞る列は実行時に決まる"
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 318
+    - file: src/lib/prisma.ts
+      line: 226
+    - file: prisma/schema.prisma
+      line: 84
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: event_data
+    fields:
+    - name: website_event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: "URL にイベントのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる"
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 309
+    - file: src/lib/prisma.ts
+      line: 576
+    - file: prisma/schema.prisma
+      line: 205
+    - file: src/lib/prisma.ts
+      line: 565
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: "URL にセッションのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる"
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 313
+    - file: src/lib/prisma.ts
+      line: 702
+    - file: prisma/schema.prisma
+      line: 229
+    - file: src/lib/prisma.ts
+      line: 691
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: event_type
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 103
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 104
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 106
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 107
+    - file: db/clickhouse/schema.sql
+      line: 2
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 108
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_revenue
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+      - filter
+    - name: event_id
+      use:
+      - read
+    - name: revenue
+      use:
+      - read
+    - name: created_at
+      use:
+      - filter
+    - name: currency
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 113
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 114
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 116
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 117
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 118
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 119
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 120
+    - file: db/clickhouse/schema.sql
+      line: 276
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: event_data
+    fields:
+    - name: event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: "URL にイベントのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる"
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 278
+    - file: src/lib/clickhouse.ts
+      line: 540
+    - file: db/clickhouse/schema.sql
+      line: 57
+    - file: src/lib/clickhouse.ts
+      line: 529
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: "URL にセッションのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる"
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 280
+    - file: src/lib/clickhouse.ts
+      line: 663
+    - file: db/clickhouse/schema.sql
+      line: 76
+    - file: src/lib/clickhouse.ts
+      line: 652
+- id: ext_revenue_stats_pg
+  layer: external
+  kind: library
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  source:
+    file: src/lib/prisma.ts
+    line: 746
+  caller: q_revenue_stats
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 20
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 40
+    - file: src/lib/prisma.ts
+      line: 746
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: interpretation
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 738
+    - file: src/lib/prisma.ts
+      line: 55
+- id: ext_revenue_stats_ch
+  layer: external
+  kind: library
+  name: "ClickHouse client (@clickhouse/client) query"
+  source:
+    file: src/lib/clickhouse.ts
+    line: 721
+  caller: q_revenue_stats
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    evidence:
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 21
+    - file: src/queries/sql/revenue/getRevenueStats.ts
+      line: 94
+    - file: src/lib/clickhouse.ts
+      line: 721

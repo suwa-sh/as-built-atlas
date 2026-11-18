@@ -1,133 +1,43 @@
 format_version: 1
 entry_id: dashboard
-reviewed_at: '2026-11-17T15:53:03Z'
-reviewer: claude-opus-5-5 (fresh context)
+reviewed_at: "2026-11-18T01:16:52Z"
+reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-- kind: missing_frame
-  severity: medium
-  where: callstack/pixel_controls
-  claim: PixelControls は allowDownload のとき ExportButton を描き (PixelControls.tsx:31)、ExportButton は押すと GET /websites/<id>/export を呼ぶ (ExportButton.tsx:20) が、フレームが無い。summary で「描かない」と書くだけで済ませており、成り立たないように見える呼び出しも conditional のフレームにする、というこのリポジトリの決まり (analysis-conventions.md の木の書き方) と、同じ形の注釈の GET (showAnnotations) をフレームにした扱いとも合わない
-  evidence:
-    file: src/app/(main)/pixels/[pixelId]/PixelControls.tsx
-    line: 31
-  suggestion: ExportButton と GET /api/websites/[websiteId]/export の受け口から先を、PixelControls の下に conditional (allowDownload を BoardControls が渡さないので成り立たないように見える、と note に書く) で足し、LinkControls / WebsiteControls の summary には「経路は同じ」と書く。
-- kind: missing_frame
-  severity: medium
-  where: callstack/filter_edit_form
-  claim: FilterEditForm は、パスが /events で終わるとき PropertyFilters を source=event で描き (FilterEditForm.tsx:166)、その usePropertyFieldsQuery は session-data/properties ではなく /websites/<id>/event-data/fields を呼ぶ (usePropertyFieldsQuery.ts:26) が、この枝のフレームが無い。引数で届く URL が変わるので、session の PropertyFilters (property_filters) と同じ処理としてまとめられない
-  evidence:
-    file: src/components/input/FilterEditForm.tsx
-    line: 166
-  suggestion: 'PropertyFilters (source: event) → usePropertyFieldsQuery → GET /api/websites/[websiteId]/event-data/fields から先を、FilterEditForm の下に conditional (パスが /dashboard なのでこの入口では成り立たないように見える、と note に書く) で足す。'
-- kind: missing_frame
-  severity: low
-  where: callstack/api_values
-  claim: values の受け口は type が segment / cohort のとき getWebsiteSegments を呼ぶ (values/route.ts:48-49) が、summary で「届かない」と書くだけでフレームにしていない。成り立たないように見える呼び出しもフレームにする決まりがあり、入口から辿る順では FieldFilters (values) が SegmentFilters (segments) より先なので、getWebsiteSegments はこの受け口の下が最初の置き場になる
-  evidence:
-    file: src/app/api/websites/[websiteId]/values/route.ts
-    line: 48
-  suggestion: api_values の下に getWebsiteSegments を conditional (useFields に segment / cohort が無いので成り立たないように見える、と note に書く) で置き、api_segments_get の側は「経路はフレーム … と同じ」にする。
-- kind: classification_mismatch
-  severity: low
-  where: callstack/api_stats_rw
-  claim: PixelMetricsBar の下の書き直しで、受け口 GET …/stats の呼び先のうち getWebsiteStats (route.ts:30) を書き直しているが、コードに書いてある順でいちばん早い呼び出しは parseRequest (route.ts:16)。プロファイルの決まり (いちばん早い呼び出しを、読み書きを持つ最初の段まで) と違い、getWebsiteStats の 8 件の読み取りが重ねて数えられる。同じ結果の api_values_rw や rt_api_realtime_rw は parseRequest → checkAuth で書き直している
-  evidence:
-    file: src/app/api/websites/[websiteId]/stats/route.ts
-    line: 16
-  suggestion: q_stats_rw を、parseRequest → checkAuth の書き直し (q_parse_request_rw_* と同じ形) に置き換える。
-- kind: classification_mismatch
-  severity: low
-  where: callstack/api_stats_rw_2
-  claim: LinkMetricsBar の下の書き直しも、parseRequest (route.ts:16) ではなく getWebsiteStats (route.ts:30) を書き直していて、いちばん早い呼び出しを選ぶ決まりと違う
-  evidence:
-    file: src/app/api/websites/[websiteId]/stats/route.ts
-    line: 16
-  suggestion: q_stats_rw_2 を、parseRequest → checkAuth の書き直しに置き換える。
-- kind: classification_mismatch
-  severity: low
-  where: callstack/api_metrics_rw
-  claim: WorldMap の下の書き直しで、受け口 GET …/metrics の呼び先のうち getSessionMetrics (route.ts:56) を書き直しているが、コードに書いてある順でいちばん早い呼び出しは parseRequest (route.ts:26)
-  evidence:
-    file: src/app/api/websites/[websiteId]/metrics/route.ts
-    line: 26
-  suggestion: q_session_metrics_rw を、parseRequest → checkAuth の書き直しに置き換える。
-- kind: classification_mismatch
-  severity: low
-  where: callstack/q_get_team_user_rw
-  claim: canViewPixel の下の書き直しが getTeamUser (pixel.ts:34) になっているが、コードに書いてある順でいちばん早い呼び出しは getPixel (pixel.ts:23)。元にしたほかの入口の木の形は、この決まりの例外にならない
-  evidence:
-    file: src/permissions/pixel.ts
-    line: 23
-  suggestion: q_get_team_user_rw を、getPixel の書き直し (読み書きを持つ段まで) に置き換える。
-- kind: classification_mismatch
-  severity: low
-  where: callstack/q_get_team_user_rw_2
-  claim: canViewLink の下の書き直しが getTeamUser (link.ts:34) になっているが、コードに書いてある順でいちばん早い呼び出しは getLink (link.ts:23)
-  evidence:
-    file: src/permissions/link.ts
-    line: 23
-  suggestion: q_get_team_user_rw_2 を、getLink の書き直し (読み書きを持つ段まで) に置き換える。
-- kind: classification_mismatch
-  severity: low
-  where: callstack/api_dashboard_get/guards/0
-  claim: 同じ受け口 GET /api/dashboard の持ち主の確認が、この結果では board.userId !== auth.user.id、dashboard.edit の結果では board.userId === auth.user.id と、入口ごとに別の綴りになっている
-  evidence:
-    file: src/app/api/dashboard/route.ts
-    line: 16
-  suggestion: どちらかの綴りにそろえ、そろえ方を analysis-conventions.md の綴りの表に足す (関数になっていない確認の書き方)。
-- kind: classification_mismatch
-  severity: low
-  where: callstack/api_dashboard_post/guards/0
-  claim: POST /api/dashboard の持ち主の確認が、この結果では existing.userId !== userId、dashboard.edit の結果では existing.userId === userId と、入口ごとに別の綴りになっている
-  evidence:
-    file: src/app/api/dashboard/route.ts
-    line: 39
-  suggestion: GET と同じ決め方で、どちらかの綴りにそろえる。
-- kind: evidence_mismatch
-  severity: low
-  where: callstack/use_board_entity_availability/summary
-  claim: summary が「フレーム s_use_website_query / s_use_pixel_query / s_use_link_query と同じ」と書くが、この結果にその id のフレームは無い (実際の id は use_website_query / use_pixel / use_link)。また、useWebsiteQuery はこの下に書き直し (use_website_query_rw) がある
-  evidence:
-    file: src/app/(main)/boards/useBoardEntityAvailability.ts
-    line: 5
-  suggestion: 参照する id を use_website_query / use_pixel / use_link に直し、useWebsiteQuery は書き直しを置いたことを書く。
-  resolved: true
-- kind: evidence_mismatch
-  severity: low
-  where: callstack/q_can_view_website_section_rw/call
-  claim: 呼び出し元はゴールの受け口 (GET …/goals/[goalId]) の canViewReport なのに、condition の補足が「funnel の report は区画 funnels を持つ」になっている。ゴールの report の区画は goals
-  evidence:
-    file: src/permissions/report.ts
-    line: 19
-  suggestion: condition の補足を「goal の report は区画 goals を持つ」に直す。
-  resolved: true
-- kind: evidence_mismatch
-  severity: low
-  where: callstack/q_can_update_website/summary
-  claim: summary が書き直した段を「q_get_website」と書くが、この結果で canUpdateWebsite の下に置いた書き直しは q_get_website_rw_3。q_get_website は getEntity の下の元のフレーム
-  evidence:
-    file: src/permissions/website.ts
-    line: 141
-  suggestion: 書き直したフレームの id を q_get_website_rw_3 に直す。
-  resolved: true
-- kind: evidence_mismatch
-  severity: low
-  where: callstack/rt_q_realtime_data/rules/0
-  claim: 国の数を「訪問ごとに最初の 1 件で数える」と書くが、コードが 1 回だけ数える単位は sessionId (セッション) で、visit_id ではない。rules/1 の「訪問の最初の 1 件の前に session を足す」も同じ
-  evidence:
-    file: src/queries/sql/getRealtimeData.ts
-    line: 41
-  suggestion: 「訪問ごと」を「セッション (sessionId) ごと」に直す (rules/0 と rules/1)。
-  resolved: true
-- kind: missing_item
-  severity: low
-  where: callstack/q_create_board/io/0/fields
-  claim: q_update_board は updated_at を、スキーマの @updatedAt で Prisma が書く列として fields に入れているが、q_create_board は同じ理由の列を書いていない。@updatedAt は作るときにも値を入れるので、2 つの段の扱いが合っていない (コードでなくスキーマから読む列なので low とした)
-  evidence:
-    file: prisma/schema.prisma
-    line: 390
-  suggestion: q_create_board の fields に updated_at (write) を足すか、q_update_board からも外して、どちらかにそろえる。
-  resolved: true
-notes: '標本の選び方: フレームが 271 あるので、次の順に確かめた。(1) 入口の上のほう (page → DashboardViewPage → DashboardProvider → useDashboardQuery → GET / POST /api/dashboard → parseRequest / checkAuth / getUser / getBoard / hasValidBoardReports / getReport / updateBoard / createBoard)、BoardControls と PixelControls / LinkControls / WebsiteControls、DashboardContent → BoardViewBody → BoardViewRow → BoardViewColumn と、札・可用性のフック (useWebsiteQuery / usePixelQuery / useLinkQuery と各受け口、canViewPixel / canViewLink)、BoardEntityBadge / Favicon は、すべてのフレームを対象のコードと突き合わせた。(2) BoardComponentRenderer の子は、登録 (boardComponentRegistry.tsx) の並びとフレームの並び・条件がそろっているかを全部見たうえで、部品の系統ごとに 1、2 個を最後まで読んだ: 指標の帯 (WebsiteMetricsBar / PixelMetricsBar → stats の受け口 → getWebsiteStats)、ゴールとファネル (BoardGoal → goals/[goalId] → canViewReport、BoardFunnel → funnels/[funnelId])、リアルタイム (BoardRealtimeMetricsBar → realtime の受け口 → getRealtimeData → getRealtimeActivity、BoardRealtimeChart)、収益 (BoardRevenueMetricsBar → revenue/stats、BoardRevenueChart、BoardRevenueMetricsTable)、UTM
-  (BoardUTM → utm/metrics → getUTM)、表 (MetricsTable → metrics の受け口の 4 つの枝)、EventsMetricsBar、WebsiteChart と注釈。(3) 権限と書き直しの段 (canViewWebsiteSection / canViewWebsite / getEntity / canUpdateWebsite / getTeamUser と _rw の段) は、元のコードの呼び出しの順と照らした。(4) 綴りは、設定の名前・確認の値をすべて抜き出し、analysis-conventions.md と dashboard.edit の結果と比べた。summary の中の「フレーム <id>」の参照は、すべての id が実在するかを機械的に確かめた。前のレビューの high 2 件 (q_update_board / q_create_board の列) は直っていることを確かめた。指摘にしなかったこと: 結果の notes の「登録にある有限の 18 種」は、登録の種類は 17 (TextBlock を含む) で、18 は対象ごとの部品 (WebsiteMetricsBar のピクセル用・リンク用) を足し TextBlock を除いたフレームの数 (dashboard.edit の結果は「部品 18、定義は 17 種類」と書いている)。DEFAULT_CURRENCY を収益の 3 つの部品それぞれに書いているのは、どれも useBoardRevenueCurrency を呼ぶ別の部品なので、繰り返しの禁止には当たらないと見た。'
+  - kind: missing_item
+    severity: medium
+    resolved: true
+    where: callstack/q_can_view_shared_website
+    claim: "canViewSharedWebsite を最初に書いたフレーム q_can_view_shared_website に guards が無い。daterange の受け口は、この確認が偽なら 401 を返す (daterange/route.ts:18) ので権限の確認に当たり、同じ結果の中の同じ形の包み (q_can_view_website_section、q_can_view_shared_website_filters) は、それぞれ kind: other の確認を持っている"
+    evidence:
+      file: src/app/api/websites/[websiteId]/daterange/route.ts
+      line: 18
+    suggestion: "q_can_view_shared_website に guards を 1 件足す (kind: other、value: canViewSharedWebsite。ほかの入口の結果 7 件と同じ綴り。根拠は share.ts:80-85、note にログインした利用者がいなければ共有トークンがサイトを含むこと、と書く)。"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/q_check_auth
+    claim: "このリポジトリの決まり (analysis-conventions.md の木の書き方) は、checkAuth の中の API キーの枝をフレームにせず、checkAuth の rules に 1 行書くとしているが、rules に API キーの行が無い (summary と settings の CLOUD_MODE で触れるだけ)。boards.boardId_d と dashboard.edit の結果も同じだが、決まりは既にある結果より優先する"
+    evidence:
+      file: src/lib/auth.ts
+      line: 74
+    suggestion: "q_check_auth の rules に、API キーの形のトークン (isApiKey) は、CLOUD_MODE が無いときだけ API キーとして認証する (checkApiKeyAuth、auth.ts:74-75)、という 1 行を足す。"
+  - kind: classification_mismatch
+    severity: low
+    resolved: true
+    where: callstack/q_can_view_website/call
+    claim: "canViewWebsite の呼び出しの when が、q_can_view_website と q_can_view_website_rw3 では conditional (ログインした利用者がいるとき) なのに、同じ枝の q_can_view_website_rw4 は always (この画面はいつもログイン済み) で、同じ入口の中でそろっていない。この画面は共有画面の外で、checkAuth が利用者を特定できなければ 401 で打ち切るので、always の方が分析の skill の基準に合う"
+    evidence:
+      file: src/permissions/share.ts
+      line: 58
+    suggestion: "q_can_view_website と q_can_view_website_rw3 の call を always にし、q_can_view_website_rw4 と同じ理由を note に書く。"
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/favicon/io/0
+    claim: "Favicon の io の note が「リファラーのドメインの名前を URL のパスに入れて送る」と書いているが、この入口で Favicon に渡るのは、列のバッジのサイトのドメイン (useBoardEntityBadgeProps.ts:16 の website.domain を BoardEntityBadge.tsx:18 が渡す) で、リファラーではない (フレームの summary とも食い違う)"
+    evidence:
+      file: src/app/(main)/boards/BoardEntityBadge.tsx
+      line: 18
+    suggestion: "note の「リファラーのドメイン」を「バッジの対象のサイトのドメイン」に直す。"
+notes: "前の版へのレビューの 3 件 (ExportButton、イベントのプロパティの絞り込み、values の getWebsiteSegments の枝) は、それぞれ、property_filters_event から先のフレームを足したこと、残り 2 件は指示書 0.4.1 の固定の値で閉じている呼び出しとして summary に値と行を書いたことで、扱われている。閉じている呼び出しは次のとおり確かめ、指摘にしなかった。(a) ExportButton: PixelControls / LinkControls / WebsiteControls を描くのは、この木の中では BoardControls だけで (BoardControls.tsx:22、24、26)、allowDownload を渡さず既定値は false (3 つの部品の 15 / 15 / 16 行目) なので、3 つの条件を満たす。(b) セグメントの更新の POST: SegmentEditForm を描くのは FilterBar だけで、segmentId を渡さない (FilterBar.tsx:195-200) ので、3 つの条件を満たす。(c) values の受け口の getWebsiteSegments の枝 (values/route.ts:48): type は、useFields のコードの一覧の名前か、URL のクエリのうち FILTER_COLUMNS のキーにある名前だけで、どちらにも segment / cohort が無いので、URL がどうであっても枝は通らない。条件 1 は URL から来る値を除くが、type に入りうる値はすべてコードの定数なので、閉じていると読んだ (boards.boardId_d の扱いとも同じ)。なお、FieldFilters.tsx:162 の type={filter.name} は、URL から来た絞り込みでは直後の {...filter} の type (数字を除いた名前) で上書きされるが、結論は変わらない。登録表を引くフレーム board_component_renderer の embed 16 件は、entry_id がすべて入口の一覧の part の入口と一致し、根拠の行も登録表の項目の始まりの行と合っている。q_get_segment (URL に segment があるとき) は、values の受け口からは segment を送らない (useWebsiteValuesQuery.ts:54-59) が、同じ getQueryFilters を event-data / session-data の受け口がフィルター込みで呼ぶので、閉じていない。"

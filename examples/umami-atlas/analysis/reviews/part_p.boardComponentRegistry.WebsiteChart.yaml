@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.WebsiteChart
+reviewed_at: "2026-11-18T00:09:08Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/q_pageview_stats/io/0
+    claim: "PostgreSQL の website_event の読み取りに、直帰を除くフィルターの副問い合わせ (getExcludeBounceQuery) とコホート・セッションの join が使う session_id / visit_id が fields に無く、note も触れていない (ClickHouse 側の io の note では触れている)。q_session_stats/io/0 も visit_id が同じく無い"
+    evidence: { file: src/lib/prisma.ts, line: 242 }
+    suggestion: "session_id と visit_id を use read (join の条件なら filter) で足し、URL に excludeBounce / cohort / セッションの列があるときだけ読むことを note に書く (q_session_stats/io/0 も同じ)"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/website_chart/parameters/5
+    claim: "絞り込みのクエリの説明が FILTER_COLUMNS と spf<n> だけで、時系列の API にそのまま送る segment / cohort / excludeBounce / match / search が抜けている (segment と cohort は受け口で segment を読む条件になる)"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 35 }
+    suggestion: "value に segment / cohort / excludeBounce / match (allowFilter が false でないときだけ) と search も送ることを足し、根拠に useFilterParameters.ts:34-38 を加える"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。根拠の行 (WebsiteChart.tsx、登録表の 199 行、2 つの route、request.ts、auth.ts、load.ts、redis.ts、share.ts、website.ts、entity.ts、getPageviewStats / getSessionStats、annotation.ts、prisma.ts の pagedQuery と rawQuery) は主張を支えていた。部品の決まり (showAnnotations で決まる GET annotations は use_annotations を always、API の段を conditional。compareMode は送る値だけが変わるので rules に書く) と、同じ処理の置き場 (コードの順で annotations が先、canViewWebsiteSection の下の書き直しは I/O のある段まで) は context.md と analysis-conventions.md に合っている。guards の綴り (canViewSharedWebsiteFilters / canViewWebsiteSection は kind other) は、ほかの入口の結果とそろっている。"

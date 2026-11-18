@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.RevenueMetricsBar
+reviewed_at: "2026-11-18T00:42:04Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_website
+    claim: "canViewWebsite は最初に管理者 (user.isAdmin) なら許す役割の確認をしているが、guards に kind: role の確認が無く、ownership の note に混ぜて書いている (同じ関数を書いた part_p.boardComponentRegistry.Goal などの結果は role の guard を別に書いている)"
+    evidence: { file: src/permissions/website.ts, line: 9 }
+    suggestion: "guards に kind: role、value: user.isAdmin、status: fact (根拠は website.ts:9 と auth.ts:137) を足し、ownership の note から管理者の話を外す"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/api_revenue_stats/call
+    claim: "フックは enabled: !!(websiteId && currency) で API の呼び出しを止める作りだが、受け口の呼び出しを always にしている。websiteId が必ず渡ることの根拠に、部品の入口の外 (描く側の BoardComponentRenderer.tsx:30) を使っており、context.md の決まり (enabled で止めるときは API を呼ぶ段を conditional にする。描く側が渡す・渡さないは理由にしない) に合わない"
+    evidence: { file: src/components/hooks/queries/useRevenueStatsQuery.ts, line: 50 }
+    suggestion: "when を conditional にし、condition に「websiteId があるとき (通貨は useBoardRevenueCurrency が最後に USD に決めるので、いつもある)」と書く"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/revenue_metrics_bar/parameters/3
+    claim: "共有の設定の allowFilter が false でないときだけ、という条件が segment / cohort / excludeBounce / match だけに掛かるように読めるが、コードでは絞り込みの列 (FILTER_COLUMNS)・spf<n>・epf<n> も同じ条件の中で集めている (掛からないのは search だけ)"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 19 }
+    suggestion: "allowFilter の条件が search 以外のすべてに掛かるように文を直し、根拠に useFilterParameters.ts:19 を足す"
+    resolved: true
+notes: "指摘にしなかったこと。(1) 入口のフレームの rules の calculation (変化 = いまの値 − 比較の期間の値) と、q_parse_request の validation は、コードにほぼそのまま書いてあるので fact でもよいが、5 つの値をまとめた要約として interpretation も許容した。(2) excludeBounce は URL から送られ getQueryFilters が絞り込みに足すが、getRevenueStats は excludeBounceQuery を使わないので、売上の集計には効かない (結果の記述と矛盾はしない)。(3) website_event の絞り込みの列 (url_path など) が fields に無いのは、URL で実行時に決まる列で、売上の画面と WebsiteMetricsBar の結果と同じ扱いなので指摘にしなかった。(4) 根拠の行、テーブル名 (@@map と ClickHouse の CREATE TABLE)、設定の綴り、canViewWebsiteSection の guard の kind (other) は、ほかの入口の結果とそろっていることを確かめた。"

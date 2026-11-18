@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: "part_p.boardComponentRegistry.RealtimeActiveUsers"
+reviewed_at: "2026-11-18T00:30:57Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: "callstack/q_check_auth/io/0/fields"
+    claim: "Redis の auth:* の読み取りの列が * だけになっているが、checkAuth はそこから userId (auth.ts:104) と pwd (auth.ts:108) を名前で読んでいる。"
+    evidence: { file: "src/lib/auth.ts", line: 104 }
+    suggestion: "fields を userId (read) と pwd (read) にする (layout_l.main_g.websites.websiteId_d の結果と同じ綴り)。根拠に auth.ts:104 と :108 を足す。"
+    resolved: true
+notes: "根拠の行は、登録表 (boardComponentRegistry.tsx:252-259)、部品とフック、active の受け口、parseRequest / checkAuth、canViewWebsiteSection / canViewWebsite / getEntity、getWebsite と share の読み取り、link / pixel / board / team_user、getActiveVisitors と runQuery、prisma.ts の生の SQL と DATABASE_REPLICA_URL、clickhouse.ts:721、redis.ts、api-url.ts、next.config.ts、schema.prisma の @map と db/clickhouse/schema.sql で確かめ、すべて主張を支えていた。指摘にしなかったこと: (1) checkAuth の API キーの枝は isApiKeyEnabled (api-key.ts:40、CLOUD_MODE が無いとき) にも左右されるが、この枝はリポジトリの決まりでフレームにせず rules に書くもので、part_p.boardComponentRegistry.EventsMetricsBar も CLOUD_MODE を checkAuth に書いていないので、そろえ方として妥当と見た (layout_l.main_g.websites.websiteId_d は q_check_auth に書いていて、入口の間で扱いが分かれている。どちらにそろえるかは人が決める)。(2) share の created_at を orderBy に使うことを filter と書くのは、ほかの入口の結果と同じ書き方。(3) guards の canViewWebsiteSection (other) と canViewWebsite (ownership) の綴りは、ほかの入口と同じ。(4) 固定の値で閉じている呼び出しは無い、という notes の判断は、コード (BoardRealtimeActiveUsers.tsx:8-9、active/route.ts:10、:18) と合っている。"

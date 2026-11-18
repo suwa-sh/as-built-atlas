@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.WeeklyTraffic
+reviewed_at: "2026-11-18T00:51:41Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/q_weekly/io/0/fields
+    claim: "PostgreSQL の website_event の fields に visit_id が無い。直帰を除くフィルターの副問い合わせは、SQL に固定で書いてある結合の条件 (excludeBounce.visit_id = website_event.visit_id) で visit_id を使い、副問い合わせの中でも visit_id でまとめている (filterQuery ではないので、実行時に決まる列ではない)"
+    evidence: { file: src/lib/prisma.ts, line: 242 }
+    suggestion: "io/0 の fields に visit_id (use: filter) を足し、根拠に src/lib/prisma.ts:242 と :247 を加える。ClickHouse の website_event / website_event_stats_hourly (io/4、io/5) も、clickhouse.ts:211 と :224 の結合で visit_id を使うので、同じく fields に足す"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。この入口だけの部分 (登録表の 368 行、WeeklyTraffic.tsx、useWeeklyTrafficQuery.ts、useDateParameters / useDateRange / useTimezone / store の app.ts、useFilterParameters、BoardComponentRenderer.tsx の 30 / 40 行、sessions/weekly の route.ts、getWeeklyTraffic.ts、constants.ts の EVENT_COLUMNS と EVENT_TYPE、db.ts の runQuery、prisma.ts と clickhouse.ts の絞り込み・直帰・コホート・プロパティの SQL と生の SQL を投げる行、schema.prisma の @@map、ClickHouse の schema.sql) の根拠の行は、どれも主張を支えていた。受け口の前処理・ログイン確認・権限の確認・getQueryFilters の木 (q_parse_request から ext_prisma_segment_find) は、レビュー済みの part_p.boardComponentRegistry.WebsiteMetricsBar と同じ関数を同じ順で呼んでおり、受け口の行番号 (route.ts:19 / :27 / :31 / :33) とセクションの値 (overview / sessions) がこの受け口に合っていることを確かめた。綴り (API_URL / BASE_PATH は最初のフック use_weekly にだけ、canViewWebsiteSection は kind other、canViewWebsite は ownership、authentication は checkAuth にだけ、value なし) は、ほかの入口の結果とそろっている。固定の値で閉じている呼び出しが 0 件という判断と、api_weekly を always にした扱い (enabled が無く、描く側は websiteId が無ければ部品を描かない) も、コードと分析の決まりに合っている。参考 (指摘にしなかった): (1) フックは search / page / pageSize も送るが、受け口の schema (startAt / endAt / timezone / filterParams) に無いので、zod の既定の動きで受け口では落ちる。送ることは事実なので、parameters の文は誤りではない。(2) 直帰の定義の「ページビュー」は、PostgreSQL の SQL では event_type が 2 と 5 以外のイベントすべて (link / pixel も含む) を数え、ClickHouse では views の合計で数える。表現の範囲として、WebsiteMetricsBar のレビューと同じく指摘にしなかった。(3) runQuery は CLICKHOUSE_URL が無いとき、DB の種類が PostgreSQL のときだけ PostgreSQL 用を動かす (db.ts:37) が、ほかの入口の結果も同じ書き方なので、条件の書き方として指摘にしなかった。"

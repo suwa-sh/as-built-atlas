@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.EventsMetricsBar
+reviewed_at: "2026-11-18T00:16:44Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/q_events_stats/io/0/fields
+    claim: "PostgreSQL の website_event の読み取りで、イベントのプロパティで絞るときに website_event.event_id を副問い合わせ (event_data の website_event_id) の条件に使うが、fields に event_id が無い"
+    evidence: { file: src/lib/prisma.ts, line: 574 }
+    suggestion: "fields に event_id (use filter) を足し、イベントのプロパティで絞るときだけ使うことを note に書く"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_events_stats/io/4/fields
+    claim: "ClickHouse の website_event の読み取りで、コホートの join の条件 (cohort.cohort_session_id = website_event.session_id) とイベントのプロパティの副問い合わせの条件 (website_event.event_id in ...) に使う列が、session_id は read だけで filter が無く、event_id は fields に無い (PostgreSQL 側の io/0 では session_id を filter にしている)"
+    evidence: { file: src/lib/clickhouse.ts, line: 201 }
+    suggestion: "session_id の use に filter を足し、event_id (use filter) を足す。根拠に clickhouse.ts:201 と :538 を加える"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。根拠の行 (登録表の 154-161 行、EventsMetricsBar.tsx、useEventStatsQuery.ts、useFilterParameters.ts、useDateRange.ts、events/stats の route.ts、request.ts、auth.ts、share.ts、website.ts、entity.ts、load.ts、redis.ts、prisma の user / website / segment / teamUser、getWebsiteEventStats.ts、prisma.ts の parseFilters / getCohortQuery / プロパティの絞り込み / executeRawQuery、clickhouse.ts の parseFilters / rawQuery、db.ts の runQuery、ClickHouse と Prisma の schema) は主張を支えていた。getCompareDate の比較の期間、ClickHouse の集計表 (website_event_stats_hourly) への切り替え、guards の綴り (canViewWebsiteSection は kind other、canViewWebsite は ownership、authentication は checkAuth だけ) は、ほかの入口の結果と analysis-conventions.md にそろっている。指摘にしなかったこと: (1) フックは excludeBounce を送り、getQueryFilters も excludeBounce を立てるが、getWebsiteEventStats は parseFilters が返す excludeBounceQuery を SQL に使わないので、この指標には効かない (parameters の記述は「送る」までで誤りではない。書くなら q_events_stats の rules か note)。(2) useDateParameters は期間を利用者のタイムゾーン (useTimezone) で UTC に直して送るが、parameters の date / unit / offset はこれに触れていない (表現の補足の程度)。"

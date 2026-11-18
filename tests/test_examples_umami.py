@@ -38,7 +38,7 @@ def test_entry_list_is_valid_and_wraps_every_page():
     assert validate_work_definition(work) == [] and validate_entry_list(el, PROFILE) == []
     assert el["target"] == work["target"] and el["profile"] == {"id": "ui-nextjs", "version": PROFILE["version"]}
     layers = [e["layer"] for e in el["entries"]]
-    assert (layers.count("page"), layers.count("layout")) == (60, 6) and {e["status"] for e in el["entries"]} == {"approved"}
+    assert (layers.count("page"), layers.count("layout"), layers.count("part")) == (60, 6, 16) and {e["status"] for e in el["entries"]} == {"approved"}
     by_id = {e["id"]: e for e in el["entries"]}
     assert all(e["within"][0] == "layout_l" for e in el["entries"] if e["layer"] == "page"), "どの画面も、いちばん外の枠を通る"
     assert "within" not in by_id["layout_l"]
@@ -48,15 +48,16 @@ def test_entry_list_is_valid_and_wraps_every_page():
 def test_results_and_reviews_pass_checks_that_need_no_target():
     el, results = _load(AN / "entry-list.yaml"), _results()
     by_id = {e["id"]: e for e in el["entries"]}
-    assert len(results) == len(by_id) == 66  # 入口はすべて分析済み
+    assert len(results) == len(by_id) == 82  # 入口はすべて分析済み (画面 60 + 枠 6 + 部品 16)
     layouts = {i for i, r in results.items() if r["entry"]["layer"] == "layout"}
     assert layouts == {i for i, e in by_id.items() if e["layer"] == "layout"}, "枠は 6 つとも分析済み"
     for eid, r in results.items():
-        assert validate_analysis_result(r, PROFILE, None) == [], eid
+        assert validate_analysis_result(r, PROFILE, None, entry_ids=set(by_id)) == [], eid   # 部品へのつながり (embed) の行き先も、入口の一覧と照合する
         assert r["entry"]["id"] == eid and r["entry"]["path"] == by_id[eid]["path"] and r["entry"]["layer"] == by_id[eid]["layer"]
         assert r["entry"]["source"] == by_id[eid]["source"], f"{eid}: 結果の入口の場所が、一覧の入口の場所と違う (別の画面を分析した結果になっている)"
         root = next(f for f in r["callstack"] if f.get("caller") is None)
-        assert root["source"]["file"] == by_id[eid]["source"]["file"], f"{eid}: 入口のフレームが、一覧の入口のファイルから始まっていない"
+        if by_id[eid]["layer"] != "part":   # 部品の入口は、一覧の場所が登録表の項目の行で、入口のフレームは部品の定義の行 (別のファイル)
+            assert root["source"]["file"] == by_id[eid]["source"]["file"], f"{eid}: 入口のフレームが、一覧の入口のファイルから始まっていない"
         assert r["target"] == el["target"], eid
         assert r["analyzer"]["profile"] == {"id": "ui-nextjs", "version": PROFILE["version"]}, f"{eid}: 今の決まりで分析した結果だけを置く"
         review = _load(AN / "reviews" / f"{eid}.yaml")
@@ -69,7 +70,7 @@ def test_pages_do_not_trace_their_layouts():
     for eid, r in _results().items():
         # external のフレームは「ライブラリを呼んでいる行」が場所になるので、枠の入口では layout ファイルを指すことがある。数えない
         layout_frames = [f["id"] for f in r["callstack"] if Path(f["source"]["file"]).stem == "layout" and f["layer"] != "external"]
-        if r["entry"]["layer"] == "page":
+        if r["entry"]["layer"] in ("page", "part"):
             assert layout_frames == [], eid
         else:
             root = next(f for f in r["callstack"] if f.get("caller") is None)
@@ -141,7 +142,10 @@ def built(tmp_path_factory) -> Path:
 
 def test_marts_show_pages_and_the_layouts_that_wrap_them(built: Path):
     with duckdb.connect(str(duckdb_path(built)), read_only=True) as con:
-        assert con.execute("select count(*), sum(analyzed::int) from mart.mart_entry_overview").fetchone() == (66, 66)
+        assert con.execute("select count(*), sum(analyzed::int) from mart.mart_entry_overview").fetchone() == (82, 82)
+        # 部品を描く画面から、部品の入口へのつながり (embed) が、入口どうしのつながりの表に出る
+        embeds = con.execute("select path, count(*) from mart.mart_entry_links where kind = 'embed' and resolved group by path order by path").fetchall()
+        assert dict(embeds)["/boards/[boardId]"] == 16 and {p for p, _ in embeds} >= {"/dashboard", "/dashboard/edit", "/boards/[boardId]/design", "/share/[slug]/[[...path]]"}, embeds
         wrap = con.execute("select within_path from mart.mart_entry_within where path = '/settings/teams/[teamId]' order by ord").fetchall()
         assert [w for (w,) in wrap] == ["/(layout)", "/(layout)/(main)", "/(layout)/(main)/settings"]
         (inner,) = con.execute("select count(*) from mart.mart_entry_within where within_path = '/(layout)/(main)' and layer = 'page'").fetchone()

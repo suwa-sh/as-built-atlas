@@ -1,0 +1,2598 @@
+format_version: 1
+entry:
+  id: part_p.boardComponentRegistry.WebsiteChart
+  path: /(part)/boardComponentRegistry/WebsiteChart
+  name: WebsiteChart
+  layer: part
+  source:
+    file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 199
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile:
+    id: ui-nextjs
+    version: 0.4.0
+  skill_version: 0.4.1
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-18T00:10:01Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T00:09:08Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "ボードに置く「訪問者のグラフ」の部品 (登録表の type: WebsiteChart)。描く側から受け取ったサイトについて、描く画面の URL の期間と絞り込みで、ページビューとセッションの時系列を GET /api/websites/[websiteId]/pageviews で読み、棒グラフに描く。受け口は getQueryFilters で期間と絞り込みをまとめ (サイトの情報を読み、REDIS_URL があれば Redis の website:* に読み書きする。CLOUD_MODE で個人のサイトなら account:* も読む。URL に segment / cohort があれば segment も読む)、getPageviewStats と getSessionStats で website_event (ClickHouse では時間ごとの集計表 website_event_stats_hourly も) を数える。絞り込みに応じて session / event_data / session_data も読む。CLICKHOUSE_URL の有無で PostgreSQL 用か ClickHouse 用の SQL のどちらかが動く。描く側が compareMode を渡したときは、比較の期間でも同じ 2 つを集計して重ねる。描く側が showAnnotations を渡したときだけ、注釈の一覧を GET /api/websites/[websiteId]/annotations で読み (annotation)、グラフに印を出す。どちらの受け口も、最初にログインの確認 (user。REDIS_URL があれば Redis の auth:*) を行い、サイトを見てよいかを確かめる (注釈は canViewSharedWebsiteFilters、時系列は canViewWebsiteSection。ログインした利用者なら canViewWebsite が website / link / pixel / board / share / team_user を読む)。書き込みは無い。ほかの入口へのつながりは無い (注釈の印を押すと、描く画面の URL の期間を書き換えるだけ)"
+  evidence:
+  - file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 200
+  - file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 206
+  - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 31
+  - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 40
+  - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+    line: 25
+  - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 137
+  - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+    line: 28
+  - file: src/lib/request.ts
+    line: 130
+  - file: src/lib/load.ts
+    line: 10
+  - file: src/lib/request.ts
+    line: 104
+  - file: src/lib/request.ts
+    line: 133
+  - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+    line: 31
+  - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+    line: 32
+  - file: src/queries/sql/pageviews/getPageviewStats.ts
+    line: 30
+  - file: src/queries/sql/pageviews/getPageviewStats.ts
+    line: 88
+  - file: src/queries/sql/pageviews/getPageviewStats.ts
+    line: 33
+  - file: src/lib/prisma.ts
+    line: 309
+  - file: src/lib/prisma.ts
+    line: 313
+  - file: src/lib/db.ts
+    line: 27
+  - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 42
+  - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+    line: 35
+  - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 38
+  - file: src/components/hooks/queries/useWebsiteAnnotationsQuery.ts
+    line: 16
+  - file: src/app/api/websites/[websiteId]/annotations/route.ts
+    line: 33
+  - file: src/app/api/websites/[websiteId]/annotations/route.ts
+    line: 20
+  - file: src/lib/request.ts
+    line: 52
+  - file: src/lib/auth.ts
+    line: 94
+  - file: src/lib/auth.ts
+    line: 102
+  - file: src/app/api/websites/[websiteId]/annotations/route.ts
+    line: 29
+  - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+    line: 24
+  - file: src/permissions/website.ts
+    line: 24
+  - file: src/lib/entity.ts
+    line: 5
+  - file: src/permissions/website.ts
+    line: 35
+  - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 99
+  - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 100
+notes: "(1) 部品の入口として分析した。入口のフレームは、登録表の項目 WebsiteChart (boardComponentRegistry.tsx:199) が指すコンポーネント WebsiteChart (WebsiteChart.tsx:17)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId、compareMode、showAnnotations、onAnnotationMoreClick、legendActions) と、描く画面の URL のクエリ (期間、絞り込み) を、入口のフレームの parameters に書いた。登録表のこの項目は componentByEntityType を持たないので、替わる先のコンポーネントは無い。(2) 同じ処理の置き場は、入口から、コードに書いてある順に深さ優先で辿って決めた。WebsiteChart は useWebsiteAnnotationsQuery (WebsiteChart.tsx:35) を useWebsitePageviewsQuery (:40) より先に呼ぶので、parseRequest → checkAuth と、canViewWebsite → getEntity / getTeamUser は、GET annotations の下 (canViewSharedWebsiteFilters の下) に書いた。GET pageviews の canViewWebsiteSection は、呼び先が canViewWebsite だけで終端になるので、決まりどおり、いちばん早い呼び出しを I/O を持つフレームまで書き直した (q_can_view_website_rw1 → q_get_entity_rw1 → q_get_website_rw1)。書き直したフレームには、権限の確認を繰り返していない。fetchWebsite が呼ぶ getWebsite は、q_get_website の下に書いた経路と同じなので、フレームにしていない (fetchWebsite 自身が Redis の I/O を持つ)。(3) 同じ部品を描く既にある結果 (websites.websiteId_d.compare、websites.websiteId_d) の綴りと木を出発点にし、根拠の行は対象のコードで確かめた。API_URL と BASE_PATH は、この入口で最初に API を呼ぶフレーム (use_annotations) に 1 回だけ書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。ほかの入口の結果が checkAuth に書いている CLOUD_MODE (API キーを受け付けるかの切り替え) は、API キーの枝を辿らないこの入口では有無で結果が変わらないので、書いていない。結果の target には、手元の絶対パスを残さないため clone_path を書いていない (作業定義には書いてある)。直帰を除くフィルターの定義 (getExcludeBounceQuery) は、この入口で最初に使う getPageviewStats の rules に 1 回だけ書いた。(4) 固定の値で閉じている呼び出しは無い。この部品の木の中で、子に固定の値を直接書いて渡している所は無い。showAnnotations と compareMode は、描く側から受け取る値 (入口の外の値) なので当たらない。決まりどおり、showAnnotations で決まる GET annotations の呼び出しは conditional にし、compareMode で送る値だけが変わる compare は、値を使う WebsiteChart と、受け口 (GET pageviews) の rules に書いた。(5) 迷った点と選んだ扱い。(a) 登録表のこの項目は configFields も defaultProps も持たない (boardComponentRegistry.tsx:199) ので、ボードの部品の選び方の画面からは showAnnotations / compareMode を設定できないように見える。ただし、描く側は保存された部品の設定の props をそのまま渡す作り (BoardComponentRenderer.tsx:42) で、どの値が保存されるかは部品の入口からは決められない (context.md の部品の決まり) ので、GET annotations と比較の期間の集計を、消さずに conditional / rules で書いた。(b) GET annotations の API は conditional だが、フックの呼び出し (use_annotations) は描画のたびに動き、木の中で最初の API を呼ぶフレームなので、API_URL と BASE_PATH をここに書いた。(c) 注釈の印を押すと、描く画面の URL の date を書き換える (router.push(updateParams(...)))。同じ画面のクエリの書き換えで、ほかの入口への遷移ではないので、links に書いていない。onAnnotationMoreClick は描く側へ期間を返すだけで、この部品の中では読み書きしない。(d) useDateRange はブラウザに保存した期間 (localStorage) を読むが、サーバーのデータではないので I/O に書かず、parameters と summary に書いた。(e) PageviewsChart、LoadingPanel、ChartAnnotationMarkers は見た目だけの部品なので、フレームにしていない。(6) links は 1 件も無い。(7) レビューへの対応 (1 回、指摘は low 2 件。どちらも直した)。getPageviewStats と getSessionStats の PostgreSQL の website_event の読み取りに、結合の条件に使う session_id / visit_id を filter で足し、note に使う場面を書いた。入口のフレームの「絞り込みのクエリ」に、segment / cohort / excludeBounce / match / search / page / pageSize も送ることを足した。"
+callstack:
+- id: website_chart
+  layer: part
+  kind: component
+  name: WebsiteChart
+  source:
+    file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+    line: 17
+  caller: null
+  parameters:
+  - name: websiteId
+    value: "グラフを出すサイトの id。描く側から props で受け取る (必須)"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 18
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 24
+  - name: compareMode
+    value: "true なら、比較の期間の時系列も読んで重ねる。描く側が props で渡す (任意)"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 19
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 25
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 42
+  - name: showAnnotations
+    value: "true なら、注釈の一覧を読んでグラフに印を出す。描く側が props で渡す (任意)"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 20
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 26
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 38
+  - name: onAnnotationMoreClick
+    value: "注釈の印の「もっと見る」を押したときに、描く側へ期間を返す関数 (任意)"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 21
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 27
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 127
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 146
+  - name: legendActions
+    value: "グラフの凡例に並べる部品 (任意)"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 22
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 28
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 140
+  - name: "date / unit / offset / compare"
+    value: "描く画面の URL のクエリ。期間・単位・ずらし・比較の期間の選び方。date が無ければ、ブラウザに保存した期間か既定の期間を使う"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 31
+    - file: src/components/hooks/useDateRange.ts
+      line: 9
+    - file: src/components/hooks/useDateRange.ts
+      line: 10
+    - file: src/components/hooks/useDateRange.ts
+      line: 15
+  - name: 絞り込みのクエリ
+    value: "描く画面の URL のクエリのうち、絞り込みの列 (FILTER_COLUMNS) とセッションのプロパティ (spf<n>) に当たるもの、segment / cohort / excludeBounce / match (どれも共有の設定の allowFilter が false でないときだけ)、search、page / pageSize。時系列の API にそのまま送る (segment と cohort は、受け口で保存した定義を読む条件になる)"
+    status: fact
+    evidence:
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 17
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 20
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 23
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 24
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 34
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 35
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 36
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 37
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 38
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 42
+  summary:
+    status: interpretation
+    value: "ページビューとセッションの時系列のグラフ (PageviewsChart) を描く部品。期間は描く画面の URL のクエリ (無ければブラウザに保存した期間) で決め、時系列を useWebsitePageviewsQuery で読む。compareMode を渡されたときは、URL の compare (無ければ prev) で比較の期間の時系列も読み、いまの期間の線に重ねる。showAnnotations を渡されたときは、注釈の一覧を useWebsiteAnnotationsQuery で読んで印を出す。注釈の印を押すと、描く画面の URL の date を書き換えて開き直す (同じ画面のクエリの書き換えで、ほかの入口へは移らない)。PageviewsChart と LoadingPanel は見た目だけの部品なので、フレームにしていない"
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 31
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 35
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 38
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 40
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 42
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 56
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 99
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 100
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 112
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 136
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 137
+  rules:
+  - kind: decision
+    value: "compareMode を渡されたときだけ、URL の compare (無ければ prev) を時系列の API に送り、比較の期間も集計させる"
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 31
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 42
+    - file: src/components/hooks/useDateRange.ts
+      line: 10
+  - kind: decision
+    value: "比較の期間の時系列は、いまの期間の点に、並びの順番で重ねる (比較の期間の i 番目の値を、いまの期間の i 番目の時刻に出し、元の時刻を添える)"
+    status: interpretation
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 56
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 58
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 59
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 60
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 61
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 63
+  - kind: decision
+    value: グラフの単位が時間か分のときは、終日でない注釈だけを出す
+    status: interpretation
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 74
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 77
+  - kind: decision
+    value: "注釈を押して期間を絞れるのは、単位が時間・分でなく、期間が 1 日だけでないとき"
+    status: interpretation
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 45
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 46
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 87
+- id: use_annotations
+  layer: component
+  kind: hook
+  name: useWebsiteAnnotationsQuery
+  source:
+    file: src/components/hooks/queries/useWebsiteAnnotationsQuery.ts
+    line: 6
+  caller: website_chart
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 35
+  summary:
+    status: interpretation
+    value: "注釈の一覧を GET /websites/<id>/annotations から読むフック。この部品は、いまの期間 (startAt / endAt) と pageSize: 1000 を送り、enabled を showAnnotations と websiteId で決める"
+    evidence:
+    - file: src/components/hooks/queries/useWebsiteAnnotationsQuery.ts
+      line: 14
+    - file: src/components/hooks/queries/useWebsiteAnnotationsQuery.ts
+      line: 16
+    - file: src/components/hooks/queries/useWebsiteAnnotationsQuery.ts
+      line: 17
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 37
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 38
+  settings:
+  - name: API_URL
+    kind: env
+    effect: "設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ"
+    status: interpretation
+    evidence:
+    - file: src/components/hooks/useApi.ts
+      line: 32
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 44
+    - file: next.config.ts
+      line: 14
+    - file: next.config.ts
+      line: 215
+    note: "この入口の API を呼ぶフック (useWebsiteAnnotationsQuery、useWebsitePageviewsQuery) すべてに同じように効く。このリポジトリの決まりで、最初に API を呼ぶこのフレームにだけ書いた"
+  - name: BASE_PATH
+    kind: env
+    effect: "API の URL の前に付く"
+    status: fact
+    evidence:
+    - file: next.config.ts
+      line: 15
+    - file: next.config.ts
+      line: 216
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 44
+    note: "この入口の API を呼ぶフック (useWebsiteAnnotationsQuery、useWebsitePageviewsQuery) すべてに同じように効く。このリポジトリの決まりで、最初に API を呼ぶこのフレームにだけ書いた"
+- id: api_annotations_get
+  layer: api_route
+  kind: route_handler
+  name: "GET /api/websites/[websiteId]/annotations"
+  source:
+    file: src/app/api/websites/[websiteId]/annotations/route.ts
+    line: 9
+  caller: use_annotations
+  call:
+    status: fact
+    when: conditional
+    condition: "描く側が showAnnotations を渡したとき (フックの enabled が true のとき)"
+    evidence:
+    - file: src/components/hooks/queries/useWebsiteAnnotationsQuery.ts
+      line: 16
+    - file: src/components/hooks/queries/useWebsiteAnnotationsQuery.ts
+      line: 19
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 44
+    note: "showAnnotations は描く側の props (ボードでは、保存された部品の設定の props) で決まり、部品の入口からは値が読めない。登録表のこの項目は configFields も defaultProps も持たない (boardComponentRegistry.tsx:199)"
+  summary:
+    status: interpretation
+    value: "サイトの注釈の一覧を返す受け口 (期間と検索語で絞れる)。parseRequest で入力とログインを確かめ (route.ts:20)、canViewSharedWebsiteFilters で見てよいかを確かめて (route.ts:29)、getWebsiteAnnotations で読む (route.ts:33)"
+    evidence:
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 20
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 29
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 33
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 37
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 41
+- id: q_parse_request
+  layer: query
+  kind: function
+  name: "parseRequest (src/lib/request.ts)"
+  source:
+    file: src/lib/request.ts
+    line: 16
+  caller: api_annotations_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 20
+  summary:
+    status: interpretation
+    value: "受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す。この部品のもう 1 つの受け口 (pageviews の GET。route.ts:16) も、最初に同じ関数を呼ぶ。経路はここと同じ"
+    evidence:
+    - file: src/lib/request.ts
+      line: 22
+    - file: src/lib/request.ts
+      line: 23
+    - file: src/lib/request.ts
+      line: 30
+    - file: src/lib/request.ts
+      line: 52
+    - file: src/lib/request.ts
+      line: 59
+  rules:
+  - kind: validation
+    value: "受け口が渡した schema に合わない入力は 400 を返す (GET はクエリを、それ以外は本文を検査する)"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 28
+    - file: src/lib/request.ts
+      line: 30
+    - file: src/lib/request.ts
+      line: 33
+- id: q_check_auth
+  layer: query
+  kind: function
+  name: "checkAuth (src/lib/auth.ts)"
+  source:
+    file: src/lib/auth.ts
+    line: 71
+  caller: q_parse_request
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/request.ts
+      line: 52
+    note: "この部品の受け口は skipAuth を渡さない。入力の誤りがあるときだけ、呼ばずに打ち切る (src/lib/request.ts:51)"
+  summary:
+    status: interpretation
+    value: "リクエストの Bearer トークンと共有トークンから、利用者を決める。トークンに userId があれば user を読む。無くて authKey があり、Redis が有効なら auth:* を読み、そこにある userId で user を読む。利用者も共有トークンも無ければ null (受け口が 401 を返す)。umami_ で始まるトークンを API キーとして調べる経路 (auth.ts:75 の checkApiKeyAuth) は、部品のフックがログインのトークンを付けるので、この入口からは辿っていない"
+    evidence:
+    - file: src/lib/auth.ts
+      line: 72
+    - file: src/lib/auth.ts
+      line: 78
+    - file: src/lib/auth.ts
+      line: 88
+    - file: src/lib/auth.ts
+      line: 94
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/auth.ts
+      line: 105
+    - file: src/lib/auth.ts
+      line: 122
+    - file: src/lib/auth.ts
+      line: 140
+    - file: src/components/hooks/useApi.ts
+      line: 28
+  io:
+  - op: get
+    status: interpretation
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "auth:*"
+    fields:
+    - name: '*'
+      use:
+      - read
+    evidence:
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/auth.ts
+      line: 150
+    note: "REDIS_URL が設定されていて、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts:150) から読み取った"
+  guards:
+  - kind: authentication
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 122
+    - file: src/lib/auth.ts
+      line: 124
+    - file: src/lib/request.ts
+      line: 54
+    - file: src/lib/request.ts
+      line: 55
+    note: ログインした利用者も、共有トークンも無ければ通さない
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: "設定されていると、トークンに userId が無く authKey があるとき、Redis の auth:* からログインの情報を読む。設定されていなければ、トークンの userId だけを使う"
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 101
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/redis.ts
+      line: 106
+  rules:
+  - kind: validation
+    value: "2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 83
+    - file: src/lib/auth.ts
+      line: 85
+  - kind: validation
+    value: "トークン (または Redis のログイン情報) にパスワードの指紋 (pwd) があり、いまのパスワードのハッシュと違えば、ログインしていない扱いにする (パスワードを変える前のトークンを無効にする)"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 98
+    - file: src/lib/auth.ts
+      line: 99
+    - file: src/lib/auth.ts
+      line: 108
+  - kind: validation
+    value: "共有トークンは、type が共有用のものだけを受け付ける。利用者がいなくて共有トークンだけのときは、共有画面からの印のヘッダー (SHARE_CONTEXT_HEADER) が無ければ受け付けない"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 127
+    - file: src/lib/auth.ts
+      line: 128
+    - file: src/lib/auth.ts
+      line: 129
+    - file: src/lib/auth.ts
+      line: 174
+  - kind: validation
+    value: "umami_ で始まるトークンは、API キーとして調べる (checkApiKeyAuth)。この部品のフックはログインのトークンを付けるので、この入口からは通らない"
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 72
+    - file: src/lib/auth.ts
+      line: 74
+    - file: src/lib/auth.ts
+      line: 75
+    - file: src/components/hooks/useApi.ts
+      line: 28
+- id: q_get_user
+  layer: query
+  kind: function
+  name: "getUser → findUser (src/queries/prisma/user.ts)"
+  source:
+    file: src/queries/prisma/user.ts
+    line: 49
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: "トークンに userId があるとき (Redis の auth:* から userId が取れたときも、auth.ts:105 で同じ関数を呼ぶ)"
+    evidence:
+    - file: src/lib/auth.ts
+      line: 93
+    - file: src/lib/auth.ts
+      line: 94
+  summary:
+    status: interpretation
+    value: "user を id で 1 件読む。削除済み (deleted_at がある) の利用者は読まない。checkAuth はパスワードの指紋を比べるために password も取り出す"
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 32
+    - file: src/queries/prisma/user.ts
+      line: 36
+    - file: src/queries/prisma/user.ts
+      line: 41
+    - file: src/queries/prisma/user.ts
+      line: 50
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: user
+    fields:
+    - name: user_id
+      use:
+      - read
+      - filter
+    - name: username
+      use:
+      - read
+    - name: password
+      use:
+      - read
+    - name: role
+      use:
+      - read
+    - name: created_at
+      use:
+      - read
+    - name: two_factor_required
+      use:
+      - read
+    - name: deleted_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 32
+    - file: src/queries/prisma/user.ts
+      line: 34
+    - file: src/queries/prisma/user.ts
+      line: 38
+    - file: prisma/schema.prisma
+      line: 37
+- id: ext_prisma_user
+  layer: external
+  kind: library
+  name: "Prisma Client user.findUnique"
+  source:
+    file: src/queries/prisma/user.ts
+    line: 32
+  caller: q_get_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 50
+    - file: src/queries/prisma/user.ts
+      line: 32
+- id: ext_redis_auth
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get — auth:*"
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: "REDIS_URL が設定されていて、トークンに userId が無く authKey があるとき"
+    evidence:
+    - file: src/lib/auth.ts
+      line: 101
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/redis.ts
+      line: 37
+- id: q_can_view_shared_website_filters
+  layer: query
+  kind: function
+  name: "canViewSharedWebsiteFilters (src/permissions/share.ts)"
+  source:
+    file: src/permissions/share.ts
+    line: 88
+  caller: api_annotations_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 29
+    note: "websiteId は URL の段から来るので、入力の検査とログインの確認を通れば、いつも呼ぶ"
+  summary:
+    status: interpretation
+    value: "サイトの絞り込みの部品 (セグメント、注釈) を見てよいかを決める。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める"
+    evidence:
+    - file: src/permissions/share.ts
+      line: 92
+    - file: src/permissions/share.ts
+      line: 93
+    - file: src/permissions/share.ts
+      line: 96
+    - file: src/permissions/share.ts
+      line: 98
+  guards:
+  - kind: other
+    value: canViewSharedWebsiteFilters
+    status: interpretation
+    evidence:
+    - file: src/permissions/share.ts
+      line: 40
+    - file: src/permissions/share.ts
+      line: 98
+    note: "ログインした利用者がいないときは、共有トークンが対象のサイトを含み、共有の設定の allowFilter が false でないこと"
+- id: q_can_view_website
+  layer: query
+  kind: function
+  name: "canViewWebsite (src/permissions/website.ts)"
+  source:
+    file: src/permissions/website.ts
+    line: 8
+  caller: q_can_view_shared_website_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "ログインした利用者がいるとき (共有トークンだけのときは呼ばない)"
+    evidence:
+    - file: src/permissions/share.ts
+      line: 92
+    - file: src/permissions/share.ts
+      line: 93
+  summary:
+    status: interpretation
+    value: "利用者がサイトを見てよいかを決める。管理者と、共有トークンの対象は、DB を読まずに許す。それ以外は、対象を getEntity で読み、持ち主か、持ち主のチームのメンバー (getTeamUser) かを確かめる。canViewWebsiteSection (share.ts:59。pageviews の GET から) も同じ関数を呼ぶ"
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 13
+    - file: src/permissions/website.ts
+      line: 24
+    - file: src/permissions/website.ts
+      line: 31
+    - file: src/permissions/website.ts
+      line: 35
+  guards:
+  - kind: ownership
+    value: canViewWebsite
+    status: interpretation
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 13
+    - file: src/permissions/website.ts
+      line: 26
+    - file: src/permissions/website.ts
+      line: 30
+    - file: src/permissions/website.ts
+      line: 31
+    - file: src/permissions/website.ts
+      line: 34
+    - file: src/permissions/website.ts
+      line: 35
+    - file: src/permissions/website.ts
+      line: 37
+    note: "管理者 (user.isAdmin) か、共有トークンの対象か、対象の持ち主 (user.id === entity.userId) であること。対象がチームのもの (entity.teamId) なら、そのチームのメンバー (team_user に行がある) であること"
+- id: q_get_entity
+  layer: query
+  kind: function
+  name: "getEntity (src/lib/entity.ts)"
+  source:
+    file: src/lib/entity.ts
+    line: 4
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: 利用者が管理者でなく、共有トークンの対象でもないとき
+    evidence:
+    - file: src/permissions/website.ts
+      line: 24
+  summary:
+    status: interpretation
+    value: "同じ id で website / link / pixel / board を並べて読み、最初に見つかったものを返す (id がどの種類のものかを、呼ぶ側が知らないため)"
+    evidence:
+    - file: src/lib/entity.ts
+      line: 5
+    - file: src/lib/entity.ts
+      line: 6
+    - file: src/lib/entity.ts
+      line: 7
+    - file: src/lib/entity.ts
+      line: 8
+    - file: src/lib/entity.ts
+      line: 9
+    - file: src/lib/entity.ts
+      line: 12
+- id: q_get_website
+  layer: query
+  kind: function
+  name: "getWebsite → findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)"
+  source:
+    file: src/queries/prisma/website.ts
+    line: 80
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 6
+  summary:
+    status: interpretation
+    value: "website を id で 1 件読み、見つかれば、いちばん新しい共有 (share) の slug を shareId として付ける。id が UUID の形でなければ、読まずに null を返す。fetchWebsite (src/lib/load.ts:10 / :12) も同じ関数を呼ぶ。経路はここと同じ"
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 81
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: src/queries/prisma/website.ts
+      line: 91
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: src/queries/prisma/website.ts
+      line: 304
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 77
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: prisma/schema.prisma
+      line: 130
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    fields:
+    - name: slug
+      use:
+      - read
+    - name: entity_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 304
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: prisma/schema.prisma
+      line: 412
+    note: "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- id: ext_prisma_website
+  layer: external
+  kind: library
+  name: "Prisma Client website.findUnique"
+  source:
+    file: src/queries/prisma/website.ts
+    line: 77
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: src/queries/prisma/website.ts
+      line: 77
+    note: "id が UUID の形でないときだけ、呼ばずに打ち切る (website.ts:81)"
+- id: ext_prisma_share
+  layer: external
+  kind: library
+  name: "Prisma Client share.findFirst"
+  source:
+    file: src/queries/prisma/website.ts
+    line: 304
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: src/queries/prisma/website.ts
+      line: 304
+    note: "サイトが見つからなかったときだけ、呼ばずに打ち切る (website.ts:91)"
+- id: q_get_link
+  layer: query
+  kind: function
+  name: "getLink → findLink (src/queries/prisma/link.ts)"
+  source:
+    file: src/queries/prisma/link.ts
+    line: 12
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 7
+  summary:
+    status: interpretation
+    value: "link を id で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 9
+    - file: src/queries/prisma/link.ts
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: link
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: link_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 9
+    - file: src/queries/prisma/link.ts
+      line: 15
+    - file: prisma/schema.prisma
+      line: 358
+- id: ext_prisma_link
+  layer: external
+  kind: library
+  name: "Prisma Client link.findUnique"
+  source:
+    file: src/queries/prisma/link.ts
+    line: 9
+  caller: q_get_link
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 13
+    - file: src/queries/prisma/link.ts
+      line: 9
+- id: q_get_pixel
+  layer: query
+  kind: function
+  name: "getPixel → findPixel (src/queries/prisma/pixel.ts)"
+  source:
+    file: src/queries/prisma/pixel.ts
+    line: 12
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 8
+  summary:
+    status: interpretation
+    value: "pixel を id で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+    - file: src/queries/prisma/pixel.ts
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: pixel
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: pixel_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+    - file: src/queries/prisma/pixel.ts
+      line: 15
+    - file: prisma/schema.prisma
+      line: 378
+- id: ext_prisma_pixel
+  layer: external
+  kind: library
+  name: "Prisma Client pixel.findUnique"
+  source:
+    file: src/queries/prisma/pixel.ts
+    line: 9
+  caller: q_get_pixel
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 13
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+- id: q_get_board
+  layer: query
+  kind: function
+  name: "getBoard → findBoard (src/queries/prisma/board.ts)"
+  source:
+    file: src/queries/prisma/board.ts
+    line: 13
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 9
+  summary:
+    status: interpretation
+    value: "board を id で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 10
+    - file: src/queries/prisma/board.ts
+      line: 14
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: board
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: board_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 10
+    - file: src/queries/prisma/board.ts
+      line: 16
+    - file: prisma/schema.prisma
+      line: 398
+- id: ext_prisma_board
+  layer: external
+  kind: library
+  name: "Prisma Client board.findUnique"
+  source:
+    file: src/queries/prisma/board.ts
+    line: 10
+  caller: q_get_board
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 14
+    - file: src/queries/prisma/board.ts
+      line: 10
+- id: q_get_team_user
+  layer: query
+  kind: function
+  name: "getTeamUser (src/queries/prisma/teamUser.ts)"
+  source:
+    file: src/queries/prisma/teamUser.ts
+    line: 19
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: "対象に持ち主の利用者 (userId) が無く、チーム (teamId) があるとき"
+    evidence:
+    - file: src/permissions/website.ts
+      line: 34
+    - file: src/permissions/website.ts
+      line: 35
+  summary:
+    status: interpretation
+    value: "チームと利用者の組で team_user を 1 件読む (削除済みのチームは除く)"
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+    - file: src/queries/prisma/teamUser.ts
+      line: 22
+    - file: src/queries/prisma/teamUser.ts
+      line: 23
+    - file: src/queries/prisma/teamUser.ts
+      line: 24
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team_user
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: team_id
+      use:
+      - filter
+    - name: user_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+    - file: src/queries/prisma/teamUser.ts
+      line: 22
+    - file: src/queries/prisma/teamUser.ts
+      line: 23
+    - file: prisma/schema.prisma
+      line: 265
+  - op: read
+    status: interpretation
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team
+    fields:
+    - name: team_id
+      use:
+      - filter
+    - name: deleted_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 24
+    - file: prisma/schema.prisma
+      line: 249
+    note: "TeamUser.team の関連の条件 (deletedAt: null) として読まれる。テーブル名はコードに直接は出ない"
+- id: ext_prisma_team_user
+  layer: external
+  kind: library
+  name: "Prisma Client teamUser.findFirst"
+  source:
+    file: src/queries/prisma/teamUser.ts
+    line: 20
+  caller: q_get_team_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+- id: q_get_website_annotations
+  layer: query
+  kind: function
+  name: "getWebsiteAnnotations (src/queries/prisma/annotation.ts)"
+  source:
+    file: src/queries/prisma/annotation.ts
+    line: 19
+  caller: api_annotations_get
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/annotations/route.ts
+      line: 33
+  summary:
+    status: interpretation
+    value: "サイトの annotation を、期間で絞り、日付の新しい順に、pagedQuery で 1 ページ分と件数を読む。この部品は、いつも期間 (startAt / endAt) と pageSize: 1000 を送り、検索語は送らない"
+    evidence:
+    - file: src/queries/prisma/annotation.ts
+      line: 26
+    - file: src/queries/prisma/annotation.ts
+      line: 27
+    - file: src/queries/prisma/annotation.ts
+      line: 28
+    - file: src/queries/prisma/annotation.ts
+      line: 35
+    - file: src/queries/prisma/annotation.ts
+      line: 42
+    - file: src/queries/prisma/annotation.ts
+      line: 47
+    - file: src/lib/prisma.ts
+      line: 761
+    - file: src/lib/prisma.ts
+      line: 775
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: annotation
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: date
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/annotation.ts
+      line: 42
+    - file: src/queries/prisma/annotation.ts
+      line: 27
+    - file: src/queries/prisma/annotation.ts
+      line: 30
+    - file: src/queries/prisma/annotation.ts
+      line: 47
+    - file: src/lib/prisma.ts
+      line: 761
+    - file: src/lib/prisma.ts
+      line: 775
+    - file: prisma/schema.prisma
+      line: 302
+    note: "date は、期間の条件と並べ替えに使う。この部品は検索語を送らないので、note の条件 (annotation.ts:37) は使わない。1 ページ分の行 (findMany) と件数 (count) の 2 回読む"
+- id: ext_prisma_annotation_find_many
+  layer: external
+  kind: library
+  name: "Prisma Client annotation.findMany (prisma.pagedQuery)"
+  source:
+    file: src/lib/prisma.ts
+    line: 761
+  caller: q_get_website_annotations
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/annotation.ts
+      line: 42
+    - file: src/lib/prisma.ts
+      line: 761
+- id: ext_prisma_annotation_count
+  layer: external
+  kind: library
+  name: "Prisma Client annotation.count (prisma.pagedQuery)"
+  source:
+    file: src/lib/prisma.ts
+    line: 775
+  caller: q_get_website_annotations
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/annotation.ts
+      line: 42
+    - file: src/lib/prisma.ts
+      line: 775
+- id: use_pageviews
+  layer: component
+  kind: hook
+  name: useWebsitePageviewsQuery
+  source:
+    file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+    line: 11
+  caller: website_chart
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 40
+  summary:
+    status: interpretation
+    value: "ページビューとセッションの時系列を GET /websites/<id>/pageviews から読むフック。期間・単位・タイムゾーン、URL の絞り込み、compare (compareMode を渡されたときだけ) を送る"
+    evidence:
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 12
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 16
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 17
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 19
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 25
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 26
+    - file: src/app/(main)/websites/[websiteId]/WebsiteChart.tsx
+      line: 42
+  rules:
+  - kind: decision
+    value: "共有の設定で allowFilter が false のときは、URL の絞り込みを送らない"
+    status: fact
+    evidence:
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 17
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 13
+    - file: src/components/hooks/useFilterParameters.ts
+      line: 19
+- id: api_pageviews
+  layer: api_route
+  kind: route_handler
+  name: "GET /api/websites/[websiteId]/pageviews"
+  source:
+    file: src/app/api/websites/[websiteId]/pageviews/route.ts
+    line: 8
+  caller: use_pageviews
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 25
+    - file: src/components/hooks/queries/useWebsitePageviewsQuery.ts
+      line: 33
+    - file: src/lib/api-url.ts
+      line: 44
+    note: "フックの enabled は websiteId があること。websiteId は部品の必須の props なので、always にした"
+  summary:
+    status: interpretation
+    value: "ページビューの時系列とセッションの時系列を返す受け口。parseRequest (route.ts:16。経路はフレーム q_parse_request と同じ)、canViewWebsiteSection (route.ts:24。セクションは overview / compare)、getQueryFilters (route.ts:28) を呼んでから、getPageviewStats と getSessionStats を並べて呼ぶ。compare を送られたときは、比較の期間でも 2 つを呼ぶ"
+    evidence:
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 16
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 24
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 28
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 31
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 32
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 35
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 43
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 48
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 55
+  rules:
+  - kind: decision
+    value: "compare の指定があるときは、比較の期間 (prev = 前の期間、yoy = 前の年) でも同じ 2 つの集計を行って、一緒に返す"
+    status: interpretation
+    evidence:
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 35
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 36
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 43
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 48
+    - file: src/lib/schema.ts
+      line: 23
+    - file: src/lib/request.ts
+      line: 189
+    note: "この部品のフックは、compareMode を渡されたときだけ compare を送る (WebsiteChart.tsx:42)。compare は受け口の入力の形 (dateRangeParams) と getQueryFilters を通って filters.compare に残る"
+- id: q_can_view_website_section
+  layer: query
+  kind: function
+  name: "canViewWebsiteSection (src/permissions/share.ts)"
+  source:
+    file: src/permissions/share.ts
+    line: 53
+  caller: api_pageviews
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 24
+  summary:
+    status: interpretation
+    value: "サイトの、あるセクションを見てよいかを決める (pageviews の GET は overview / compare を渡す)。ログインした利用者がいれば canViewWebsite に任せる (経路は、フレーム q_can_view_website と同じ)。いなければ、共有トークンの中身で決める。呼び先が canViewWebsite だけで終端になるので、その先のいちばん早い呼び出しを書き直した (q_can_view_website_rw1 から)"
+    evidence:
+    - file: src/permissions/share.ts
+      line: 58
+    - file: src/permissions/share.ts
+      line: 59
+    - file: src/permissions/share.ts
+      line: 64
+    - file: src/permissions/share.ts
+      line: 69
+    - file: src/permissions/share.ts
+      line: 77
+  guards:
+  - kind: other
+    value: canViewWebsiteSection
+    status: interpretation
+    evidence:
+    - file: src/permissions/share.ts
+      line: 40
+    - file: src/permissions/share.ts
+      line: 64
+    - file: src/permissions/share.ts
+      line: 69
+    - file: src/permissions/share.ts
+      line: 73
+    - file: src/permissions/share.ts
+      line: 77
+    note: "ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと。共有の設定にセクションごとの可否があれば、受け口が渡したセクション (この受け口では overview / compare) のどれかが true であること"
+- id: q_can_view_website_rw1
+  layer: query
+  kind: function
+  name: "canViewWebsite (src/permissions/website.ts)"
+  source:
+    file: src/permissions/website.ts
+    line: 8
+  caller: q_can_view_website_section
+  call:
+    status: fact
+    when: conditional
+    condition: ログインした利用者がいるとき
+    evidence:
+    - file: src/permissions/share.ts
+      line: 58
+    - file: src/permissions/share.ts
+      line: 59
+  summary:
+    status: interpretation
+    value: "フレーム q_can_view_website と同じ処理。呼び出し元 (q_can_view_website_section) が終端にならないように、いちばん早い呼び出し (getEntity) を書き直した。権限の確認の内容は q_can_view_website に書いた"
+    evidence:
+    - file: src/permissions/website.ts
+      line: 8
+    - file: src/permissions/website.ts
+      line: 24
+- id: q_get_entity_rw1
+  layer: query
+  kind: function
+  name: "getEntity (src/lib/entity.ts)"
+  source:
+    file: src/lib/entity.ts
+    line: 4
+  caller: q_can_view_website_rw1
+  call:
+    status: fact
+    when: conditional
+    condition: 利用者が管理者でなく、共有トークンの対象でもないとき
+    evidence:
+    - file: src/permissions/website.ts
+      line: 24
+  summary:
+    status: interpretation
+    value: "フレーム q_get_entity と同じ処理 (website / link / pixel / board を同じ id で並べて読む)。ここでは、いちばん早い getWebsite だけを書き直した"
+    evidence:
+    - file: src/lib/entity.ts
+      line: 5
+    - file: src/lib/entity.ts
+      line: 6
+- id: q_get_website_rw1
+  layer: query
+  kind: function
+  name: "getWebsite (src/queries/prisma/website.ts)"
+  source:
+    file: src/queries/prisma/website.ts
+    line: 80
+  caller: q_get_entity_rw1
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 6
+  summary:
+    status: interpretation
+    value: "フレーム q_get_website と同じ処理。website を id で 1 件読み、いちばん新しい共有の slug を付ける。external のフレームは q_get_website の下に書いた"
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: src/queries/prisma/website.ts
+      line: 95
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 77
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: prisma/schema.prisma
+      line: 130
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    fields:
+    - name: slug
+      use:
+      - read
+    - name: entity_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 304
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: prisma/schema.prisma
+      line: 412
+    note: "サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)"
+- id: q_get_query_filters
+  layer: query
+  kind: function
+  name: "getQueryFilters → setWebsiteDate (src/lib/request.ts)"
+  source:
+    file: src/lib/request.ts
+    line: 118
+  caller: api_pageviews
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 28
+  summary:
+    status: interpretation
+    value: "クエリから、期間・単位・列の絞り込み・プロパティの絞り込み・compare を取り出して、問い合わせ用の条件にまとめる。websiteId を渡されるので、サイトの情報 (fetchWebsite) で期間の開始を直し、URL に segment / cohort があれば、保存した定義 (getWebsiteSegment) を絞り込みに足す"
+    evidence:
+    - file: src/lib/request.ts
+      line: 122
+    - file: src/lib/request.ts
+      line: 123
+    - file: src/lib/request.ts
+      line: 129
+    - file: src/lib/request.ts
+      line: 130
+    - file: src/lib/request.ts
+      line: 133
+    - file: src/lib/request.ts
+      line: 145
+    - file: src/lib/request.ts
+      line: 177
+  settings:
+  - name: CLOUD_MODE
+    kind: env
+    effect: "設定されていて、個人のサイト (teamId が無い) で、持ち主に契約 (hasSubscription) が無いときは、期間の開始を 6 か月前の月初より前にしない (Redis の account:* を読む)"
+    status: fact
+    evidence:
+    - file: src/lib/request.ts
+      line: 101
+    - file: src/lib/request.ts
+      line: 103
+    - file: src/lib/request.ts
+      line: 104
+    - file: src/lib/request.ts
+      line: 106
+    - file: src/lib/request.ts
+      line: 107
+  rules:
+  - kind: calculation
+    value: "集計の単位 (unit) が期間に許されないものなら、期間に合う最小の単位にする"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 80
+    - file: src/lib/request.ts
+      line: 81
+    - file: src/lib/request.ts
+      line: 82
+  - kind: calculation
+    value: "サイトにリセットの日時 (resetAt) があれば、期間の開始をそれより前にしない"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 111
+    - file: src/lib/request.ts
+      line: 112
+  - kind: decision
+    value: "URL に segment があれば、保存したセグメントの絞り込み (filters、sessionPropertyFilters、match) を、いまの絞り込みに足す"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 132
+    - file: src/lib/request.ts
+      line: 136
+    - file: src/lib/request.ts
+      line: 137
+    - file: src/lib/request.ts
+      line: 139
+  - kind: decision
+    value: "URL に cohort があれば、保存したコホートの条件を cohort_ で始まる絞り込み (期間、列の条件、行動) に直して足す"
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 144
+    - file: src/lib/request.ts
+      line: 148
+    - file: src/lib/request.ts
+      line: 150
+    - file: src/lib/request.ts
+      line: 155
+    - file: src/lib/request.ts
+      line: 161
+- id: q_fetch_website
+  layer: query
+  kind: function
+  name: "fetchWebsite (src/lib/load.ts)"
+  source:
+    file: src/lib/load.ts
+    line: 6
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/request.ts
+      line: 130
+    - file: src/lib/request.ts
+      line: 100
+    note: "websiteId を渡されたときだけ (request.ts:129)。pageviews の受け口は websiteId を渡すので、いつも呼ぶ"
+  summary:
+    status: interpretation
+    value: "サイトの情報を読む。Redis が有効なら website:<id> のキャッシュから読み、無ければ getWebsite で DB から読んで 86400 秒キャッシュする。無効なら毎回 getWebsite で読む。getWebsite の経路は、フレーム q_get_website と同じ"
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/load.ts
+      line: 12
+    - file: src/lib/load.ts
+      line: 15
+  io:
+  - op: get
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "website:*"
+    fields:
+    - name: '*'
+      use:
+      - read
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 85
+    - file: src/lib/redis.ts
+      line: 37
+    note: "REDIS_URL が設定されているときだけ"
+  - op: set
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "website:*"
+    fields:
+    - name: '*'
+      use:
+      - write
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 92
+    - file: src/lib/redis.ts
+      line: 51
+    note: "REDIS_URL が設定されていて、キャッシュに無く、DB から読めたときだけ。有効期限は 86400 秒"
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: "設定されていると、サイトの情報を Redis の website:<id> から読み、無ければ DB から読んでキャッシュする。設定されていなければ、毎回 DB から読む"
+    status: fact
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/load.ts
+      line: 12
+    - file: src/lib/redis.ts
+      line: 106
+  rules:
+  - kind: decision
+    value: "削除済み (deletedAt がある) のサイトは、無いものとして扱う"
+    status: interpretation
+    evidence:
+    - file: src/lib/load.ts
+      line: 15
+    - file: src/lib/load.ts
+      line: 16
+- id: ext_redis_website_get
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get — website:*"
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_fetch_website
+  call:
+    status: fact
+    when: conditional
+    condition: "REDIS_URL が設定されているとき"
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 85
+    - file: src/lib/redis.ts
+      line: 37
+- id: ext_redis_website_set
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) set — website:*"
+  source:
+    file: src/lib/redis.ts
+    line: 51
+  caller: q_fetch_website
+  call:
+    status: fact
+    when: conditional
+    condition: "REDIS_URL が設定されていて、キャッシュに無く、DB から読めたとき"
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 89
+    - file: src/lib/redis.ts
+      line: 92
+    - file: src/lib/redis.ts
+      line: 51
+- id: q_fetch_account
+  layer: query
+  kind: function
+  name: "fetchAccount (src/lib/load.ts)"
+  source:
+    file: src/lib/load.ts
+    line: 42
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "CLOUD_MODE が設定されていて、サイトが個人のもの (teamId が無い) のとき"
+    evidence:
+    - file: src/lib/request.ts
+      line: 103
+    - file: src/lib/request.ts
+      line: 104
+  summary:
+    status: interpretation
+    value: "持ち主の契約の情報を、Redis の account:<userId> から読む"
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+  io:
+  - op: get
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: "account:*"
+    fields:
+    - name: '*'
+      use:
+      - read
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+    - file: src/lib/redis.ts
+      line: 37
+- id: ext_redis_account
+  layer: external
+  kind: library
+  name: "redis (node-redis クライアント) get — account:*"
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_fetch_account
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+    - file: src/lib/redis.ts
+      line: 37
+- id: q_get_segment
+  layer: query
+  kind: function
+  name: "getWebsiteSegment (src/queries/prisma/segment.ts)"
+  source:
+    file: src/queries/prisma/segment.ts
+    line: 36
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: conditional
+    condition: "URL に segment があるとき (cohort があるときも、request.ts:145 で同じ関数を呼ぶ)"
+    evidence:
+    - file: src/lib/request.ts
+      line: 132
+    - file: src/lib/request.ts
+      line: 133
+  summary:
+    status: interpretation
+    value: "セグメント (またはコホート) を、id とサイトの組で 1 件読む"
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 37
+    - file: src/queries/prisma/segment.ts
+      line: 38
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: segment
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: segment_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 37
+    - file: src/queries/prisma/segment.ts
+      line: 38
+    - file: prisma/schema.prisma
+      line: 317
+- id: ext_prisma_segment_find
+  layer: external
+  kind: library
+  name: "Prisma Client segment.findFirst"
+  source:
+    file: src/queries/prisma/segment.ts
+    line: 37
+  caller: q_get_segment
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/segment.ts
+      line: 37
+- id: q_pageview_stats
+  layer: query
+  kind: function
+  name: "getPageviewStats (src/queries/sql/pageviews/getPageviewStats.ts)"
+  source:
+    file: src/queries/sql/pageviews/getPageviewStats.ts
+    line: 9
+  caller: api_pageviews
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 31
+  summary:
+    status: interpretation
+    value: "期間とフィルターで website_event を単位 (時・日・月など) ごとに数え、ページビューの時系列を作る。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 10
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 19
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 28
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 29
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 59
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 37
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: visit_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 28
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 29
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 30
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 34
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 35
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 36
+    - file: prisma/schema.prisma
+      line: 183
+    - file: src/lib/prisma.ts
+      line: 224
+    - file: src/lib/prisma.ts
+      line: 242
+    - file: src/lib/prisma.ts
+      line: 254
+    - file: src/lib/prisma.ts
+      line: 255
+    - file: src/lib/prisma.ts
+      line: 318
+    note: "URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた。session_id は、セッションの列で絞るとき (session との join)、コホートを指定したとき、直帰を除くフィルターのときの結合の条件に使う。visit_id は、直帰を除くフィルターのとき (副問い合わせで website_event の session_id / visit_id / event_type を読み、結合する) だけ使う"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session
+    fields:
+    - name: session_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 33
+    - file: src/lib/prisma.ts
+      line: 318
+    - file: prisma/schema.prisma
+      line: 84
+    note: "セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: event_data
+    fields:
+    - name: website_event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 309
+    - file: src/lib/prisma.ts
+      line: 576
+    - file: prisma/schema.prisma
+      line: 205
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 313
+    - file: src/lib/prisma.ts
+      line: 702
+    - file: prisma/schema.prisma
+      line: 229
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 66
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 67
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 68
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 71
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 72
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 73
+    - file: src/lib/clickhouse.ts
+      line: 196
+    - file: db/clickhouse/schema.sql
+      line: 2
+    note: "イベントの列で絞るときか、単位が minute のときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event_stats_hourly
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: views
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 86
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 87
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 88
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 91
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 92
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 93
+    - file: src/lib/clickhouse.ts
+      line: 212
+    - file: db/clickhouse/schema.sql
+      line: 113
+    note: "上以外のとき。直帰を除くフィルターのときは、どちらの SQL でも副問い合わせで読む (src/lib/clickhouse.ts:212。session_id / visit_id / views / event_name を読む)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: event_data
+    fields:
+    - name: event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 278
+    - file: src/lib/clickhouse.ts
+      line: 540
+    - file: db/clickhouse/schema.sql
+      line: 57
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 280
+    - file: src/lib/clickhouse.ts
+      line: 663
+    - file: db/clickhouse/schema.sql
+      line: 76
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: fact
+    evidence:
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 32
+    - file: src/lib/db.ts
+      line: 38
+  rules:
+  - kind: decision
+    value: "ClickHouse では、イベントの列で絞るときと、単位が minute のときは website_event から、それ以外は時間ごとの集計表から数える"
+    status: interpretation
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 59
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 68
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 88
+  - kind: decision
+    value: "直帰を除くフィルター (excludeBounce) では、ページビューが 2 件以上か、1 件でカスタムイベントのある訪問だけを残す。この定義は、共通の関数 getExcludeBounceQuery にあり、getSessionStats も同じものを使う"
+    status: interpretation
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 19
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 32
+    - file: src/lib/prisma.ts
+      line: 237
+    - file: src/lib/prisma.ts
+      line: 248
+    - file: src/lib/prisma.ts
+      line: 250
+    - file: src/lib/prisma.ts
+      line: 251
+    - file: src/lib/clickhouse.ts
+      line: 206
+    - file: src/lib/clickhouse.ts
+      line: 217
+    - file: src/lib/clickhouse.ts
+      line: 219
+    - file: src/lib/clickhouse.ts
+      line: 220
+    note: "URL に excludeBounce があるとき、getQueryFilters が filters.excludeBounce を立てる (src/lib/request.ts:172)"
+- id: ext_pageview_stats_pg
+  layer: external
+  kind: library
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  source:
+    file: src/lib/prisma.ts
+    line: 746
+  caller: q_pageview_stats
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 25
+    - file: src/lib/prisma.ts
+      line: 746
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: interpretation
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 738
+    - file: src/lib/prisma.ts
+      line: 55
+    - file: src/lib/prisma.ts
+      line: 861
+- id: ext_pageview_stats_ch
+  layer: external
+  kind: library
+  name: "ClickHouse client (@clickhouse/client) query"
+  source:
+    file: src/lib/clickhouse.ts
+    line: 721
+  caller: q_pageview_stats
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 101
+    - file: src/lib/clickhouse.ts
+      line: 721
+- id: q_session_stats
+  layer: query
+  kind: function
+  name: "getSessionStats (src/queries/sql/sessions/getSessionStats.ts)"
+  source:
+    file: src/queries/sql/sessions/getSessionStats.ts
+    line: 9
+  caller: api_pageviews
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/websites/[websiteId]/pageviews/route.ts
+      line: 32
+  summary:
+    status: interpretation
+    value: "期間とフィルターで website_event を単位ごとにまとめ、異なる session_id の数 (セッションの時系列) を作る。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)"
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 10
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 19
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 28
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 29
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 59
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 37
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+      - filter
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    - name: visit_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 28
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 29
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 30
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 34
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 35
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 36
+    - file: prisma/schema.prisma
+      line: 183
+    - file: src/lib/prisma.ts
+      line: 224
+    - file: src/lib/prisma.ts
+      line: 242
+    - file: src/lib/prisma.ts
+      line: 254
+    - file: src/lib/prisma.ts
+      line: 255
+    - file: src/lib/prisma.ts
+      line: 318
+    note: "URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた。session_id は、セッションの列で絞るとき (session との join)、コホートを指定したとき、直帰を除くフィルターのときの結合の条件に使う。visit_id は、直帰を除くフィルターのとき (副問い合わせで website_event の session_id / visit_id / event_type を読み、結合する) だけ使う"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session
+    fields:
+    - name: session_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 33
+    - file: src/lib/prisma.ts
+      line: 318
+    - file: prisma/schema.prisma
+      line: 84
+    note: "セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: event_data
+    fields:
+    - name: website_event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 309
+    - file: src/lib/prisma.ts
+      line: 576
+    - file: prisma/schema.prisma
+      line: 205
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 313
+    - file: src/lib/prisma.ts
+      line: 702
+    - file: prisma/schema.prisma
+      line: 229
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 66
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 67
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 68
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 71
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 72
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 73
+    - file: src/lib/clickhouse.ts
+      line: 196
+    - file: db/clickhouse/schema.sql
+      line: 2
+    note: "イベントの列で絞るときか、単位が minute のときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event_stats_hourly
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 86
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 87
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 88
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 91
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 92
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 93
+    - file: src/lib/clickhouse.ts
+      line: 212
+    - file: db/clickhouse/schema.sql
+      line: 113
+    note: "上以外のとき。直帰を除くフィルターのときは、どちらの SQL でも副問い合わせで読む (src/lib/clickhouse.ts:212。session_id / visit_id / views / event_name を読む)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: event_data
+    fields:
+    - name: event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 278
+    - file: src/lib/clickhouse.ts
+      line: 540
+    - file: db/clickhouse/schema.sql
+      line: 57
+    note: "イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 280
+    - file: src/lib/clickhouse.ts
+      line: 663
+    - file: db/clickhouse/schema.sql
+      line: 76
+    note: "セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる"
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: "設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する"
+    status: fact
+    evidence:
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 32
+    - file: src/lib/db.ts
+      line: 38
+  rules:
+  - kind: decision
+    value: "ClickHouse では、イベントの列で絞るときと、単位が minute のときは website_event から、それ以外は時間ごとの集計表から数える"
+    status: interpretation
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 59
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 68
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 88
+- id: ext_session_stats_pg
+  layer: external
+  kind: library
+  name: "Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)"
+  source:
+    file: src/lib/prisma.ts
+    line: 746
+  caller: q_session_stats
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)"
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 25
+    - file: src/lib/prisma.ts
+      line: 746
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: "設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る"
+    status: interpretation
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 738
+    - file: src/lib/prisma.ts
+      line: 55
+    - file: src/lib/prisma.ts
+      line: 861
+- id: ext_session_stats_ch
+  layer: external
+  kind: library
+  name: "ClickHouse client (@clickhouse/client) query"
+  source:
+    file: src/lib/clickhouse.ts
+    line: 721
+  caller: q_session_stats
+  call:
+    status: fact
+    when: conditional
+    condition: "CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)"
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 101
+    - file: src/lib/clickhouse.ts
+      line: 721

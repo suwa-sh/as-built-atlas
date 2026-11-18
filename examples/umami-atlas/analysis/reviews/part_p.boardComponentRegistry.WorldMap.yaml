@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.WorldMap
+reviewed_at: "2026-11-18T00:52:33Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/world_map/rules/0
+    claim: "「割合が大きいほど、地図の色を濃くする」は明るいテーマでしか成り立たない。色は colord(baseColor) を、明るいテーマでは lighten、暗いテーマでは darken で 0.4 × (1 - 割合/100) だけ変える (WorldMap.tsx:48-49) ので、暗いテーマでは割合が大きいほど暗くする量が減り、明るく (基の色に近く) なる。割合の計算 (percentFilter) の部分は合っている。"
+    evidence: { file: src/components/metrics/WorldMap.tsx, line: 49 }
+    suggestion: "rules の文を「割合が大きいほど、基の色 (colors.map.baseColor) に近い色で塗る (明るいテーマでは薄める量を、暗いテーマでは暗くする量を減らす)」に直し、world_map の summary の「割合が大きい国ほど濃い色で塗る」も同じ言い方にそろえる。"
+    resolved: true
+notes: "主な根拠の行 (WorldMap.tsx の全体、boardComponentRegistry.tsx:359-367、BoardComponentRenderer.tsx:27-43、BoardViewColumn.tsx:54、useWebsiteMetricsQuery.ts、useDateParameters.ts、useDateRange.ts、useFilterParameters.ts、useCountryNames.ts、useApi.ts:28 / :32、filters.ts:1-5、constants.ts の EVENT_COLUMNS / SESSION_COLUMNS / FILTER_COLUMNS / EVENT_TYPE / MAP_FILE、metrics の route.ts の全体、request.ts:16-190、auth.ts:71-135、share.ts:40-77、website.ts:8-40、entity.ts、load.ts、getSessionMetrics.ts の全体、prisma.ts:305-320 / :738-746、db.ts:27-38、prisma/schema.prisma の session と website_event、db/clickhouse/schema.sql の website_event と website_event_stats_hourly) を開いて、主張を支えていることを確かめた。固定の値で閉じている呼び出し 3 件 (getEventMetrics / getPageviewMetrics / getChannelMetrics) は、type: 'country' が WorldMap.tsx:32 に直接書かれ、フックが params を最後に重ねる (useWebsiteMetricsQuery.ts:37) ので URL では変わらず、route.ts:55 の分かれ道は type だけで決まり、受け口にこの木の中でほかの呼び出し元が無い。3 つの条件を満たし、閉じた値と行が api_metrics の summary と結果の notes に書いてあるので、辿っていないのは漏れではない (analysis-conventions.md の「値が HTTP のクエリを通ってサーバー側の分かれ道に効く場合」にも合う)。getSessionMetrics の呼び出しを always にし、理由を call の note に書いたのも決まりどおり。PostgreSQL の website_event に country の列が無く (schema.prisma の WebsiteEvent)、session を join して country を読む (prisma.ts:318) こと、ClickHouse では website_event と website_event_stats_hourly がどちらも country を持つことも確かめた。API_URL / BASE_PATH を最初のフック (use_metrics) にだけ書いたこと、checkAuth の API キーの枝を rules の 1 行にしたこと、ログイン済みの確認を checkAuth だけに書いたこと、target に clone_path を書かないこと、地図の形の JSON と国の名前の翻訳の JSON (同じサーバーの静的なファイル) を段にも読み書きにも書かないことは、analysis-conventions.md に合っている。指摘にしなかったこと: (a) 地図の形の JSON の URL には process.env.basePath (BASE_PATH) が前に付く (WorldMap.tsx:76) が、静的なファイルを読む処理なので settings に書かない、という結果の判断 (notes の (4)(b)) は、決まりの趣旨に沿うものとして指摘にしない (layout_l は翻訳の静的ファイルの BASE_PATH を settings に書いているので、静的ファイルに効く BASE_PATH を書くかどうかは、入口をまたいでそろえて決めるとよい)。(b) 受け口の木 (parseRequest 以下) は part_p.boardComponentRegistry.MetricsTable の結果から写したもので、そのレビューで確かめた点 (getEntity の選ぶ順、API キーの枝が CLOUD_MODE で決まることなど) は、ここでも同じなので繰り返さない。(c) 南極 (AQ) は塗らず、透明にし、小窓も出さない (WorldMap.tsx:41 / :54 / :58) が、見た目だけなので書き漏れにしない。(d) 期間の計算にはブラウザのタイムゾーン (useTimezone) も効く (useDateParameters.ts:13 / :18) が、ほかの部品の入口と同じ書き方なので指摘にしない。"

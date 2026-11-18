@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.Funnel
+reviewed_at: "2026-11-18T00:23:20Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/ext_prisma_funnel
+    claim: "PostgreSQL 用の生の SQL (rawQuery → executeRawQuery) は、DATABASE_REPLICA_URL が設定されていると複製 (replica) の DB へ送られる (useReplica) が、この設定がどのフレームの settings にも無い。同じ作りの部品の結果 (part_p.boardComponentRegistry.Goal の Prisma の生の SQL のフレーム) と、このリポジトリの設定の名前の表には、この設定がある"
+    evidence: { file: src/lib/prisma.ts, line: 737 }
+    suggestion: "ext_prisma_funnel (または q_get_funnel) の settings に、name DATABASE_REPLICA_URL、kind env、効き目「設定されていると、読み取りの生の SQL を複製の DB に送る」を、prisma.ts:737 と :746 を根拠に足す。"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の概要の「書き込みは無い」は、同じ概要の前半と、フレーム q_fetch_website の io (Redis の website:* への set。キャッシュに無いときに書く) と食い違う。DB への書き込みが無い、という意味なら、言葉が足りない"
+    evidence: { file: src/lib/load.ts, line: 10 }
+    suggestion: "「DB への書き込みは無い (Redis の website:* にキャッシュを書くことはある)」のように、書き込みの対象を限って書く。"
+    resolved: true
+notes: "指摘にしなかったが、伝えておくこと。(1) 固定の値で閉じた呼び出し (編集と削除のメニュー SavedDefinitionEditButton) の判断は妥当と見た。条件は allowEdit && !isSharePage (Funnel.tsx:43) で isSharePage との組み合わせだが、BoardFunnel が allowEdit={false} を直接書いて渡す (BoardFunnel.tsx:57) ので、isSharePage の値によらず成り立たない。Funnel に着く呼び出し元は木の中に BoardFunnel だけで、3 つの条件を満たす。閉じた値と行は Funnel の summary と先頭の notes に書いてある。(2) 根拠の行は、登録表・BoardFunnel・Funnel・3 つの受け口・parseRequest・checkAuth・権限の関数・getQueryFilters・fetchWebsite / fetchAccount・getFunnel (PostgreSQL と ClickHouse の両方)・Prisma の問い合わせ・schema.prisma の @@map まで開き、主張を支えていることを確かめた。重複の置き場 (入口から深さ優先で最初に着いた呼び出し元の下) と、id なしの集計の受け口での書き直し (q_parse_request_rw1 → q_check_auth_rw1) も、決まりどおり。(3) 細かい点 (指摘にしない程度)。(a) getFunnel の rules の「離脱数 = 前の段 − この段」は、前の段が 0 のとき (最初の段) は 0 になる (getFunnel.ts:354)。離脱率も最初の段では前の段が 0 で割る形になる。(b) 段の絞り込みの演算子 c / dnc は、PostgreSQL では ilike (大文字と小文字を区別しない)、ClickHouse では like (区別する) で、rules の「部分一致」はこの違いを書いていない (getFunnel.ts:75、:228)。(c) 入口のフレームの parameters の date / unit には、期間をずらす URL のクエリ offset (useDateRange.ts:10、:21) が書いていない。(d) event_data の io の note の「URL にイベントのプロパティの絞り込みがあるときも読む」は、useFilterParameters が epf<n> を送るのが URL の末尾が /events のときだけ (useFilterParameters.ts:14、:25) なので、ボードの画面からは通りにくいように見える。(e) api_funnel_get の summary の「parseRequest で入力とログインを確かめ」は、この GET が schema を渡さないので、確かめるのはログインだけ (route.ts:11)。(4) 集計の受け口 [funnelId]/stats は、canViewWebsiteSection を条件なしで最初に呼ぶ (route.ts:15) が、フレームは canViewReport の下の conditional の 1 つだけ。同じ処理を 1 回だけ書く決まりどおりなので、指摘にしていない。"

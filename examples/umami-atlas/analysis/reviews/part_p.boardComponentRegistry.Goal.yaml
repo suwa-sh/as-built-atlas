@@ -1,0 +1,41 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.Goal
+reviewed_at: "2026-11-18T00:24:09Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_check_auth_rw_goals_stats_noid/io/0
+    claim: "もう一度書いた checkAuth の Redis の読み取り (auth:*) が fact になっているが、読む行 (auth.ts:102) のキーは実行時の値 authKey で、auth:* の形は別の関数 saveAuth (auth.ts:150) から読み取ったもの。同じ主張を、最初に書いたフレーム q_check_auth/io/0 は interpretation にしていて、食い違っている"
+    evidence: { file: src/lib/auth.ts, line: 102 }
+    suggestion: "status を interpretation にし、q_check_auth/io/0 と同じく、キーの形を saveAuth から読み取ったことを note に書く"
+    resolved: true
+  - kind: missing_item
+    severity: medium
+    where: callstack/q_can_view_website
+    claim: "canViewWebsite の最初の管理者の確認 (website.ts:9 の user?.isAdmin) が、ownership の guard の note に書いてあるだけで、role の guard になっていない。同じ結果の q_can_view_report は管理者の確認を role / user.isAdmin の guard にしていて、多くの画面の結果 (websites.websiteId_d.goals、dashboard、boards など) も canViewWebsite に role / user.isAdmin を書いている"
+    evidence: { file: src/permissions/website.ts, line: 9 }
+    suggestion: "q_can_view_website の guards に kind role、value user.isAdmin (根拠 website.ts:9) を足す (ほかの部品の入口の結果も同じく欠けている)"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_check_auth
+    claim: "checkAuth の settings に CLOUD_MODE が無く、rules/3 も「umami_ で始まるトークンは API キーとして調べる」とだけ書いて、それが CLOUD_MODE が設定されていないときだけ (isApiKeyEnabled) であることを書いていない。ほかの多くの入口の結果は、checkAuth の settings に CLOUD_MODE を書いている"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    suggestion: "settings に CLOUD_MODE (設定されていると API キーの経路に入らない。根拠 auth.ts:74 と src/lib/api-key.ts:41) を足すか、少なくとも rules/3 の value に「CLOUD_MODE が設定されていないときだけ」を足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_get_goal/io/1
+    claim: "PostgreSQL の session の読み取りの note が「URL の絞り込みにセッションの列か cohort があるときだけ」としているが、session を join する条件 (joinSession) は、絞り込みに referrer があるときも成り立つ"
+    evidence: { file: src/lib/prisma.ts, line: 300 }
+    suggestion: "note の条件に「referrer の絞り込みがあるとき」を足し、根拠に src/lib/prisma.ts:298-300 を加える"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: summary
+    claim: "入口の概要が、canViewWebsite が読む表を website / link / pixel / board / team_user としているが、getWebsite が付ける共有の slug のために share も読む (フレーム q_get_website の io/1 には書いてある)"
+    evidence: { file: src/queries/prisma/website.ts, line: 304 }
+    suggestion: "概要の読む表の並びに share を足す (同じ処理を書いた part_p.boardComponentRegistry.WebsiteChart の概要は share を含めている)"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。根拠の行 (登録表の 163-176 行、BoardGoal.tsx、Goal.tsx、useSavedDefinitionsQuery.ts、useGoalQuery.ts、useAnalyticsQuery.ts、useFilterParameters.ts、useDateRange.ts、3 つの route、request.ts、auth.ts、load.ts、redis.ts、report.ts / share.ts / website.ts / entity.ts、queries/prisma の各関数、getGoal.ts、prisma.ts と clickhouse.ts の該当行、schema.prisma の @@map) は、上の指摘を除き主張を支えていた。固定の値で閉じている呼び出し (Goal.tsx:59 の allowEdit && !isSharePage、BoardGoal.tsx:60 の allowEdit={false}) は 3 つの条件を満たすと判断した: 値は木の中のリテラル、条件は AND なので allowEdit=false だけで偽に決まる、この木で Goal を描くのは BoardGoal の 1 か所だけ。閉じた値と行は、条件を持つフレーム goal の summary と先頭の notes に書かれていて、analysis-conventions.md の部品の入口の決まりに合う。部品の決まり (useGoalDefinitionQuery の呼び出しは always、enabled で止まる API の段は conditional。id が渡らないときの goals/stats は保存データ由来の値なので閉じた呼び出しにせず conditional) と、同じ処理の置き場 (コードの順で定義の GET が先。canViewWebsiteSection は canViewReport の下、書き直しは I/O を持つ checkAuth まで) は context.md と analysis-conventions.md に合っている。guards の綴り (canViewReport は ownership、canViewWebsiteSection は other、canViewWebsite は ownership、管理者は user.isAdmin) は、ほかの入口の結果とそろっている。指摘にしなかったこと: (1) イベントのプロパティの絞り込み (epf<n>) は、useFilterParameters が URL の末尾が /events のときだけ送る (useFilterParameters.ts:25) ので、ボードの画面からは event_data の読み取りが起きないように見えるが、描く画面は部品の入口からは決められないので、conditional の io のままでよい。(2) website_event の fields に、プロパティの絞り込みで使う event_id が無いが、note で実行時に足す条件の列を書かない方針が明示されているので、指摘にしなかった。(3) api_goal_get の summary の「parseRequest で入力とログインを確かめ」は、GET は schema を渡さないので入力の検査は無い (ログインの確認だけ)。表現の差なので指摘にしなかった。"

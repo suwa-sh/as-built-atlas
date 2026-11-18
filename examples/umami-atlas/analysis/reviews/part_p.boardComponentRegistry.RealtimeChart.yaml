@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.RealtimeChart
+reviewed_at: "2026-11-18T00:33:43Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/q_pageview_stats
+    claim: "ページビューの時系列は、PostgreSQL 用と ClickHouse 用のどちらの SQL でも event_type NOT IN (2, 5) で、カスタムイベントと性能の計測を数えない (リンクとピクセルのイベントは数える) が、この業務のルールが rules にも summary にも無い。"
+    evidence: { file: src/queries/sql/pageviews/getPageviewStats.ts, line: 36 }
+    resolved: true
+    suggestion: "rules に「ページビューの数には、カスタムイベント (event_type = 2) と性能の計測 (event_type = 5) を入れない」を、getPageviewStats.ts:36 と :73 と constants.ts の EVENT_TYPE の行を根拠に、kind: decision で足す。"
+  - kind: missing_item
+    severity: low
+    where: callstack/q_session_stats
+    claim: "訪問者の時系列も、どちらの SQL でも event_type NOT IN (2, 5) の行だけから session_id を数える (カスタムイベントと性能の計測だけの訪問は数えない) が、この業務のルールが rules にも summary にも無い。"
+    evidence: { file: src/queries/sql/sessions/getSessionStats.ts, line: 36 }
+    resolved: true
+    suggestion: "rules に「訪問者の数は、カスタムイベント (event_type = 2) と性能の計測 (event_type = 5) を除いた行の session_id から数える」を、getSessionStats.ts:36 と :73 を根拠に、kind: decision で足す。"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_check_auth/rules/3
+    claim: "根拠の auth.ts:74 は isApiKeyEnabled() (CLOUD_MODE が設定されていないとき。api-key.ts:41) のときだけ API キーの経路に回すと書いているが、規則の文はこの条件を落とし、umami_ で始まるトークンはいつも API キーとして照合するように読める。"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    resolved: true
+    suggestion: "文に「CLOUD_MODE が設定されていないとき (isApiKeyEnabled) だけ」を足し、根拠に src/lib/api-key.ts:41 を足す。"
+notes: "根拠の行は、ほぼすべて対象のコードで確かめ、主張を支えていた (登録表の項目、BoardRealtimeChart、useRealtimeQuery、受け口、parseRequest / checkAuth、canViewWebsiteSection / canViewWebsite / getEntity、getQueryFilters / setWebsiteDate、fetchWebsite / fetchAccount、getRealtimeData / getRealtimeActivity / getPageviewStats / getSessionStats、prisma.ts と clickhouse.ts の共通の SQL、schema.prisma と ClickHouse の schema の表の定義)。getWebsiteSegment を閉じた呼び出しとして辿らない扱いは、分析リポジトリの決まり (値が HTTP のクエリを通る場合も木の中に直接書いた値として扱う) と 3 つの条件に合っており、q_get_query_filters の summary と先頭の notes に値と行が書いてあるので、指摘にしていない。絞り込みのときだけ結合する表と website_event_stats_hourly の I/O を、この入口でも note 付きで残す扱いも、先頭の notes (4a) の説明のとおりで指摘にしていない。指摘にしなかった小さな点: 先頭の notes (2) は「同じ処理が複数の呼び出し元から呼ばれる所は無い」と書くが、getWebsite は getEntity (q_get_website) と fetchWebsite の両方から呼ばれる (fetchWebsite の summary に「経路は q_get_website と同じ」とあり、木の書き方は決まりのとおり)。分析し直すときに notes の文を直すとよい。"

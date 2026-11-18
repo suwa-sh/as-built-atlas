@@ -1,0 +1,20 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.EventsChart
+reviewed_at: "2026-11-18T00:53:06Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の概要の「書き込みは無い」は、同じ概要の前半 (REDIS_URL があれば Redis の website:* に読み書きする) と、フレーム q_fetch_website の io/1 (Redis の website:* への set。キャッシュに無く DB から読めたときに書く) と食い違う。DB への書き込みが無い、という意味なら、言葉が足りない"
+    evidence: { file: src/lib/load.ts, line: 10 }
+    suggestion: "「DB への書き込みは無い (Redis の website:* にキャッシュを書くことはある)」のように、書き込みの対象を限って書く。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_check_auth
+    claim: "checkAuth の API キーの枝は isApiKeyEnabled() (= CLOUD_MODE が設定されていないとき) にも左右されるが、q_check_auth の settings に CLOUD_MODE が無く、rules/3 も「umami_ で始まるトークンは、API キーとして調べる」とだけ書いて、CLOUD_MODE が設定されていないときだけであることを書いていない (多くの画面の入口の結果は、checkAuth の settings に CLOUD_MODE を書いている)"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    suggestion: "q_check_auth の settings に CLOUD_MODE (設定されていると API キーの経路に入らない。根拠 auth.ts:74 と src/lib/api-key.ts:41) を足すか、少なくとも rules/3 の value に「CLOUD_MODE が設定されていないときだけ」を足す。どちらにするかは、ほかの部品の入口とそろえて決める。"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。根拠の行は、登録表 (boardComponentRegistry.tsx:377-384)、EventsChart.tsx、useWebsiteEventsSeriesQuery.ts、useFilterParameters.ts、useDateParameters.ts、useDateRange.ts、useApi.ts、api-url.ts、next.config.ts:14-15 / :215-216、events/series の route.ts、request.ts (parseRequest / getRequestDateRange / setWebsiteDate / getQueryFilters)、auth.ts:71-150、share.ts:40-78、website.ts:8-41、entity.ts、load.ts、redis.ts:37 / :51 / :84-98 / :106、prisma の user / website / share / link / pixel / board / teamUser / segment、getEventStats.ts (PostgreSQL と ClickHouse の両方)、prisma.ts の getCohortQuery (:223-233) / parseFilters (:300-325) / プロパティの絞り込み (:574-580、:700-708) / executeRawQuery (:737-750)、clickhouse.ts の cohort (:194-201) / プロパティの絞り込み (:538-545、:661-668) / rawQuery (:721)、db.ts の runQuery、schema.prisma の @@map と db/clickhouse/schema.sql まで開いて確かめ、どれも主張を支えていた。指摘にしなかったこと: (1) 同じ処理の置き場は、入口から深さ優先で最初に着いた呼び出し元の下 (getWebsite は getEntity の下、fetchWebsite は自分の Redis の I/O を持つので終端の決まりを満たす) で、決まりどおり。redis.ts:37 を source に持つ external フレームが 3 つ (auth:* / website:* / account:*) あるが、キーが違う (届く先が違う) ので重複に当たらない。(2) 固定の値で閉じている呼び出しは無い、という notes (4) の判断は妥当 (includePagination の既定値、canViewWebsiteSection の 'events'、BarChart の stacked はどれも呼び出しの有無を決めない)。(3) limit を、フレームを分けずに getEventStats の rules に書いた扱いは、context.md の部品の決まり (呼び先は変わらず送る値だけが変わる) に合う。limit は z.coerce.number() で数に直してから SQL に埋め込まれる (route.ts:17、getEventStats.ts:49)。(4) getQueryFilters は excludeBounce を立てるが、getEventStats は parseFilters の filterQuery / cohortQuery / joinSessionQuery だけを使い、excludeBounce は効かない (parameters の記述は「送る」までで誤りではない)。(5) ClickHouse の集計表の経路で limit を渡したときも、副問い合わせは website_event を読む (getEventStats.ts:88-98、:132)。io/4 の note に書いてある。(6) guards の綴り (authentication は checkAuth だけ、canViewWebsiteSection は other、canViewWebsite は ownership) と、settings の綴り (API_URL / BASE_PATH / REDIS_URL / CLOUD_MODE / CLICKHOUSE_URL / DATABASE_REPLICA_URL) は、analysis-conventions.md とほかの入口の結果にそろっている。(7) 2 件目の指摘 (checkAuth の CLOUD_MODE) は、部品の入口の結果 (EventsMetricsBar など) では書かず、画面の入口の結果では書く、と入口の間で扱いが分かれている。レビューでも指摘にしたもの (Goal) と notes に留めたもの (MetricsTable、RealtimeActiveUsers) がある。どちらにそろえるかは人が決める。"

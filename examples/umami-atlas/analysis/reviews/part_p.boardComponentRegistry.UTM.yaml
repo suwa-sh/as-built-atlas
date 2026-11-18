@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.UTM
+reviewed_at: "2026-11-18T00:32:10Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/board_utm/parameters/4
+    resolved: true
+    claim: "「どれも共有の設定の allowFilter が false でないときだけ」が segment / cohort / excludeBounce / match にだけ掛かるように読めるが、コードでは絞り込みの列 (FILTER_COLUMNS)、spf<n>、epf<n> も allowFilter が false でないときだけ送り、allowFilter に関わらず送るのは search だけ"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 19 }
+    suggestion: "value を「search 以外は、どれも共有の設定の allowFilter が false でないときだけ送る」と読める書き方に直す (根拠の useFilterParameters.ts:19 は既に入っている)"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。根拠の行 (BoardUTM.tsx、登録表の 107・113・209〜229 行、BoardComponentRenderer.tsx 28・30・40・42 行、useUTMMetricsQuery / useAnalyticsQuery / analytics-query / useDateRange / useDateParameters / useFilterParameters / useApi / api-url、next.config.ts の API_URL・BASE_PATH、utm/metrics の route、analytics-schema.ts 18・19・41・96・97 行、request.ts、auth.ts、share.ts、website.ts、entity.ts、load.ts、redis.ts、user / website / teamUser / segment の問い合わせ、getUTM.ts、db.ts の runQuery、prisma.ts の parseFilters・cohort・プロパティの絞り込み・rawQuery と DATABASE_REPLICA_URL、clickhouse.ts のプロパティの絞り込みと query、constants.ts 96 行) は開いて確かめ、主張を支えていた。確かめて指摘にしなかったこと: (1) BoardUTM が渡す startDate / endDate が serializeAnalyticsQuery で startAt / endAt に直され、URL から作った値を上書きすることは、analytics-query.ts 14・15 行と useAnalyticsQuery.ts 23 行のとおり。useDateRange をタイムゾーン無しで呼ぶので、送る期間はタイムゾーンで直していない値になる (結果の notes (5)(b) のとおり summary に書いてある)。(2) 固定の値で閉じた呼び出しが 0 件であること (type=doughnut は見た目だけ、includePagination: false は送る値だけ、param / limit は入口の外の値) は、コードで確かめた。(3) api_utm_metrics を always にしたのは、enabled が websiteId の有無だけで、描く側が websiteId の無いときは部品を描かない (BoardComponentRenderer.tsx:30) ためで、WebsiteMetricsBar / WebsiteChart の部品の結果と同じ扱い。(4) getEntity を conditional にしたのは、手前の早い return が権限の成立 (管理者・共有トークンの対象) で、打ち切りではないため妥当。(5) guards / settings の綴り (canViewWebsiteSection は kind other、canViewWebsite は ownership、user.isAdmin、API_URL / BASE_PATH は最初のフック use_utm_metrics にだけ、API キーの枝は checkAuth の rules に 1 行) は、ほかの入口の結果とそろっている。(6) analyzer.tests が無いので、tests の漏れは見ていない。"

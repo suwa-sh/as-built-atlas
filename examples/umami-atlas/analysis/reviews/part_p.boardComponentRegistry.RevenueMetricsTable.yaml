@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: "part_p.boardComponentRegistry.RevenueMetricsTable"
+reviewed_at: "2026-11-18T00:42:54Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/q_revenue_metrics/rules/1
+    claim: "流入の種類の規則を fact として書いているが、要約がコードより広い。llm と email には paid / organic を前に付けず (getRevenueMetrics.ts:236 / :239)、AI と SNS は utm_medium を見ずにドメインだけで決める (:236 / :238)。また PostgreSQL 用では、別のドメインかどうかを、hostname から先頭の www. を除いて比べる (:242)"
+    evidence: { file: "src/queries/sql/revenue/getRevenueMetrics.ts", line: 236 }
+    suggestion: "種類ごとに、見る値 (ドメインだけか、utm_medium もか) と、前に paid / organic を付けるかを分けて書き、PostgreSQL 用だけ hostname の www. を除いて比べることを足す"
+    resolved: true
+notes: "機械チェックは OK (作業定義の profile.dir のプロファイルで検査された)。主な主張 (部品の入口のフレーム、props と URL のクエリの parameters、2 つの受け口と、その下の認証・権限・絞り込み・集計の経路、PostgreSQL と ClickHouse の両方の I/O、Favicon の external_api) は、根拠の行と合っていた。GET …/revenue/stats を always にした扱い (enabled の websiteId と通貨がいつも成り立つ) は、同じフックを書いた部品 RevenueMetricsBar の結果とそろっているので、指摘にしなかった。指摘にしなかった細かい点: (1) ClickHouse の website_event の I/O の note にある「QRM:472」は、説明の無い略称なので、src/queries/sql/revenue/getRevenueMetrics.ts:472 と書くほうが読みやすい。(2) Favicon は、GROUPED_DOMAINS に当たるホスト名を、まとめ先のドメインに置き換えてから URL に埋める (Favicon.tsx:18)。summary と I/O の note は「リファラーのドメインのホスト名を埋める」とだけ書いている。"

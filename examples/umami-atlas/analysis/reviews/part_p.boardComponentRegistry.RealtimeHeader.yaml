@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.RealtimeHeader
+reviewed_at: "2026-11-18T00:32:21Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/q_pageview_stats
+    resolved: true
+    claim: "getPageviewStats は、PostgreSQL と ClickHouse のどちらの SQL でも event_type NOT IN (2, 5) で数える (カスタムイベントと性能の計測を除き、リンクやピクセルのイベントはページビューに数える) という業務のルールがあるのに、rules に無い。部品が出す「ページビュー」の合計は、この数え方で決まる"
+    evidence: { file: src/queries/sql/pageviews/getPageviewStats.ts, line: 36 }
+    suggestion: "rules に「ページビューは、event_type が 2 (カスタムイベント) と 5 (性能の計測) 以外のイベントの件数 (リンク・ピクセルのイベントも含む)」を足し、根拠に getPageviewStats.ts:36 と :73 を加える"
+  - kind: missing_item
+    severity: low
+    where: callstack/q_session_stats
+    resolved: true
+    claim: "getSessionStats も event_type NOT IN (2, 5) のイベントだけから、異なる session_id を数える (カスタムイベントだけの訪問者は数えない) という業務のルールがあるのに、rules に無い。部品が出す「訪問者」の合計は、この数え方で決まる"
+    evidence: { file: src/queries/sql/sessions/getSessionStats.ts, line: 73 }
+    suggestion: "rules に「訪問者は、event_type が 2 (カスタムイベント) と 5 (性能の計測) 以外のイベントを持つ、異なるセッションの数」を足し、根拠に getSessionStats.ts:36 と :73 を加える (admin.users.userId_d の訪問者の数え方のルールと同じ書き方にそろえるとよい)"
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。この入口に固有の経路 (登録表 boardComponentRegistry.tsx:234-241 → BoardRealtimeMetricsBar → useRealtimeQuery → GET /api/realtime/[websiteId] → parseRequest / checkAuth、canViewWebsiteSection / canViewWebsite / getEntity、getQueryFilters / fetchWebsite / fetchAccount、getRealtimeData → getRealtimeActivity / getPageviewStats / getSessionStats) は、根拠の行を開いて確かめ、主張と合っていた (REALTIME_RANGE = 30 と REALTIME_INTERVAL = 10000、useApi の get の params の既定が空のオブジェクトであること、30 分の期間で getMinimumUnit が minute を返し ClickHouse でも website_event から数えること、event_type = 5 の除外と 100 件の上限、国はセッションごとに 1 回だけ数えること、合計の 4 つの作り方)。schema.prisma の @@map と ClickHouse の schema.sql の行、prisma.ts / clickhouse.ts / redis.ts / db.ts / load.ts の行も合っていた。固定の値で閉じている呼び出し getWebsiteSegment (request.ts:133 / :145) を辿らない扱いは、閉じている値 (クエリが空) と行が q_get_query_filters の summary と先頭の notes の両方に書いてあり、analysis-conventions.md の部品の決まり (HTTP のクエリを通る値も閉じた呼び出しにする) に合う。決して起きない読み取り (event_data / session_data / website_event_stats_hourly) を note 付きで残す扱いも、決まりに合う。綴り (API_URL / BASE_PATH は最初のフック use_realtime にだけ、checkAuth にだけ authentication、canViewWebsiteSection は kind other、user.isAdmin と canViewWebsite) は、ほかの入口の結果とそろっている。指摘にしなかったこと: (1) 合計の「イベント」と「国」は、最近の動き (新しい順に 100 件) の中だけで数えるので、30 分の間に 100 件を超えると本当の数より小さくなる。rules の「動きの中で」と q_realtime_activity の 100 件の記述から読み取れるので、表現の範囲とした。(2) ext_realtime_activity_pg の DATABASE_REPLICA_URL の根拠に、ほかの 2 つの同じ設定にある prisma.ts:861 が無いが、主張は :738 で支えられている。(3) share の created_at の use が filter だが、実際は並べ替え (orderBy) に使う。語彙が read / write / filter しか無く、ほかの入口の結果とも同じ扱いなので指摘にしなかった。"

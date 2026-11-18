@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.MetricsTable
+reviewed_at: "2026-11-18T00:44:51Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/q_session_metrics/rules
+    claim: "セッションの集計は、どちらの SQL でも event_type NOT IN (2, 5) で、カスタムイベント (EVENT_TYPE.customEvent = 2) と性能の計測のイベント (EVENT_TYPE.performance = 5) を数えから外すが、この業務のルールが rules に無い (io の fields に event_type の filter があるだけ)。"
+    evidence: { file: src/queries/sql/sessions/getSessionMetrics.ts, line: 60 }
+    suggestion: "rules に「カスタムイベントと性能の計測のイベントを除いて数える」の decision を 1 行足し、getSessionMetrics.ts:60 / :105 / :125 と constants.ts:121 / :124 を根拠にする。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_pageview_metrics/rules
+    claim: "ページビューの集計も、本体と entry / exit の副問い合わせの両方で event_type NOT IN (2, 5) を付け、カスタムイベントと性能の計測のイベントを除いて数えるが、rules に無い。"
+    evidence: { file: src/queries/sql/pageviews/getPageviewMetrics.ts, line: 94 }
+    suggestion: "rules に「カスタムイベントと性能の計測のイベントを除いて数える」の decision を足し、getPageviewMetrics.ts:69 / :94 / :150 / :169 / :210 を根拠にする。"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_channel_metrics/rules
+    claim: "流入の種類の集計も、元にするイベントを event_type NOT IN (2, 5) で絞り、カスタムイベントと性能の計測のイベントを除くが、rules に無い。"
+    evidence: { file: src/queries/sql/getChannelMetrics.ts, line: 53 }
+    suggestion: "rules に「カスタムイベントと性能の計測のイベントを除いて、流入の種類を決める」の decision を足し、getChannelMetrics.ts:53 / :161 を根拠にする。"
+    resolved: true
+notes: "主な根拠の行 (MetricsTable.tsx、boardComponentRegistry.tsx:327-356 / :68 / :94 / :107、BoardComponentRenderer.tsx:30 / :40 / :42、BoardViewColumn.tsx:54、useWebsiteMetricsQuery.ts、useFilterParameters.ts、useDateRange.ts、metrics の route.ts、request.ts、auth.ts、share.ts、website.ts、entity.ts、load.ts、db.ts、prisma.ts の 309-318 / 738-746、4 つの集計の関数、Favicon.tsx、MetricLabel.tsx:50 / :190 / :211、FilterLink.tsx、constants.ts:21、api/config/route.ts:16 / :19、next.config.ts:14-15 / :215-216、api-url.ts:38-44) を開いて、主張を支えていることを確かめた。固定の値で閉じている呼び出しの判断 (結果の notes の (4)) は妥当と判断した。部品はフックに options を渡さない (MetricsTable.tsx:36) ので enabled は websiteId だけで決まる。parseRequest は skipAuth を渡されず、getQueryFilters は websiteId を必ず受け取る。canViewWebsiteSection に渡す固定のセクションの並びは、共有の設定との組み合わせで効く。MetricLabel が FilterLink に渡す固定の type は、データを読まない部品に効くだけ。どれも閉じた呼び出しには当たらない。4 つの集計への分かれ道と Favicon は、どれも保存された部品の設定 (入口の外の値) で決まるので、conditional で辿っているのは決まりどおり。useConfig をフレームにせず PRIVATE_MODE / FAVICON_URL を Favicon の settings に書いたこと、API_URL / BASE_PATH を最初のフック (use_metrics) にだけ書いたこと、clone_path を書かないこと、ログイン済みの確認を checkAuth だけに書いたことも、analysis-conventions.md に合っている。指摘にしなかったこと: (a) checkAuth の API キーの枝 (auth.ts:74) の isApiKeyEnabled() は、実際には !process.env.CLOUD_MODE (src/lib/api-key.ts:41) で決まる。枝はこのリポジトリの決まりでフレームにせず rules に書くもので、ほかの入口の結果も同じ書き方なので、指摘にしない (rules の文に「CLOUD_MODE が無いときだけ」と足すかどうかは、入口をまたいでそろえて決めるとよい)。(b) getEntity の summary の「最初に見つかったもの」は、実際には website → link → pixel → board の順で選ぶ (entity.ts:12)。ほかの入口から写した文なので、表現の違いとして指摘にしない。(c) limit は登録表の選択肢では文字の値 ('5' / '10' / '20'。boardComponentRegistry.tsx:107-110) だが、受け口が z.coerce.number() で数に直す (route.ts:20) ので、parameters の「受け口が数に直す」は正しい。(d) 部品の params は type / limit の後ろに広げて送る (MetricsTable.tsx:39) ので、保存された設定に params.type があれば type を上書きできる。登録表に設定の項目が無いので、notes に書くかどうかは任意。"

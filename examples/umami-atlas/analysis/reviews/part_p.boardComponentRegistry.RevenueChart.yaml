@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.RevenueChart
+reviewed_at: "2026-11-18T00:41:37Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/board_revenue_chart/parameters/3
+    claim: "絞り込みのクエリに、イベントのプロパティ (epf<n>) が無い。useFilterParameters は、描く画面のパスが /events で終わるときだけ epf<n> を送り、これが getRevenueChart で event_data を読む唯一の入り方だが、parameters にも event_data の読み取り (q_revenue_chart の io/3 と io/7) の note にも、その条件が書かれていない"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 25 }
+    suggestion: "parameters/3 に「イベントのプロパティ (epf<n>。描く画面のパスが /events で終わるときだけ)」を足し (part_p.boardComponentRegistry.RevenueMetricsBar と同じ書き方)、event_data の 2 つの note にも、その条件を足す"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/board_revenue_chart
+    claim: "フックが API に送るタイムゾーン (useTimezone が、アプリの状態から読む値) が、入口のフレームの parameters にも summary にも無い。結果の notes (4)(e) は、useTimezone を parameters と summary に書いたと述べているが、実際には書かれていない"
+    evidence: { file: "src/app/(main)/websites/[websiteId]/(reports)/revenue/BoardRevenueChart.tsx", line: 15 }
+    suggestion: "入口のフレームの parameters に timezone (ブラウザ側のアプリの状態から読む。useTimezone) を足すか、notes (4)(e) の記述を実態に合わせる"
+    resolved: true
+notes: "根拠の行は、登録表 (boardComponentRegistry.tsx:280-298)、BoardRevenueChart / useBoardRevenueCurrency / useRevenueChartQuery、受け口 (route.ts)、parseRequest / checkAuth / canViewWebsiteSection / canViewWebsite / getEntity、getQueryFilters / setWebsiteDate / fetchWebsite / fetchAccount / getWebsiteSegment、getRevenueChart の 2 つの SQL、prisma.ts / clickhouse.ts / db.ts / redis.ts / load.ts の該当行、schema の表の定義の行まで開いて確かめ、どれも主張を支えていた。指摘にしなかったこと: (1) GET revenue/chart の call を always にした扱い。フックの enabled は websiteId と通貨の有無で、通貨はいつも値に落ち、websiteId は入力の欠けで打ち切る経路に当たる。ほかの部品の入口 (WebsiteChart の enabled: !!websiteId、RevenueMetricsBar) とも同じ扱い。(2) 受け口が canViewWebsiteSection に渡す固定の値 revenue と、フックが useFilterParameters に渡す includePagination: false は、呼び出しを閉じない (前者は共有トークンの設定との組み合わせ、後者は送る値だけを変える) ので、固定の値で閉じた呼び出しが 0 件という notes (3) は妥当。(3) getWebsite の経路を、DFS で先に着く getEntity の下に書き、fetchWebsite の summary で触れた置き場は、決まりどおり。(4) canViewWebsiteSection の guards の kind: other は、ほかの入口の結果 (20 件) と同じ綴り。(5) DEFAULT_CURRENCY・API_URL・BASE_PATH・REDIS_URL・CLOUD_MODE・CLICKHOUSE_URL・DATABASE_REPLICA_URL の綴りは、analysis-conventions.md と既にある結果に合っている。"

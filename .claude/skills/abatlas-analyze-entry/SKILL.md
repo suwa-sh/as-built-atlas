@@ -86,7 +86,7 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
    - 次の層の呼び出しを見つけたら、新しいフレームを足して `caller` で指す。`role: boundary` の層 (外部ライブラリ・SDK・CLI) に達したらそこで閉じる
 5. 辿れないところは **unknown + reason** で明示する (`context.md` の典型例に従う)。推測で埋めない
    - `not_analyzed` (手順がそこまで届いていない) で止めるときは、`note` に「どこまで読んだか」と「なぜ止めたか」を書く (続きを分析するかを、人が決められるように)。打ち切ってよい範囲を、分析リポジトリの `analysis-conventions.md` やプロファイルの `context.md` が決めていれば、それに従う
-6. `summary` (入口全体の概要) と `analyzer` (profile の id / version、`skill_version` はこの SKILL.md 末尾の版、`model` に使ったモデル、`analyzed_at` は結果を書き終えた時点の実際の時刻。`date -u +%Y-%m-%dT%H:%M:%SZ` で取り、見込みの時刻を書かない。レビューの後に結果を直したら、直し終えた時刻に書き換える) を書く。`target` は `analysis/work-definition.yaml` と同じ
+6. `summary` (入口全体の概要) と `analyzer` (profile の id / version、`skill_version` はこの SKILL.md 末尾の版、`model` に使ったモデル、`analyzed_at` は結果を書き終えた時点の実際の時刻。`date -u +%Y-%m-%dT%H:%M:%SZ` で取り、見込みの時刻を書かない。レビューの後に結果を直したら、直し終えた時刻に書き換える) を書く。`target` は `analysis/work-definition.yaml` と同じ (`clone_path` も、そのまま写す。手元の絶対パスが入っていても、分析リポジトリの中の値なので、省かない。集計は、作業定義と違う `target` の結果を知らせる)
    - YAML の文字列 (summary の value、name、note、detail) は二重引用符で囲む。コロンや `#` を含む文章を裸で書くと読めなくなる
    - 結果のいちばん上の `notes` (任意) には、迷った点と選んだ扱い、直さなかったレビューの指摘と理由を書く。`notes` は、1 つの文字列 (並びにしない。項目は、文の中で (1) (2) のように分ける)
    - `summary` の根拠は、文の中の句ごとに、それを支える行を入れる (代表の 1 行だけにしない。レビューは、句ごとに根拠を確かめる)

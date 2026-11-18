@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: part_p.boardComponentRegistry.WebsiteMetricsBar
+reviewed_at: "2026-11-18T00:19:57Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/metrics_bar/parameters/3
+    claim: "絞り込みのクエリの説明が FILTER_COLUMNS と spf<n> などだけで、描く画面のパスが /events で終わるときに送るイベントのプロパティの絞り込み (epf<n>) が抜けている。これが、getWebsiteStats で event_data を読む (q_stats/io の event_data) 唯一の入り口になる"
+    evidence: { file: src/components/hooks/useFilterParameters.ts, line: 25 }
+    suggestion: "value に「描く画面のパスが /events で終わるときは epf<n> (イベントのプロパティの絞り込み) も送る」を足し、根拠に useFilterParameters.ts:14 と :25 を加える"
+    resolved: true
+notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めた)。根拠の行 (WebsiteMetricsBar.tsx、登録表の 133-151 行、BoardComponentRenderer.tsx、useWebsiteStatsQuery / useDateRange / useFilterParameters / useApi / api-url、stats の route、request.ts、auth.ts、load.ts、redis.ts、share.ts、website.ts、entity.ts、user / website / link / pixel / board / teamUser / segment の問い合わせ、getWebsiteStats、prisma.ts と clickhouse.ts の絞り込みの SQL、db.ts の runQuery、schema.prisma の @@map と ClickHouse の schema.sql) は、どれも主張を支えていた。替わる先の部品 (PixelMetricsBar / LinkMetricsBar) を入口のフレームの下に conditional で足し、Adapter をフレームにしない扱い、同じフックを再び辿らずに summary で参照する扱い (2 つとも業務のルールを持つので終端の決まりを満たす)、compareMode を送る値だけが変わる値として rules に書く扱いは、context.md の部品の決まりに合っている。固定の値で閉じている呼び出しが無いこと (受け口が渡す ['overview', 'compare'] は共有トークンの経路で共有の設定と組み合わせて効くので閉じない。parseRequest に skipAuth を渡さないので checkAuth は always。getQueryFilters にいつも websiteId を渡すので fetchWebsite は always) も、コードで確かめた。API の段 (api_stats) を always にしたのは、enabled が websiteId の有無だけで、描く側が websiteId の無いときは部品を描かない (BoardComponentRenderer.tsx:30) ためで、part_p.boardComponentRegistry.WebsiteChart の api_pageviews と同じ扱いなので指摘にしなかった。guards / settings の綴り (canViewWebsiteSection は kind other、canViewWebsite は ownership、API_URL / BASE_PATH は最初のフック use_stats にだけ) は、ほかの入口の結果とそろっている。参考: 直帰の定義の「ページビュー」は、SQL では event_type が 2 (カスタムイベント) と 5 以外のイベントすべてを数えている (pixel / link のイベントも含む)。表現の範囲として指摘にしなかった。"

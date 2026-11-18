@@ -1,0 +1,2520 @@
+format_version: 1
+entry:
+  id: part_p.boardComponentRegistry.RealtimeHeader
+  path: /(part)/boardComponentRegistry/RealtimeHeader
+  name: BoardRealtimeMetricsBar
+  layer: part
+  source:
+    file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 234
+target:
+  repo: github.com/umami-software/umami
+  clone_path: ../umami
+  scope: .
+  commit: 559e3c607c23d2c72d9bd4f6481bda428255323c
+analyzer:
+  profile:
+    id: ui-nextjs
+    version: 0.4.0
+  skill_version: 0.4.1
+  model: claude-opus-5-5
+  analyzed_at: '2026-11-18T00:33:27Z'
+  reviewed:
+    by: claude-opus-5-5 (fresh context)
+    at: '2026-11-18T00:32:21Z'
+    findings_open: 0
+summary:
+  status: interpretation
+  value: 'ボードに置く「リアルタイムの指標の帯」の部品 (登録表の type: RealtimeHeader、コンポーネントは BoardRealtimeMetricsBar)。描く側から受け取ったサイトについて、useRealtimeQuery で GET /api/realtime/[websiteId] をクエリを付けずに呼び、10 秒ごとに読み直して、ページビュー・訪問者・イベント・国の 4 つの合計を出す。受け口は、最初にログインの確認 (user。REDIS_URL があれば Redis の auth:*) を行い、canViewWebsiteSection (セクションは realtime) で見てよいかを確かめ (ログインした利用者なら canViewWebsite が website / link / pixel / board / share / team_user を読む)、期間を直近 30 分 (単位は minute) にして getQueryFilters で条件をまとめ (サイトの情報を読み、REDIS_URL があれば Redis の website:* に読み書きする。CLOUD_MODE で個人のサイトなら account:* も読む)、getRealtimeData で、最近の動き (性能の計測を除くイベントを新しい順に 100 件。website_event と session) と、ページビュー・訪問者の分ごとの時系列 (website_event) を読み、合計を作って返す。CLICKHOUSE_URL の有無で PostgreSQL 用か ClickHouse 用の SQL のどちらかが動く。部品が出すのは合計だけだが、受け口は国・ページ・リファラーごとの数や最近の動きも一緒に返す。書き込みは無い。ほかの入口へのつながりは無い'
+  evidence:
+  - file: src/app/(main)/boards/boardComponentRegistry.tsx
+    line: 234
+  - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+    line: 6
+  - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+    line: 10
+  - file: src/app/(main)/websites/[websiteId]/realtime/RealtimeHeader.tsx
+    line: 14
+  - file: src/components/hooks/queries/useRealtimeQuery.ts
+    line: 10
+  - file: src/components/hooks/queries/useRealtimeQuery.ts
+    line: 13
+  - file: src/app/api/realtime/[websiteId]/route.ts
+    line: 20
+  - file: src/app/api/realtime/[websiteId]/route.ts
+    line: 28
+  - file: src/app/api/realtime/[websiteId]/route.ts
+    line: 35
+  - file: src/app/api/realtime/[websiteId]/route.ts
+    line: 41
+  - file: src/lib/auth.ts
+    line: 94
+  - file: src/lib/auth.ts
+    line: 102
+  - file: src/permissions/website.ts
+    line: 24
+  - file: src/lib/entity.ts
+    line: 5
+  - file: src/queries/prisma/website.ts
+    line: 95
+  - file: src/permissions/website.ts
+    line: 35
+  - file: src/lib/request.ts
+    line: 82
+  - file: src/lib/load.ts
+    line: 10
+  - file: src/lib/request.ts
+    line: 104
+  - file: src/queries/sql/getRealtimeData.ts
+    line: 21
+  - file: src/queries/sql/getRealtimeData.ts
+    line: 22
+  - file: src/queries/sql/getRealtimeData.ts
+    line: 23
+  - file: src/queries/sql/getRealtimeData.ts
+    line: 63
+  - file: src/queries/sql/getRealtimeData.ts
+    line: 72
+  - file: src/queries/sql/getRealtimeActivity.ts
+    line: 44
+  - file: src/queries/sql/getRealtimeActivity.ts
+    line: 48
+  - file: src/lib/db.ts
+    line: 27
+notes: (1) 部品の入口として初めて分析した。入口のフレームは、登録表の項目 RealtimeHeader (boardComponentRegistry.tsx:234) が指すコンポーネント BoardRealtimeMetricsBar (BoardRealtimeMetricsBar.tsx:5)。描く側 (BoardComponentRenderer と、ボードの画面) は辿らず、描く側から受け取る props (websiteId) を入口のフレームの parameters に書いた。この部品は、描く画面の URL のクエリ (期間・絞り込み) を読まない。登録表のこの項目は componentByEntityType も requiresWebsite も持たないので、替わる先の部品は無く、websiteId が無ければ描く側が部品を描かない (BoardComponentRenderer.tsx:30)。(2) 木は、同じフックと受け口を書いた既にある結果 websites.websiteId_d.realtime (use_realtime 以下) を出発点にし、受け口の前処理・権限の確認・絞り込みの綴りは part_p.boardComponentRegistry.WebsiteMetricsBar にそろえ、根拠の行は対象のコードで確かめた。画面の結果にあった、この入口に無い受け口 (metrics、sessions、replays など) の話は、summary から外した。(3) 固定の値で閉じている呼び出しは 1 件 (getWebsiteSegment。request.ts:133 の segment と :145 の cohort の 2 か所から呼ぶ同じ関数)。useRealtimeQuery は GET /realtime/<websiteId> をクエリを付けずに呼ぶ (useRealtimeQuery.ts:10。useApi の get の params の既定は空のオブジェクト。useApi.ts:41) ので、受け口が getQueryFilters に渡す query (route.ts:34) に segment も cohort も無い。分析リポジトリの決まり (値が HTTP のクエリを通ってサーバー側の分かれ道に効く場合も、木の中に直接書いた値として扱う) に従い、getWebsiteSegment とその先のフレームを書かず、条件を持つフレーム q_get_query_filters の summary に、閉じている呼び出しと値と行を書いた。getQueryFilters に着く経路は、この入口では受け口からの 1 つだけ。segment / cohort の判定の rules も、決して動かない分かれ道なので書いていない。(4) 迷った点と選んだ扱い。(a) 呼び出しではなく、動いているフレームの中の読み取りで、同じ理由 (クエリが無い、受け口が期間を 30 分に固定する) で決して起きないもの (getRealtimeActivity / getPageviewStats / getSessionStats の event_data / session_data / session の絞り込みのための読み取り、ClickHouse の時間ごとの集計表 website_event_stats_hourly) は、skill の「固定の値で閉じている呼び出し」が呼び出しだけを決めているので、消さずに残し、I/O の note に「この入口からは起きないように見える」と書いた (websites.websiteId_d.realtime と同じ)。(b) checkAuth の CLOUD_MODE は、API キーの枝 (この入口では通らない) だけに効くので、「この入口では有無で結果が変わらない設定」として書いていない (WebsiteMetricsBar と同じ)。getQueryFilters の CLOUD_MODE は、account:* の読み取りを変えるので書いた。(c) canViewWebsite の確認は、websites.websiteId_d.realtime と Goal と同じく、role (user.isAdmin) と ownership (canViewWebsite) の 2 件を書いた。(d) 描く側が、対象がピクセルやリンクのボードで、その id を websiteId として渡すときも、この部品はサイト用の受け口を同じように呼ぶ (替わる先が無い)。読み取りの経路は変わらないので、分けて書いていない。(5) 見た目だけの部品 (RealtimeHeader、MetricsBar、MetricCard、LoadingPanel) はフレームにしていない。API_URL と BASE_PATH は、この入口で API を呼ぶ唯一のフック useRealtimeQuery に書いた。checkAuth の API キーの枝はフレームにせず、rules に 1 行書いた。links は 1 件も無い。テストとの対応は、作業定義で選ばれていないので分析していない。結果の target には、手元の絶対パスを残さないため clone_path を書いていない。 (6) レビューへの対応 (1 回。high 0 件、medium 0 件、low 2 件。どちらも直した)。getPageviewStats と getSessionStats の rules に、event_type が 2 (カスタムイベント) と 5 (性能の計測) のイベントを数えない決まりを足した。あわせて、レビューが指摘にしなかった点のうち、getRealtimeData の合計のイベントと国の数が、最近の動きの 100 件の中だけで数えることを rules の文に書き、ext_realtime_activity_pg の DATABASE_REPLICA_URL の根拠に prisma.ts:861 を足した。
+callstack:
+- id: realtime_metrics_bar
+  layer: part
+  kind: component
+  name: BoardRealtimeMetricsBar
+  source:
+    file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+    line: 5
+  caller: null
+  parameters:
+  - name: websiteId
+    value: リアルタイムの合計を出す対象 (サイト) の id。描く側から props で受け取る (必須)
+    status: fact
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+      line: 5
+    - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+      line: 6
+    - file: src/app/(main)/boards/[boardId]/BoardComponentRenderer.tsx
+      line: 30
+    - file: src/app/(main)/boards/[boardId]/BoardComponentRenderer.tsx
+      line: 40
+  summary:
+    status: interpretation
+    value: 'ボードに置く「リアルタイムの指標の帯」の部品 (登録表の type: RealtimeHeader)。useRealtimeQuery で、描く側から受け取ったサイトの直近 30 分の動きを読み、読み込み中と失敗は LoadingPanel が出し、読めたら RealtimeHeader に渡して、ページビュー・訪問者・イベント・国の 4 つの合計を MetricsBar / MetricCard で出す。RealtimeHeader、MetricsBar、MetricCard、LoadingPanel は受け取った値を出すだけの部品なので、フレームにしていない。描く画面の URL のクエリ (期間・絞り込み) は読まない。登録表のこの項目は、対象の種類ごとの部品 (componentByEntityType) を持たない'
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+      line: 6
+    - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+      line: 9
+    - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+      line: 10
+    - file: src/app/(main)/websites/[websiteId]/realtime/RealtimeHeader.tsx
+      line: 8
+    - file: src/app/(main)/websites/[websiteId]/realtime/RealtimeHeader.tsx
+      line: 11
+    - file: src/app/(main)/websites/[websiteId]/realtime/RealtimeHeader.tsx
+      line: 14
+    - file: src/app/(main)/websites/[websiteId]/realtime/RealtimeHeader.tsx
+      line: 15
+    - file: src/app/(main)/websites/[websiteId]/realtime/RealtimeHeader.tsx
+      line: 16
+    - file: src/app/(main)/websites/[websiteId]/realtime/RealtimeHeader.tsx
+      line: 17
+    - file: src/app/(main)/boards/boardComponentRegistry.tsx
+      line: 234
+    - file: src/app/(main)/boards/boardComponentRegistry.tsx
+      line: 241
+- id: use_realtime
+  layer: component
+  kind: hook
+  name: useRealtimeQuery
+  source:
+    file: src/components/hooks/queries/useRealtimeQuery.ts
+    line: 5
+  caller: realtime_metrics_bar
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+      line: 2
+    - file: src/app/(main)/websites/[websiteId]/realtime/BoardRealtimeMetricsBar.tsx
+      line: 6
+  summary:
+    status: interpretation
+    value: websiteId があるとき GET /realtime/<websiteId> を、クエリを付けずに呼び、10 秒ごと (REALTIME_INTERVAL) に読み直す
+    evidence:
+    - file: src/components/hooks/queries/useRealtimeQuery.ts
+      line: 10
+    - file: src/components/hooks/queries/useRealtimeQuery.ts
+      line: 12
+    - file: src/components/hooks/queries/useRealtimeQuery.ts
+      line: 13
+    - file: src/lib/constants.ts
+      line: 37
+  settings:
+  - name: API_URL
+    kind: env
+    effect: 設定されていると、フックが呼ぶ API の向き先がその URL になる (絶対 URL なら別のホスト)。設定されていなければ、同じアプリの /api の下を呼ぶ
+    status: interpretation
+    evidence:
+    - file: src/components/hooks/useApi.ts
+      line: 32
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 44
+    - file: next.config.ts
+      line: 14
+    - file: next.config.ts
+      line: 215
+    note: この入口で API を呼ぶフックは useRealtimeQuery だけ。分析リポジトリの決まりで、最初に API を呼ぶこのフレームに書いた
+  - name: BASE_PATH
+    kind: env
+    effect: API の URL の前に付く (API_URL が絶対の URL のときは付かない)
+    status: fact
+    evidence:
+    - file: next.config.ts
+      line: 15
+    - file: next.config.ts
+      line: 216
+    - file: src/lib/api-url.ts
+      line: 38
+    - file: src/lib/api-url.ts
+      line: 41
+    - file: src/lib/api-url.ts
+      line: 44
+    note: この入口で API を呼ぶフックは useRealtimeQuery だけ。分析リポジトリの決まりで、最初に API を呼ぶこのフレームに書いた
+- id: api_realtime
+  layer: api_route
+  kind: route_handler
+  name: GET /api/realtime/[websiteId]
+  source:
+    file: src/app/api/realtime/[websiteId]/route.ts
+    line: 10
+  caller: use_realtime
+  call:
+    status: fact
+    when: always
+    note: フックの enabled は websiteId があること。websiteId は部品の必須の props (描く側は、websiteId が無ければ部品を描かない。BoardComponentRenderer.tsx:30) なので、always にした。フックはクエリを付けずに呼ぶ (useApi の get の params の既定は空のオブジェクト。useApi.ts:41)
+    evidence:
+    - file: src/components/hooks/queries/useRealtimeQuery.ts
+      line: 10
+    - file: src/components/hooks/queries/useRealtimeQuery.ts
+      line: 12
+    - file: src/components/hooks/useApi.ts
+      line: 41
+    - file: src/lib/api-url.ts
+      line: 44
+  summary:
+    status: interpretation
+    value: 直近の動きを返す受け口。引数 (タイムゾーン・単位・絞り込み) をスキーマで検査して認証し (parseRequest)、canViewWebsiteSection (セクションは realtime) で見てよいかを確かめる (だめなら 401)。期間を「いまの分の始まりの 30 分前から、いままで」にして getQueryFilters で条件を作り、getRealtimeData で、最近の動きと時系列と合計をまとめて返す。この部品のフックはクエリを付けずに呼ぶので、タイムゾーン・単位・絞り込みはいつも無い
+    evidence:
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 14
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 20
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 28
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 32
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 35
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 36
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 41
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 43
+  rules:
+  - kind: calculation
+    value: 期間は、いまの分の始まりから 30 分 (REALTIME_RANGE) 前から、いままで
+    status: fact
+    evidence:
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 35
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 36
+    - file: src/lib/constants.ts
+      line: 36
+- id: q_parse_request
+  layer: query
+  kind: function
+  name: parseRequest (src/lib/request.ts)
+  source:
+    file: src/lib/request.ts
+    line: 16
+  caller: api_realtime
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 4
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 20
+  summary:
+    status: interpretation
+    value: 受け口の共通の前処理。クエリと本文を取り出し、受け口が渡した zod の schema で検査し、checkAuth でログインを確かめる。誤りがあれば、400 か 401 を返す関数を error に入れて返す
+    evidence:
+    - file: src/lib/request.ts
+      line: 22
+    - file: src/lib/request.ts
+      line: 23
+    - file: src/lib/request.ts
+      line: 30
+    - file: src/lib/request.ts
+      line: 52
+    - file: src/lib/request.ts
+      line: 59
+  rules:
+  - kind: validation
+    value: 受け口が渡した schema に合わない入力は 400 を返す (GET はクエリを、それ以外は本文を検査する)
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 28
+    - file: src/lib/request.ts
+      line: 30
+    - file: src/lib/request.ts
+      line: 33
+- id: q_check_auth
+  layer: query
+  kind: function
+  name: checkAuth (src/lib/auth.ts)
+  source:
+    file: src/lib/auth.ts
+    line: 71
+  caller: q_parse_request
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/request.ts
+      line: 52
+    note: この部品の受け口は skipAuth を渡さない。入力の誤りがあるときだけ、呼ばずに打ち切る (src/lib/request.ts:51)
+  summary:
+    status: interpretation
+    value: リクエストの Bearer トークンと共有トークンから、利用者を決める。トークンに userId があれば user を読む。無くて authKey があり、Redis が有効なら auth:* を読み、そこにある userId で user を読む。利用者も共有トークンも無ければ null (受け口が 401 を返す)。umami_ で始まるトークンを API キーとして調べる経路 (auth.ts:75 の checkApiKeyAuth) は、部品のフックがログインのトークンを付けるので、この入口からは辿っていない
+    evidence:
+    - file: src/lib/auth.ts
+      line: 72
+    - file: src/lib/auth.ts
+      line: 78
+    - file: src/lib/auth.ts
+      line: 88
+    - file: src/lib/auth.ts
+      line: 94
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/auth.ts
+      line: 105
+    - file: src/lib/auth.ts
+      line: 122
+    - file: src/lib/auth.ts
+      line: 140
+    - file: src/components/hooks/useApi.ts
+      line: 28
+  io:
+  - op: get
+    status: interpretation
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: auth:*
+    fields:
+    - name: '*'
+      use:
+      - read
+    evidence:
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/auth.ts
+      line: 150
+    note: REDIS_URL が設定されていて、トークンに userId が無く authKey があるときだけ。キーは、トークンから取り出した実行時の値 (authKey)。auth:* の形は、ログインのときにキーを作る saveAuth (auth.ts:150) から読み取った
+  guards:
+  - kind: authentication
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 122
+    - file: src/lib/auth.ts
+      line: 124
+    - file: src/lib/request.ts
+      line: 54
+    - file: src/lib/request.ts
+      line: 55
+    note: ログインした利用者も、共有トークンも無ければ通さない
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: 設定されていると、トークンに userId が無く authKey があるとき、Redis の auth:* からログインの情報を読む。設定されていなければ、トークンの userId だけを使う
+    status: fact
+    evidence:
+    - file: src/lib/auth.ts
+      line: 101
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/redis.ts
+      line: 106
+  rules:
+  - kind: validation
+    value: 2 段階認証の途中で出した仮のトークン (type が partial のもの) は、ログイン済みとして受け付けない
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 83
+    - file: src/lib/auth.ts
+      line: 85
+  - kind: validation
+    value: トークン (または Redis のログイン情報) にパスワードの指紋 (pwd) があり、いまのパスワードのハッシュと違えば、ログインしていない扱いにする (パスワードを変える前のトークンを無効にする)
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 98
+    - file: src/lib/auth.ts
+      line: 99
+    - file: src/lib/auth.ts
+      line: 108
+  - kind: validation
+    value: 共有トークンは、type が共有用のものだけを受け付ける。利用者がいなくて共有トークンだけのときは、共有画面からの印のヘッダー (SHARE_CONTEXT_HEADER) が無ければ受け付けない
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 127
+    - file: src/lib/auth.ts
+      line: 128
+    - file: src/lib/auth.ts
+      line: 129
+    - file: src/lib/auth.ts
+      line: 174
+  - kind: validation
+    value: umami_ で始まるトークンは、API キーとして調べる (checkApiKeyAuth)。この部品のフックはログインのトークンを付けるので、この入口からは通らない
+    status: interpretation
+    evidence:
+    - file: src/lib/auth.ts
+      line: 72
+    - file: src/lib/auth.ts
+      line: 74
+    - file: src/lib/auth.ts
+      line: 75
+    - file: src/components/hooks/useApi.ts
+      line: 28
+- id: q_get_user
+  layer: query
+  kind: function
+  name: getUser → findUser (src/queries/prisma/user.ts)
+  source:
+    file: src/queries/prisma/user.ts
+    line: 49
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: トークンに userId があるとき (Redis の auth:* から userId が取れたときも、auth.ts:105 で同じ関数を呼ぶ)
+    evidence:
+    - file: src/lib/auth.ts
+      line: 93
+    - file: src/lib/auth.ts
+      line: 94
+  summary:
+    status: interpretation
+    value: user を id で 1 件読む。削除済み (deleted_at がある) の利用者は読まない。checkAuth はパスワードの指紋を比べるために password も取り出す
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 32
+    - file: src/queries/prisma/user.ts
+      line: 36
+    - file: src/queries/prisma/user.ts
+      line: 41
+    - file: src/queries/prisma/user.ts
+      line: 50
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: user
+    fields:
+    - name: user_id
+      use:
+      - read
+      - filter
+    - name: username
+      use:
+      - read
+    - name: password
+      use:
+      - read
+    - name: role
+      use:
+      - read
+    - name: created_at
+      use:
+      - read
+    - name: two_factor_required
+      use:
+      - read
+    - name: deleted_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 32
+    - file: src/queries/prisma/user.ts
+      line: 34
+    - file: src/queries/prisma/user.ts
+      line: 38
+    - file: prisma/schema.prisma
+      line: 37
+- id: ext_prisma_user
+  layer: external
+  kind: library
+  name: Prisma Client user.findUnique
+  source:
+    file: src/queries/prisma/user.ts
+    line: 32
+  caller: q_get_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/user.ts
+      line: 50
+    - file: src/queries/prisma/user.ts
+      line: 32
+- id: ext_redis_auth
+  layer: external
+  kind: library
+  name: redis (node-redis クライアント) get — auth:*
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_check_auth
+  call:
+    status: fact
+    when: conditional
+    condition: REDIS_URL が設定されていて、トークンに userId が無く authKey があるとき
+    evidence:
+    - file: src/lib/auth.ts
+      line: 101
+    - file: src/lib/auth.ts
+      line: 102
+    - file: src/lib/redis.ts
+      line: 37
+- id: q_can_view_website_section
+  layer: query
+  kind: function
+  name: canViewWebsiteSection (src/permissions/share.ts)
+  source:
+    file: src/permissions/share.ts
+    line: 53
+  caller: api_realtime
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 7
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 28
+  summary:
+    status: interpretation
+    value: サイトの、あるセクションを見てよいかを決める (realtime の GET は realtime を渡す)。ログインした利用者がいれば canViewWebsite に任せる。いなければ、共有トークンの中身で決める
+    evidence:
+    - file: src/permissions/share.ts
+      line: 58
+    - file: src/permissions/share.ts
+      line: 59
+    - file: src/permissions/share.ts
+      line: 64
+    - file: src/permissions/share.ts
+      line: 69
+    - file: src/permissions/share.ts
+      line: 77
+  guards:
+  - kind: other
+    value: canViewWebsiteSection
+    status: interpretation
+    evidence:
+    - file: src/permissions/share.ts
+      line: 40
+    - file: src/permissions/share.ts
+      line: 64
+    - file: src/permissions/share.ts
+      line: 69
+    - file: src/permissions/share.ts
+      line: 73
+    - file: src/permissions/share.ts
+      line: 77
+    note: ログインした利用者がいないときは、共有トークンが対象のサイト (websiteId / pixelId / linkId と、その複数形) を含むこと。共有の設定にセクションごとの可否があれば、受け口が渡したセクション (この受け口では realtime) が true であること
+- id: q_can_view_website
+  layer: query
+  kind: function
+  name: canViewWebsite (src/permissions/website.ts)
+  source:
+    file: src/permissions/website.ts
+    line: 8
+  caller: q_can_view_website_section
+  call:
+    status: fact
+    when: conditional
+    condition: ログインした利用者がいるとき (共有トークンだけのときは呼ばない)
+    evidence:
+    - file: src/permissions/share.ts
+      line: 58
+    - file: src/permissions/share.ts
+      line: 59
+  summary:
+    status: interpretation
+    value: 利用者がサイトを見てよいかを決める。管理者と、共有トークンの対象は、DB を読まずに許す。それ以外は、対象を getEntity で読み、持ち主か、持ち主のチームのメンバー (getTeamUser) かを確かめる
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 13
+    - file: src/permissions/website.ts
+      line: 24
+    - file: src/permissions/website.ts
+      line: 31
+    - file: src/permissions/website.ts
+      line: 35
+  guards:
+  - kind: role
+    value: user.isAdmin
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 10
+    note: 管理者は、ほかの確認もデータの読み取りもせずに通る
+  - kind: ownership
+    value: canViewWebsite
+    status: fact
+    evidence:
+    - file: src/permissions/website.ts
+      line: 9
+    - file: src/permissions/website.ts
+      line: 13
+    - file: src/permissions/website.ts
+      line: 26
+    - file: src/permissions/website.ts
+      line: 30
+    - file: src/permissions/website.ts
+      line: 31
+    - file: src/permissions/website.ts
+      line: 34
+    - file: src/permissions/website.ts
+      line: 35
+    - file: src/permissions/website.ts
+      line: 37
+    note: 管理者 (user.isAdmin) か、共有トークンの対象か、対象の持ち主 (user.id === entity.userId) であること。対象がチームのもの (entity.teamId) なら、そのチームのメンバー (team_user に行がある) であること
+- id: q_get_entity
+  layer: query
+  kind: function
+  name: getEntity (src/lib/entity.ts)
+  source:
+    file: src/lib/entity.ts
+    line: 4
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: 利用者が管理者でなく、共有トークンの対象でもないとき
+    evidence:
+    - file: src/permissions/website.ts
+      line: 24
+  summary:
+    status: interpretation
+    value: 同じ id で website / link / pixel / board を並べて読み、最初に見つかったものを返す (id がどの種類のものかを、呼ぶ側が知らないため)
+    evidence:
+    - file: src/lib/entity.ts
+      line: 5
+    - file: src/lib/entity.ts
+      line: 6
+    - file: src/lib/entity.ts
+      line: 7
+    - file: src/lib/entity.ts
+      line: 8
+    - file: src/lib/entity.ts
+      line: 9
+    - file: src/lib/entity.ts
+      line: 12
+- id: q_get_website
+  layer: query
+  kind: function
+  name: getWebsite → findWebsite / attachShareIdToWebsite (src/queries/prisma/website.ts)
+  source:
+    file: src/queries/prisma/website.ts
+    line: 80
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 6
+  summary:
+    status: interpretation
+    value: website を id で 1 件読み、見つかれば、いちばん新しい共有 (share) の slug を shareId として付ける。id が UUID の形でなければ、読まずに null を返す。fetchWebsite (src/lib/load.ts:10 / :12) も同じ関数を呼ぶ。経路はここと同じ
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 81
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: src/queries/prisma/website.ts
+      line: 91
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: src/queries/prisma/website.ts
+      line: 304
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 77
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: prisma/schema.prisma
+      line: 130
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: share
+    fields:
+    - name: slug
+      use:
+      - read
+    - name: entity_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 304
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: prisma/schema.prisma
+      line: 412
+    note: サイトが見つかったときだけ。いちばん新しい共有の slug を付ける (attachShareIdToWebsite)
+- id: ext_prisma_website
+  layer: external
+  kind: library
+  name: Prisma Client website.findUnique
+  source:
+    file: src/queries/prisma/website.ts
+    line: 77
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 85
+    - file: src/queries/prisma/website.ts
+      line: 77
+    note: id が UUID の形でないときだけ、呼ばずに打ち切る (website.ts:81)
+- id: ext_prisma_share
+  layer: external
+  kind: library
+  name: Prisma Client share.findFirst
+  source:
+    file: src/queries/prisma/website.ts
+    line: 304
+  caller: q_get_website
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/website.ts
+      line: 95
+    - file: src/queries/prisma/website.ts
+      line: 304
+    note: サイトが見つからなかったときだけ、呼ばずに打ち切る (website.ts:91)
+- id: q_get_link
+  layer: query
+  kind: function
+  name: getLink → findLink (src/queries/prisma/link.ts)
+  source:
+    file: src/queries/prisma/link.ts
+    line: 12
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 7
+  summary:
+    status: interpretation
+    value: link を id で 1 件読む
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 9
+    - file: src/queries/prisma/link.ts
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: link
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: link_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 9
+    - file: src/queries/prisma/link.ts
+      line: 15
+    - file: prisma/schema.prisma
+      line: 358
+- id: ext_prisma_link
+  layer: external
+  kind: library
+  name: Prisma Client link.findUnique
+  source:
+    file: src/queries/prisma/link.ts
+    line: 9
+  caller: q_get_link
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/link.ts
+      line: 13
+    - file: src/queries/prisma/link.ts
+      line: 9
+- id: q_get_pixel
+  layer: query
+  kind: function
+  name: getPixel → findPixel (src/queries/prisma/pixel.ts)
+  source:
+    file: src/queries/prisma/pixel.ts
+    line: 12
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 8
+  summary:
+    status: interpretation
+    value: pixel を id で 1 件読む
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+    - file: src/queries/prisma/pixel.ts
+      line: 13
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: pixel
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: pixel_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+    - file: src/queries/prisma/pixel.ts
+      line: 15
+    - file: prisma/schema.prisma
+      line: 378
+- id: ext_prisma_pixel
+  layer: external
+  kind: library
+  name: Prisma Client pixel.findUnique
+  source:
+    file: src/queries/prisma/pixel.ts
+    line: 9
+  caller: q_get_pixel
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/pixel.ts
+      line: 13
+    - file: src/queries/prisma/pixel.ts
+      line: 9
+- id: q_get_board
+  layer: query
+  kind: function
+  name: getBoard → findBoard (src/queries/prisma/board.ts)
+  source:
+    file: src/queries/prisma/board.ts
+    line: 13
+  caller: q_get_entity
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/entity.ts
+      line: 9
+  summary:
+    status: interpretation
+    value: board を id で 1 件読む
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 10
+    - file: src/queries/prisma/board.ts
+      line: 14
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: board
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: board_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 10
+    - file: src/queries/prisma/board.ts
+      line: 16
+    - file: prisma/schema.prisma
+      line: 398
+- id: ext_prisma_board
+  layer: external
+  kind: library
+  name: Prisma Client board.findUnique
+  source:
+    file: src/queries/prisma/board.ts
+    line: 10
+  caller: q_get_board
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/board.ts
+      line: 14
+    - file: src/queries/prisma/board.ts
+      line: 10
+- id: q_get_team_user
+  layer: query
+  kind: function
+  name: getTeamUser (src/queries/prisma/teamUser.ts)
+  source:
+    file: src/queries/prisma/teamUser.ts
+    line: 19
+  caller: q_can_view_website
+  call:
+    status: fact
+    when: conditional
+    condition: 対象に持ち主の利用者 (userId) が無く、チーム (teamId) があるとき
+    evidence:
+    - file: src/permissions/website.ts
+      line: 34
+    - file: src/permissions/website.ts
+      line: 35
+  summary:
+    status: interpretation
+    value: チームと利用者の組で team_user を 1 件読む (削除済みのチームは除く)
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+    - file: src/queries/prisma/teamUser.ts
+      line: 22
+    - file: src/queries/prisma/teamUser.ts
+      line: 23
+    - file: src/queries/prisma/teamUser.ts
+      line: 24
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team_user
+    fields:
+    - name: '*'
+      use:
+      - read
+    - name: team_id
+      use:
+      - filter
+    - name: user_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+    - file: src/queries/prisma/teamUser.ts
+      line: 22
+    - file: src/queries/prisma/teamUser.ts
+      line: 23
+    - file: prisma/schema.prisma
+      line: 265
+  - op: read
+    status: interpretation
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: team
+    fields:
+    - name: team_id
+      use:
+      - filter
+    - name: deleted_at
+      use:
+      - filter
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 24
+    - file: prisma/schema.prisma
+      line: 249
+    note: 'TeamUser.team の関連の条件 (deletedAt: null) として読まれる。テーブル名はコードに直接は出ない'
+- id: ext_prisma_team_user
+  layer: external
+  kind: library
+  name: Prisma Client teamUser.findFirst
+  source:
+    file: src/queries/prisma/teamUser.ts
+    line: 20
+  caller: q_get_team_user
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/prisma/teamUser.ts
+      line: 20
+- id: q_get_query_filters
+  layer: query
+  kind: function
+  name: getQueryFilters → setWebsiteDate (src/lib/request.ts)
+  source:
+    file: src/lib/request.ts
+    line: 118
+  caller: api_realtime
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 4
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 32
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 38
+  summary:
+    status: interpretation
+    value: 'クエリから、期間・単位・列の絞り込み・プロパティの絞り込みを取り出して、問い合わせ用の条件にまとめる。websiteId を渡されるので、サイトの情報 (fetchWebsite) で期間の開始を直す。realtime の受け口は期間を 30 分にして渡し、単位を送られないので、単位は minute になる。URL に segment / cohort があれば保存した定義を読む getWebsiteSegment (request.ts:133 / :145) は、固定の値で閉じているので辿らない: この入口のフックは GET /realtime/<websiteId> をクエリを付けずに呼ぶ (useRealtimeQuery.ts:10。useApi の get の params の既定は空のオブジェクト。useApi.ts:41) ので、受け口が渡す query (route.ts:34) に segment も cohort も excludeBounce も無い'
+    evidence:
+    - file: src/lib/request.ts
+      line: 122
+    - file: src/lib/request.ts
+      line: 123
+    - file: src/lib/request.ts
+      line: 129
+    - file: src/lib/request.ts
+      line: 130
+    - file: src/lib/request.ts
+      line: 132
+    - file: src/lib/request.ts
+      line: 133
+    - file: src/lib/request.ts
+      line: 144
+    - file: src/lib/request.ts
+      line: 145
+    - file: src/lib/request.ts
+      line: 177
+    - file: src/lib/date.ts
+      line: 291
+    - file: src/components/hooks/queries/useRealtimeQuery.ts
+      line: 10
+    - file: src/components/hooks/useApi.ts
+      line: 41
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 34
+  settings:
+  - name: CLOUD_MODE
+    kind: env
+    effect: 設定されていて、個人のサイト (teamId が無い) で、持ち主に契約 (hasSubscription) が無いときは、期間の開始を 6 か月前の月初より前にしない (Redis の account:* を読む)
+    status: fact
+    evidence:
+    - file: src/lib/request.ts
+      line: 101
+    - file: src/lib/request.ts
+      line: 103
+    - file: src/lib/request.ts
+      line: 104
+    - file: src/lib/request.ts
+      line: 106
+    - file: src/lib/request.ts
+      line: 107
+  rules:
+  - kind: calculation
+    value: 集計の単位 (unit) が期間に許されないもの (送られないときも) なら、期間に合う最小の単位にする (この受け口の 30 分の期間では minute)
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 80
+    - file: src/lib/request.ts
+      line: 81
+    - file: src/lib/request.ts
+      line: 82
+    - file: src/lib/date.ts
+      line: 291
+  - kind: calculation
+    value: サイトにリセットの日時 (resetAt) があれば、期間の開始をそれより前にしない
+    status: interpretation
+    evidence:
+    - file: src/lib/request.ts
+      line: 111
+    - file: src/lib/request.ts
+      line: 112
+- id: q_fetch_website
+  layer: query
+  kind: function
+  name: fetchWebsite (src/lib/load.ts)
+  source:
+    file: src/lib/load.ts
+    line: 6
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/request.ts
+      line: 130
+    - file: src/lib/request.ts
+      line: 100
+    note: websiteId を渡されたときだけ (request.ts:129)。realtime の受け口は websiteId を渡すので、いつも呼ぶ
+  summary:
+    status: interpretation
+    value: サイトの情報を読む。Redis が有効なら website:<id> のキャッシュから読み、無ければ getWebsite で DB から読んで 86400 秒キャッシュする。無効なら毎回 getWebsite で読む。getWebsite の経路は、フレーム q_get_website と同じ
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/load.ts
+      line: 12
+    - file: src/lib/load.ts
+      line: 15
+  io:
+  - op: get
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: website:*
+    fields:
+    - name: '*'
+      use:
+      - read
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 85
+    - file: src/lib/redis.ts
+      line: 37
+    note: REDIS_URL が設定されているときだけ
+  - op: set
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: website:*
+    fields:
+    - name: '*'
+      use:
+      - write
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 92
+    - file: src/lib/redis.ts
+      line: 51
+    note: REDIS_URL が設定されていて、キャッシュに無く、DB から読めたときだけ。有効期限は 86400 秒
+  settings:
+  - name: REDIS_URL
+    kind: env
+    effect: 設定されていると、サイトの情報を Redis の website:<id> から読み、無ければ DB から読んでキャッシュする。設定されていなければ、毎回 DB から読む
+    status: fact
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/load.ts
+      line: 12
+    - file: src/lib/redis.ts
+      line: 106
+  rules:
+  - kind: decision
+    value: 削除済み (deletedAt がある) のサイトは、無いものとして扱う
+    status: interpretation
+    evidence:
+    - file: src/lib/load.ts
+      line: 15
+    - file: src/lib/load.ts
+      line: 16
+- id: ext_redis_website_get
+  layer: external
+  kind: library
+  name: redis (node-redis クライアント) get — website:*
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_fetch_website
+  call:
+    status: fact
+    when: conditional
+    condition: REDIS_URL が設定されているとき
+    evidence:
+    - file: src/lib/load.ts
+      line: 9
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 85
+    - file: src/lib/redis.ts
+      line: 37
+- id: ext_redis_website_set
+  layer: external
+  kind: library
+  name: redis (node-redis クライアント) set — website:*
+  source:
+    file: src/lib/redis.ts
+    line: 51
+  caller: q_fetch_website
+  call:
+    status: fact
+    when: conditional
+    condition: REDIS_URL が設定されていて、キャッシュに無く、DB から読めたとき
+    evidence:
+    - file: src/lib/load.ts
+      line: 10
+    - file: src/lib/redis.ts
+      line: 89
+    - file: src/lib/redis.ts
+      line: 92
+    - file: src/lib/redis.ts
+      line: 51
+- id: q_fetch_account
+  layer: query
+  kind: function
+  name: fetchAccount (src/lib/load.ts)
+  source:
+    file: src/lib/load.ts
+    line: 42
+  caller: q_get_query_filters
+  call:
+    status: fact
+    when: conditional
+    condition: CLOUD_MODE が設定されていて、サイトが個人のもの (teamId が無い) のとき
+    evidence:
+    - file: src/lib/request.ts
+      line: 103
+    - file: src/lib/request.ts
+      line: 104
+  summary:
+    status: interpretation
+    value: 持ち主の契約の情報を、Redis の account:<userId> から読む
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+  io:
+  - op: get
+    status: fact
+    resource:
+      kind: kvs
+      levels:
+        key_pattern: account:*
+    fields:
+    - name: '*'
+      use:
+      - read
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+    - file: src/lib/redis.ts
+      line: 37
+- id: ext_redis_account
+  layer: external
+  kind: library
+  name: redis (node-redis クライアント) get — account:*
+  source:
+    file: src/lib/redis.ts
+    line: 37
+  caller: q_fetch_account
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/lib/load.ts
+      line: 43
+    - file: src/lib/redis.ts
+      line: 37
+- id: q_realtime_data
+  layer: query
+  kind: function
+  name: getRealtimeData (src/queries/sql/getRealtimeData.ts)
+  source:
+    file: src/queries/sql/getRealtimeData.ts
+    line: 16
+  caller: api_realtime
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 8
+    - file: src/app/api/realtime/[websiteId]/route.ts
+      line: 41
+  summary:
+    status: interpretation
+    value: getRealtimeActivity (最近の 100 件の動き)、getPageviewStats (ページビューの時系列)、getSessionStats (訪問者の時系列) を並べて呼び、動きから国・URL・リファラーごとの数とイベントの並び (訪問者・ページビュー・イベントの 3 種類) を作り、合計 (ページビュー・訪問者・イベント・国の数) を出す
+    evidence:
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 20
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 21
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 22
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 23
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 28
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 41
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 72
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 73
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 74
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 75
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 76
+  rules:
+  - kind: calculation
+    value: 国ごとの数は、動きの中のセッション 1 つにつき 1 回だけ数える。URL とリファラーごとの数は、動きの行ごとに数える
+    status: fact
+    evidence:
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 41
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 42
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 43
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 48
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 49
+  - kind: calculation
+    value: '合計: ページビューと訪問者は時系列の値の合計、イベントは最近の動き (新しい順に 100 件まで) の中でイベント名を持つ行の数、国は同じ 100 件の中の国の種類の数'
+    status: fact
+    evidence:
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 73
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 74
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 75
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 76
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 48
+- id: q_realtime_activity
+  layer: query
+  kind: function
+  name: getRealtimeActivity (src/queries/sql/getRealtimeActivity.ts)
+  source:
+    file: src/queries/sql/getRealtimeActivity.ts
+    line: 9
+  caller: q_realtime_data
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 2
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 21
+  summary:
+    status: interpretation
+    value: 期間と絞り込みで、性能の計測 (event_type = 5) を除くイベントを新しい順に 100 件読み、セッション・イベント名・時刻・URL・リファラー・ホスト名と、セッションのブラウザ・OS・端末・国を返す。PostgreSQL 用と ClickHouse 用の SQL を持ち、設定でどちらかが動く
+    evidence:
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 12
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 27
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 38
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 40
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 44
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 47
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 48
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 67
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 84
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 85
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: 設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する
+    status: fact
+    evidence:
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 32
+    - file: src/lib/db.ts
+      line: 38
+  rules:
+  - kind: decision
+    value: 性能の計測のイベント (event_type = 5) は、最近の動きに入れない
+    status: fact
+    evidence:
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 44
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 81
+    - file: src/lib/constants.ts
+      line: 124
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website_event
+    fields:
+    - name: session_id
+      use:
+      - read
+      - filter
+    - name: event_name
+      use:
+      - read
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: url_path
+      use:
+      - read
+    - name: referrer_domain
+      use:
+      - read
+    - name: hostname
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 28
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 29
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 30
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 35
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 36
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 37
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 38
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 41
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 43
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 44
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 47
+    - file: prisma/schema.prisma
+      line: 183
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session
+    fields:
+    - name: browser
+      use:
+      - read
+    - name: os
+      use:
+      - read
+    - name: device
+      use:
+      - read
+    - name: country
+      use:
+      - read
+    - name: session_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    note: いつも inner join する
+    evidence:
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 31
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 32
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 33
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 34
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 40
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 41
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 42
+    - file: prisma/schema.prisma
+      line: 84
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: event_data
+    fields:
+    - name: website_event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: URL にイベントのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery は GET /realtime/<websiteId> を引数なしで呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 309
+    - file: src/lib/prisma.ts
+      line: 576
+    - file: prisma/schema.prisma
+      line: 205
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: URL にセッションのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery は GET /realtime/<websiteId> を引数なしで呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 313
+    - file: src/lib/prisma.ts
+      line: 702
+    - file: prisma/schema.prisma
+      line: 229
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event
+    fields:
+    - name: session_id
+      use:
+      - read
+    - name: event_name
+      use:
+      - read
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: browser
+      use:
+      - read
+    - name: os
+      use:
+      - read
+    - name: device
+      use:
+      - read
+    - name: country
+      use:
+      - read
+    - name: url_path
+      use:
+      - read
+    - name: referrer_domain
+      use:
+      - read
+    - name: hostname
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 68
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 69
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 70
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 71
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 72
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 73
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 74
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 75
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 76
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 77
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 78
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 80
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 81
+    - file: db/clickhouse/schema.sql
+      line: 2
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: event_data
+    fields:
+    - name: event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: URL にイベントのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery は GET /realtime/<websiteId> を引数なしで呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 278
+    - file: src/lib/clickhouse.ts
+      line: 540
+    - file: db/clickhouse/schema.sql
+      line: 57
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    note: URL にセッションのプロパティの絞り込みがあるときだけ。値の条件に使う列は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery は GET /realtime/<websiteId> を引数なしで呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 280
+    - file: src/lib/clickhouse.ts
+      line: 663
+    - file: db/clickhouse/schema.sql
+      line: 76
+- id: ext_realtime_activity_pg
+  layer: external
+  kind: library
+  name: Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)
+  source:
+    file: src/lib/prisma.ts
+    line: 746
+  caller: q_realtime_activity
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)
+    evidence:
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 13
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 25
+    - file: src/lib/prisma.ts
+      line: 746
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: 設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る
+    status: interpretation
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 738
+    - file: src/lib/prisma.ts
+      line: 55
+    - file: src/lib/prisma.ts
+      line: 861
+- id: ext_realtime_activity_ch
+  layer: external
+  kind: library
+  name: ClickHouse client (@clickhouse/client) query
+  source:
+    file: src/lib/clickhouse.ts
+    line: 721
+  caller: q_realtime_activity
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)
+    evidence:
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 14
+    - file: src/queries/sql/getRealtimeActivity.ts
+      line: 65
+    - file: src/lib/clickhouse.ts
+      line: 721
+- id: q_pageview_stats
+  layer: query
+  kind: function
+  name: getPageviewStats (src/queries/sql/pageviews/getPageviewStats.ts)
+  source:
+    file: src/queries/sql/pageviews/getPageviewStats.ts
+    line: 9
+  caller: q_realtime_data
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 3
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 22
+  summary:
+    status: interpretation
+    value: 期間とフィルターで website_event を単位 (時・日・月など) ごとに数え、ページビューの時系列を作る。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)。この入口からは単位が minute なので、ClickHouse ではいつも website_event から数える
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 10
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 19
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 28
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 29
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 59
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 37
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 28
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 29
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 30
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 34
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 35
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 36
+    - file: prisma/schema.prisma
+      line: 183
+    note: URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session
+    fields:
+    - name: session_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 33
+    - file: src/lib/prisma.ts
+      line: 318
+    - file: prisma/schema.prisma
+      line: 84
+    note: セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: event_data
+    fields:
+    - name: website_event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 309
+    - file: src/lib/prisma.ts
+      line: 576
+    - file: prisma/schema.prisma
+      line: 205
+    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 313
+    - file: src/lib/prisma.ts
+      line: 702
+    - file: prisma/schema.prisma
+      line: 229
+    note: セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 66
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 67
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 68
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 71
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 72
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 73
+    - file: src/lib/clickhouse.ts
+      line: 196
+    - file: db/clickhouse/schema.sql
+      line: 2
+    note: イベントの列で絞るときか、単位が minute のときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event_stats_hourly
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: views
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 86
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 87
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 88
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 91
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 92
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 93
+    - file: src/lib/clickhouse.ts
+      line: 212
+    - file: db/clickhouse/schema.sql
+      line: 113
+    note: 上以外のとき。直帰を除くフィルターのときは、どちらの SQL でも副問い合わせで読む (src/lib/clickhouse.ts:212。session_id / visit_id / views / event_name を読む)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた。ただし、この入口では期間が 30 分なので単位が minute になり (src/lib/request.ts:82、src/lib/date.ts:291)、この表は使わないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: event_data
+    fields:
+    - name: event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 278
+    - file: src/lib/clickhouse.ts
+      line: 540
+    - file: db/clickhouse/schema.sql
+      line: 57
+    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 280
+    - file: src/lib/clickhouse.ts
+      line: 663
+    - file: db/clickhouse/schema.sql
+      line: 76
+    note: セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: 設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する
+    status: fact
+    evidence:
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 32
+    - file: src/lib/db.ts
+      line: 38
+  rules:
+  - kind: decision
+    value: ClickHouse では、イベントの列で絞るときと、単位が minute のときは website_event から、それ以外は時間ごとの集計表から数える
+    status: interpretation
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 59
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 68
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 88
+  - kind: decision
+    value: ページビューの数には、カスタムイベント (event_type = 2) と性能の計測 (event_type = 5) を数えない (ページビュー・リンク・ピクセルのイベントを数える)
+    status: fact
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 36
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 73
+    - file: src/lib/constants.ts
+      line: 121
+    - file: src/lib/constants.ts
+      line: 124
+- id: ext_pageview_stats_pg
+  layer: external
+  kind: library
+  name: Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)
+  source:
+    file: src/lib/prisma.ts
+    line: 746
+  caller: q_pageview_stats
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 25
+    - file: src/lib/prisma.ts
+      line: 746
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: 設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る
+    status: interpretation
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 738
+    - file: src/lib/prisma.ts
+      line: 55
+    - file: src/lib/prisma.ts
+      line: 861
+- id: ext_pageview_stats_ch
+  layer: external
+  kind: library
+  name: ClickHouse client (@clickhouse/client) query
+  source:
+    file: src/lib/clickhouse.ts
+    line: 721
+  caller: q_pageview_stats
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)
+    evidence:
+    - file: src/queries/sql/pageviews/getPageviewStats.ts
+      line: 101
+    - file: src/lib/clickhouse.ts
+      line: 721
+- id: q_session_stats
+  layer: query
+  kind: function
+  name: getSessionStats (src/queries/sql/sessions/getSessionStats.ts)
+  source:
+    file: src/queries/sql/sessions/getSessionStats.ts
+    line: 9
+  caller: q_realtime_data
+  call:
+    status: fact
+    when: always
+    evidence:
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 4
+    - file: src/queries/sql/getRealtimeData.ts
+      line: 23
+  summary:
+    status: interpretation
+    value: 期間とフィルターで website_event を単位ごとにまとめ、異なる session_id の数 (セッションの時系列) を作る。runQuery が CLICKHOUSE_URL の有無でどちらか一方を動かす (PostgreSQL 用と ClickHouse 用の SQL を両方持つ)。この入口からは単位が minute なので、ClickHouse ではいつも website_event から数える
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 10
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 19
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 28
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 29
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 59
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 37
+  io:
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 28
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 29
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 30
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 34
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 35
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 36
+    - file: prisma/schema.prisma
+      line: 183
+    note: URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session
+    fields:
+    - name: session_id
+      use:
+      - filter
+    - name: website_id
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 33
+    - file: src/lib/prisma.ts
+      line: 318
+    - file: prisma/schema.prisma
+      line: 84
+    note: セッションの列 (browser / os / country など) かリファラーで絞るときだけ join する。コホートを指定したときも、副問い合わせで join する (src/lib/prisma.ts:226)。絞る列は実行時に決まる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: event_data
+    fields:
+    - name: website_event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 309
+    - file: src/lib/prisma.ts
+      line: 576
+    - file: prisma/schema.prisma
+      line: 205
+    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: postgresql
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - filter
+    - name: session_id
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 313
+    - file: src/lib/prisma.ts
+      line: 702
+    - file: prisma/schema.prisma
+      line: 229
+    note: セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 66
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 67
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 68
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 71
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 72
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 73
+    - file: src/lib/clickhouse.ts
+      line: 196
+    - file: db/clickhouse/schema.sql
+      line: 2
+    note: イベントの列で絞るときか、単位が minute のときだけ。コホートを指定したときは、集計表を使う SQL でも副問い合わせで読む (src/lib/clickhouse.ts:196)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: website_event_stats_hourly
+    fields:
+    - name: created_at
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: event_type
+      use:
+      - filter
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 86
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 87
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 88
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 91
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 92
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 93
+    - file: src/lib/clickhouse.ts
+      line: 212
+    - file: db/clickhouse/schema.sql
+      line: 113
+    note: 上以外のとき。直帰を除くフィルターのときは、どちらの SQL でも副問い合わせで読む (src/lib/clickhouse.ts:212。session_id / visit_id / views / event_name を読む)。URL のフィルターで絞る列 (filterQuery) は実行時に決まるので、fields には SQL に固定で書いてある列だけを書いた。ただし、この入口では期間が 30 分なので単位が minute になり (src/lib/request.ts:82、src/lib/date.ts:291)、この表は使わないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: event_data
+    fields:
+    - name: event_id
+      use:
+      - read
+    - name: website_id
+      use:
+      - filter
+    - name: created_at
+      use:
+      - filter
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 278
+    - file: src/lib/clickhouse.ts
+      line: 540
+    - file: db/clickhouse/schema.sql
+      line: 57
+    note: イベントのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  - op: read
+    status: fact
+    resource:
+      kind: rdb
+      levels:
+        dbms: clickhouse
+        table: session_data
+    fields:
+    - name: website_id
+      use:
+      - read
+      - filter
+    - name: session_id
+      use:
+      - read
+    - name: data_key
+      use:
+      - filter
+    - name: data_type
+      use:
+      - filter
+    evidence:
+    - file: src/lib/clickhouse.ts
+      line: 280
+    - file: src/lib/clickhouse.ts
+      line: 663
+    - file: db/clickhouse/schema.sql
+      line: 76
+    note: セッションのプロパティで絞るときだけ。値の条件に使う列 (string_value / number_value / date_value) は、プロパティの型で変わる。ただし、この部品の useRealtimeQuery はクエリを付けずに呼ぶ (useRealtimeQuery.ts:10) ので、この入口からは絞り込みの条件が付かないように見える
+  settings:
+  - name: CLICKHOUSE_URL
+    kind: env
+    effect: 設定されていると ClickHouse 用の SQL を、設定されていなければ PostgreSQL 用の SQL を実行する
+    status: fact
+    evidence:
+    - file: src/lib/db.ts
+      line: 27
+    - file: src/lib/db.ts
+      line: 32
+    - file: src/lib/db.ts
+      line: 38
+  rules:
+  - kind: decision
+    value: ClickHouse では、イベントの列で絞るときと、単位が minute のときは website_event から、それ以外は時間ごとの集計表から数える
+    status: interpretation
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 59
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 68
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 88
+  - kind: decision
+    value: 訪問者は、カスタムイベント (event_type = 2) と性能の計測 (event_type = 5) を除いたイベントを持つセッションだけを数える (カスタムイベントだけの訪問者は数えない)
+    status: fact
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 36
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 73
+    - file: src/lib/constants.ts
+      line: 121
+    - file: src/lib/constants.ts
+      line: 124
+- id: ext_session_stats_pg
+  layer: external
+  kind: library
+  name: Prisma Client $queryRawUnsafe (PostgreSQL の生の SQL)
+  source:
+    file: src/lib/prisma.ts
+    line: 746
+  caller: q_session_stats
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されていないとき (PostgreSQL 用の SQL を動かすとき)
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 25
+    - file: src/lib/prisma.ts
+      line: 746
+  settings:
+  - name: DATABASE_REPLICA_URL
+    kind: env
+    effect: 設定されていると、読み取りの生の SQL を複製 (replica) の DB に送る
+    status: interpretation
+    evidence:
+    - file: src/lib/prisma.ts
+      line: 738
+    - file: src/lib/prisma.ts
+      line: 55
+    - file: src/lib/prisma.ts
+      line: 861
+- id: ext_session_stats_ch
+  layer: external
+  kind: library
+  name: ClickHouse client (@clickhouse/client) query
+  source:
+    file: src/lib/clickhouse.ts
+    line: 721
+  caller: q_session_stats
+  call:
+    status: fact
+    when: conditional
+    condition: CLICKHOUSE_URL が設定されているとき (ClickHouse 用の SQL を動かすとき)
+    evidence:
+    - file: src/queries/sql/sessions/getSessionStats.ts
+      line: 101
+    - file: src/lib/clickhouse.ts
+      line: 721

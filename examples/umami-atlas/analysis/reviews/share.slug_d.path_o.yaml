@@ -1,28 +1,28 @@
 format_version: 1
 entry_id: share.slug_d.path_o
-reviewed_at: "2026-11-17T15:28:07Z"
+reviewed_at: "2026-11-18T01:10:27Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
 findings:
-  - kind: evidence_mismatch
+  - kind: classification_mismatch
     severity: low
-    where: summary
-    claim: "入口の summary は、受け口が「共有トークンにそのサイトの id が含まれ、節の指定があれば許された節か」を確かめると書くが、節の確認は GET /api/websites/[websiteId]/active (canViewWebsiteSection) だけで、GET /api/websites/[websiteId] は canViewSharedWebsite (share.ts:85) で id が含まれるかしか見ない。フレームの summary と guards は正しく分けてあるが、入口の summary だけが 2 つの受け口をまとめて書いている"
-    evidence: { file: src/permissions/share.ts, line: 85 }
-    suggestion: "入口の summary を、節の確認は訪問者数の受け口 (/active) だけに当てはまり、サイトの読み込みの受け口は共有トークンに id が含まれるかだけを見る、と書き分ける"
+    where: callstack/share_branding_rw
+    claim: "share_branding_rw は「呼び出し元が終端にならないよう、もう一度書いたもの」だが、呼び出し元の share_nav は業務のルール (rules の decision 2 件) を持つので、context.md の終端の決まり (業務のルールを持つフレームは終端になれる) を既に満たしている。もう一度書く条件 (フレームを足さないと終端の決まりを満たせないとき) に当たらず、logoUrl の external_api の unknown の I/O が 2 回数えられる"
+    evidence: { file: "src/app/share/[slug]/[[...path]]/ShareNav.tsx", line: 158 }
+    suggestion: "share_branding_rw を消し、share_nav の summary に「ShareBranding も描く。経路はフレーム share_branding と同じ」とだけ書く"
     resolved: true
   - kind: missing_item
     severity: low
-    where: callstack/use_website_query
-    claim: "settings に BASE_PATH が無い。同じフック useWebsiteQuery を書いた layout_l.main_g.websites.websiteId_d の結果は BASE_PATH (API の URL の前に付く。next.config.ts:15、:216、api-url.ts:38、:44) を書いている。analysis-conventions.md も BASE_PATH を設定の名前の例に挙げ、書かない設定には入れていない。書かない扱いは、この結果の notes (10) にあるだけ"
-    evidence: { file: next.config.ts, line: 15 }
-    suggestion: "settings に BASE_PATH を足して layout_l.main_g.websites.websiteId_d とそろえる。書かない扱いに決めるなら、analysis-conventions.md の書かない設定に BASE_PATH を足し、ほかの入口の結果も合わせて外す"
+    where: callstack/q_check_auth
+    claim: "analysis-conventions.md は、checkAuth の API キーの枝 (auth.ts:74 → checkApiKeyAuth) をフレームにせず「checkAuth の rules に 1 行書く」と決めているが、q_check_auth の rules にその 1 行が無い (CLOUD_MODE の settings と、先頭の notes (12) にだけ書いてある)"
+    evidence: { file: src/lib/auth.ts, line: 74 }
+    suggestion: "q_check_auth の rules に、umami_ で始まる Bearer トークンは、API キーの認証が有効 (CLOUD_MODE が無い) なら API キーとして確かめる、という validation を 1 行足す (ほかの入口の結果も書いていないが、analysis-conventions.md の「既にある結果と食い違うときは、この決まりに従う」に当たる)"
     resolved: true
-  - kind: missing_item
+  - kind: classification_mismatch
     severity: low
-    where: callstack/use_active_users
-    claim: "settings に BASE_PATH が無い。同じフック useActiveUsersQuery を書いた layout_l.main_g.websites.websiteId_d の結果は BASE_PATH (API の URL の前に付く。next.config.ts:15、:216、api-url.ts:38、:44) を書いている。analysis-conventions.md も BASE_PATH を設定の名前の例に挙げ、書かない設定には入れていない。書かない扱いは、この結果の notes (10) にあるだけ"
-    evidence: { file: next.config.ts, line: 15 }
-    suggestion: "settings に BASE_PATH を足して layout_l.main_g.websites.websiteId_d とそろえる。書かない扱いに決めるなら、analysis-conventions.md の書かない設定に BASE_PATH を足し、ほかの入口の結果も合わせて外す"
+    where: callstack/website_header/call
+    claim: "website_header の呼び出し元は share_page だが、condition が WebsiteProvider の読み込みの条件だけで、share_page の分かれ道 (board / pixel / link の画面を描かず、URL の節が許されているときだけ描く) が抜けている。同じ所で描く website_provider の condition には書いてある"
+    evidence: { file: "src/app/share/[slug]/[[...path]]/SharePage.tsx", line: 136 }
+    suggestion: "condition の先頭に「board / pixel / link の画面を描かず、URL の節が許されていて (SharePage.tsx:106、:115)」を足し、その後に WebsiteProvider がサイトを読み終えたとき、と続ける"
     resolved: true
-notes: "機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。全 57 フレームの call / summary / parameters / io (fields を含む) / links / guards / settings / rules の根拠の行を、対象のコードと prisma/schema.prisma、db/clickhouse/schema.sql で開いて確かめ、上の 3 件のほかに行のずれや主張との食い違いは見つからなかった。層と種類、when、fact / interpretation の付け方、データの当てはめ (rdb の dbms と table、kvs の auth:*、external_api)、同じ処理の置き場 (入口から辿る順)、終端を満たすための書き直し (id が _rw で終わるフレーム) の範囲も、決まりのとおりだった。確認の値 (isAllowed、canViewSharedWebsite、canViewWebsite、canViewWebsiteSection、user.isAdmin) と設定の名前 (API_URL、CLOUD_MODE、REDIS_URL、CLICKHOUSE_URL、DATABASE_REPLICA_URL、PRIVATE_MODE、FAVICON_URL)、links の綴り (/share/${slug}/<節>) は、ほかの入口の結果と同じだった。指摘にしなかったこと: (1) 埋め込む 17 の画面の summary を unknown (not_analyzed) で止めているのは、note に読んだ範囲 (定義の行と描く行) と止めた理由があり、analysis-conventions.md と context.md も打ち切りを禁じていないので、指摘にしていない。続きを分析するかは人が決める。(2) checkAuth の API キーの経路 (auth.ts:74 → checkApiKeyAuth → getApiKeyByHash / getUser / updateApiKeyLastUsed) を辿らず、CLOUD_MODE だけを settings に書いているのは、ほかの入口の結果と同じ扱いなので指摘にしていない (admin.teams.teamId_d と admin.websites.websiteId_d のレビューも、analysis-conventions.md で決めることを勧めている)。(3) Favicon の useConfig が呼ぶ GET /api/config をフレームにしていないのは layout_l.main_g.websites.websiteId_d と同じ扱い。websites.websiteId_d などはフレームにしており、入口をまたいでそろっていないが、データに届かない受け口なのでこの入口の漏れとはしなかった。(4) share.created_at の use が filter なのは、並べ替え (orderBy) も filter に含める語彙の定義どおり。(5) analyzer.tests が無いので、テストの書き漏れは見ていない"
+notes: "機械チェック (validate result --work) は OK。根拠の行 (SharePage.tsx、ShareNav.tsx、ShareFooter.tsx、ShareBranding.tsx、WebsiteHeader.tsx、ActiveUsers.tsx、WebsiteProvider.tsx、2 つの route.ts、permissions/share.ts と website.ts、entity.ts、auth.ts、request.ts、prisma の各 query、getActiveVisitors.ts、schema.prisma の @map / @@map、constants.ts、api-url.ts、next.config.ts、redis.ts、api-key.ts、prisma.ts、db.ts、clickhouse.ts) は、すべて開いて主張を支えることを確かめた。embed の 17 件は、行き先の page ファイルがそのまま同じコンポーネントを描くこと (websites/[websiteId] の各 page.tsx の 7 行目、boards の page.tsx:12、pixels / links の page.tsx:13) と、入口の一覧で 17 件とも approved であることを確かめた。固定の値で閉じている 3 件 (WebsiteHeader の編集の LinkButton と titleHref、ActiveUsers の realtime へのリンク) は、値が SharePage.tsx:136 の直書きの false で、条件がその値だけで決まり、この木の中のほかの呼び出し元が無いことの 3 つを確かめた。guards の綴り (canViewSharedWebsite / canViewWebsiteSection の kind: other、canViewWebsite、user.isAdmin) と settings の名前は、ほかの入口の結果と同じ。指摘にしなかったこと: (1) q_can_view_website_section の下の書き直し (q_can_view_website_rw → q_get_entity_rw → q_get_website_rw) は、validate.py は guards だけの終端も許すが、context.md の終端の一覧に権限の確認が無く、layout_l.main_g.websites.websiteId_d も同じ書き方なので、指摘にしていない (機械チェックと context.md の食い違いは、プロファイルの側で決めるとよい)。(2) share_page の guards の isAllowed の note は「通らなければ /share/<slug> へ移し、何も描かない」と書くが、useEffect の移動 (SharePage.tsx:100-104) は board / pixel / link の共有でも働き、その画面は描いたまま移る。サイトの画面についての note としては正しいので、指摘にしていない。(3) board / pixel / link の embed の target (ENTITY_TYPE.board など) は、表のキーが無いときの書き方として、コードに書いてある文字なので受け入れた。"
