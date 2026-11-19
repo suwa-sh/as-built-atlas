@@ -1,0 +1,1326 @@
+format_version: 1
+target:
+  repo: github.com/nocodb/nocodb
+  name: NocoDB (nc-gui)
+  clone_path: ../nocodb
+  scope: packages/nc-gui
+  commit: 657eb609d038355d4c489ba70b9fcf1d96295e07
+profile:
+  id: ui-nuxt
+  version: 0.1.0
+extractors:
+- name: nuxt-pages
+  run: abatlas-extract glob
+  layer: page
+  rationale: Nuxt 3 の作りで、pages は scope の直下にある。playground は nuxt.config の ignore で本番のビルドから外れる試しの画面なので、exclude に足した (nuxt.config.ts の 16 行目)
+  params:
+    files:
+    - pages/**/*.vue
+    - pages/**/*.tsx
+    - pages/**/*.jsx
+    exclude:
+    - pages/-*
+    - pages/*/-*
+    - pages/playground.vue
+    - pages/playground/*
+    segments:
+      strip_prefix: pages
+      drop_last: false
+      drop:
+      - \([^)]+\)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\[\[\.\.\.(.+)\]\]$
+        with: \1_o
+      - pattern: ^\[\.\.\.(.+)\]$
+        with: \1_c
+      - pattern: \[\[([^\]]+)\]\]
+        with: \1_o
+      - pattern: \[([^\]]+)\]
+        with: \1_d
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: ^<(script|template)
+    contains:
+      nested: <(NuxtPage|nuxt-page)\b
+      page_meta: definePageMeta\(
+      layout: \blayout:\s*['"]
+      middleware: '\bmiddleware:'
+- name: nuxt-layouts
+  run: abatlas-extract glob
+  layer: layout
+  rationale: Nuxt 3 の作りで、layouts は scope の直下にある
+  params:
+    files:
+    - layouts/**/*.vue
+    exclude:
+    - layouts/-*
+    - layouts/*/-*
+    segments:
+      strip_prefix: layouts
+      drop_last: false
+      prefix:
+      - (layout)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(layout\)$
+        with: layout_l
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: ^<(script|template)
+- name: nuxt-app-shell
+  run: abatlas-extract glob
+  layer: shell
+  rationale: Nuxt 3 の作りで、app.vue と error.vue は scope の直下にある
+  params:
+    files:
+    - app.vue
+    - error.vue
+    segments:
+      drop_last: false
+      prefix:
+      - (shell)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(shell\)$
+        with: shell_s
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: ^<(script|template)
+- name: nuxt-global-middleware
+  run: abatlas-extract glob
+  layer: shell
+  rationale: Nuxt 3 の作りで、middleware は scope の直下にある。4 つとも .global
+  params:
+    files:
+    - middleware/*.global.ts
+    - middleware/*.global.js
+    segments:
+      drop_last: false
+      prefix:
+      - (shell)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(shell\)$
+        with: shell_s
+      - pattern: \.
+        with: '-'
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: defineNuxtRouteMiddleware
+- name: agent-listed-shell
+  run: abatlas-extract listed
+  layer: shell
+  rationale: 'プラグイン 24 個のうち、起動のときにデータを読む・外へ送るものだけを足した。入口にしなかったもの: ライブラリの登録や指示子だけ (a.dayjs, a.i18n, animation, ant, clamp, domPurify, font, iosViewport.client, leaflet.client, pdf-object, resizeDirective)、 値や関数を provide するだけ (api, event-bus, import-worker, a.socket (CE では何もしない socket), poller (subscribe が呼ばれるまで API を呼ばない), error-reporting (report を provide し、呼ばれたときだけ送る))、ブラウザの中の保存と転送だけ (redirect, hashRedirect.client, buildIntent.client, error-handler)。 枠が描く共通の部品は、まだ分けない (app.vue の分析の大きさを見てから決める)'
+  params:
+    entries:
+    - id: shell_s.plugin.state
+      path: /(shell)/plugin/state
+      name: plugins/state.ts
+      source:
+        file: plugins/state.ts
+        line: 41
+      reason: 起動のときに、アプリの情報 (api.utils.appInfo) を読む (33 行目)。ファイルの置き場からは、データを読むかを決められないので、読んで足した
+    - id: shell_s.plugin.sentry
+      path: /(shell)/plugin/sentry
+      name: plugins/sentry.ts
+      source:
+        file: plugins/sentry.ts
+        line: 7
+      reason: アプリの情報で有効なら、Sentry を初期化して、画面の移動の計測を外へ送る (31 行目)
+    - id: shell_s.plugin.tele
+      path: /(shell)/plugin/tele
+      name: plugins/tele.ts
+      source:
+        file: plugins/tele.ts
+        line: 4
+      reason: ログインしていれば、計測の socket を開き (15 行目)、画面の移動のたびに送る
+entries:
+- id: account.index
+  path: /account/index
+  layer: page
+  source:
+    file: pages/account/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - account
+    - index
+    nested: true
+    page_meta: true
+    layout: false
+    middleware: false
+- id: account.index.page_d
+  path: /account/index/[page]
+  layer: page
+  source:
+    file: pages/account/index/[page].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[page]'
+  attributes:
+    file_segments:
+    - account
+    - index
+    - '[page]'
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: account.index.setup.nestedPage_o
+  path: /account/index/setup/[[nestedPage]]
+  layer: page
+  source:
+    file: pages/account/index/setup/[[nestedPage]].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[[nestedPage]]'
+  attributes:
+    file_segments:
+    - account
+    - index
+    - setup
+    - '[[nestedPage]]'
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: account.index.setup.nestedPage_o.app_o
+  path: /account/index/setup/[[nestedPage]]/[[app]]
+  layer: page
+  source:
+    file: pages/account/index/setup/[[nestedPage]]/[[app]].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[[app]]'
+  attributes:
+    file_segments:
+    - account
+    - index
+    - setup
+    - '[[nestedPage]]'
+    - '[[app]]'
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: account.index.tokens.index
+  path: /account/index/tokens/index
+  layer: page
+  source:
+    file: pages/account/index/tokens/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - account
+    - index
+    - tokens
+    - index
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: account.index.tokens.new
+  path: /account/index/tokens/new
+  layer: page
+  source:
+    file: pages/account/index/tokens/new.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: new
+  attributes:
+    file_segments:
+    - account
+    - index
+    - tokens
+    - new
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: account.index.users.nestedPage_o
+  path: /account/index/users/[[nestedPage]]
+  layer: page
+  source:
+    file: pages/account/index/users/[[nestedPage]].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[[nestedPage]]'
+  attributes:
+    file_segments:
+    - account
+    - index
+    - users
+    - '[[nestedPage]]'
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: admin.index
+  path: /admin/index
+  layer: page
+  source:
+    file: pages/admin/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - admin
+    - index
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: copy-shared-base
+  path: /copy-shared-base
+  layer: page
+  source:
+    file: pages/copy-shared-base.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: copy-shared-base
+  attributes:
+    file_segments:
+    - copy-shared-base
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: copy-template
+  path: /copy-template
+  layer: page
+  source:
+    file: pages/copy-template.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: copy-template
+  attributes:
+    file_segments:
+    - copy-template
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: error.404
+  path: /error/404
+  layer: page
+  source:
+    file: pages/error/404.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '404'
+  attributes:
+    file_segments:
+    - error
+    - '404'
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: forgot-password
+  path: /forgot-password
+  layer: page
+  source:
+    file: pages/forgot-password.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: forgot-password
+  attributes:
+    file_segments:
+    - forgot-password
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index
+  path: /index
+  layer: page
+  source:
+    file: pages/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    nested: true
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.index
+  path: /index/index
+  layer: page
+  source:
+    file: pages/index/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - index
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d
+  path: /index/[typeOrId]
+  layer: page
+  source:
+    file: pages/index/[typeOrId].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[typeOrId]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    nested: true
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.base.baseId_d
+  path: /index/[typeOrId]/base/[baseId]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/base/[baseId].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[baseId]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - base
+    - '[baseId]'
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.baseId_d
+  path: /index/[typeOrId]/[baseId]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[baseId]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    nested: true
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.baseId_d.index
+  path: /index/[typeOrId]/[baseId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    - index
+    nested: true
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.baseId_d.index.index
+  path: /index/[typeOrId]/[baseId]/index/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId]/index/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    - index
+    - index
+    nested: true
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.baseId_d.index.index.index
+  path: /index/[typeOrId]/[baseId]/index/index/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId]/index/index/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    - index
+    - index
+    - index
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.baseId_d.index.index.viewId_d.viewTitle_o
+  path: /index/[typeOrId]/[baseId]/index/index/[viewId]/[[viewTitle]]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId]/index/index/[viewId]/[[viewTitle]].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[[viewTitle]]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    - index
+    - index
+    - '[viewId]'
+    - '[[viewTitle]]'
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.baseId_d.index.index.viewId_d.viewTitle_o.slugs_c
+  path: /index/[typeOrId]/[baseId]/index/index/[viewId]/[[viewTitle]]/[...slugs]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId]/index/index/[viewId]/[[viewTitle]]/[...slugs].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[...slugs]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    - index
+    - index
+    - '[viewId]'
+    - '[[viewTitle]]'
+    - '[...slugs]'
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.baseId_d.index.settings.index
+  path: /index/[typeOrId]/[baseId]/index/settings/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId]/index/settings/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    - index
+    - settings
+    - index
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: true
+- id: index.typeOrId_d.baseId_d.index.settings.page_d
+  path: /index/[typeOrId]/[baseId]/index/settings/[page]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/[baseId]/index/settings/[page].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[page]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - '[baseId]'
+    - index
+    - settings
+    - '[page]'
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: true
+- id: index.typeOrId_d.calendar.viewId_d.index
+  path: /index/[typeOrId]/calendar/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/calendar/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - calendar
+    - '[viewId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: index.typeOrId_d.feed
+  path: /index/[typeOrId]/feed
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/feed.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: feed
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - feed
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.form.viewId_d
+  path: /index/[typeOrId]/form/[viewId]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/form/[viewId].vue
+    line: 1
+  extractor: nuxt-pages
+  status: approved
+  name: '[viewId]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - form
+    - '[viewId]'
+    nested: true
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.form.viewId_d.index
+  path: /index/[typeOrId]/form/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/form/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - form
+    - '[viewId]'
+    - index
+    nested: true
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.form.viewId_d.index.index
+  path: /index/[typeOrId]/form/[viewId]/index/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/form/[viewId]/index/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - form
+    - '[viewId]'
+    - index
+    - index
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.form.viewId_d.index.survey
+  path: /index/[typeOrId]/form/[viewId]/index/survey
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/form/[viewId]/index/survey.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: survey
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - form
+    - '[viewId]'
+    - index
+    - survey
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.gallery.viewId_d.index
+  path: /index/[typeOrId]/gallery/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/gallery/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - gallery
+    - '[viewId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: index.typeOrId_d.gantt.viewId_d.index
+  path: /index/[typeOrId]/gantt/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/gantt/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - gantt
+    - '[viewId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: index.typeOrId_d.index
+  path: /index/[typeOrId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.integrations
+  path: /index/[typeOrId]/integrations
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/integrations.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: integrations
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - integrations
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.kanban.viewId_d.index
+  path: /index/[typeOrId]/kanban/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/kanban/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - kanban
+    - '[viewId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: index.typeOrId_d.list.viewId_d.index
+  path: /index/[typeOrId]/list/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/list/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - list
+    - '[viewId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: index.typeOrId_d.map.viewId_d.index
+  path: /index/[typeOrId]/map/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/map/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - map
+    - '[viewId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: index.typeOrId_d.members
+  path: /index/[typeOrId]/members
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/members.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: members
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - members
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.settings.index
+  path: /index/[typeOrId]/settings/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/settings/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - settings
+    - index
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: true
+- id: index.typeOrId_d.settings.page_d
+  path: /index/[typeOrId]/settings/[page]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/settings/[page].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[page]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - settings
+    - '[page]'
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: true
+- id: index.typeOrId_d.shared.erdUuid_d.index
+  path: /index/[typeOrId]/shared/[erdUuid]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/shared/[erdUuid]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - shared
+    - '[erdUuid]'
+    - index
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: index.typeOrId_d.timeline.viewId_d.index
+  path: /index/[typeOrId]/timeline/[viewId]/index
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/timeline/[viewId]/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - timeline
+    - '[viewId]'
+    - index
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: index.typeOrId_d.view.viewId_d
+  path: /index/[typeOrId]/view/[viewId]
+  layer: page
+  source:
+    file: pages/index/[typeOrId]/view/[viewId].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[viewId]'
+  attributes:
+    file_segments:
+    - index
+    - '[typeOrId]'
+    - view
+    - '[viewId]'
+    nested: false
+    page_meta: true
+    layout: true
+    middleware: false
+- id: invite.token_d
+  path: /invite/[token]
+  layer: page
+  source:
+    file: pages/invite/[token].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[token]'
+  attributes:
+    file_segments:
+    - invite
+    - '[token]'
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: layout_l.base
+  path: /(layout)/base
+  layer: layout
+  source:
+    file: layouts/base.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: base
+  attributes:
+    file_segments:
+    - base
+- id: layout_l.dashboard
+  path: /(layout)/dashboard
+  layer: layout
+  source:
+    file: layouts/dashboard.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: dashboard
+  attributes:
+    file_segments:
+    - dashboard
+- id: layout_l.default
+  path: /(layout)/default
+  layer: layout
+  source:
+    file: layouts/default.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: default
+  attributes:
+    file_segments:
+    - default
+- id: layout_l.empty
+  path: /(layout)/empty
+  layer: layout
+  source:
+    file: layouts/empty.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: empty
+  attributes:
+    file_segments:
+    - empty
+- id: layout_l.general
+  path: /(layout)/general
+  layer: layout
+  source:
+    file: layouts/general.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: general
+  attributes:
+    file_segments:
+    - general
+- id: layout_l.new
+  path: /(layout)/new
+  layer: layout
+  source:
+    file: layouts/new.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: new
+  attributes:
+    file_segments:
+    - new
+- id: layout_l.shared-view
+  path: /(layout)/shared-view
+  layer: layout
+  source:
+    file: layouts/shared-view.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: shared-view
+  attributes:
+    file_segments:
+    - shared-view
+- id: layout_l.top
+  path: /(layout)/top
+  layer: layout
+  source:
+    file: layouts/top.vue
+    line: 1
+  extractor: nuxt-layouts
+  status: candidate
+  name: top
+  attributes:
+    file_segments:
+    - top
+- id: leaving.index
+  path: /leaving/index
+  layer: page
+  source:
+    file: pages/leaving/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - leaving
+    - index
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: oauth.authorize
+  path: /oauth/authorize
+  layer: page
+  source:
+    file: pages/oauth/authorize.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: authorize
+  attributes:
+    file_segments:
+    - oauth
+    - authorize
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: projects.index
+  path: /projects/index
+  layer: page
+  source:
+    file: pages/projects/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - projects
+    - index
+    nested: true
+    page_meta: false
+    layout: false
+    middleware: false
+- id: projects.index.index
+  path: /projects/index/index
+  layer: page
+  source:
+    file: pages/projects/index/index.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: index
+  attributes:
+    file_segments:
+    - projects
+    - index
+    - index
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: projects.index.list
+  path: /projects/index/list
+  layer: page
+  source:
+    file: pages/projects/index/list.vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: list
+  attributes:
+    file_segments:
+    - projects
+    - index
+    - list
+    nested: false
+    page_meta: false
+    layout: false
+    middleware: false
+- id: reset.id_d
+  path: /reset/[id]
+  layer: page
+  source:
+    file: pages/reset/[id].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[id]'
+  attributes:
+    file_segments:
+    - reset
+    - '[id]'
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: shell_s.app
+  path: /(shell)/app
+  layer: shell
+  source:
+    file: app.vue
+    line: 1
+  extractor: nuxt-app-shell
+  status: candidate
+  name: app
+  attributes:
+    file_segments:
+    - app
+- id: shell_s.error
+  path: /(shell)/error
+  layer: shell
+  source:
+    file: error.vue
+    line: 1
+  extractor: nuxt-app-shell
+  status: candidate
+  name: error
+  attributes:
+    file_segments:
+    - error
+- id: shell_s.middleware.01-redirect-global
+  path: /(shell)/middleware/01.redirect.global
+  layer: shell
+  source:
+    file: middleware/01.redirect.global.ts
+    line: 3
+  extractor: nuxt-global-middleware
+  status: candidate
+  name: 01.redirect.global
+  attributes:
+    file_segments:
+    - middleware
+    - 01.redirect.global
+- id: shell_s.middleware.02-security-global
+  path: /(shell)/middleware/02.security.global
+  layer: shell
+  source:
+    file: middleware/02.security.global.ts
+    line: 1
+  extractor: nuxt-global-middleware
+  status: candidate
+  name: 02.security.global
+  attributes:
+    file_segments:
+    - middleware
+    - 02.security.global
+- id: shell_s.middleware.03-auth-global
+  path: /(shell)/middleware/03.auth.global
+  layer: shell
+  source:
+    file: middleware/03.auth.global.ts
+    line: 99
+  extractor: nuxt-global-middleware
+  status: approved
+  name: 03.auth.global
+  attributes:
+    file_segments:
+    - middleware
+    - 03.auth.global
+- id: shell_s.middleware.04-payment-global
+  path: /(shell)/middleware/04.payment.global
+  layer: shell
+  source:
+    file: middleware/04.payment.global.ts
+    line: 1
+  extractor: nuxt-global-middleware
+  status: candidate
+  name: 04.payment.global
+  attributes:
+    file_segments:
+    - middleware
+    - 04.payment.global
+- id: shell_s.plugin.sentry
+  path: /(shell)/plugin/sentry
+  layer: shell
+  source:
+    file: plugins/sentry.ts
+    line: 7
+  extractor: agent-listed-shell
+  status: candidate
+  name: plugins/sentry.ts
+  attributes:
+    listed_by: agent
+    reason: アプリの情報で有効なら、Sentry を初期化して、画面の移動の計測を外へ送る (31 行目)
+- id: shell_s.plugin.state
+  path: /(shell)/plugin/state
+  layer: shell
+  source:
+    file: plugins/state.ts
+    line: 41
+  extractor: agent-listed-shell
+  status: candidate
+  name: plugins/state.ts
+  attributes:
+    listed_by: agent
+    reason: 起動のときに、アプリの情報 (api.utils.appInfo) を読む (33 行目)。ファイルの置き場からは、データを読むかを決められないので、読んで足した
+- id: shell_s.plugin.tele
+  path: /(shell)/plugin/tele
+  layer: shell
+  source:
+    file: plugins/tele.ts
+    line: 4
+  extractor: agent-listed-shell
+  status: candidate
+  name: plugins/tele.ts
+  attributes:
+    listed_by: agent
+    reason: ログインしていれば、計測の socket を開き (15 行目)、画面の移動のたびに送る
+- id: signin
+  path: /signin
+  layer: page
+  source:
+    file: pages/signin.vue
+    line: 1
+  extractor: nuxt-pages
+  status: approved
+  name: signin
+  attributes:
+    file_segments:
+    - signin
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+- id: signup.token_o
+  path: /signup/[[token]]
+  layer: page
+  source:
+    file: pages/signup/[[token]].vue
+    line: 1
+  extractor: nuxt-pages
+  status: candidate
+  name: '[[token]]'
+  attributes:
+    file_segments:
+    - signup
+    - '[[token]]'
+    nested: false
+    page_meta: true
+    layout: false
+    middleware: false
+enumerated_at: '2026-11-18T01:13:14+00:00'

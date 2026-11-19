@@ -1,0 +1,1007 @@
+format_version: 1
+entry:
+  id: login
+  path: /login
+  name: "login"
+  layer: screen
+  source: { file: src/routes/routes.ts, line: 109 }
+target:
+  repo: github.com/kestra-io/kestra
+  name: "Kestra UI"
+  clone_path: ../kestra
+  scope: ui
+  commit: 28867c6f0ef22f14610c8230406c24bcb35ec13a
+analyzer:
+  profile: { id: ui-vue-router, version: "0.4.0" }
+  skill_version: "0.4.2"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-19T05:50:39Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-19T05:49:53Z"
+    findings_open: 1
+summary:
+  status: interpretation
+  value: "ログイン画面 (Basic 認証)。route login (/:tenant?/login) が BasicAuthLogin.vue を描く。描いた時点では API を呼ばない。メールアドレスとパスワードを入力して送信すると、(1) GET /api/v1/configs/login で Basic 認証が初期設定済みかを確かめ (未設定なら setup の画面へ移る)、(2) POST /api/v1/login で認証し (失敗したら POST /api/v1/logout を送って後始末する)、(3) GET /api/v1/configs で設定を読み、(4) 計測 (PostHog) に利用者を結び付け、(5) GET /api/v1/{tenant}/flows/search で tutorial 以外のフローの有無を調べて、移る先 (元の画面 / ai / home) を決める。認証が 401 で失敗したときは GET /api/v1/basicAuthValidationErrors で設定の誤りを読んで表示する。設定を読み込むと、ためてあった計測のイベントを api.kestra.io と PostHog へ送る処理も動く。「troubleshooting」のボタンは、計測のイベントを送ってから kestra.io の説明のページを別のタブで開く。入れ子の route (children) と、route ごとの guard (beforeEnter) は無い。meta は layout: FullScreenLayout と anonymous: true (枠の側の処理なので、ここでは辿らない)。"
+  evidence:
+    - { file: src/routes/routes.ts, line: 109 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 12 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 152 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 190 }
+    - { file: src/utils/basicAuth.ts, line: 38 }
+    - { file: src/utils/basicAuth.ts, line: 11 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 196 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 197 }
+    - { file: src/utils/welcomeGuard.ts, line: 15 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 202 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 220 }
+    - { file: src/stores/api.ts, line: 89 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 232 }
+    - { file: src/components/basicauth/BasicAuthLogin.vue, line: 233 }
+callstack:
+  - id: route
+    layer: screen
+    kind: route
+    name: "login"
+    source: { file: src/routes/routes.ts, line: 109 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "URL /:tenant?/login に BasicAuthLogin.vue (遅延 import) を割り当てる route。meta は layout: FullScreenLayout と anonymous: true。route ごとの guard (beforeEnter) と children は無い。"
+      evidence: [{ file: src/routes/routes.ts, line: 109 }]
+    parameters:
+      - name: "tenant"
+        value: "URL の省ける段 (:tenant?)。ログイン後に home へ移るとき、params.tenant として渡す。"
+        status: fact
+        evidence:
+          - { file: src/routes/routes.ts, line: 109 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 209 }
+      - name: "from"
+        value: "URL の query。ログイン後に戻る先のパス。/ で始まり // で始まらないものだけを使い、ルーターの base を除く。"
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 109 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 110 }
+
+  - id: login_view
+    layer: component
+    kind: component
+    name: "BasicAuthLogin.vue"
+    source: { file: src/components/basicauth/BasicAuthLogin.vue, line: 1 }
+    caller: route
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/routes/routes.ts, line: 109 }]
+    summary:
+      status: interpretation
+      value: "ログインのフォーム。描いた時点では API を呼ばない (query の from から、戻る先の案内を loginRedirectHint で組み立てるだけ。useSurveySkip は localStorage を読むだけ)。送信 (12 行の @submit → handleSubmit、181 行) で、入力の検査 → 初期設定の確認 (checkServerInitialization、151 行。同じファイルの中の補助の関数) → BasicAuth.signIn → localStorage の basicAuthSetupInProgress を消し、sessionStorage の sessionActive を true にする → misc.loadConfigs → identifyPosthogUser → shouldShowHelloDialog が真なら localStorage の showSurveyDialogAfterLogin を true にする → 移る先を決めて router.push する。通信の失敗 (TypeError) と 404 は setup の画面へ移り、401 は misc.loadBasicAuthValidationErrors (loadAuthConfigErrors、166 行の中) の結果をメッセージで出し、それ以外は「認証情報が正しくない」を出す。troubleshooting のボタン (51 行 → openTroubleshootingGuide、231 行) は api.posthogEvents も呼ぶ ({type: ossauth, action: forgot_password_click})。経路はフレーム api_posthog_events と同じ。そのあと window.open で kestra.io の説明のページを別のタブで開く (ほかの入口でも API でもないので、links にも I/O にも書いていない)。フォームやボタン (KsForm など) は見た目だけの部品。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 12 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 113 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 181 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 193 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 194 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 200 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 51 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 232 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 233 }
+        - { file: src/composables/useSurveyData.ts, line: 48 }
+        - { file: src/utils/loginRedirectHint.ts, line: 34 }
+    links:
+      - kind: navigate
+        target: "setup"
+        entry_id: setup
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 190 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 213 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 222 }
+        note: "Basic 認証が初期設定されていないとき (190 行)、通信そのものが失敗したとき (213 行)、応答が 404 のとき (222 行)。"
+      - kind: navigate
+        target: "ai"
+        entry_id: ai
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 205 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 204 }
+        note: "ログインに成功し、戻る先がフローや実行の画面でなく、shouldShowWelcome が真のとき。"
+      - kind: navigate
+        target: "home"
+        entry_id: dashboards.dashboard_o
+        status: fact
+        evidence: [{ file: src/components/basicauth/BasicAuthLogin.vue, line: 209 }]
+        note: "ログインに成功し、戻る先 (from) が無く、shouldShowWelcome が偽のとき。params.tenant に、いまの URL の tenant を渡す。"
+      - kind: navigate
+        target: "/:tenant?/executions/:namespace/:flowId/:id"
+        entry_id: executions.namespace_d.flowId_d.id_d
+        status: interpretation
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 202 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 203 }
+          - { file: src/utils/loginRedirectHint.ts, line: 29 }
+        note: "ログインに成功し、戻る先 (query の from) が実行の画面のパスの形 (EXECUTION_PATH の正規表現) に合うとき、そのパスへ移る (router.push(redirectPath.value))。コードにあるのは正規表現なので、target は、それに当たる route の URL の形で書いた。"
+      - kind: navigate
+        target: "/:tenant?/flows/edit/:namespace/:id"
+        entry_id: flows.edit.namespace_d.id_d
+        status: interpretation
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 202 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 203 }
+          - { file: src/utils/loginRedirectHint.ts, line: 30 }
+        note: "ログインに成功し、戻る先 (query の from) がフローの編集の画面のパスの形 (FLOW_PATH の正規表現) に合うとき、そのパスへ移る (router.push(redirectPath.value))。コードにあるのは正規表現なので、target は、それに当たる route の URL の形で書いた。"
+      - kind: navigate
+        target: "redirectPath.value"
+        status: unknown
+        reason: dynamic_dispatch
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 207 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 109 }
+        note: "ログインに成功し、戻る先がフローでも実行の画面でもなく、shouldShowWelcome が偽のとき、URL の query の from のパスへ移る。行き先は実行時の URL で決まり、どの入口かはコードから 1 つに決まらない。"
+    rules:
+      - kind: validation
+        value: "メールアドレスは、空でなく、EMAIL_REGEX (空白と @ を含まない文字 + @ + ドメイン + . + 文字) の形でなければ、送信しない。"
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 99 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 126 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 128 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 144 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 185 }
+      - kind: validation
+        value: "戻る先 (query の from) は、/ で始まり、// で始まらないパスだけを使う (それ以外は、戻る先が無いものとして扱う)。"
+        status: fact
+        evidence: [{ file: src/components/basicauth/BasicAuthLogin.vue, line: 110 }]
+      - kind: decision
+        value: "Basic 認証が初期設定されていない (isBasicAuthInitialized が偽) なら、認証せずに setup の画面へ移る。"
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 153 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 190 }
+      - kind: decision
+        value: "ログイン後の行き先は、戻る先がフローか実行の画面ならそこ、そうでなく shouldShowWelcome が真なら ai、そうでなく戻る先があればそこ、どれでもなければ home。"
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 202 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 204 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 206 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 209 }
+          - { file: src/utils/loginRedirectHint.ts, line: 29 }
+          - { file: src/utils/loginRedirectHint.ts, line: 30 }
+      - kind: decision
+        value: "送信の処理が失敗したとき、通信そのものの失敗 (TypeError) と応答 404 は setup の画面へ移り、応答 401 は設定の誤りを読んで表示し、それ以外は「認証情報が正しくない」を表示する。"
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 161 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 212 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 219 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 221 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 224 }
+
+  - id: sdk_get_login_config
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().get"
+    source: { file: src/components/basicauth/BasicAuthLogin.vue, line: 152 }
+    caller: login_view
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者がフォームを送信したとき。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 12 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 189 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 152 }
+      note: "同じファイルの中の補助の関数 checkServerInitialization (151 行) の中の呼び出し。手前の入力の検査 (185 行) は、誤りで打ち切る経路なので、rules に書いた。"
+    summary:
+      status: interpretation
+      value: "SDK のパッケージの HTTP の窓口 (useClient()。fetch を包んだ、axios に似た形の窓口) の get で、ログイン画面用の公開の設定を読む。timeout は 10 秒。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 148 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 152 }
+        - { file: packages/kestra-sdk/src/client-facade.ts, line: 249 }
+        - { file: packages/kestra-sdk/src/client-facade.ts, line: 147 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/configs/login" } }
+        fields:
+          - { name: isBasicAuthInitialized, use: [read] }
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 152 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 153 }
+          - { file: src/override/utils/route.ts, line: 23 }
+          - { file: src/override/utils/route.ts, line: 16 }
+        note: "ログイン画面用の公開の設定を読む (Basic 認証が初期設定済みか)。テナントの段が無い URL (apiUrlWithoutTenants)。"
+
+  - id: basic_auth_sign_in
+    layer: api_client
+    kind: function
+    name: "BasicAuth.signIn"
+    source: { file: src/utils/basicAuth.ts, line: 22 }
+    caller: login_view
+    call:
+      status: fact
+      when: conditional
+      condition: "フォームの送信で、Basic 認証が初期設定済みと分かったとき。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 192 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 190 }
+    summary:
+      status: interpretation
+      value: "利用者名の前後の空白を除き、validateCredentials (35 行。同じファイルの中の、外に出していない補助の関数) で、ログインの API に username と password を POST する。成功したら、空白を除いた利用者名を返す。失敗したら BasicAuth.logout を呼んでから、同じエラーを投げ直す。"
+      evidence:
+        - { file: src/utils/basicAuth.ts, line: 24 }
+        - { file: src/utils/basicAuth.ts, line: 25 }
+        - { file: src/utils/basicAuth.ts, line: 26 }
+        - { file: src/utils/basicAuth.ts, line: 38 }
+        - { file: src/utils/basicAuth.ts, line: 40 }
+        - { file: src/utils/basicAuth.ts, line: 41 }
+    parameters:
+      - name: "credentials"
+        value: "フォームに入力した username (メールアドレス) と password。"
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 192 }
+          - { file: src/utils/basicAuth.ts, line: 22 }
+    rules:
+      - kind: validation
+        value: "前後の空白を除いた username と password をログインの API に送り、認証に通らなければ (API が失敗を返せば) ログインを失敗にする。"
+        status: interpretation
+        evidence:
+          - { file: src/utils/basicAuth.ts, line: 24 }
+          - { file: src/utils/basicAuth.ts, line: 38 }
+          - { file: src/utils/basicAuth.ts, line: 41 }
+        note: "照合そのものはバックエンドが行う (範囲の外)。画面の側は、API の成否だけを見る。"
+
+  - id: sdk_post_login
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().post"
+    source: { file: src/utils/basicAuth.ts, line: 38 }
+    caller: basic_auth_sign_in
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/utils/basicAuth.ts, line: 25 }
+        - { file: src/utils/basicAuth.ts, line: 38 }
+      note: "補助の関数 validateCredentials (35 行) の中の呼び出し。"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/login" } }
+        fields:
+          - { name: username, use: [write] }
+          - { name: password, use: [write] }
+        evidence:
+          - { file: src/utils/basicAuth.ts, line: 38 }
+          - { file: src/override/utils/route.ts, line: 23 }
+          - { file: src/override/utils/route.ts, line: 16 }
+        note: "username と password を送って認証する。コメント (5 行) によると、サーバーが認証の cookie を発行する。timeout は 10 秒。cookie を付けて呼ぶ (withCredentials)。"
+
+  - id: basic_auth_logout
+    layer: api_client
+    kind: function
+    name: "BasicAuth.logout"
+    source: { file: src/utils/basicAuth.ts, line: 9 }
+    caller: basic_auth_sign_in
+    call:
+      status: fact
+      when: on_failure
+      condition: "ログインの API の呼び出し (POST /api/v1/login) が失敗したとき。"
+      evidence:
+        - { file: src/utils/basicAuth.ts, line: 39 }
+        - { file: src/utils/basicAuth.ts, line: 40 }
+    summary:
+      status: interpretation
+      value: "ログアウトの API を fetch で POST する (cookie を付け、CSRF のトークンをヘッダーに付ける)。失敗しても無視して true を返す。"
+      evidence:
+        - { file: src/utils/basicAuth.ts, line: 11 }
+        - { file: src/utils/basicAuth.ts, line: 16 }
+        - { file: src/utils/basicAuth.ts, line: 19 }
+
+  - id: fetch_logout
+    layer: external
+    kind: library
+    name: "fetch POST /api/v1/logout"
+    source: { file: src/utils/basicAuth.ts, line: 11 }
+    caller: basic_auth_logout
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/basicAuth.ts, line: 11 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/logout" } }
+        fields:
+          - { name: "X-CSRF-TOKEN", use: [write] }
+        evidence:
+          - { file: src/utils/basicAuth.ts, line: 11 }
+          - { file: src/utils/basicAuth.ts, line: 12 }
+          - { file: src/utils/basicAuth.ts, line: 14 }
+          - { file: src/override/utils/route.ts, line: 23 }
+          - { file: src/override/utils/route.ts, line: 16 }
+        note: "認証に失敗したあと、サーバー側のログインの状態 (cookie) を消す。本文は送らない。"
+
+  - id: misc_load_configs
+    layer: store
+    kind: store_action
+    name: "misc.loadConfigs"
+    source: { file: src/composables/useBaseMisc.ts, line: 37 }
+    caller: login_view
+    call:
+      status: fact
+      when: conditional
+      condition: "フォームの送信で、Basic 認証が初期設定済みと分かったとき。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 196 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 190 }
+        - { file: src/override/stores/misc.ts, line: 4 }
+      note: "手前の BasicAuth.signIn (192 行) が失敗すると例外で打ち切る。打ち切りは、その段の rules に書いた。"
+    summary:
+      status: interpretation
+      value: "インスタンスの設定を SDK の関数で読み、store の configs に入れて返す。store の misc は、useBaseMiscStore を defineStore に渡して作っている。configs を入れ替えると、store の api の見張り (watch) が動く (フレーム api_flush_queued_events)。"
+      evidence:
+        - { file: src/composables/useBaseMisc.ts, line: 38 }
+        - { file: src/composables/useBaseMisc.ts, line: 39 }
+        - { file: src/composables/useBaseMisc.ts, line: 40 }
+        - { file: src/override/stores/misc.ts, line: 4 }
+        - { file: src/stores/api.ts, line: 89 }
+
+  - id: sdk_misc_configuration
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/misc configuration"
+    source: { file: src/composables/useBaseMisc.ts, line: 38 }
+    caller: misc_load_configs
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/composables/useBaseMisc.ts, line: 38 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/configs" } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/composables/useBaseMisc.ts, line: 38 }
+          - { file: src/composables/useBaseMisc.ts, line: 39 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Misc.gen.ts, line: 9 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 33 }
+        note: "インスタンスの設定を読む (認証が要る)。応答は、まるごと store に入れる。"
+
+  - id: api_flush_queued_events
+    layer: store
+    kind: store_action
+    name: "api.flushQueuedEvents"
+    source: { file: src/stores/api.ts, line: 114 }
+    caller: misc_load_configs
+    call:
+      status: interpretation
+      when: always
+      evidence:
+        - { file: src/stores/api.ts, line: 89 }
+        - { file: src/stores/api.ts, line: 90 }
+        - { file: src/composables/useBaseMisc.ts, line: 39 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 90 }
+      note: "関数の呼び出しではなく、値の見張り (watch) で動く。store の api は miscStore.configs を見張っていて (89 行)、misc.loadConfigs が configs を入れ替える (useBaseMisc.ts 39 行) と動く。store の api は、この画面が useApiStore() を呼んだ時点 (BasicAuthLogin.vue 90 行) で作られている。"
+    summary:
+      status: interpretation
+      value: "設定が読めた時点で、ためてあった計測のイベントを 1 件ずつ sendEventNow で送る (1 件の失敗は無視して続ける)。計測が無効なら、ためたイベントを捨てる。uid は localStorage から読む (無ければ作って保存する)。イベントをためるのは api.events で、この画面の経路からは呼ばれない (ためられているかどうかは、ほかの入口の動きによる)。"
+      evidence:
+        - { file: src/stores/api.ts, line: 118 }
+        - { file: src/stores/api.ts, line: 121 }
+        - { file: src/stores/api.ts, line: 127 }
+        - { file: src/stores/api.ts, line: 129 }
+        - { file: src/stores/api.ts, line: 132 }
+        - { file: src/stores/api.ts, line: 144 }
+    settings:
+      - name: "isAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、ためてあった計測のイベントを捨てて、送らない。"
+        status: fact
+        evidence:
+          - { file: src/stores/api.ts, line: 54 }
+          - { file: src/stores/api.ts, line: 121 }
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+
+  - id: api_send_event_now
+    layer: store
+    kind: store_action
+    name: "api.sendEventNow"
+    source: { file: src/stores/api.ts, line: 158 }
+    caller: api_flush_queued_events
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isAnonymousUsageEnabled が false でなく、ためてあった計測のイベントがあるとき (イベントごとに 1 回)。"
+      evidence:
+        - { file: src/stores/api.ts, line: 132 }
+        - { file: src/stores/api.ts, line: 121 }
+        - { file: src/stores/api.ts, line: 130 }
+      note: "ためてあるイベントの有無は、ほかの入口の動き (api.events を呼んだか) で決まる。この入口の外から来る値なので、辿った。"
+    summary:
+      status: interpretation
+      value: "イベントに iid / uid / 日時 / 連番を足し (buildEventPayload、57 行)、options.posthog が false でなければ api.posthogEvents を呼び、kestra.io の公開の API へ publicFetch で POST する。ためたイベントが残っていれば api.flushQueuedEvents も呼ぶ (167 行。自分の呼び出し元と同じ処理で、経路はフレーム api_flush_queued_events と同じ)。"
+      evidence:
+        - { file: src/stores/api.ts, line: 159 }
+        - { file: src/stores/api.ts, line: 162 }
+        - { file: src/stores/api.ts, line: 167 }
+        - { file: src/stores/api.ts, line: 170 }
+
+  - id: api_posthog_events
+    layer: store
+    kind: store_action
+    name: "api.posthogEvents"
+    source: { file: src/stores/api.ts, line: 176 }
+    caller: api_send_event_now
+    call:
+      status: fact
+      when: conditional
+      condition: "イベントの options.posthog が false でないとき。"
+      evidence:
+        - { file: src/stores/api.ts, line: 161 }
+        - { file: src/stores/api.ts, line: 162 }
+    summary:
+      status: interpretation
+      value: "計測のイベントを PostHog へ送る入口。misc store の設定 (configs) と一緒に sendPosthogEvent へ渡すだけ。この画面では、troubleshooting のボタン (BasicAuthLogin.vue 232 行) からも {type: ossauth, action: forgot_password_click} で呼ばれる (経路は同じ。その呼び出し元からは type が PAGE でないので、ページの表示の属性を足す枝は通らないが、その枝は属性を組み立てるだけで、呼び出しも読み書きも無い)。"
+      evidence:
+        - { file: src/stores/api.ts, line: 177 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 232 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 30 }
+
+  - id: send_posthog_event
+    layer: api_client
+    kind: function
+    name: "sendPosthogEvent"
+    source: { file: src/utils/analytics/posthogEvents.ts, line: 14 }
+    caller: api_posthog_events
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 177 }]
+    summary:
+      status: interpretation
+      value: "設定で UI の匿名の利用状況の送信が無効なら、PostHog を止めて (disablePosthog) 何も送らない。有効なら、イベントの名前を決め、type / date / counter を除いた残りを属性にして capturePosthogEvent を呼ぶ。"
+      evidence:
+        - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 16 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 24 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 28 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 49 }
+    settings:
+      - name: "isUiAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、PostHog を止めて、計測のイベントを送らない。"
+        status: fact
+        evidence:
+          - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+          - { file: src/stores/api.ts, line: 177 }
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+
+  - id: capture_posthog_event
+    layer: api_client
+    kind: function
+    name: "capturePosthogEvent"
+    source: { file: src/utils/posthog.ts, line: 133 }
+    caller: send_posthog_event
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isUiAnonymousUsageEnabled が false でないとき。"
+      evidence:
+        - { file: src/utils/analytics/posthogEvents.ts, line: 49 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+    summary:
+      status: interpretation
+      value: "送信が無効 (設定で無効、または開発モード) なら何もしない。PostHog のクライアントがまだ用意できていなければ、用意を始めて (ensurePosthogClient)、イベントを待ち行列に入れる (最大 100 件、5 分で捨てる)。用意できていれば、posthog-js の capture を呼び、待ち行列に残りがあれば flushQueue (70 行。同じファイルの中の補助の関数。経路はフレーム posthog_capture_queued と同じ) で送る。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 138 }
+        - { file: src/utils/posthog.ts, line: 146 }
+        - { file: src/utils/posthog.ts, line: 15 }
+        - { file: src/utils/posthog.ts, line: 16 }
+        - { file: src/utils/posthog.ts, line: 152 }
+        - { file: src/utils/posthog.ts, line: 162 }
+        - { file: src/utils/posthog.ts, line: 167 }
+    settings:
+      - name: "isUiAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、PostHog を止めて、計測のイベントを送らない。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 138 }
+      - name: "import.meta.env.MODE"
+        kind: other
+        effect: "development のとき、PostHog を止めて、計測のイベントを送らない。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 138 }
+        note: "画面をビルド・起動するときのモード (Vite)。"
+
+  - id: ensure_posthog_client
+    layer: api_client
+    kind: function
+    name: "ensurePosthogClient"
+    source: { file: src/utils/posthog.ts, line: 88 }
+    caller: capture_posthog_event
+    call:
+      status: fact
+      when: conditional
+      condition: "送信が無効でなく、PostHog のクライアントがまだ読み込まれていないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 145 }
+        - { file: src/utils/posthog.ts, line: 146 }
+        - { file: src/utils/posthog.ts, line: 138 }
+    summary:
+      status: interpretation
+      value: "PostHog のクライアントを 1 度だけ用意する。読み込み済みなら何もしない。設定 (configs) が無いか、送信が無効なら用意しない。そうでなければ、usePosthog の initPostHogForSetup を動的に import して初期化し、posthog-js を読み込み (loadPosthogClient)、待ち行列を送る (flushQueue)。枠 (shell) の側で初期化が済んでいれば、この画面からは通らない。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 89 }
+        - { file: src/utils/posthog.ts, line: 90 }
+        - { file: src/utils/posthog.ts, line: 91 }
+        - { file: src/utils/posthog.ts, line: 97 }
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 99 }
+        - { file: src/utils/posthog.ts, line: 101 }
+    settings:
+      - name: "isUiAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、PostHog のクライアントを用意せず、待ち行列を捨てる。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 91 }
+      - name: "import.meta.env.MODE"
+        kind: other
+        effect: "development のとき、PostHog のクライアントを用意せず、待ち行列を捨てる。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 91 }
+
+  - id: init_posthog_for_setup
+    layer: api_client
+    kind: function
+    name: "initPostHogForSetup"
+    source: { file: src/composables/usePosthog.ts, line: 67 }
+    caller: ensure_posthog_client
+    call:
+      status: fact
+      when: conditional
+      condition: "PostHog のクライアントが読み込まれておらず、設定 (configs) が読み込み済みで、送信が無効でなく、初期化がまだ進んでいないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 89 }
+        - { file: src/utils/posthog.ts, line: 90 }
+        - { file: src/utils/posthog.ts, line: 91 }
+        - { file: src/utils/posthog.ts, line: 96 }
+    summary:
+      status: interpretation
+      value: "posthog-js を読み込み、初期化済みなら何もしない。未初期化なら、api store の loadConfig で PostHog の token と送り先を取り、posthog.init (85 行) で初期化する。token が無ければ初期化しない。そのあと、セッションの共通の属性 (iid / uid / アプリの版と種類) を登録し、未設定なら alias を付ける。uid は localStorage から読む (無ければ作って保存する)。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 69 }
+        - { file: src/composables/usePosthog.ts, line: 71 }
+        - { file: src/composables/usePosthog.ts, line: 75 }
+        - { file: src/composables/usePosthog.ts, line: 81 }
+        - { file: src/composables/usePosthog.ts, line: 83 }
+        - { file: src/composables/usePosthog.ts, line: 85 }
+        - { file: src/composables/usePosthog.ts, line: 93 }
+        - { file: src/composables/usePosthog.ts, line: 95 }
+
+  - id: api_load_config
+    layer: store
+    kind: store_action
+    name: "api.loadConfig"
+    source: { file: src/stores/api.ts, line: 108 }
+    caller: init_posthog_for_setup
+    call:
+      status: fact
+      when: conditional
+      condition: "posthog-js がまだ初期化されていない (posthog.__loaded が偽の) とき。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 75 }
+        - { file: src/composables/usePosthog.ts, line: 81 }
+    summary:
+      status: interpretation
+      value: "kestra.io の公開 API から、計測の設定 (id、PostHog の token と apiHost) を取る。"
+      evidence:
+        - { file: src/stores/api.ts, line: 109 }
+        - { file: src/stores/api.ts, line: 12 }
+        - { file: src/stores/api.ts, line: 32 }
+
+  - id: public_fetch_json
+    layer: api_client
+    kind: function
+    name: "publicFetchJson"
+    source: { file: src/utils/publicApi.ts, line: 33 }
+    caller: api_load_config
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 109 }]
+    summary:
+      status: interpretation
+      value: "publicFetch を呼び、応答を JSON として返す。"
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+
+  - id: public_fetch
+    layer: api_client
+    kind: function
+    name: "publicFetch"
+    source: { file: src/utils/publicApi.ts, line: 16 }
+    caller: public_fetch_json
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+    summary:
+      status: interpretation
+      value: "Kestra のバックエンド用のクライアントを通さずに、ブラウザの fetch で kestra.io の公開 API を呼ぶ。本文が無ければ GET、あれば POST。2xx 以外は例外にする。"
+      evidence:
+        - { file: src/utils/publicApi.ts, line: 15 }
+        - { file: src/utils/publicApi.ts, line: 22 }
+        - { file: src/utils/publicApi.ts, line: 23 }
+        - { file: src/utils/publicApi.ts, line: 29 }
+
+  - id: fetch_public_config
+    layer: external
+    kind: library
+    name: "fetch GET https://api.kestra.io/v1/config"
+    source: { file: src/utils/publicApi.ts, line: 22 }
+    caller: public_fetch
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 22 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "api.kestra.io", path: "GET /v1/config" } }
+        fields:
+          - { name: id, use: [read] }
+          - { name: "posthog.token", use: [read] }
+          - { name: "posthog.apiHost", use: [read] }
+        evidence:
+          - { file: src/stores/api.ts, line: 12 }
+          - { file: src/stores/api.ts, line: 109 }
+          - { file: src/stores/api.ts, line: 31 }
+          - { file: src/stores/api.ts, line: 32 }
+          - { file: src/utils/publicApi.ts, line: 23 }
+        note: "計測の設定 (PostHog の token と送り先) を読む。本文を渡さないので GET。cookie を付けて呼ぶ (withCredentials)。"
+
+  - id: posthog_init
+    layer: external
+    kind: library
+    name: "posthog-js init / register_for_session / alias"
+    source: { file: src/composables/usePosthog.ts, line: 85 }
+    caller: init_posthog_for_setup
+    call:
+      status: fact
+      when: conditional
+      condition: "posthog-js がまだ初期化されておらず、api.kestra.io の応答に PostHog の token があるとき。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 83 }
+        - { file: src/composables/usePosthog.ts, line: 85 }
+        - { file: src/composables/usePosthog.ts, line: 93 }
+        - { file: src/composables/usePosthog.ts, line: 96 }
+      note: "alias は、まだ付けていないときだけ呼ぶ (95 行)。"
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api }
+        note: "PostHog の初期化と、利用者の別名の登録。送り先のホストは、https://api.kestra.io/v1/config の応答の posthog.apiHost で決まり (86 行)、値はリポジトリに無い。init や alias が実際に何を送るかも posthog-js の中で決まり、リポジトリのコードには無い。"
+
+  - id: posthog_capture_queued
+    layer: external
+    kind: library
+    name: "posthog-js capture (待ち行列の分)"
+    source: { file: src/utils/posthog.ts, line: 81 }
+    caller: ensure_posthog_client
+    call:
+      status: fact
+      when: conditional
+      condition: "初期化と読み込みが済み、待ち行列に、5 分より新しいイベントが残っているとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 101 }
+        - { file: src/utils/posthog.ts, line: 71 }
+        - { file: src/utils/posthog.ts, line: 74 }
+        - { file: src/utils/posthog.ts, line: 81 }
+      note: "同じファイルの中の補助の関数 flushQueue (70 行) の中の呼び出し。capturePosthogEvent が待ち行列に入れたイベントを、ここで送る。"
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api }
+        note: "待ち行列に入れていた計測のイベントを PostHog へ送る。送り先のホストは、https://api.kestra.io/v1/config の応答の posthog.apiHost を posthog.init に渡して決まる (src/composables/usePosthog.ts 86 行)。値はリポジトリに無い。送る URL の形も posthog-js の中で決まる。"
+
+  - id: posthog_capture
+    layer: external
+    kind: library
+    name: "posthog-js capture"
+    source: { file: src/utils/posthog.ts, line: 162 }
+    caller: capture_posthog_event
+    call:
+      status: fact
+      when: conditional
+      condition: "送信が無効でなく、PostHog のクライアントが読み込み済みのとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 145 }
+        - { file: src/utils/posthog.ts, line: 162 }
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api }
+        note: "計測のイベントを PostHog へ送る。送り先のホストは、https://api.kestra.io/v1/config の応答の posthog.apiHost を posthog.init に渡して決まる (src/composables/usePosthog.ts 86 行)。値はリポジトリに無い。送る URL の形も posthog-js の中で決まり、リポジトリのコードには無い。troubleshooting のボタンからは、属性 action: forgot_password_click を送る (BasicAuthLogin.vue 232 行)。"
+
+  - id: public_fetch_events
+    layer: api_client
+    kind: function
+    name: "publicFetch"
+    source: { file: src/utils/publicApi.ts, line: 16 }
+    caller: api_send_event_now
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 170 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch と同じ関数。URL が違う (POST /v1/reports/events) ので、URL ごとの external のフレームを下に持つために、もう一度書いた。本文 (イベント) を渡すので POST になる。"
+      evidence:
+        - { file: src/utils/publicApi.ts, line: 22 }
+        - { file: src/utils/publicApi.ts, line: 23 }
+
+  - id: fetch_public_events
+    layer: external
+    kind: library
+    name: "fetch POST https://api.kestra.io/v1/reports/events"
+    source: { file: src/utils/publicApi.ts, line: 22 }
+    caller: public_fetch_events
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 22 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "api.kestra.io", path: "POST /v1/reports/events" } }
+        fields:
+          - { name: type, use: [write] }
+          - { name: iid, use: [write] }
+          - { name: uid, use: [write] }
+          - { name: date, use: [write] }
+          - { name: counter, use: [write] }
+        evidence:
+          - { file: src/stores/api.ts, line: 170 }
+          - { file: src/stores/api.ts, line: 12 }
+          - { file: src/stores/api.ts, line: 172 }
+          - { file: src/stores/api.ts, line: 36 }
+          - { file: src/stores/api.ts, line: 59 }
+          - { file: src/stores/api.ts, line: 60 }
+          - { file: src/stores/api.ts, line: 61 }
+          - { file: src/stores/api.ts, line: 62 }
+          - { file: src/utils/publicApi.ts, line: 23 }
+        note: "ためてあった計測のイベントを kestra.io へ送る。cookie を付けて呼ぶ (withCredentials)。fields は、どのイベントにも付く項目だけ。ほかの項目は、ためられたイベント (ほかの入口が api.events に渡したもの) によって変わる。"
+
+  - id: identify_posthog_user
+    layer: api_client
+    kind: function
+    name: "identifyPosthogUser"
+    source: { file: src/utils/posthog.ts, line: 170 }
+    caller: login_view
+    call:
+      status: fact
+      when: conditional
+      condition: "フォームの送信で、Basic 認証が初期設定済みと分かったとき。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 197 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 190 }
+      note: "手前の BasicAuth.signIn と misc.loadConfigs が失敗すると例外で打ち切る。"
+    summary:
+      status: interpretation
+      value: "計測 (PostHog) に、利用者のメールアドレスを結び付ける。送信が無効 (設定で無効、または開発モード) なら、PostHog を止めて何もしない。ensurePosthogClient も呼ぶ (181 行)。経路はフレーム ensure_posthog_client と同じ。クライアントが用意できたら、posthog-js の identify を呼ぶ。uid は localStorage から読む (無ければ作って保存する)。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 174 }
+        - { file: src/utils/posthog.ts, line: 181 }
+        - { file: src/utils/posthog.ts, line: 182 }
+        - { file: src/utils/posthog.ts, line: 185 }
+      note: "properties が空なら何もしない枝 (179 行) は、この入口では閉じている。呼び出し元が {email: trimmedUsername} を固定の形で渡す (BasicAuthLogin.vue 197 行) ので、キーがいつも 1 つある。その枝は、呼び出しも読み書きも無く、早く返すだけ。"
+    parameters:
+      - name: "configs"
+        value: "misc.loadConfigs が返した設定。"
+        status: fact
+        evidence:
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 196 }
+          - { file: src/components/basicauth/BasicAuthLogin.vue, line: 197 }
+      - name: "properties"
+        value: "{email: 空白を除いた利用者名}"
+        status: fact
+        evidence: [{ file: src/components/basicauth/BasicAuthLogin.vue, line: 197 }]
+    settings:
+      - name: "isUiAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、PostHog を止めて、利用者を結び付けない。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 174 }
+      - name: "import.meta.env.MODE"
+        kind: other
+        effect: "development のとき、PostHog を止めて、利用者を結び付けない。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 174 }
+
+  - id: posthog_identify
+    layer: external
+    kind: library
+    name: "posthog-js identify"
+    source: { file: src/utils/posthog.ts, line: 185 }
+    caller: identify_posthog_user
+    call:
+      status: fact
+      when: conditional
+      condition: "送信が無効でなく、PostHog のクライアントが用意できたとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 174 }
+        - { file: src/utils/posthog.ts, line: 182 }
+        - { file: src/utils/posthog.ts, line: 185 }
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api }
+        note: "利用者 (uid とメールアドレス) を PostHog に結び付ける。送り先のホストは、https://api.kestra.io/v1/config の応答の posthog.apiHost を posthog.init に渡して決まる (src/composables/usePosthog.ts 86 行)。値はリポジトリに無い。送る URL の形も posthog-js の中で決まり、リポジトリのコードには無い。"
+
+  - id: should_show_welcome
+    layer: component
+    kind: function
+    name: "shouldShowWelcome"
+    source: { file: src/utils/welcomeGuard.ts, line: 9 }
+    caller: login_view
+    call:
+      status: fact
+      when: conditional
+      condition: "フォームの送信でログインに成功し、戻る先 (query の from) がフローか実行の画面でないとき。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 202 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 204 }
+        - { file: src/utils/loginRedirectHint.ts, line: 29 }
+        - { file: src/utils/loginRedirectHint.ts, line: 30 }
+    summary:
+      status: interpretation
+      value: "ようこその画面 (ai) を出すかを決める。auth の store の user (状態を読むだけで API は呼ばない) がフローの一覧の権限を持たなければ false。持てば、tutorial 以外の名前空間のフローの件数を flow.findFlows で調べ、0 件なら true。"
+      evidence:
+        - { file: src/utils/welcomeGuard.ts, line: 10 }
+        - { file: src/utils/welcomeGuard.ts, line: 11 }
+        - { file: src/utils/welcomeGuard.ts, line: 15 }
+        - { file: src/utils/welcomeGuard.ts, line: 21 }
+    guards:
+      - kind: permission
+        value: "resource.FLOW, action.LIST"
+        status: fact
+        evidence:
+          - { file: src/utils/welcomeGuard.ts, line: 11 }
+          - { file: src/override/stores/auth.ts, line: 11 }
+        note: "authStore.user.hasAnyAction を満たさなければ、フローを調べずに false を返す。この範囲 (OSS 版) の hasAnyAction は、いつも true を返す (src/override/stores/auth.ts 11 行)。"
+    rules:
+      - kind: decision
+        value: "tutorial 以外の名前空間のフローが 1 件も無ければ、ようこその画面を出す。"
+        status: fact
+        evidence:
+          - { file: src/utils/welcomeGuard.ts, line: 18 }
+          - { file: src/utils/welcomeGuard.ts, line: 21 }
+          - { file: src/utils/constants.ts, line: 131 }
+
+  - id: flow_find_flows
+    layer: store
+    kind: store_action
+    name: "flow.findFlows"
+    source: { file: src/stores/flow.ts, line: 490 }
+    caller: should_show_welcome
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/utils/welcomeGuard.ts, line: 11 }
+        - { file: src/utils/welcomeGuard.ts, line: 15 }
+      note: "手前にあるのは、権限の不足で打ち切る経路 (11 行) だけなので always にした。"
+    summary:
+      status: interpretation
+      value: "フローを検索する SDK の関数を呼ぶ。onlyTotal が真なので、件数 (response.total) だけを返す。"
+      evidence:
+        - { file: src/stores/flow.ts, line: 492 }
+        - { file: src/stores/flow.ts, line: 493 }
+        - { file: src/stores/flow.ts, line: 494 }
+      note: "検索の結果を store の flows / total に入れる枝 (497 行の else、499〜500 行) は、この入口では閉じている。呼び出し元が onlyTotal: true を固定の値で渡す (welcomeGuard.ts 17 行) ため。その枝は store の状態を書くだけで、呼び出しも読み書きも無い。"
+    parameters:
+      - name: "options"
+        value: "size: 1、onlyTotal: true、filters[namespace][NOT_EQUALS]: tutorial"
+        status: fact
+        evidence:
+          - { file: src/utils/welcomeGuard.ts, line: 16 }
+          - { file: src/utils/welcomeGuard.ts, line: 17 }
+          - { file: src/utils/welcomeGuard.ts, line: 18 }
+          - { file: src/utils/constants.ts, line: 131 }
+
+  - id: sdk_flows_search
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/flows searchFlows"
+    source: { file: src/stores/flow.ts, line: 492 }
+    caller: flow_find_flows
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/flow.ts, line: 492 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/{tenant}/flows/search" } }
+        fields:
+          - { name: size, use: [filter] }
+          - { name: filters, use: [filter] }
+          - { name: total, use: [read] }
+        evidence:
+          - { file: src/stores/flow.ts, line: 492 }
+          - { file: src/stores/flow.ts, line: 477 }
+          - { file: src/stores/flow.ts, line: 479 }
+          - { file: src/stores/flow.ts, line: 494 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Flows.gen.ts, line: 146 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 2813 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/shared.gen.ts, line: 13 }
+        note: "tutorial 以外の名前空間のフローの件数を読む。{tenant} は SDK が入れる段 (選択中のテナント)。この経路では page と sort を渡さない。"
+
+  - id: misc_load_basic_auth_errors
+    layer: store
+    kind: store_action
+    name: "misc.loadBasicAuthValidationErrors"
+    source: { file: src/composables/useBaseMisc.ts, line: 48 }
+    caller: login_view
+    call:
+      status: fact
+      when: on_failure
+      condition: "フォームの送信の処理が、HTTP の応答 401 で失敗したとき。"
+      evidence:
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 219 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 220 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 168 }
+      note: "同じファイルの中の補助の関数 loadAuthConfigErrors (166 行) の中の呼び出し。"
+    summary:
+      status: interpretation
+      value: "Basic 認証の設定の誤りの一覧を SDK の関数で読んで返す。画面は、誤りがあればそれを、無ければ (読むのに失敗したときも) 「認証情報が正しくない」をメッセージで出す。"
+      evidence:
+        - { file: src/composables/useBaseMisc.ts, line: 49 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 169 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 174 }
+        - { file: src/components/basicauth/BasicAuthLogin.vue, line: 177 }
+
+  - id: sdk_misc_basic_auth_config_errors
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/misc basicAuthConfigErrors"
+    source: { file: src/composables/useBaseMisc.ts, line: 49 }
+    caller: misc_load_basic_auth_errors
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/composables/useBaseMisc.ts, line: 49 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/basicAuthValidationErrors" } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/composables/useBaseMisc.ts, line: 49 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Misc.gen.ts, line: 7 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 26 }
+        note: "Basic 認証の設定の誤りの一覧を読む。応答 (文字の並び) を、まるごと受け取る。"
+notes: "迷った点と、そのとき選んだ扱い。(1) 生成された SDK (@kestra-io/kestra-sdk) のソースは、範囲 (ui) の中の packages/kestra-sdk にあるので、SDK の関数と useClient() は external のフレームにして呼び出しの行で閉じ、I/O の path には、SDK のソースや URL を組み立てる行で読んだ URL を書いた。{tenant} は SDK が入れる段。(2) 同じファイルの中の、外に出していない補助の関数 (BasicAuthLogin.vue の handleSubmit / checkServerInitialization / loadAuthConfigErrors、basicAuth.ts の validateCredentials、posthog.ts の flushQueue) は、フレームにせず、呼び出し元のフレームの中の処理として書いた。(3) 利用者の操作 (フォームの送信、troubleshooting のボタン) で動く呼び出しは、login_view から conditional (失敗したときだけの呼び出しは on_failure) にした。condition には、操作と業務の分かれ道 (初期設定済みか、戻る先の形) だけを書き、手前の入力の検査や、前の呼び出しの失敗で打ち切る経路は、rules と note に書いた。(4) api.flushQueuedEvents は、呼び出しではなく値の見張り (watch) で動く。見張っている値 (misc の configs) を変える misc.loadConfigs を caller にし、call は interpretation にした。(5) 同じ処理の書き場所は、入口から、コードに書いてある順 (template を先、その後に script) に深さ優先で辿って決めた。template の送信 (12 行) がボタン (51 行) より先なので、送信の経路を先に辿った。見張りで動く api.flushQueuedEvents は、misc.loadConfigs (BasicAuthLogin.vue 196 行) の下として辿った。その結果、api.posthogEvents は、troubleshooting のボタン (232 行) より先に着く api.sendEventNow (stores/api.ts 162 行) の下に書き、ensurePosthogClient は、identifyPosthogUser (posthog.ts 181 行) より先に着く capturePosthogEvent (146 行) の下に書いた。login_view と identify_posthog_user の summary に、同じ経路のフレームを書いた。(6) この入口からは届かないように見える枝を、届かない理由の表で確かめた。固定の値で閉じているのは 2 つ (flow.findFlows の、結果を store に入れる枝。呼び出し元が onlyTotal: true を固定で渡す。identifyPosthogUser の、properties が空なら返す枝。呼び出し元が {email: ...} を固定で渡す)。どちらも、呼び出しも読み書きも無い枝なので、フレームは変わらず、それぞれのフレームの summary の note に書いた。api.posthogEvents は、2 つの呼び出し元 (sendEventNow とボタン) で、ページの表示 (type が PAGE) の枝が開くかが違い得るが、その枝は属性を組み立てるだけなので、もう一度書いていない。ためてあるイベントの有無、設定 (configs) の値、PostHog の初期化の状態は、入口の外から来る値なので、conditional のまま辿った。(7) publicFetch は、api.loadConfig の経路 (GET /v1/config) で先に着くが、api.sendEventNow からは違う URL (POST /v1/reports/events) で呼ぶ。プロファイルの「URL ごとに external のフレームを分ける」に従い、external のフレームを持たせるために、publicFetch をもう一度書いた (public_fetch_events)。(8) PostHog の送り先は、api.kestra.io の応答で決まるので not_traceable_in_repo にした。disablePosthog (opt_out_capturing / reset) は、送信を止める処理なので、フレームにしていない。(9) 権限の確認の value は、hasAnyAction に渡している引数を、ほかの入口の結果と同じ「resource.FLOW, action.LIST」の形で書いた。確認の関数 (Me.hasAnyAction) はフレームにしていないので、確認を呼ぶ段 (should_show_welcome) に書いた。この範囲の実装は、いつも true を返す。これは、呼び出し元が固定の値を渡して閉じているのではなく、呼ばれる側の実装がいつも true を返すもの (EE 版で置き換わる override) なので、届かない枝の表の 1 には当てず、確認を残した。route の meta.anonymous (ログインしていなくても開ける印) を読むのは枠の側なので、ここには書いていない。(10) 設定の名前は、ほかの入口の結果と同じ綴り (isUiAnonymousUsageEnabled、import.meta.env.MODE) にした。import.meta.env.MODE は、環境変数ではなくビルドのモードなので kind を other にした。接続先を決める VITE_APP_API_URL は、どの入口でも同じように効く接続の設定なので、書いていない。(11) 外部 API の fields は、送る項目 (クエリ・本文・ヘッダーの名前) と、応答からコードが取り出している項目を書いた。応答をまるごと受け取る呼び出しは * にした。(12) window.open で開く kestra.io の説明のページは、ほかの入口でも API の呼び出しでもないので、links にも I/O にも書かず、login_view の summary に書いた。ブラウザの中の保存 (localStorage、sessionStorage) は I/O に書いていない。(13) 枠 (App.vue、FullScreenLayout、共通の guard、HTTP の共通の設定 utils/kestraHttp.ts) は辿っていない。(14) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(15) 戻る先へ移るつながりは、行き先が読める 2 件 (実行の画面、フローの編集の画面) と、読めない 1 件に分けた。行き先を決めているのは正規表現なので、target は route の URL の形で書き、interpretation にした。(16) レビューの指摘のうち、パスワードが空なら送信しない検査 (BasicAuthLogin.vue 136 行の validatePassword) を rules に足す指摘 (low) は、直していない。この検査は、入力が空でないことだけを確かめるもので、分析の skill が「入力が空でないことだけの確認は書かない」と決めているため。メールアドレスの検査は、形 (EMAIL_REGEX) も確かめるので、rules に残した。"

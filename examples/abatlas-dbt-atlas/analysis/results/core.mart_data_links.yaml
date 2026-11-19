@@ -1,0 +1,166 @@
+format_version: 1
+entry:
+  id: core.mart_data_links
+  path: /core/mart_data_links
+  name: mart_data_links
+  layer: model
+  source: { file: models/core/mart_data_links.sql, line: 1 }
+target:
+  repo: github.com/suwa-sh/as-built-atlas
+  scope: dbt-template
+  commit: 3bf40cb
+analyzer:
+  profile: { id: transform-dbt, version: "0.1.0" }
+  skill_version: "0.4.0"
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-17T22:36:21Z"
+  tests: true
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T22:35:34Z"
+    findings_open: 0
+notes: |
+  - macro も package の macro も呼ばない (coalesce、string_agg、count は DuckDB の組み込み関数で、project や package の macro ではない) ので、入口のフレーム 1 つだけの結果にした
+  - lv_host から lv_object までの 16 列は、1 つの式 (levels_key) に連結され、その levels_key が集計の区切りと結合の条件に使われる。式の中で読む列なので read、区切りと結合に効くので filter も付けた (context.md も skill も、導出した列を区切りに使うときの扱いを決めていない)
+  - stg_io と stg_entries は join ... using (entry_id) で結ぶ。select するのは e.entry_id (stg_entries 側) で、後で a.entry_id <> b.entry_id に使うので、stg_entries の entry_id は read と filter、stg_io の entry_id は結合だけの filter にした (レビューの指摘で入れ替えた)
+  - stg_entries の path は select して string_agg で連結し、その中の order by path で並べ替えにも使うので read と filter にした
+  - schema は dbt_project.yml の +schema (staging / mart) を、project の generate_schema_name (custom_schema_name をそのまま使う) で作った名前にした。generate_schema_name はフレームにしなかった
+  - dbms は profiles.yml の type: duckdb から書いた。database は env_var('ABATLAS_DUCKDB') で決まるので書かず、settings にも書かなかった
+  - models/core/schema.yml の mart_data_links には列もテストも無く、範囲に tests/ も unit_tests も無いので、tests は書かなかった
+summary:
+  status: interpretation
+  value: "stg_io (分析結果の読み書き) と stg_entries (入口の一覧) を結び、external_api を除いた同じデータ (resource_path と全段の値が同じもの) ごとに、書く入口と読む入口を数えてつなぎ、書く入口と読む入口が別にあるデータだけを 1 行ずつ mart.mart_data_links の表にする"
+  evidence:
+    - { file: models/core/mart_data_links.sql, line: 1 }
+    - { file: models/core/mart_data_links.sql, line: 12 }
+    - { file: models/core/mart_data_links.sql, line: 23 }
+    - { file: dbt_project.yml, line: 221 }
+    - { file: dbt_project.yml, line: 222 }
+callstack:
+  - id: mart_data_links
+    layer: model
+    kind: model
+    name: mart_data_links
+    source: { file: models/core/mart_data_links.sql, line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "CTE io で stg_io と stg_entries を entry_id で結び、external_api 以外の読み書きを、入口と向き (op_direction) とデータ (kind、resource_path、levels_key) ごとに重複なく並べる。w で書く側、r で読む側を数えて入口の path を連結し、pairs で書く入口と読む入口が違う組のあるデータを選び、3 つを結んで mart.mart_data_links の表にする"
+      evidence:
+        - { file: models/core/mart_data_links.sql, line: 7 }
+        - { file: models/core/mart_data_links.sql, line: 11 }
+        - { file: models/core/mart_data_links.sql, line: 12 }
+        - { file: models/core/mart_data_links.sql, line: 14 }
+        - { file: models/core/mart_data_links.sql, line: 17 }
+        - { file: models/core/mart_data_links.sql, line: 21 }
+        - { file: models/core/mart_data_links.sql, line: 29 }
+        - { file: dbt_project.yml, line: 221 }
+        - { file: dbt_project.yml, line: 222 }
+    io:
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: staging, table: stg_io }
+        fields:
+          - { name: "kind", use: [read, filter] }
+          - { name: "resource_path", use: [read, filter] }
+          - { name: "op_direction", use: [read, filter] }
+          - { name: "entry_id", use: [filter] }
+          - { name: "lv_host", use: [read, filter] }
+          - { name: "lv_dbms", use: [read, filter] }
+          - { name: "lv_database", use: [read, filter] }
+          - { name: "lv_schema", use: [read, filter] }
+          - { name: "lv_table", use: [read, filter] }
+          - { name: "lv_instance", use: [read, filter] }
+          - { name: "lv_namespace", use: [read, filter] }
+          - { name: "lv_key_pattern", use: [read, filter] }
+          - { name: "lv_broker", use: [read, filter] }
+          - { name: "lv_topic", use: [read, filter] }
+          - { name: "lv_directory", use: [read, filter] }
+          - { name: "lv_file", use: [read, filter] }
+          - { name: "lv_account", use: [read, filter] }
+          - { name: "lv_bucket", use: [read, filter] }
+          - { name: "lv_prefix", use: [read, filter] }
+          - { name: "lv_object", use: [read, filter] }
+        evidence:
+          - { file: models/core/mart_data_links.sql, line: 7 }
+          - { file: models/core/mart_data_links.sql, line: 9 }
+          - { file: models/core/mart_data_links.sql, line: 10 }
+          - { file: models/core/mart_data_links.sql, line: 11 }
+          - { file: models/core/mart_data_links.sql, line: 12 }
+          - { file: models/core/mart_data_links.sql, line: 15 }
+          - { file: models/core/mart_data_links.sql, line: 18 }
+          - { file: models/core/mart_data_links.sql, line: 23 }
+          - { file: dbt_project.yml, line: 218 }
+          - { file: dbt_project.yml, line: 219 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+        note: "ref('stg_io') は staging の view (+schema: staging を generate_schema_name がそのまま使う)。lv_ の 16 列は levels_key に連結され、levels_key が集計の区切りと結合の条件になる"
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: staging, table: stg_entries }
+        fields:
+          - { name: "entry_id", use: [read, filter] }
+          - { name: "path", use: [read, filter] }
+        evidence:
+          - { file: models/core/mart_data_links.sql, line: 7 }
+          - { file: models/core/mart_data_links.sql, line: 11 }
+          - { file: models/core/mart_data_links.sql, line: 14 }
+          - { file: models/core/mart_data_links.sql, line: 17 }
+          - { file: dbt_project.yml, line: 218 }
+          - { file: dbt_project.yml, line: 219 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+        note: "ref('stg_entries') は staging の view。path は string_agg の中の order by path で並べ替えにも使う"
+      - op: create
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: mart, table: mart_data_links }
+        fields:
+          - { name: "kind", use: [write] }
+          - { name: "resource_path", use: [write] }
+          - { name: "writer_count", use: [write] }
+          - { name: "writers", use: [write] }
+          - { name: "reader_count", use: [write] }
+          - { name: "readers", use: [write] }
+        evidence:
+          - { file: models/core/mart_data_links.sql, line: 26 }
+          - { file: models/core/mart_data_links.sql, line: 27 }
+          - { file: models/core/mart_data_links.sql, line: 28 }
+          - { file: dbt_project.yml, line: 221 }
+          - { file: dbt_project.yml, line: 222 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+        note: "models/core の +materialized: table で表を作る。schema は +schema: mart を generate_schema_name がそのまま使う"
+    rules:
+      - kind: decision
+        value: "外部の接続先 (kind が external_api の読み書き) は、データを介したつながりに含めない"
+        status: fact
+        evidence:
+          - { file: models/core/mart_data_links.sql, line: 12 }
+      - kind: decision
+        value: "同じデータかどうかは、resource_path に加えて、空の段も位置を保って全段の値を並べた levels_key で決める"
+        status: interpretation
+        evidence:
+          - { file: models/core/mart_data_links.sql, line: 9 }
+          - { file: models/core/mart_data_links.sql, line: 22 }
+      - kind: calculation
+        value: "データごとに、書く向き (op_direction が out) の入口の数と path の連結、読む向き (op_direction が in) の入口の数と path の連結を出す"
+        status: interpretation
+        evidence:
+          - { file: models/core/mart_data_links.sql, line: 7 }
+          - { file: models/core/mart_data_links.sql, line: 14 }
+          - { file: models/core/mart_data_links.sql, line: 15 }
+          - { file: models/core/mart_data_links.sql, line: 17 }
+          - { file: models/core/mart_data_links.sql, line: 18 }
+      - kind: decision
+        value: "書く入口と読む入口が違う組が 1 つでもあるデータだけを出す (書く入口と読む入口が同じ 1 件だけのデータは出さない)"
+        status: interpretation
+        evidence:
+          - { file: models/core/mart_data_links.sql, line: 21 }
+          - { file: models/core/mart_data_links.sql, line: 22 }
+          - { file: models/core/mart_data_links.sql, line: 23 }

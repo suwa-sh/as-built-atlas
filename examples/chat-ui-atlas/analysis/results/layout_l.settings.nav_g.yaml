@@ -1,0 +1,336 @@
+format_version: 1
+entry:
+  id: layout_l.settings.nav_g
+  path: /(layout)/settings/(nav)
+  name: (nav)
+  layer: layout
+  source: { file: "src/routes/settings/(nav)/+layout.svelte", line: 1 }
+target:
+  repo: github.com/huggingface/chat-ui
+  name: chat-ui
+  clone_path: ../chat-ui
+  scope: .
+  commit: 62d3bfb703365915ee87862fbd8f459310b4cfc4
+analyzer:
+  profile: { id: ui-sveltekit, version: "0.1.0" }
+  skill_version: "0.4.1"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-18T01:37:10Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T01:36:23Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "設定の画面 (/settings の下) を包む、モデルの一覧のメニューの枠。同じフォルダの +layout.ts は ssr = false を export するだけで、この枠より内側はブラウザだけで描かれる (load は無い)。自分ではデータを読み書きせず、祖先の枠の load から来る data.models と data.mlAssistantModels と、設定の store ($settings) の値を読むだけ。ML Intern のモードの機能が入っていてスイッチが入っていれば、モデルの一覧をそのモードのモデルだけに絞り、一覧に出さない印 (unlisted) のモデルと、検索欄の言葉に合わないモデルを除いて、モデルごとのボタンを出す。HuggingChat の配備なら、モデルの provider の印を出し、provider の組織のアイコンを huggingface.co から img で取りに行く。モデルのボタンは /settings/<モデルの id> へ、Application Settings のボタンは /settings/application へ、閉じるのボタンは設定に入る前の画面へ、戻るのボタンは /settings へ移る。画面の幅が広く、URL が /settings そのものなら、/settings/application へ移す。URL が /settings でなければ、包まれる画面 (children) を描く"
+  evidence:
+    - { file: "src/routes/settings/(nav)/+layout.ts", line: 1 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 35 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 101 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 110 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 111 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 184 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 185 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 218 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 246 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 191 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 293 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 146 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 130 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 62 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 68 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 94 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 305 }
+    - { file: "src/routes/settings/(nav)/+layout.svelte", line: 310 }
+notes: "(1) 枠の外側 (layout_l、layout_l.settings) とフック (hooks_h) と、包まれる画面 (children) は辿っていない。data.models、data.mlAssistantModels、publicConfig、設定の store の中身は、祖先の枠 (src/routes/+layout.ts の load と +layout.svelte) が用意するものなので、parameters に書いただけで、出どころは辿っていない。(2) 同じフォルダの +layout.ts は ssr = false だけなので、プロファイルの決まりのとおりフレームにせず、入口の summary に書いた。+layout.server.ts は無い。(3) 同じフォルダに +server.ts (POST /settings。settings のコレクションを更新する) があり、設定の store (src/lib/stores/settings.ts) の set / update / instantSet / initValue が呼ぶ。この枠は useSettingsStore() で store を得て $settings を読むだけで、書き込みの関数を呼ばないので、POST /settings には届かない。store は getContext で得るだけなので段にしていない。mlAssistant (src/lib/stores/mlAssistant.svelte.ts) も、状態を持つだけで API を呼ばないので段にしていない。(4) データに届かない枠なので、プロファイルの決まりのとおり、最後に頼るライブラリ ($app/navigation の goto) を external のフレームにして閉じた。analysis-conventions.md の「external のフレームは、ライブラリのメソッドを呼ぶ行ごとに 1 つ (同じ関数の中で何度も呼ぶときだけまとめる)」に従い、goto を呼ぶ 5 行 (68、130、146、191、293) は、それぞれ別の関数 (checkDesktopRedirect とボタンの onclick) にあるので、5 つのフレームに分けた (umami-atlas の sso の結果も、router.push の行ごとに分けている)。行き先の入口は、goto を呼ぶ段 (入口のフレーム) の links に書いた。(5) img の読み込みは、umami-atlas の結果 (Favicon が icons.duckduckgo.com へ img で取りに行くのを external_api の call にした) に合わせて、I/O に書いた。provider の組織のアイコンは URL がコードに直接書いてあるので fact。モデルのアイコン (model.logoUrl) は、祖先の load が渡すモデルの値で決まり、この入口からは読めないので unknown (dynamic_dispatch)。(6) ML_ASSISTANT_MODE は、実行時の config ではなく、ビルドのときに vite.config.ts の define が埋め込む定数。analysis-conventions.md の「config を通す」の書き方は当たらないので、環境変数の名前で kind: env にし、note にビルドのときの値であることを書いた。分かれ道は、ビルドの設定と、利用者のスイッチ (mlAssistant.enabled) の状態の組み合わせで決まる。はじめは settings だけに書いたが、レビューの指摘 (low) で、設定だけで分かれる処理ではなく、コードのコメント (108-109 行) に業務の理由もあるので、rules (decision) にも書いた。PUBLIC_APP_ASSETS は、ブラウザが publicConfig (サーバーの config.getPublicConfig が PUBLIC_ で始まるキーを渡す) を通して読むので、analysis-conventions.md のとおり note に「config を通す」と書いた。(7) 閉じるのボタンの行き先 previousPage は、はじめは base || \"/\" (root_r に当たる) で、settings を含まない URL の画面から移ってきたときは、その URL (from.url.toString()) になる。読める前者は entry_id 付きで、読めない後者は式のまま unknown (dynamic_dispatch) にした。(8) 戻るのボタン (130 行) は md:hidden で、狭い画面でだけ見える (CSS の出し分け)。call の condition には、描く条件 (中身を出しているとき) と、押したときだけを書いた。(9) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(10) レビューの指摘は low の 1 件で、直した (ML Intern のモードでモデルを絞る決まりを rules に足した)。レビューが notes に残した、アバターの画像の応答を fields の * の read で書くか (slack.connect は Slack の応答を * の read で書いている) は、画像は列を持つデータではないので、書いていない"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: layout
+    layer: layout
+    kind: layout
+    name: "(nav) の layout (src/routes/settings/(nav)/+layout.svelte)"
+    source: { file: "src/routes/settings/(nav)/+layout.svelte", line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "props の data (祖先の枠の load の結果) と children を受け取る。開いたときと画面を移るたびに、URL が /settings でなければ中身を出す印を立て、画面の幅の確かめ (checkDesktopRedirect) と、選んでいるモデルのボタンを見える所までスクロールすることを行う。窓の大きさが変わったときも、100ms の間引きで幅を確かめ直す。settings を含まない画面から移ってきたときは、その URL を閉じるときの戻り先として覚える。左に、検索欄と、モデルごとのボタン (アイコン、表示名、HuggingChat なら provider の印、ツールと画像の入力の印、独自のプロンプトの印、使用中の印) と、Application Settings のボタンを出す。狭い画面で中身を出しているときは、一覧を隠して戻るのボタンを出す。右に、包まれる画面 (children) を描く"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 35 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 72 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 74 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 76 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 79 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 83 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 84 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 89 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 90 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 91 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 94 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 124 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 154 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 169 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 183 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 218 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 254 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 265 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 276 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 281 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 291 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 305 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 310 }
+    parameters:
+      - name: data.models
+        value: "祖先の枠の load が渡すモデルの一覧 (id、表示名、アイコン、ツールや画像の入力に対応するか、一覧に出さない印など)"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 35 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 116 }
+      - name: data.mlAssistantModels
+        value: "祖先の枠の load が渡す、ML Intern のモードで使うモデルの id の並び (この順で一覧に出す)"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 113 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 114 }
+      - name: page.params.model
+        value: "URL の [...model] の段の値。選んでいるモデルのボタンを強調し、見える所までスクロールする"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 46 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 193 }
+      - name: page.url.pathname
+        value: "いまの URL のパス。/settings そのものかで、中身を出すかと、幅の広い画面での移動を決める"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 65 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 74 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 94 }
+      - name: $settings
+        value: "設定の store (祖先の枠が用意する)。providerOverrides、toolsOverrides、multimodalOverrides、customPrompts、activeModel を読んで、モデルのボタンの印を決める"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 101 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 218 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 254 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 265 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 276 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 281 }
+          - { file: src/lib/stores/settings.ts, line: 41 }
+      - name: mlAssistant.enabled
+        value: "ML Intern のモードのスイッチの状態 (ブラウザの中の状態)"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 110 }
+          - { file: src/lib/stores/mlAssistant.svelte.ts, line: 14 }
+    links:
+      - kind: navigate
+        target: "${base}/settings/application"
+        entry_id: settings.application
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 68 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 293 }
+        note: "Application Settings のボタンを押したとき (293 行) と、画面の幅が広く URL が /settings そのもののとき (68 行)"
+      - kind: navigate
+        target: "${base}/settings/${model.id}"
+        entry_id: settings.model_c
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 191 }
+        note: "モデルのボタンを押したとき。モデルの id は / を含むことがあり、[...model] の段が受ける"
+      - kind: navigate
+        target: "${base}/settings"
+        entry_id: settings
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 130 }
+        note: "狭い画面で中身を出しているときの、メニューへ戻るボタン"
+      - kind: navigate
+        target: "base || \"/\""
+        entry_id: root_r
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 37 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 146 }
+        note: "閉じるのボタン。戻り先 previousPage のはじめの値 (settings の外の画面から移ってきていないとき)"
+      - kind: navigate
+        target: "from.url.toString()"
+        status: unknown
+        reason: dynamic_dispatch
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 90 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 91 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 146 }
+        note: "閉じるのボタン。settings を含まない URL の画面から移ってきたときは、その画面の URL へ戻る。どの画面かは実行時に決まる"
+    rules:
+      - kind: decision
+        value: "一覧に出さない印 (unlisted) のモデルは、設定のメニューにも出さない"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 184 }
+      - kind: decision
+        value: "ML Intern のモードのスイッチが入っているときは、そのモードの決まったモデルだけを、決まった順で一覧に出す (ほかのモデルは、送信のときに既定のモデルに替えられるため)"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 108 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 109 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 110 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 113 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 114 }
+      - kind: decision
+        value: "画面の幅が 768px より広く、URL が /settings そのものなら、モデルを選ぶ前の空の画面を出さずに、アプリの設定の画面 (/settings/application) へ移す"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 62 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 64 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 65 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 68 }
+          - { file: src/lib/utils/isDesktop.ts, line: 2 }
+          - { file: src/lib/utils/isDesktop.ts, line: 6 }
+    settings:
+      - name: ML_ASSISTANT_MODE
+        kind: env
+        effect: "true でビルドし、ML Intern のモードのスイッチが入っていると、モデルの一覧を、そのモードのモデル (data.mlAssistantModels) だけに、その順で絞り、絞っていることの文言を出す。選んで移れるモデルの画面も、それだけになる"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 110 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 112 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 178 }
+          - { file: src/lib/utils/mlAssistantFlag.ts, line: 13 }
+          - { file: vite.config.ts, line: 29 }
+        note: "実行時の config ではなく、ビルドのときの環境変数を vite.config.ts の define が __ML_ASSISTANT_MODE__ として埋め込む定数。配備の後に環境変数を変えても切り替わらない"
+      - name: PUBLIC_APP_ASSETS
+        kind: env
+        effect: "huggingchat のときだけ、モデルのボタンに provider の印を出し、provider の組織のアイコンを huggingface.co から取りに行く"
+        status: fact
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 218 }
+          - { file: src/lib/utils/PublicConfig.svelte.ts, line: 34 }
+          - { file: src/lib/server/config.ts, line: 128 }
+          - { file: src/lib/server/config.ts, line: 136 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)。ブラウザは、祖先の枠の load が受け取った publicConfig (config.getPublicConfig が PUBLIC_ で始まるキーを渡す) の isHuggingChat を読む"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: huggingface.co, path: "/api/avatars/*" } }
+        fields:
+          - { name: hubOrg, use: [write] }
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 218 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 220 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 240 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 246 }
+        note: "ブラウザが img の src として取りに行く。HuggingChat の配備で、モデルに出す provider があり (利用者の選んだ provider か、モデルの既定の provider。auto は除く)、それが fastest でも cheapest でもなく、@huggingface/inference の PROVIDERS_HUB_ORGS に組織があるとき、モデルのボタンごとに、その組織の名前を URL のパスに入れて送る"
+      - op: call
+        status: unknown
+        reason: dynamic_dispatch
+        resource: { kind: external_api }
+        evidence:
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 202 }
+          - { file: "src/routes/settings/(nav)/+layout.svelte", line: 204 }
+        note: "モデルのアイコン (model.logoUrl) を、ブラウザが img の src として取りに行く (router のモデルでなく、logoUrl があるとき)。URL は祖先の枠の load が渡すモデルの値で決まり、この入口からは読めない (モデルの一覧を作る src/lib/server/models.ts:292 は、Hugging Face の router のモデルに https://huggingface.co/api/avatars/<組織> を入れるが、設定のモデルの定義で別の URL も書ける。models.ts:28)"
+
+  # ---------------------------------------------------------------- 画面の遷移 (ライブラリ)
+  - id: ext_goto_desktop_redirect
+    layer: external
+    kind: library
+    name: "$app/navigation goto (checkDesktopRedirect の ${base}/settings/application)"
+    source: { file: "src/routes/settings/(nav)/+layout.svelte", line: 68 }
+    caller: layout
+    call:
+      status: fact
+      when: conditional
+      condition: "開いたとき、画面を移った後、窓の大きさを変えたときに、画面の幅が広く、URL が /settings そのものであれば"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 4 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 62 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 68 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 76 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 84 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 96 }
+    summary:
+      status: interpretation
+      value: "SvelteKit のルーター。アプリの設定の画面へ移る。データには触れない"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 68 }
+
+  - id: ext_goto_back_to_menu
+    layer: external
+    kind: library
+    name: "$app/navigation goto (戻るのボタンの ${base}/settings)"
+    source: { file: "src/routes/settings/(nav)/+layout.svelte", line: 130 }
+    caller: layout
+    call:
+      status: fact
+      when: conditional
+      condition: "中身 (包まれる画面) を出しているときに描く、メニューへ戻るボタンを押したとき"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 124 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 128 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 130 }
+    summary:
+      status: interpretation
+      value: "中身を出す印を下ろしてから、SvelteKit のルーターで /settings へ移る。データには触れない"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 129 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 130 }
+
+  - id: ext_goto_close
+    layer: external
+    kind: library
+    name: "$app/navigation goto (閉じるのボタンの previousPage)"
+    source: { file: "src/routes/settings/(nav)/+layout.svelte", line: 146 }
+    caller: layout
+    call:
+      status: fact
+      when: conditional
+      condition: "閉じるのボタンを押したとき"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 145 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 146 }
+    summary:
+      status: interpretation
+      value: "SvelteKit のルーターで、設定に入る前の画面 (覚えていなければアプリの最初の画面) へ移る。データには触れない"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 37 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 91 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 146 }
+
+  - id: ext_goto_model
+    layer: external
+    kind: library
+    name: "$app/navigation goto (モデルのボタンの ${base}/settings/${model.id})"
+    source: { file: "src/routes/settings/(nav)/+layout.svelte", line: 191 }
+    caller: layout
+    call:
+      status: fact
+      when: conditional
+      condition: "一覧を出しているときに、モデルのボタンを押したとき"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 154 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 183 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 191 }
+    summary:
+      status: interpretation
+      value: "SvelteKit のルーターで、押したモデルの設定の画面へ移る。データには触れない"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 191 }
+
+  - id: ext_goto_application
+    layer: external
+    kind: library
+    name: "$app/navigation goto (Application Settings のボタンの ${base}/settings/application)"
+    source: { file: "src/routes/settings/(nav)/+layout.svelte", line: 293 }
+    caller: layout
+    call:
+      status: fact
+      when: conditional
+      condition: "一覧を出しているときに、Application Settings のボタンを押したとき"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 154 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 291 }
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 293 }
+    summary:
+      status: interpretation
+      value: "SvelteKit のルーターで、アプリの設定の画面へ移る。データには触れない"
+      evidence:
+        - { file: "src/routes/settings/(nav)/+layout.svelte", line: 293 }

@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: core.mart_data_links
+reviewed_at: "2026-11-17T22:35:34Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/mart_data_links/io/1/fields
+    claim: "stg_entries の entry_id が filter だけになっているが、mart_data_links.sql:7 は e.entry_id と stg_entries 側の列を明示して select し、その値が pairs の a.entry_id <> b.entry_id (23 行) に使われるので、read も付く"
+    evidence: { file: models/core/mart_data_links.sql, line: 7 }
+    suggestion: "stg_entries の entry_id を use: [read, filter] にし、notes の「using で 1 つにまとまった entry_id を select」の説明を e.entry_id を select していることに合わせて直す"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/mart_data_links/io/0/fields
+    claim: "stg_io の entry_id が read と filter になっているが、stg_io 側の entry_id は join ... using (entry_id) (11 行) の結合にだけ使われ、select されるのは e.entry_id (stg_entries 側) なので、read は付かない"
+    evidence: { file: models/core/mart_data_links.sql, line: 11 }
+    suggestion: "stg_io の entry_id を use: [filter] にする"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/mart_data_links/summary
+    claim: "フレームの概要の「stg_io と stg_entries を entry_id で結び」と「external_api 以外の読み書き」を支える行 (11 行の join ... using (entry_id) と 12 行の where i.kind <> 'external_api') が根拠に無い (挙げた 7 行は select の列だけ)"
+    evidence: { file: models/core/mart_data_links.sql, line: 11 }
+    suggestion: "mart_data_links.sql の 11 行と 12 行を、フレームの summary の根拠に足す"
+    resolved: true
+notes: "根拠の行番号 (mart_data_links.sql:1/7/9/12/14/15/17/18/21/22/23/26-29、dbt_project.yml:218/219/221/222、generate_schema_name.sql:6、profiles.yml:6) はすべて主張の行を指していた。表の段 (dbms duckdb、staging/mart の schema、database を書かない) と、+schema / +materialized の行を io と summary の両方の根拠に入れる扱いは analysis-conventions.md に沿う。書く表の列 6 つは最後の select (26-28 行) と一致し、levels_key が出力に無いことも合っている。lv_ の 16 列を read と filter にした扱いは、context.md の「結合・集計の区切りに使う列は filter」から妥当とみた。io の CTE の select distinct (7 行) は、同じ入口が同じデータを何度読み書きしても 1 回に数える重複除去で、context.md の rules に挙がる「重複を除く決まり」に当たり得るが、calculation のルールが 7 行を根拠に「入口の数」と書いているので指摘にしなかった (別のルールとして書き分けてもよい)。範囲に macro の呼び出し・hook・var / env_var による分岐・tests/ や unit_tests は無く、schema.yml の mart_data_links にも列やテストが無いので、macro のフレーム・settings・tests の漏れは無い。"

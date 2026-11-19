@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: dashboards.dashboard_o
+reviewed_at: "2026-11-19T05:51:01Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    resolved: true
+    where: callstack/watch_route/call
+    claim: "context.md の「値の変化を見張って動く処理」は caller を「見張っている値を変える側のフレーム」と決めているが、watch_route の caller は、見張りを登録したファイルのフレーム dashboard になっている。見張る値 route.params.dashboard / route.params.tenant を変えるのは URL (フレーム route が渡す段) と load の router.push / router.replace で、Dashboard.vue のフレーム自身ではない。"
+    evidence: { file: src/components/dashboard/Dashboard.vue, line: 218 }
+    suggestion: "caller を、URL の段を渡すフレーム route にする (load も値を変えるが、watch が load を呼ぶので、入口から辿る順で先に着く route が自然)。note の「見張りは Dashboard.vue が登録するので」の理由は、context.md の決まりに合わせて書き直す。"
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/client_get_default_dashboards_for_id/io/0
+    claim: "path の GET /api/v1/main/dashboards/settings/default-dashboards の main は basePath() の固定の値 (override/utils/route.ts:15) から来るが、根拠は apiUrl() の行 (route.ts:19) だけで、main を決める行と、client を作る行 (dashboard.ts:66) が無い (同じ呼び出しの最初のフレーム client_get_default_dashboards には、どちらもある)。"
+    evidence: { file: src/override/utils/route.ts, line: 15 }
+    suggestion: "根拠に src/override/utils/route.ts:15 と src/stores/dashboard.ts:66 を足す。"
+notes: "(1) 根拠の行は、Dashboard.vue / Header.vue / Sections.vue / stores/dashboard.ts / dashboardFilters.ts / namespaceValueProvider.ts / useBaseNamespaces.ts / Selector.vue / route.ts / routes.ts / dashboard-types.ts / types.ts / bookmarks.ts / useTenant.ts / TopNavBar.vue / AppTopNavBar.vue / KsBreadcrumb(Menu).vue と、SDK の Dashboards.gen.ts / Namespaces.gen.ts / sdk.gen.ts の URL の行をすべて開き、主張を支えていることを確かめた。SDK の URL・HTTP メソッド・テナントの段 (main の固定と {tenant}) は、どれもコードと合う。(2) スマホの時の選択の部品 (Dashboard.vue:4) を閉じた扱いにしているのは、前のレビューでは指摘したが、いまの分析の skill の「A && B は、どちらか 1 つが閉じていれば、閉じている」(isFlow は、route が props を渡さないことで効く既定値 false) に合うので、指摘にしない。(3) dashboard.loadDefaults を getDashboardId の下にもう一度書いている (store_load_defaults_for_id) のは、context.md の「もう一度書くのは、終端の決まりを満たせないときだけ」から見ると、getDashboardId が業務のルールを持つので必須ではない。ただ、レビューの skill の「判定の後に外への呼び出しが続くのに、その先のフレームが無ければ missing_frame」とは合うので、指摘にしない (どちらに寄せるかは、人が決める)。(4) Selector.vue (OSS 版) は dashboard の知らせを出さないので、Header.vue:11 の load が呼ばれないという読みは正しい。(5) この範囲の auth store (override/stores/auth.ts) は isAllowed / hasAnyAction / hasAnyActionOnAnyNamespace がいつも true を返すが、結果はそれを note に書いたうえで guard を残しており、妥当。"

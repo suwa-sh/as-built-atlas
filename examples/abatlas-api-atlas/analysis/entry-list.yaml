@@ -1,0 +1,256 @@
+format_version: 1
+target:
+  repo: github.com/suwa-sh/as-built-atlas
+  name: as-built-atlas (API + MCP)
+  clone_path: ../as-built-atlas
+  scope: abatlas
+  commit: aa48c0046e528ce4c04b1e778b5cd38ebc94b069
+profile:
+  id: api
+  version: 0.1.0
+extractors:
+- name: http-routes
+  run: abatlas-extract ast
+  layer: operation
+  rationale: OpenAPI の定義ファイルはリポジトリに無い (FastAPI が実行時に /openapi.json を作る) ので、コードの登録
+    (api.py の create_app の中の @app.<method>("<path>") の飾り) を ast で拾う。FastAPI は MCP
+    の Starlette アプリの下に "/" で Mount されるので、共通の接頭辞は無く、(outside) の段も要らない。id の加工は openapi-operations
+    と同じにした。 unresolved で拾う app.mount("/", StaticFiles) は、静的な webapp (中身が決まっているものを返すだけ)
+    なので入口にしない。 Mount("/", app=api) は、MCP のアプリの下に API を差し込む行で、操作ではない。/mcp (streamable
+    HTTP の転送口) も操作ではなく、 その上のツールを mcp-tools で入口にする。FastAPI が自動で足す /openapi.json・/docs・/redoc
+    は、コードに登録が無い文書の route なので入口にしない。
+  params:
+    files:
+    - '**/*.py'
+    language: python
+    rule:
+      pattern: '@app.$M($PATH)'
+    fields:
+      path: '{PATH}/{M}'
+      name: '{M} {PATH}'
+      attributes:
+        method: '{M}'
+        route: '{PATH}'
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\{(.+)\}$
+        with: \1_d
+      - pattern: ^\(root\)$
+        with: root_r
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    unresolved:
+      any:
+      - pattern: $X.mount($$$A)
+      - pattern: Mount($$$A)
+      - pattern: $X.add_api_route($$$A)
+      - pattern: $X.include_router($$$A)
+- name: mcp-tools
+  run: abatlas-extract ast
+  layer: operation
+  rationale: MCP のツールは mcp_server.py の build_server の中で、@mcp.tool() を付けた async 関数として登録され、ツールの名前は関数の名前
+    (飾りに name の引数は無い)。階層は「まとまり + 名前」で、まとまりは MCP の転送口の path と同じ mcp にした (HTTP の route
+    と 第 1 段で分かれる)。同じツールを stdio で出す経路 (cli.py の abatlas mcp → mcp_server.run) は、転送が違うだけで入口を増やさない。
+    unresolved に、名前を引数で渡すツール・リソース・プロンプトの登録を書いたが、一致は無い。
+  params:
+    files:
+    - '**/*.py'
+    language: python
+    rule:
+      pattern: "@mcp.tool()\nasync def $NAME($$$ARGS) -> $R:\n    $$$BODY"
+    fields:
+      path: '{NAME}'
+      name: tool {NAME}
+      attributes:
+        tool: '{NAME}'
+    segments:
+      prefix: mcp
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    unresolved:
+      any:
+      - pattern: $S.add_tool($$$A)
+      - pattern: '@mcp.resource($$$A)'
+      - pattern: '@mcp.prompt($$$A)'
+entries:
+- id: health.get
+  path: /health/get
+  layer: operation
+  source:
+    file: api.py
+    line: 226
+  extractor: http-routes
+  status: candidate
+  name: get /health
+  attributes:
+    method: get
+    route: /health
+- id: marts.get
+  path: /marts/get
+  layer: operation
+  source:
+    file: api.py
+    line: 230
+  extractor: http-routes
+  status: candidate
+  name: get /marts
+  attributes:
+    method: get
+    route: /marts
+- id: marts.name_d.get
+  path: /marts/{name}/get
+  layer: operation
+  source:
+    file: api.py
+    line: 236
+  extractor: http-routes
+  status: candidate
+  name: get /marts/{name}
+  attributes:
+    method: get
+    route: /marts/{name}
+- id: marts.name_d.groups.get
+  path: /marts/{name}/groups/get
+  layer: operation
+  source:
+    file: api.py
+    line: 312
+  extractor: http-routes
+  status: candidate
+  name: get /marts/{name}/groups
+  attributes:
+    method: get
+    route: /marts/{name}/groups
+- id: marts.name_d.pivot.post
+  path: /marts/{name}/pivot/post
+  layer: operation
+  source:
+    file: api.py
+    line: 356
+  extractor: http-routes
+  status: candidate
+  name: post /marts/{name}/pivot
+  attributes:
+    method: post
+    route: /marts/{name}/pivot
+- id: marts.name_d.rows.get
+  path: /marts/{name}/rows/get
+  layer: operation
+  source:
+    file: api.py
+    line: 244
+  extractor: http-routes
+  status: approved
+  name: get /marts/{name}/rows
+  attributes:
+    method: get
+    route: /marts/{name}/rows
+- id: marts.name_d.tree.get
+  path: /marts/{name}/tree/get
+  layer: operation
+  source:
+    file: api.py
+    line: 285
+  extractor: http-routes
+  status: candidate
+  name: get /marts/{name}/tree
+  attributes:
+    method: get
+    route: /marts/{name}/tree
+- id: mcp.describe__atlas
+  path: /mcp/describe_atlas
+  layer: operation
+  source:
+    file: mcp_server.py
+    line: 101
+  extractor: mcp-tools
+  status: candidate
+  name: tool describe_atlas
+  attributes:
+    tool: describe_atlas
+- id: mcp.describe__mart
+  path: /mcp/describe_mart
+  layer: operation
+  source:
+    file: mcp_server.py
+    line: 78
+  extractor: mcp-tools
+  status: candidate
+  name: tool describe_mart
+  attributes:
+    tool: describe_mart
+- id: mcp.group__mart
+  path: /mcp/group_mart
+  layer: operation
+  source:
+    file: mcp_server.py
+    line: 88
+  extractor: mcp-tools
+  status: candidate
+  name: tool group_mart
+  attributes:
+    tool: group_mart
+- id: mcp.list__marts
+  path: /mcp/list_marts
+  layer: operation
+  source:
+    file: mcp_server.py
+    line: 73
+  extractor: mcp-tools
+  status: candidate
+  name: tool list_marts
+  attributes:
+    tool: list_marts
+- id: mcp.query__mart
+  path: /mcp/query_mart
+  layer: operation
+  source:
+    file: mcp_server.py
+    line: 83
+  extractor: mcp-tools
+  status: approved
+  name: tool query_mart
+  attributes:
+    tool: query_mart
+- id: mcp.recompute
+  path: /mcp/recompute
+  layer: operation
+  source:
+    file: mcp_server.py
+    line: 96
+  extractor: mcp-tools
+  status: candidate
+  name: tool recompute
+  attributes:
+    tool: recompute
+- id: meta.get
+  path: /meta/get
+  layer: operation
+  source:
+    file: api.py
+    line: 270
+  extractor: http-routes
+  status: candidate
+  name: get /meta
+  attributes:
+    method: get
+    route: /meta
+- id: recompute.post
+  path: /recompute/post
+  layer: operation
+  source:
+    file: api.py
+    line: 400
+  extractor: http-routes
+  status: approved
+  name: post /recompute
+  attributes:
+    method: post
+    route: /recompute
+enumerated_at: '2026-11-18T00:29:22+00:00'

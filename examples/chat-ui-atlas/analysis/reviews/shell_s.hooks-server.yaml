@@ -1,0 +1,49 @@
+format_version: 1
+entry_id: shell_s.hooks-server
+reviewed_at: "2026-11-18T01:54:52Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/q_handle_request/links/0
+    claim: "ログインへ移す先の target は式 authorizationUrl のままで、値 (OIDC の提供者の authorization_endpoint) は提供者の discovery の文書で決まりリポジトリから読めないのに、状態が interpretation になっている (分析の skill は、行き先が式で決まり値が読めないときは、式を target に書いて unknown にすると決めている)"
+    evidence: { file: src/lib/server/auth.ts, line: 352 }
+    suggestion: "状態を unknown にし、reason を not_traceable_in_repo にして、note に「行き先は OIDC の提供者の discovery の文書の authorization_endpoint で決まる」と書く"
+    resolved: true
+  - kind: missing_frame
+    severity: medium
+    where: callstack/q_trigger_oauth_flow
+    claim: "triggerOauthFlow が呼ぶ getOIDCAuthorizationUrl (auth.ts:330、src/lib/server/** なので query) がフレームになっておらず、summary で触れるだけになっている。この関数は getOIDCClient を通して Issuer.discover (外部の API の呼び出し) に至る経路の上にあり、context.md はデータの読み書きに至る経路の上の関数をフレームにすると決めている (getOIDCAuthorizationUrl 自身は、この入口で初めて着く処理)。その中の openid-client のメソッド client.authorizationUrl (auth.ts:352) にも external のフレームが無い。終端は ext_kit_redirect_oauth があるので、コールスタックは切れていない"
+    evidence: { file: src/lib/server/auth.ts, line: 605 }
+    suggestion: "q_trigger_oauth_flow の下に getOIDCAuthorizationUrl の query のフレームを足し、その下に openid-client Client.authorizationUrl の external のフレームを足す (getOIDCClient は、summary で「経路はフレーム q_get_oidc_client と同じ」と書くままでよい)"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_acquire_lock
+    claim: "同じ関数を 1 回だけ書く順を、context.md の hook の並び (handle、handleFetch、handleError、init) にしているが、context.md の「同じ処理が何度も呼ばれるとき」は、コードに書いてある順に深さ優先で辿ると決めており、src/hooks.server.ts では init (8 行) が handle (13 行) より先にある。その順なら acquireLock、isDBLocked、releaseLock、refreshLock は checkAndRunMigrations の下に着く"
+    evidence: { file: src/hooks.server.ts, line: 8 }
+    suggestion: "hook の子をコードの順 (init、handle、handleError、handleFetch) で辿り直し、lock の 4 つの関数を q_check_and_run_migrations の下に移して、findUser の summary では「経路はフレーム <id> と同じ」と書く。context.md の並びを優先したのなら、その判断を conventions に書いて合意にする"
+    resolved: true
+  - kind: missing_frame
+    severity: low
+    where: callstack/q_generation_reaper
+    claim: "GenerationReaper は終了の合図で finalizeActiveRunsOnExit (finalize.ts:79) を動かすが、summary の中で「辿っていない」と書くだけで、フレームも unknown の主張も無い。finalizeActiveRunsOnExit は、このサーバーの実行中の生成ごとに markGenerationInterrupted を呼ぶだけで、その先はフレーム q_mark_generation_interrupted と同じ"
+    evidence: { file: src/lib/server/generation/reaper.ts, line: 66 }
+    suggestion: "finalizeActiveRunsOnExit の query のフレーム (when は conditional、condition は「サーバーの終了の合図を受けたとき」) を足す。参照だけにするとこのフレームが終端の決まりに落ちるので、context.md の「同じ処理が何度も呼ばれるとき」のとおり、その下に markGenerationInterrupted を、終端の決まりを満たすフレーム (I/O を持つ段) まで、もう一度書く"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_refresh_conversation_stats/io/2/fields
+    claim: "conversations の aggregate で、sessionId は $facet の中の $match (sessionId が有るもの) の条件にも使っているのに、use が read だけになっている"
+    evidence: { file: src/lib/jobs/refresh-conversation-stats.ts, line: 147 }
+    suggestion: "sessionId の use を [filter, read] にし、根拠に refresh-conversation-stats.ts:147 を足す"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_init_server/rules/0
+    claim: "このルールは、PUBLIC_APP_ASSETS が huggingchat で SESSION_OAUTH_ENCRYPTION_KEY が無ければ起動を止める、という設定だけで分かれる処理で、同じ内容が settings の SESSION_OAUTH_ENCRYPTION_KEY と PUBLIC_APP_ASSETS に書いてある (分析の skill は、設定で分かれる処理を settings だけに書き、rules に重ねないと決めている)"
+    evidence: { file: src/lib/server/hooks/init.ts, line: 37 }
+    suggestion: "rules から消し、settings の 2 件だけに残す"
+    resolved: true
+notes: "(1) 根拠の行は、src/hooks.server.ts、src/lib/server/hooks/ の 4 ファイル、auth.ts、config.ts、lock.ts、readOnly.ts、adminToken.ts、sessionOauth.ts、database.ts のコレクションの行、migrations.ts、routines/index.ts、refresh-conversation-stats.ts、abortedGenerations.ts、reaper.ts、finalize.ts、agentRuns.ts、.env:320、metrics.ts、vite.config.ts、mlAssistantFlag.ts、mlRegistry/enabled.ts、各 sweeper の定義の行で確かめ、主張を支えていないものは見つからなかった。(2) init の子を conditional にしたこと (HuggingChat の鍵が無ければ起動を止めるかが設定で決まる)、authenticateRequest の手前の /admin の 500 を条件に書いたこと、findUser の users.findOne を always にしたこと (手前はセッションが見つからない打ち切りだけ) は、分析の skill の when の決まりに合っているので指摘にしていない。(3) 移行の一覧が空の並び (routines/index.ts:15) で閉じているという判断は、3 つの条件 (コードに直接書いた値、その値だけで決まる、別の経路が無い) を満たし、checkAndRunMigrations の summary の note に値と行があるので妥当。refreshLock は移行の経路からは実際には呼ばれないが、refreshConversationStats の lock を保つ処理 (maintainLock、refresh-conversation-stats.ts:270) からは実際に呼ばれる。(4) init の summary の note にある、段にしないもの (initExitHandler、MetricsServer、loadMcpServersOnStartup、getShareThumbnailPng、displayToken) は、どれもデータの読み書きに至らないことを確かめた (metrics.ts と exitHandler.ts に collections も fetch も無い)。(5) ParkedCallSweeper など 5 つの not_analyzed は、note に読んだ所と止めた理由があり、conventions と context.md は打ち切りを禁じていないので指摘にしていない。(6) /admin の下の Bearer の確認を guards の other にしたことは、利用者のログインではなく共有の秘密の確認なので、妥当と見た。(7) AbortedGenerations の createdAt と conversations.stats の date.at を filter にしているのは並べ替えの条件で、分析の skill の use の決まり (並べ替えの条件も filter) に合う。(8) refreshConversationStats の summary は、lock を取れなかったとき 10 秒ごとに取り直すこと (refresh-conversation-stats.ts:275-277) に触れていないが、表現の範囲なので指摘にしていない。(9) checkAndRunMigrations の getClient().connect() (migrations.ts:25) は external のフレームが無いが、データの読み書きに至らず、summary で「DB に接続し」と触れているので指摘にしていない。(10) ほかの入口の結果 (layout_l.settings.nav_g、slack.connect) の ML_ASSISTANT_MODE、PUBLIC_APP_ASSETS、SLACK_ML_ENABLED は、同じ綴りと kind だった"

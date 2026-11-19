@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: marts.name_d.rows.get
+reviewed_at: "2026-11-18T00:15:51Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/where/rules/2
+    claim: "接尾辞が無いときを「文字の一致」と書いているが、api.py 84 行は列を varchar に変えずに列の型のまま値と比べる (ほかの接尾辞は 64 行で varchar に変えて比べる)。数値の列では、文字の一致ではなく値の一致になる"
+    evidence: { file: api.py, line: 84 }
+    suggestion: "「接尾辞が無ければ、列の型のままの一致 (ほかの比べ方と違い、文字に変えない)」と書き直す"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/query_mart
+    claim: "並べ替えの決まり (先頭の - で降順、それ以外は昇順、null は常に最後 nulls last、order が無ければ mart の順) が rules に無い。parameters の説明に降順だけがあり、null の並びは書かれていない"
+    evidence: { file: api.py, line: 262 }
+    suggestion: "query_mart の rules に kind decision で、並べ替えの向きと nulls last を、根拠 api.py 258〜262 行で足す"
+    resolved: true
+notes: "指摘にしなかったこと。(1) limit / offset の範囲の rule を interpretation にしているのは、範囲の値は 243 行にそのまま書いてあるが、拒む動きは FastAPI の中なので、妥当と見た。(2) 同じキーの絞り込みがクエリ文字列に 2 回あると、245 行の dict 内包で後ろの値だけが残る (multi_items を辞書にしている)。入力の取り出しの細部なので指摘にしないが、書くなら query_mart の rules (decision) に足せる。(3) Host の確認を guards (kind other) と rules の両方に書いた重なりは、notes に理由があり、機械チェックの終端の決まりのためと確かめた。(4) 対象の範囲に OpenAPI の定義ファイルが無いこと (先頭が openapi: / swagger: のファイルが無い) を確かめた。(5) ABATLAS_DUCKDB を settings に書かないのは、context.md の接続先の扱いに合う。(6) 実体の表の読み取りを unknown + generated_at_runtime にしたのは、context.md の典型例 (DB に保存された定義から問い合わせを組み立てる) に合う。"

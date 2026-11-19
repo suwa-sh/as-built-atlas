@@ -1,0 +1,870 @@
+format_version: 1
+entry:
+  id: facade.validate-config.feature-flag
+  path: /facade/validate-config/feature-flag
+  name: "validate-config.sh --feature-flag"
+  layer: command
+  source: { file: facade/src/presentation/validate-config.sh, line: 69 }
+target:
+  repo: github.com/suwa-sh/relay-gate
+  name: RelayGate
+  clone_path: ../relay-gate
+  scope: .
+  commit: aa6993823306a84935b99824059fa544779bc212
+analyzer:
+  profile: { id: cli, version: "0.1.0" }
+  skill_version: "0.4.2"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-19T06:11:14Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-19T06:10:07Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "feature flag の設定ファイル (KEY=value) を検証するコマンド。ファイルがあり読めることを確かめ、一時ファイルへ複製して読み、バイトの点検と行の形 (invalid line、同じキーの重複) を確かめる。続いて、キーごとの決まり (mode の値、foreground の slot は 1 つ、runner の実体、FINAL_ のキーの拒否) と、対応するジョブマップの所在を確かめ、runner に --help で版を問い合わせる。検証 OK のときだけ、標準出力に 15 行 (config_path から green_runner_if_version まで) を出す。違反と警告は標準エラーに出す。終了コードは 0 (OK) / 2 (違反) / 6 (実行エラー)"
+  evidence:
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 141 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 152 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 167 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 190 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 221 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 258 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 268 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 298 }
+    - { file: facade/src/usecase/validate_feature_flag.sh, line: 84 }
+    - { file: facade/src/presentation/validate-config.sh, line: 61 }
+notes: "迷った点と選んだ扱い。(1) 入口は、実行ファイルではなく、検証の種類のオプションごとに分けた (analysis-conventions.md)。入口のフレームには、起動用の facade/bin/validate-config.sh と、本体の引数の解釈 (validate_config_main) をまとめた。(2) 対象の公開の版では、usecase の手順が validate_feature_flag_load_input (入力の確認・複製と読み込み・バイトの点検・行の形) と validate_feature_flag_collect_key_errors (パスとジョブマップの場所の解決・キーの分類・検証表) の 2 つの関数に分かれている。どちらも処理の手順の 1 段なので、logic のフレームにし、ルールと設定を、その段へ移した。(3) 検証する設定ファイルのキーは、settings ではなく fields に書いた。(4) ファイルがあるか・読めるか・実行できるかの確認は op: read、状態は interpretation で書いた (analysis-conventions.md)。(5) runner の起動は、相手が設定ファイルの値で決まるので、external のフレームの summary を unknown (dynamic_dispatch) にした。読み書きの種類には当てはめていない (同じ機械のプロセスの起動で、external_api の「別の機械やサービス」に当たらない)。(6) 読み書きも、その先の呼び出しも無い関数 (domain のパスの解決、キーの分類、運用モードの導出、標準出力の組み立て、表示用の可視表記の作成) は、フレームにせず、ルールを呼び出し元の段に書いた。可視表記をまとめて作る sed / tr は、パイプで文字列を加工するだけなので、フレームにしていない (失敗したときの終了コード 6 だけを、ルールに書いた)。(7) シグナル (HUP / INT / TERM) の trap で動く複製の削除は、別のフレームにせず、repo_load の rules と remove_snapshot の call の note に書いた。(8) validate_config_main の、検証の種類の関数が無いときに終了コード 6 で終わる枝 (validate-config.sh 140〜142 行目) は、この入口では、関数 validate_config_feature_flag が同じファイルの 69 行目に必ずあるため閉じている。入口のフレームの rules に書かず、summary の note に書いた。(9) レビューの指摘 3 件 (すべて low) は、対象のコードで確かめて正しかったので、すべて直した (複製の削除の rm を always に、ジョブマップの所在の確認に mode の条件と 587 行目を、green の検証の根拠に 532〜534 行目を足した)。指摘にならなかった probe_rm の note (mktemp が失敗した経路では呼ばない) も、あわせて直した。"
+callstack:
+  - id: entry
+    layer: command
+    kind: command
+    name: "validate-config.sh --feature-flag"
+    source: { file: facade/src/presentation/validate-config.sh, line: 69 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "facade/bin/validate-config.sh が RELAY_GATE_HOME を決めて本体 (facade/src/presentation/validate-config.sh) を exec する。本体は、RELAY_GATE_CONFIG_DIR を決め、引数を解釈し (validate_config_main)、検証の種類のオプションがちょうど 1 つであることを確かめ、validate_config_feature_flag を選んで呼ぶ。この関数は、パスと RELAY_GATE_CONFIG_DIR と --verbose の有無を、usecase に渡す"
+      evidence:
+        - { file: facade/bin/validate-config.sh, line: 6 }
+        - { file: facade/bin/validate-config.sh, line: 8 }
+        - { file: facade/src/presentation/validate-config.sh, line: 20 }
+        - { file: facade/src/presentation/validate-config.sh, line: 86 }
+        - { file: facade/src/presentation/validate-config.sh, line: 123 }
+        - { file: facade/src/presentation/validate-config.sh, line: 139 }
+        - { file: facade/src/presentation/validate-config.sh, line: 144 }
+        - { file: facade/src/presentation/validate-config.sh, line: 71 }
+      note: "検証の種類の関数が無いときに、error: validation kind is not implemented を出して終了コード 6 で終わる枝 (140〜142 行目) は、この入口では閉じている。--feature-flag の関数 validate_config_feature_flag は、同じファイルの 69 行目に必ず定義されている (--final-crosscheck だけが通る枝)"
+    parameters:
+      - name: "--feature-flag"
+        value: "検証する feature flag の設定ファイルのパス。値が必須 (無いか -- で始まれば、終了コード 2)"
+        status: fact
+        evidence:
+          - { file: facade/src/presentation/validate-config.sh, line: 54 }
+          - { file: facade/src/presentation/validate-config.sh, line: 98 }
+          - { file: facade/src/presentation/validate-config.sh, line: 99 }
+      - name: "--verbose"
+        value: "標準エラーに info: の行 (読み込んだキーごとに 1 行) を出す"
+        status: fact
+        evidence:
+          - { file: facade/src/presentation/validate-config.sh, line: 58 }
+          - { file: facade/src/presentation/validate-config.sh, line: 94 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 285 }
+      - name: "--help"
+        value: "使い方を出して、終了コード 0 で終わる"
+        status: fact
+        evidence:
+          - { file: facade/src/presentation/validate-config.sh, line: 59 }
+          - { file: facade/src/presentation/validate-config.sh, line: 90 }
+    settings:
+      - name: RELAY_GATE_HOME
+        kind: env
+        effect: "RELAY_GATE_CONFIG_DIR の既定の場所 ($RELAY_GATE_HOME/config) を決める。無ければ、起動したスクリプトのあるフォルダ"
+        status: fact
+        evidence:
+          - { file: facade/bin/validate-config.sh, line: 6 }
+          - { file: facade/src/presentation/validate-config.sh, line: 19 }
+          - { file: facade/src/presentation/validate-config.sh, line: 20 }
+    rules:
+      - kind: validation
+        value: "検証の種類のオプション (--feature-flag / --job-map / --rapid-crosscheck / --final-crosscheck) は、ちょうど 1 つ。0 個か 2 個以上なら、終了コード 2"
+        status: fact
+        evidence:
+          - { file: facade/src/presentation/validate-config.sh, line: 123 }
+          - { file: facade/src/presentation/validate-config.sh, line: 128 }
+      - kind: decision
+        value: "終了コードは、0 (検証 OK) / 2 (引数の誤り、未知のオプション、ファイルが無い、検証の違反) / 6 (実行エラー)"
+        status: fact
+        evidence:
+          - { file: facade/src/presentation/validate-config.sh, line: 61 }
+          - { file: facade/src/presentation/validate-config.sh, line: 101 }
+          - { file: facade/src/presentation/validate-config.sh, line: 112 }
+          - { file: facade/src/presentation/validate-config.sh, line: 117 }
+  - id: uc_query
+    layer: logic
+    kind: function
+    name: validate_feature_flag_query
+    source: { file: facade/src/usecase/validate_feature_flag.sh, line: 225 }
+    caller: entry
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/presentation/validate-config.sh, line: 71 }]
+    summary:
+      status: interpretation
+      value: "検証の手順の本体。入力の確認と読み込み (validate_feature_flag_load_input) で違反か失敗があれば、その行だけを出して止まる。続いて、キーごとの検査 (validate_feature_flag_collect_key_errors)、blue と green の対応するジョブマップの所在、blue と green の runner への問い合わせ、の順に進む。標準エラーの行は、検査をすべて終えてから、info (--verbose のとき)、未知のキーの warn、error、runner の warn の順に出す。違反が無ければ、最後に validate_feature_flag_render で、標準出力に決まった順の 15 行を出す (off の slot の値と、空の値は -)"
+      evidence:
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 230 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 245 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 258 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 268 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 284 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 290 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 291 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 298 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 69 }
+    rules:
+      - kind: calculation
+        value: "運用モードの名前 (標準出力の operation_mode) は、(BLUE_MODE, GREEN_MODE, RAPID_CROSSCHECK_MODE) が (foreground, background, background) なら parallel、(off, foreground, off) なら green_only、(background, foreground, background) なら next_gen_parallel、それ以外は custom"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 298 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 97 }
+          - { file: facade/src/domain/feature_flag.sh, line: 239 }
+          - { file: facade/src/domain/feature_flag.sh, line: 250 }
+        note: "validate_feature_flag_render (フレームにしていない) が、feature_flag_resolve_operation_mode を呼ぶ"
+      - kind: decision
+        value: "キーごとの検査か、対応するジョブマップの所在の違反が 1 件以上なら、標準出力を出さずに終了コード 2。可視表記をまとめて作る sed / tr の失敗と、runner への問い合わせの準備の失敗なら、error 行 1 つだけを出して終了コード 6。違反が無ければ 0"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 246 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 248 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 250 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 258 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 272 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 279 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 295 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 300 }
+      - kind: decision
+        value: "FINAL_ で始まらず、feature flag が持つ 11 個のキーでもないキーは、未知のキーとして warn: unknown key を出す (拒否しない)"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 290 }
+          - { file: facade/src/domain/feature_flag.sh, line: 470 }
+          - { file: facade/src/domain/feature_flag.sh, line: 479 }
+        note: "キーの分類は collect_key_errors の段 (feature_flag_classify_keys)。warn 行を出すのは feature_flag_report_unknown_keys (フレームにしていない)"
+  - id: load_input
+    layer: logic
+    kind: function
+    name: validate_feature_flag_load_input
+    source: { file: facade/src/usecase/validate_feature_flag.sh, line: 138 }
+    caller: uc_query
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/usecase/validate_feature_flag.sh, line: 230 }]
+    summary:
+      status: interpretation
+      value: "設定ファイルがあり、通常のファイルで読めることを確かめ、読み込む (feature_flag_config_load)。続いて、(i) バイトの点検の違反を error 行にし、(ii) 行の形 (invalid line を行番号の昇順、同じキーの重複を初出の行の昇順) を error 行にする。違反か失敗があれば、その段の行だけを標準エラーに出して止める"
+      evidence:
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 141 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 145 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 152 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 167 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 179 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 186 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 191 }
+    io:
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{feature_flag_path}" } }
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 141 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 145 }
+        note: "ファイルがあること・通常のファイルであること・読めることを確かめるだけで、中身は読まない"
+    rules:
+      - kind: validation
+        value: "設定ファイルに、NUL バイト、UTF-8 として不正なバイト列、先頭の BOM、CR があってはならない"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 167 }
+          - { file: facade/src/usecase/validate_job_map.sh, line: 84 }
+          - { file: facade/src/usecase/validate_job_map.sh, line: 88 }
+          - { file: facade/src/usecase/validate_job_map.sh, line: 92 }
+          - { file: facade/src/usecase/validate_job_map.sh, line: 96 }
+        note: "error 行を作るのは、validate_job_map_report_byte_errors (フレームにしていない)"
+      - kind: validation
+        value: "KEY=value の形でない行 (invalid line) か、同じキーが 2 行以上ある (duplicate key) なら、ファイルの値を使わず、キーごとの検査に進まない"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 180 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 187 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 190 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 192 }
+      - kind: decision
+        value: "ファイルが無い・読めない、バイトの違反、行の形の違反なら、終了コード 2。入力の複製の失敗 (hint: check TMPDIR is writable)、補助のコマンド (tr / sed / rm) の失敗、重複したキーの可視表記を作る sed / tr の失敗なら、終了コード 6"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 143 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 147 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 154 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 155 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 159 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 171 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 184 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 192 }
+  - id: repo_load
+    layer: adapter
+    kind: function
+    name: feature_flag_config_load
+    source: { file: facade/src/repository/feature_flag_config.sh, line: 222 }
+    caller: load_input
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/usecase/validate_feature_flag.sh, line: 152 }]
+    summary:
+      status: interpretation
+      value: "設定ファイルを読み込む。複製を作り、複製を点検して読み取り、複製を消す。読み込みの間だけ、HUP / INT / TERM の trap を、複製を消して 129 / 130 / 143 で終わる処理に差し替え、読み込みの後に元の trap へ戻す。複製を消せなかったときは、補助のコマンド (rm) の失敗として扱う"
+      evidence:
+        - { file: facade/src/repository/feature_flag_config.sh, line: 230 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 233 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 234 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 240 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 244 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 248 }
+    rules:
+      - kind: decision
+        value: "読み込みの間に HUP / INT / TERM を受けたら、複製を消して、終了コード 129 / 130 / 143 で終わる"
+        status: fact
+        evidence:
+          - { file: facade/src/repository/feature_flag_config.sh, line: 230 }
+          - { file: facade/src/repository/feature_flag_config.sh, line: 231 }
+          - { file: facade/src/repository/feature_flag_config.sh, line: 232 }
+  - id: create_snapshot
+    layer: adapter
+    kind: function
+    name: job_map_repo_create_snapshot
+    source: { file: facade/src/repository/job_map_repo.sh, line: 378 }
+    caller: repo_load
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/feature_flag_config.sh, line: 233 }]
+    summary:
+      status: interpretation
+      value: "入力のファイルを、一時ファイルへ複製する。mktemp で作業用の名前 (.part) を作り、cat で写し、書き終えたら mv で .part を外した名前に付け替える"
+      evidence:
+        - { file: facade/src/repository/job_map_repo.sh, line: 380 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 393 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 394 }
+    settings:
+      - name: TMPDIR
+        kind: env
+        effect: "入力の複製を置くフォルダを変える。無ければ /tmp"
+        status: fact
+        evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 379 }]
+    io:
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { file: "{feature_flag_path}" } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 393 }]
+        note: "場所は、引数 --feature-flag の値"
+      - op: write
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-{random}.part" } }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: facade/src/repository/job_map_repo.sh, line: 380 }
+          - { file: facade/src/repository/job_map_repo.sh, line: 393 }
+          - { file: facade/src/repository/job_map_repo.sh, line: 50 }
+          - { file: facade/src/repository/job_map_repo.sh, line: 51 }
+      - op: write
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-{random}" } }
+        evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 394 }]
+        note: "mv で、.part の付いた名前から付け替える (中身は書き換えない)"
+  - id: snapshot_mktemp
+    layer: external
+    kind: command
+    name: mktemp
+    source: { file: facade/src/repository/job_map_repo.sh, line: 380 }
+    caller: create_snapshot
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 380 }]
+  - id: snapshot_cat
+    layer: external
+    kind: command
+    name: cat
+    source: { file: facade/src/repository/job_map_repo.sh, line: 393 }
+    caller: create_snapshot
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 393 }]
+  - id: snapshot_mv
+    layer: external
+    kind: command
+    name: mv
+    source: { file: facade/src/repository/job_map_repo.sh, line: 394 }
+    caller: create_snapshot
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 394 }]
+      note: "mktemp がテンプレートのままの名前を作ったとき (末尾以外の X を置き換えない mktemp) は、389 行目でも mv を呼ぶ"
+  - id: load_snapshot
+    layer: adapter
+    kind: function
+    name: feature_flag_config_load_snapshot
+    source: { file: facade/src/repository/feature_flag_config.sh, line: 255 }
+    caller: repo_load
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/feature_flag_config.sh, line: 234 }]
+      note: "複製を作れなかったときは呼ばない (失敗による打ち切り)"
+    summary:
+      status: interpretation
+      value: "複製をバイト単位で点検し、形式違反の行が無ければ KEY=value を読み取る。点検が数えた行数と、読み取った行数が合わなければ、補助のコマンドの失敗として扱う"
+      evidence:
+        - { file: facade/src/repository/feature_flag_config.sh, line: 257 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 261 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 265 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 272 }
+  - id: scan
+    layer: adapter
+    kind: function
+    name: job_map_repo_scan_malformed_lines
+    source: { file: facade/src/repository/job_map_repo.sh, line: 466 }
+    caller: load_snapshot
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/feature_flag_config.sh, line: 257 }]
+    summary:
+      status: interpretation
+      value: "複製を走査した結果 (原因の文字と行番号) を受け取り、NUL / CR / BOM / UTF-8 として不正なバイト列を含む行の行番号と、総行数を記録する。想定外の出力や、最終行まで走査した証跡が無いときは、失敗にする"
+      evidence:
+        - { file: facade/src/repository/job_map_repo.sh, line: 476 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 485 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 516 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 535 }
+    io:
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-{random}" } }
+        evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 528 }]
+        note: "大きさが 0 かどうかを確かめるだけで、中身は読まない"
+  - id: scan_output
+    layer: adapter
+    kind: function
+    name: job_map_repo_scan_output
+    source: { file: facade/src/repository/job_map_repo.sh, line: 548 }
+    caller: scan
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 476 }]
+    summary:
+      status: interpretation
+      value: "複製を tr と sed のパイプで走査する。tr が NUL を別の文字に置き換え、sed が原因の文字と行番号を出す。どちらかが失敗したら、失敗したコマンドの名前を最後の行に出す (sed が失敗したときは、tr の終了状態を見ない)"
+      evidence:
+        - { file: facade/src/repository/job_map_repo.sh, line: 550 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 555 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 561 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-{random}" } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 550 }]
+  - id: scan_tr
+    layer: external
+    kind: command
+    name: tr
+    source: { file: facade/src/repository/job_map_repo.sh, line: 550 }
+    caller: scan_output
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 550 }]
+      note: "出力は、パイプで sed に渡す (sed は、フレームにしていない)"
+  - id: parse
+    layer: adapter
+    kind: function
+    name: feature_flag_config_parse
+    source: { file: facade/src/repository/feature_flag_config.sh, line: 151 }
+    caller: load_snapshot
+    call:
+      status: fact
+      when: always
+      note: "バイトの点検で形式違反の行が見つかったときは、手前で読み取りをやめる (261 行目。入力の誤りによる打ち切り。呼び出し元の load_input が、後で終了コード 2 にする)"
+      evidence:
+        - { file: facade/src/repository/feature_flag_config.sh, line: 261 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 265 }
+    summary:
+      status: interpretation
+      value: "複製を sed で行の種類 (空行、コメント、形式違反、キーと値) に分け、キーの一覧、invalid line の行番号、重複したキーを記録する。feature flag が持つ 11 個のキーだけを、同じ名前の変数に載せる (値の先頭と末尾の引用符を 1 文字ずつ外す)。invalid line か重複が 1 件でもあれば、どの値も使わない"
+      evidence:
+        - { file: facade/src/repository/feature_flag_config.sh, line: 160 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 172 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 194 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 196 }
+        - { file: facade/src/repository/feature_flag_config.sh, line: 211 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-{random}" } }
+        fields:
+          - { name: BLUE_MODE, use: [read] }
+          - { name: GREEN_MODE, use: [read] }
+          - { name: RAPID_CROSSCHECK_MODE, use: [read] }
+          - { name: BLUE_IMPL, use: [read] }
+          - { name: GREEN_IMPL, use: [read] }
+          - { name: BLUE_RUNNER, use: [read] }
+          - { name: GREEN_RUNNER, use: [read] }
+          - { name: RAPID_CROSSCHECK_RUNNER, use: [read] }
+          - { name: RAPID_CROSSCHECK_WORKER, use: [read] }
+          - { name: BLUE_JOB_MAP_CSV, use: [read] }
+          - { name: GREEN_JOB_MAP_CSV, use: [read] }
+        evidence:
+          - { file: facade/src/repository/feature_flag_config.sh, line: 160 }
+          - { file: facade/src/repository/feature_flag_config.sh, line: 194 }
+          - { file: facade/src/domain/feature_flag.sh, line: 24 }
+        note: "値を取り込むのは、この 11 個のキーだけ。ほかのキーは、名前だけを記録する (未知のキーの警告、FINAL_ で始まるキーの拒否に使う)"
+  - id: parse_sed
+    layer: external
+    kind: command
+    name: sed
+    source: { file: facade/src/repository/feature_flag_config.sh, line: 160 }
+    caller: parse
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/feature_flag_config.sh, line: 160 }]
+  - id: remove_snapshot
+    layer: adapter
+    kind: function
+    name: job_map_repo_remove_snapshot
+    source: { file: facade/src/repository/job_map_repo.sh, line: 400 }
+    caller: repo_load
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/repository/feature_flag_config.sh, line: 240 }]
+      note: "読み込みが成功しても失敗しても呼ぶ。HUP / INT / TERM を受けたときも、trap から呼ぶ (230〜232 行目)"
+    summary:
+      status: interpretation
+      value: "入力の複製を消す。作業用の名前 (.part) と、付け替えた後の名前の両方を消す。rm が失敗したら、呼び出し元が補助のコマンドの失敗として扱う"
+      evidence:
+        - { file: facade/src/repository/job_map_repo.sh, line: 403 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 406 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-{random}" } }
+        evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 403 }]
+      - op: delete
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-{random}.part" } }
+        evidence: [{ file: facade/src/repository/job_map_repo.sh, line: 403 }]
+  - id: snapshot_rm
+    layer: external
+    kind: command
+    name: rm
+    source: { file: facade/src/repository/job_map_repo.sh, line: 403 }
+    caller: remove_snapshot
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: facade/src/repository/job_map_repo.sh, line: 402 }
+        - { file: facade/src/repository/job_map_repo.sh, line: 403 }
+      note: "複製の名前が決まっていないとき (mktemp の失敗、mktemp の前にシグナルを受けたとき) だけ呼ばない (失敗による打ち切りの裏返しで、分かれ道ではない)"
+  - id: collect_key_errors
+    layer: logic
+    kind: function
+    name: validate_feature_flag_collect_key_errors
+    source: { file: facade/src/usecase/validate_feature_flag.sh, line: 204 }
+    caller: uc_query
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/usecase/validate_feature_flag.sh, line: 245 }]
+    summary:
+      status: interpretation
+      value: "キーごとの検査の準備と検証表の評価。runner と worker の 4 つのキーを解決した後のパスに置き換え、slot ごとのジョブマップの場所を決め、キー名と表示する値の可視表記をまとめて作って控える。続いて、キーを、持つキー・未知のキー・FINAL_ で始まるキーに分け、検証表 (validate_feature_flag_errors) の error 行を、報告行の配列に溜める"
+      evidence:
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 209 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 212 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 213 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 218 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 220 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 221 }
+    settings:
+      - name: RELAY_GATE_CONFIG_DIR
+        kind: env
+        effect: "BLUE_JOB_MAP_CSV / GREEN_JOB_MAP_CSV が無いか空のときの、ジョブマップの既定の置き場を変える。無ければ $RELAY_GATE_HOME/config"
+        status: fact
+        evidence:
+          - { file: facade/src/presentation/validate-config.sh, line: 20 }
+          - { file: facade/src/presentation/validate-config.sh, line: 71 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 212 }
+          - { file: facade/src/domain/feature_flag.sh, line: 408 }
+        note: "値を使うのは、feature_flag_resolve_job_map_locations (フレームにしていない)"
+    rules:
+      - kind: calculation
+        value: "BLUE_RUNNER / GREEN_RUNNER / RAPID_CROSSCHECK_RUNNER / RAPID_CROSSCHECK_WORKER の相対パスの値は、設定ファイルのあるフォルダを基準にして、基準 + / + 値 にする。絶対パスの値は、そのまま。mode が off のキーと、空の値は変えない"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 209 }
+          - { file: facade/src/domain/feature_flag.sh, line: 336 }
+          - { file: facade/src/domain/feature_flag.sh, line: 347 }
+          - { file: facade/src/domain/feature_flag.sh, line: 352 }
+          - { file: facade/src/domain/feature_flag.sh, line: 367 }
+        note: "feature_flag_resolve_runner_paths (フレームにしていない) にある。validate_feature_flag_errors も最初に同じ関数を呼ぶ (498 行目。解決した後のパスは / で始まるので、値は変わらない)"
+      - kind: decision
+        value: "ジョブマップの場所は、mode が off の slot では決めない。BLUE_JOB_MAP_CSV / GREEN_JOB_MAP_CSV に値があれば、runner と同じ規則で解決したパス。無いか空なら <config_dir>/<slot>-job-map.csv"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 212 }
+          - { file: facade/src/domain/feature_flag.sh, line: 405 }
+          - { file: facade/src/domain/feature_flag.sh, line: 408 }
+          - { file: facade/src/domain/feature_flag.sh, line: 410 }
+        note: "feature_flag_resolve_job_map_locations (フレームにしていない) にある"
+      - kind: decision
+        value: "キーを分ける。名前が FINAL_ で始まるキーは確報の制御キー、それ以外で、feature flag が持つ 11 個のキーでないキーは未知のキー"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 220 }
+          - { file: facade/src/domain/feature_flag.sh, line: 458 }
+          - { file: facade/src/domain/feature_flag.sh, line: 460 }
+        note: "feature_flag_classify_keys (フレームにしていない) にある"
+  - id: errors
+    layer: logic
+    kind: function
+    name: validate_feature_flag_errors
+    source: { file: facade/src/domain/feature_flag.sh, line: 492 }
+    caller: collect_key_errors
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/usecase/validate_feature_flag.sh, line: 221 }]
+    summary:
+      status: interpretation
+      value: "キーごとの検証の表を、すべて評価する (違反は全件を集める。1 件目で止めない)。最初に、runner と worker の 4 つのキーを、解決した後のパスに置き換え直す (呼び出し元が置き換え済みなので、値は変わらない)"
+      evidence:
+        - { file: facade/src/domain/feature_flag.sh, line: 498 }
+        - { file: facade/src/domain/feature_flag.sh, line: 517 }
+        - { file: facade/src/domain/feature_flag.sh, line: 549 }
+    io:
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{BLUE_RUNNER}" } }
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 530 }
+          - { file: facade/src/domain/feature_flag.sh, line: 432 }
+        note: "ファイルがあること・実行できることを確かめるだけで、中身は読まない。場所は、設定ファイルの BLUE_RUNNER の値 (解決した後のパス)。BLUE_MODE が off でないときだけ"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{GREEN_RUNNER}" } }
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 534 }
+          - { file: facade/src/domain/feature_flag.sh, line: 432 }
+        note: "ファイルがあること・実行できることを確かめるだけで、中身は読まない。場所は、設定ファイルの GREEN_RUNNER の値 (解決した後のパス)。GREEN_MODE が off でないときだけ"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{RAPID_CROSSCHECK_RUNNER}" } }
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 539 }
+          - { file: facade/src/domain/feature_flag.sh, line: 432 }
+        note: "ファイルがあること・実行できることを確かめるだけで、中身は読まない。場所は、設定ファイルの RAPID_CROSSCHECK_RUNNER の値 (解決した後のパス)。RAPID_CROSSCHECK_MODE が off でないときだけ"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{RAPID_CROSSCHECK_WORKER}" } }
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 540 }
+          - { file: facade/src/domain/feature_flag.sh, line: 432 }
+        note: "ファイルがあること・実行できることを確かめるだけで、中身は読まない。場所は、設定ファイルの RAPID_CROSSCHECK_WORKER の値 (解決した後のパス)。RAPID_CROSSCHECK_MODE が off でないときだけ"
+    rules:
+      - kind: validation
+        value: "BLUE_MODE / GREEN_MODE / RAPID_CROSSCHECK_MODE は必須で、値は foreground / background / off のどれか"
+        status: fact
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 517 }
+          - { file: facade/src/domain/feature_flag.sh, line: 287 }
+          - { file: facade/src/domain/feature_flag.sh, line: 291 }
+          - { file: facade/src/domain/feature_flag.sh, line: 215 }
+      - kind: validation
+        value: "BLUE_MODE と GREEN_MODE のうち、foreground はちょうど 1 つ"
+        status: fact
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 500 }
+          - { file: facade/src/domain/feature_flag.sh, line: 522 }
+      - kind: validation
+        value: "mode が off でない slot は、<SLOT>_IMPL が空でなく、<SLOT>_RUNNER のファイルがあって実行できること"
+        status: fact
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 528 }
+          - { file: facade/src/domain/feature_flag.sh, line: 529 }
+          - { file: facade/src/domain/feature_flag.sh, line: 530 }
+          - { file: facade/src/domain/feature_flag.sh, line: 532 }
+          - { file: facade/src/domain/feature_flag.sh, line: 533 }
+          - { file: facade/src/domain/feature_flag.sh, line: 534 }
+          - { file: facade/src/domain/feature_flag.sh, line: 432 }
+      - kind: validation
+        value: "RAPID_CROSSCHECK_MODE が off でなければ、RAPID_CROSSCHECK_RUNNER と RAPID_CROSSCHECK_WORKER のファイルがあって実行できること"
+        status: fact
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 538 }
+          - { file: facade/src/domain/feature_flag.sh, line: 539 }
+          - { file: facade/src/domain/feature_flag.sh, line: 540 }
+      - kind: validation
+        value: "名前が FINAL_ で始まるキーは、feature flag に置けない (キーごとに error)"
+        status: fact
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 47 }
+          - { file: facade/src/domain/feature_flag.sh, line: 544 }
+          - { file: facade/src/domain/feature_flag.sh, line: 545 }
+  - id: slot_assignment
+    layer: logic
+    kind: function
+    name: validate_slot_runner_assignment
+    source: { file: facade/src/domain/feature_flag.sh, line: 585 }
+    caller: uc_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 258 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 261 }
+      note: "blue、green の順に 2 回呼ぶ"
+    summary:
+      status: interpretation
+      value: "mode が off でない slot の、対応するジョブマップが、決めた場所にあり、読めることを確かめる"
+      evidence:
+        - { file: facade/src/domain/feature_flag.sh, line: 587 }
+        - { file: facade/src/domain/feature_flag.sh, line: 590 }
+    io:
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "{RELAY_GATE_CONFIG_DIR}", file: "{slot}-job-map.csv" } }
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 590 }
+          - { file: facade/src/domain/feature_flag.sh, line: 408 }
+          - { file: facade/src/domain/feature_flag.sh, line: 587 }
+        note: "ファイルがあること・読めることを確かめるだけで、中身は読まない。{slot} は blue か green。設定ファイルに BLUE_JOB_MAP_CSV / GREEN_JOB_MAP_CSV が無いか、値が空のときの場所。<SLOT>_MODE が off でないときだけ"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{BLUE_JOB_MAP_CSV}" } }
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 590 }
+          - { file: facade/src/domain/feature_flag.sh, line: 410 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 258 }
+          - { file: facade/src/domain/feature_flag.sh, line: 587 }
+        note: "ファイルがあること・読めることを確かめるだけで、中身は読まない。場所は、設定ファイルの BLUE_JOB_MAP_CSV の値 (解決した後のパス)。値があり、BLUE_MODE が off でないときだけ"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{GREEN_JOB_MAP_CSV}" } }
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 590 }
+          - { file: facade/src/domain/feature_flag.sh, line: 410 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 261 }
+          - { file: facade/src/domain/feature_flag.sh, line: 587 }
+        note: "ファイルがあること・読めることを確かめるだけで、中身は読まない。場所は、設定ファイルの GREEN_JOB_MAP_CSV の値 (解決した後のパス)。値があり、GREEN_MODE が off でないときだけ"
+    rules:
+      - kind: validation
+        value: "mode が off でない slot は、対応するジョブマップのファイルがあり、読めること (無ければ error: job map not found)"
+        status: fact
+        evidence:
+          - { file: facade/src/domain/feature_flag.sh, line: 587 }
+          - { file: facade/src/domain/feature_flag.sh, line: 590 }
+          - { file: facade/src/domain/feature_flag.sh, line: 592 }
+  - id: resolve_if_version
+    layer: logic
+    kind: function
+    name: validate_feature_flag_resolve_if_version
+    source: { file: facade/src/usecase/validate_feature_flag.sh, line: 48 }
+    caller: uc_query
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 268 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 275 }
+      note: "blue、green の順に 2 回呼ぶ。blue の問い合わせの準備に失敗したときは、green では呼ばない (失敗による打ち切り)"
+    summary:
+      status: interpretation
+      value: "slot の runner の IF の版を決める。問い合わせない slot と、応答しない runner の版は - にする"
+      evidence:
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 50 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 52 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 62 }
+    io:
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{BLUE_RUNNER}" } }
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 52 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 268 }
+          - { file: facade/src/domain/feature_flag.sh, line: 442 }
+        note: "問い合わせの前に、ファイルがあること・実行できることを確かめるだけで、中身は読まない (feature_flag_path_is_executable。解決していない相対パスは通さない)"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { file: "{GREEN_RUNNER}" } }
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 52 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 275 }
+          - { file: facade/src/domain/feature_flag.sh, line: 442 }
+        note: "問い合わせの前に、ファイルがあること・実行できることを確かめるだけで、中身は読まない (feature_flag_path_is_executable。解決していない相対パスは通さない)"
+    rules:
+      - kind: decision
+        value: "mode が off の slot と、runner のファイルが無いか実行できない slot は、問い合わせない。応答しない (上限に達した、0 以外で終わった、版の行が無い、版が 1 でない) ときは、warn を出すだけで拒否しない。問い合わせの準備に失敗したときは、ほかの行を出さずに、終了コード 6 で終わる"
+        status: fact
+        evidence:
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 52 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 56 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 59 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 61 }
+          - { file: facade/src/usecase/validate_feature_flag.sh, line: 64 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 15 }
+  - id: probe
+    layer: adapter
+    kind: function
+    name: runner_probe_if_version
+    source: { file: facade/src/gateway/runner_probe.sh, line: 87 }
+    caller: resolve_if_version
+    call:
+      status: fact
+      when: conditional
+      condition: "slot の mode が off でなく、runner のファイルがあって実行できるとき"
+      evidence:
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 52 }
+        - { file: facade/src/usecase/validate_feature_flag.sh, line: 55 }
+    summary:
+      status: interpretation
+      value: "一時ファイルを作り、runner を --help 付きで起動して出力を一時ファイルに受け、runner-if-version= で始まる最初の行の値を返す。一時ファイルは、どの経路でも消す"
+      evidence:
+        - { file: facade/src/gateway/runner_probe.sh, line: 90 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 94 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 108 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 115 }
+    settings:
+      - name: TMPDIR
+        kind: env
+        effect: "runner の出力を受ける一時ファイルを置くフォルダを変える。無ければ /tmp"
+        status: fact
+        evidence: [{ file: facade/src/gateway/runner_probe.sh, line: 90 }]
+    io:
+      - op: write
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-runner-probe.{random}" } }
+        evidence: [{ file: facade/src/gateway/runner_probe.sh, line: 90 }]
+        note: "mktemp で、空のファイルを作る"
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-runner-probe.{random}" } }
+        fields:
+          - { name: runner-if-version, use: [read] }
+        evidence:
+          - { file: facade/src/gateway/runner_probe.sh, line: 114 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 108 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 13 }
+      - op: delete
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-runner-probe.{random}" } }
+        evidence:
+          - { file: facade/src/gateway/runner_probe.sh, line: 115 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 97 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 102 }
+    rules:
+      - kind: decision
+        value: "runner の出力のうち、runner-if-version= で始まる最初の 1 行だけを採り、= より右の前後の空白を除いた文字列を版の値とする"
+        status: fact
+        evidence:
+          - { file: facade/src/gateway/runner_probe.sh, line: 108 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 109 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 111 }
+  - id: probe_mktemp
+    layer: external
+    kind: command
+    name: mktemp
+    source: { file: facade/src/gateway/runner_probe.sh, line: 90 }
+    caller: probe
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/gateway/runner_probe.sh, line: 90 }]
+  - id: run_with_limit
+    layer: adapter
+    kind: function
+    name: runner_probe_run_with_limit
+    source: { file: facade/src/gateway/runner_probe.sh, line: 35 }
+    caller: probe
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/gateway/runner_probe.sh, line: 94 }]
+    summary:
+      status: interpretation
+      value: "runner を、独立したプロセスグループで、バックグラウンドで起動する。標準入力は /dev/null、標準出力は一時ファイル、標準エラーは捨てる。0.1 秒ごとに生きているかを確かめ、終わったら runner の終了コードを返す"
+      evidence:
+        - { file: facade/src/gateway/runner_probe.sh, line: 40 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 44 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 53 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 64 }
+    io:
+      - op: write
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "{TMPDIR}", file: "relay-gate-runner-probe.{random}" } }
+        fields:
+          - { name: "*", use: [write] }
+        evidence: [{ file: facade/src/gateway/runner_probe.sh, line: 44 }]
+        note: "runner の標準出力を、リダイレクトで書く"
+    rules:
+      - kind: decision
+        value: "待つ上限 (4 秒) に達したら、runner のプロセスグループに TERM を送り、0.2 秒後に KILL を送って、124 を返す"
+        status: fact
+        evidence:
+          - { file: facade/src/gateway/runner_probe.sh, line: 17 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 21 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 54 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 55 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 57 }
+          - { file: facade/src/gateway/runner_probe.sh, line: 59 }
+  - id: runner
+    layer: external
+    kind: command
+    name: "\"$runner\" --help"
+    source: { file: facade/src/gateway/runner_probe.sh, line: 44 }
+    caller: run_with_limit
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: facade/src/gateway/runner_probe.sh, line: 44 }]
+      note: "バックグラウンドで起動する (&)。待たずに進み、その後の繰り返しで、終わるか上限に達するまで待つ"
+    summary:
+      status: unknown
+      reason: dynamic_dispatch
+      note: "起動する実行ファイルは、検証する設定ファイルの BLUE_RUNNER / GREEN_RUNNER の値 (解決した後のパス) で決まる。リポジトリの中に runner の実体は無い"
+  - id: probe_rm
+    layer: external
+    kind: command
+    name: rm
+    source: { file: facade/src/gateway/runner_probe.sh, line: 115 }
+    caller: probe
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: facade/src/gateway/runner_probe.sh, line: 115 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 97 }
+        - { file: facade/src/gateway/runner_probe.sh, line: 102 }
+      note: "一時ファイルを作れた後は、どの経路 (起動の失敗、応答なし、正常) でも、1 回呼ぶ。mktemp が失敗したとき (90〜92 行目) は呼ばない (失敗による打ち切り)"

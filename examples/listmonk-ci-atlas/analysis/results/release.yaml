@@ -1,0 +1,419 @@
+format_version: 1
+entry:
+  id: release
+  path: /release
+  name: release
+  layer: workflow
+  source: { file: .github/workflows/release.yml, line: 3 }
+target:
+  repo: github.com/knadh/listmonk
+  name: listmonk の CI
+  clone_path: ../listmonk
+  scope: .
+  commit: e735e0b23421192a4c1b18b6221f4708b872fcd5
+analyzer:
+  profile: { id: batch-github-actions, version: "0.1.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T22:14:10Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T22:13:24Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "v で始まるタグの push で動くリリースの workflow (name: goreleaser)。make dist で管理画面の資産とバイナリを用意した後、GoReleaser で各 OS 向けのバイナリと tar.gz を作り、GitHub のリリースと、Docker Hub (listmonk/listmonk) と ghcr.io (knadh/listmonk) のコンテナイメージを公開する"
+  evidence:
+    - { file: .github/workflows/release.yml, line: 1 }
+    - { file: .github/workflows/release.yml, line: 6 }
+    - { file: .github/workflows/release.yml, line: 52 }
+    - { file: .github/workflows/release.yml, line: 59 }
+callstack:
+  - id: workflow
+    layer: workflow
+    kind: workflow
+    name: "release"
+    source: { file: .github/workflows/release.yml, line: 3 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "workflow の name は goreleaser。job は goreleaser の 1 つだけ。inputs、concurrency は無い"
+      evidence:
+        - { file: .github/workflows/release.yml, line: 1 }
+        - { file: .github/workflows/release.yml, line: 11 }
+    parameters:
+      - name: "on"
+        value: "push.tags: v*"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 4 }
+          - { file: .github/workflows/release.yml, line: 6 }
+      - name: "permissions"
+        value: "write-all"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 8 }
+    rules:
+      - kind: decision
+        value: "v で始まるタグ (例 v0.1.0) が push されたときだけリリースを作って公開する"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 5 }
+          - { file: .github/workflows/release.yml, line: 6 }
+  - id: job-goreleaser
+    layer: job
+    kind: job
+    name: "goreleaser"
+    source: { file: .github/workflows/release.yml, line: 11 }
+    caller: workflow
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/release.yml, line: 11 }
+      note: "needs も if も無い。workflow の唯一の job"
+    summary:
+      status: interpretation
+      value: "ubuntu-latest で、checkout (fetch-depth 0、タグの履歴を取る)、QEMU、Go 1.27.3、Bun 1.3.14、Python 3.x を用意し、Docker Hub と ghcr.io に docker/login-action でログインしてから、make dist、docker version の表示、GoReleaser の実行を順に行う。checkout・setup・ログイン・docker version は環境を用意するか表示するだけなので、フレームにしない"
+      evidence:
+        - { file: .github/workflows/release.yml, line: 12 }
+        - { file: .github/workflows/release.yml, line: 15 }
+        - { file: .github/workflows/release.yml, line: 17 }
+        - { file: .github/workflows/release.yml, line: 20 }
+        - { file: .github/workflows/release.yml, line: 25 }
+        - { file: .github/workflows/release.yml, line: 30 }
+        - { file: .github/workflows/release.yml, line: 35 }
+        - { file: .github/workflows/release.yml, line: 38 }
+        - { file: .github/workflows/release.yml, line: 44 }
+        - { file: .github/workflows/release.yml, line: 56 }
+    parameters:
+      - name: "runs-on"
+        value: "ubuntu-latest"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 12 }
+      - name: "secrets.DOCKERHUB_USERNAME"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 40 }
+        note: "Docker Hub へのログイン (docker/login-action) に使う秘密。値はリポジトリに無い"
+      - name: "secrets.DOCKERHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 41 }
+        note: "Docker Hub へのログイン (docker/login-action) に使う秘密"
+      - name: "secrets.GITHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 48 }
+        note: "ghcr.io へのログイン (docker/login-action、registry: ghcr.io、username は github.actor) に使う"
+  - id: step-prepare-dependencies
+    layer: step
+    kind: script
+    name: "Prepare Dependencies"
+    source: { file: .github/workflows/release.yml, line: 50 }
+    caller: job-goreleaser
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/release.yml, line: 50 }
+    summary:
+      status: fact
+      value: "run で make dist を実行する"
+      evidence:
+        - { file: .github/workflows/release.yml, line: 52 }
+  - id: make-dist
+    layer: program
+    kind: make_target
+    name: "dist"
+    source: { file: Makefile, line: 97 }
+    caller: step-prepare-dependencies
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/release.yml, line: 52 }
+    summary:
+      status: interpretation
+      value: "stuffbin の取得 (go install github.com/knadh/stuffbin/...)、Go のバイナリのビルド (build)、管理画面のビルド (build-frontend) を前提として行い、最後に make pack-bin で静的な資産をバイナリに詰める。出力 (./listmonk、static/admin/dist) は実行の間だけある作業用のファイル。GoReleaser は .goreleaser.yml の builds の節で自前にビルドし直し (--clean は先に出力の置き場を消す)、hooks で build-frontend と pack-bin を呼ぶため、この target で作った ./listmonk 自体は公開物にならないと読める"
+      evidence:
+        - { file: Makefile, line: 47 }
+        - { file: Makefile, line: 48 }
+        - { file: Makefile, line: 97 }
+        - { file: Makefile, line: 98 }
+        - { file: .github/workflows/release.yml, line: 62 }
+        - { file: .goreleaser.yml, line: 11 }
+        - { file: .goreleaser.yml, line: 13 }
+        - { file: .goreleaser.yml, line: 38 }
+  - id: make-build-bin
+    layer: program
+    kind: make_target
+    name: "$(BIN)"
+    source: { file: Makefile, line: 55 }
+    caller: make-dist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 45 }
+        - { file: Makefile, line: 97 }
+      note: "dist の前提 build が $(BIN) (listmonk) を指す。$(BIN) は FORCE に依存するので、毎回ビルドする"
+    summary:
+      status: fact
+      value: "CGO_ENABLED=0 で go build し、./listmonk を作る。ldflags で main.buildString と main.versionString を埋め込む"
+      evidence:
+        - { file: Makefile, line: 56 }
+    rules:
+      - kind: calculation
+        value: "版の文字列は LISTMONK_VERSION、無ければ git describe --tags --abbrev=0 の最後のタグ、無ければ VERSION ファイル、無ければ v0.0.0 の順で決め、ビルドの文字列に版とコミットの短い hash とビルド日時を入れる"
+        status: interpretation
+        evidence:
+          - { file: Makefile, line: 2 }
+          - { file: Makefile, line: 5 }
+          - { file: Makefile, line: 7 }
+          - { file: Makefile, line: 8 }
+          - { file: Makefile, line: 56 }
+  - id: go-build
+    layer: external
+    kind: command
+    name: "go build"
+    source: { file: Makefile, line: 56 }
+    caller: make-build-bin
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 56 }
+  - id: make-build-frontend
+    layer: program
+    kind: make_target
+    name: "build-frontend"
+    source: { file: Makefile, line: 87 }
+    caller: make-dist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 97 }
+      note: "build-frontend は $(FRONTEND_DIST) (static/admin/dist) を作る target の別名。static/admin/dist は .gitignore にあり、checkout 直後には無いので、毎回作る"
+    summary:
+      status: interpretation
+      value: "管理画面の依存を bun install --frozen-lockfile で入れ (依存の取得)、アイコンの SVG sprite を用意してから、static/admin で bun run build を実行して static/admin/dist を作る"
+      evidence:
+        - { file: Makefile, line: 70 }
+        - { file: Makefile, line: 71 }
+        - { file: Makefile, line: 82 }
+        - { file: Makefile, line: 83 }
+        - { file: Makefile, line: 87 }
+  - id: build-icons
+    layer: program
+    kind: script
+    name: "scripts/build-icons.py"
+    source: { file: scripts/build-icons.py, line: 84 }
+    caller: make-build-frontend
+    call:
+      status: interpretation
+      when: conditional
+      condition: "make が static/admin/assets/static/icons.svg を static/admin/icons.txt か scripts/build-icons.py より古いと判定したとき"
+      evidence:
+        - { file: Makefile, line: 75 }
+        - { file: Makefile, line: 76 }
+        - { file: Makefile, line: 82 }
+      note: "icons.svg はリポジトリに入っている (static/admin/assets/static/icons.svg)。checkout 直後のファイルの時刻の前後で、作り直すかが決まるため、動くかは実行ごとに変わりうる"
+    summary:
+      status: interpretation
+      value: "Feather icons の zip を取得して展開し (scripts/.icons が無ければ)、icons.txt に並べたアイコンを 1 つの SVG sprite にまとめて static/admin/assets/static/icons.svg に書く。書いた sprite は commit しないので、実行の間だけある作業用のファイル"
+      evidence:
+        - { file: scripts/build-icons.py, line: 16 }
+        - { file: scripts/build-icons.py, line: 28 }
+        - { file: scripts/build-icons.py, line: 86 }
+        - { file: scripts/build-icons.py, line: 96 }
+        - { file: Makefile, line: 76 }
+  - id: feather-download
+    layer: external
+    kind: library
+    name: "urllib.request.urlretrieve"
+    source: { file: scripts/build-icons.py, line: 28 }
+    caller: build-icons
+    call:
+      status: fact
+      when: conditional
+      condition: "scripts/.icons/feather/icons が無いとき"
+      evidence:
+        - { file: scripts/build-icons.py, line: 16 }
+        - { file: scripts/build-icons.py, line: 28 }
+      note: "scripts/.icons/ は .gitignore にあるので、CI の checkout 直後には無く、build-icons.py が動けば必ず取得する。取得先は https://github.com/feathericons/feather/archive/refs/heads/master.zip (10 行)。依存の取得なので読み書きには書かない"
+  - id: pkg-build
+    layer: program
+    kind: package_script
+    name: "build"
+    source: { file: static/admin/package.json, line: 8 }
+    caller: make-build-frontend
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 83 }
+    summary:
+      status: fact
+      value: "bun ./build.mjs を実行する"
+      evidence:
+        - { file: static/admin/package.json, line: 8 }
+  - id: build-mjs
+    layer: program
+    kind: script
+    name: "static/admin/build.mjs"
+    source: { file: static/admin/build.mjs, line: 18 }
+    caller: pkg-build
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: static/admin/package.json, line: 8 }
+        - { file: static/admin/build.mjs, line: 85 }
+      note: "--watch は付かないので、1 回だけビルドする"
+    summary:
+      status: interpretation
+      value: "static/admin/dist を空にし、静的な資産と CSS を写し、Bun.build で JS を束ねて縮め、.js/.css/.svg を gzip にする。ALTCHA の JS を static/public/static/altcha.umd.js に写す。出力はどれも実行の間だけある作業用のファイル"
+      evidence:
+        - { file: static/admin/build.mjs, line: 20 }
+        - { file: static/admin/build.mjs, line: 26 }
+        - { file: static/admin/build.mjs, line: 35 }
+        - { file: static/admin/build.mjs, line: 43 }
+        - { file: static/admin/build.mjs, line: 66 }
+  - id: bun-build
+    layer: external
+    kind: library
+    name: "Bun.build"
+    source: { file: static/admin/build.mjs, line: 43 }
+    caller: build-mjs
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: static/admin/build.mjs, line: 43 }
+  - id: make-pack-bin
+    layer: program
+    kind: make_target
+    name: "pack-bin"
+    source: { file: Makefile, line: 103 }
+    caller: make-dist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 98 }
+    summary:
+      status: fact
+      value: "stuffbin で、config.toml.sample、schema.sql、queries、permissions.json、static の下の資産、i18n を ./listmonk に詰める"
+      evidence:
+        - { file: Makefile, line: 31 }
+        - { file: Makefile, line: 104 }
+  - id: stuffbin
+    layer: external
+    kind: command
+    name: "stuffbin"
+    source: { file: Makefile, line: 104 }
+    caller: make-pack-bin
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 104 }
+  - id: goreleaser-action
+    layer: external
+    kind: action
+    name: "goreleaser/goreleaser-action"
+    source: { file: .github/workflows/release.yml, line: 59 }
+    caller: job-goreleaser
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/release.yml, line: 58 }
+        - { file: .github/workflows/release.yml, line: 59 }
+    summary:
+      status: interpretation
+      value: "goreleaser release --parallelism 1 --clean を .goreleaser.yml に従って実行する。before の hook で make build-frontend、各ビルドの後の hook で make pack-bin を呼び (外部の道具からの呼び出しなので、ここでは辿らない)、linux/windows/darwin/freebsd/openbsd/netbsd の amd64/arm64/arm (arm は v6 と v7。windows の arm は除く) を作り、tar.gz にまとめ、linux 向けの 4 種のコンテナイメージと manifest を公開する"
+      evidence:
+        - { file: .github/workflows/release.yml, line: 62 }
+        - { file: .goreleaser.yml, line: 11 }
+        - { file: .goreleaser.yml, line: 16 }
+        - { file: .goreleaser.yml, line: 23 }
+        - { file: .goreleaser.yml, line: 27 }
+        - { file: .goreleaser.yml, line: 30 }
+        - { file: .goreleaser.yml, line: 38 }
+        - { file: .goreleaser.yml, line: 41 }
+        - { file: .goreleaser.yml, line: 46 }
+        - { file: .goreleaser.yml, line: 146 }
+    parameters:
+      - name: "version"
+        value: "latest"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 61 }
+      - name: "args"
+        value: "release --parallelism 1 --clean"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 62 }
+      - name: "secrets.GITHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/release.yml, line: 64 }
+        note: "env GITHUB_TOKEN として渡す。GitHub のリリースの作成に使うと読める"
+    rules:
+      - kind: calculation
+        value: "バイナリに埋め込む版の文字列 (main.versionString) は、push されたタグそのもの"
+        status: fact
+        evidence:
+          - { file: .goreleaser.yml, line: 34 }
+      - kind: decision
+        value: "プレリリースのタグなら beta、そうでなければ latest の名前でイメージと manifest を公開する"
+        status: fact
+        evidence:
+          - { file: .goreleaser.yml, line: 53 }
+          - { file: .goreleaser.yml, line: 161 }
+          - { file: .goreleaser.yml, line: 173 }
+      - kind: decision
+        value: "メジャー版の manifest (v{{ .Major }}) は skip_push: auto で、プレリリースのときは push しない"
+        status: interpretation
+        evidence:
+          - { file: .goreleaser.yml, line: 147 }
+          - { file: .goreleaser.yml, line: 148 }
+        note: "skip_push: auto の意味 (プレリリースなら push しない) は GoReleaser の仕様による読み取り"
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: docker.io, path: listmonk/listmonk } }
+        detail: "コンテナイメージ (amd64 / arm64v8 / armv6 / armv7) と manifest の push"
+        evidence:
+          - { file: .goreleaser.yml, line: 7 }
+          - { file: .goreleaser.yml, line: 53 }
+          - { file: .goreleaser.yml, line: 54 }
+          - { file: .goreleaser.yml, line: 147 }
+          - { file: .goreleaser.yml, line: 167 }
+        note: "イメージ名は {{ .Env.DOCKER_ORG }}/{{ .ProjectName }} で、レジストリの名前が無いので Docker Hub (docker.io) と読む。DOCKER_ORG は listmonk。ProjectName は .goreleaser.yml に無く、GoReleaser の既定 (リポジトリの名前 listmonk) と読む"
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: ghcr.io, path: knadh/listmonk } }
+        detail: "コンテナイメージ (amd64 / arm64v8 / armv6 / armv7) と manifest の push"
+        evidence:
+          - { file: .goreleaser.yml, line: 6 }
+          - { file: .goreleaser.yml, line: 55 }
+          - { file: .goreleaser.yml, line: 56 }
+          - { file: .goreleaser.yml, line: 154 }
+          - { file: .goreleaser.yml, line: 179 }
+        note: "GITHUB_ORG は knadh。ProjectName は GoReleaser の既定 (listmonk) と読む"
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: api.github.com, path: "/repos/{owner}/{repo}/releases" } }
+        detail: "GitHub のリリースの作成と、tar.gz (README.md、LICENSE を含む) の添付"
+        evidence:
+          - { file: .goreleaser.yml, line: 40 }
+          - { file: .goreleaser.yml, line: 41 }
+          - { file: .github/workflows/release.yml, line: 62 }
+          - { file: .github/workflows/release.yml, line: 64 }
+        note: ".goreleaser.yml に release の節は無く、GoReleaser の既定で、git の remote のリポジトリにリリースを作ると読む"
+notes: "迷った点: (1) docker/login-action の 2 つの step は、外へ送るとも読めるが、公開の前の資格情報の用意として、環境を用意するだけの step と同じに扱い、フレームにせず、秘密の名前を job の parameters に書いた。(2) .goreleaser.yml の hooks (make build-frontend、make pack-bin) は外部の道具 GoReleaser から呼ばれるので、boundary で閉じ、goreleaser-action の summary にだけ書いた。(3) 依存の取得 (go install stuffbin、bun install、build-icons.py の Feather zip の取得) は読み書きに書かなかった。go install と bun install はフレームにせず、Feather の取得 (urlretrieve) だけは、build-icons.py のフレームを終端の決まり (誰も呼ばないフレームは external か、読み書き・ルール・不明を持つ) で閉じるために external のフレームにした。(4) .goreleaser.yml の env DOCKER_ORG / GITHUB_ORG はリポジトリに固定された値で、入口の中で変わらないので settings に書かず、io の段の値の根拠にした。LISTMONK_VERSION / SOURCE_DATE_EPOCH もこの workflow では設定しないので書かなかった"

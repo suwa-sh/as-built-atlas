@@ -1,0 +1,431 @@
+format_version: 1
+target:
+  repo: github.com/android/nowinandroid
+  name: Now in Android
+  clone_path: ../nowinandroid
+  scope: .
+  commit: 2982e63cb691ad49cd009aab43dc206fee6699c2
+profile:
+  id: ui-android
+  version: 0.1.0
+extractors:
+- name: compose-typed-destinations
+  run: abatlas-extract ast
+  layer: screen
+  rationale: 画面は Navigation 3 の entry<XxxNavKey> で、feature/*/impl の EntryProviderScope<NavKey>
+    を受け手にする関数に書いてある (5 か所)。 テストのソースと、範囲の外のモジュール (部品の見本のアプリ app-nia-catalog、benchmarks、テスト用の
+    manifest だけの ui-test-hilt-manifest、 テストの補助のモジュール core/testing・core/*-test・sync/sync-test・core/screenshot-testing、build-logic、lint)
+    は exclude に書いた。 文字の route と XML の navigation graph は無いので、compose-string-destinations
+    と navigation-xml-destinations は書かない
+  params:
+    files:
+    - '**/src/main/**/*.kt'
+    - '**/src/*/kotlin/**/*.kt'
+    exclude: &id001
+    - '**/src/test*/**'
+    - '**/src/androidTest*/**'
+    - '**/build/**'
+    - app-nia-catalog/**
+    - benchmarks/**
+    - ui-test-hilt-manifest/**
+    - core/testing/**
+    - core/*-test/**
+    - sync/sync-test/**
+    - core/screenshot-testing/**
+    - build-logic/**
+    - lint/**
+    - '**/src/demo/**'
+    language: kotlin
+    rule:
+      kind: call_expression
+      all:
+      - has:
+          kind: simple_identifier
+          regex: ^(entry|composable|dialog)$
+      - has:
+          kind: call_suffix
+          has:
+            kind: type_arguments
+            has:
+              kind: type_projection
+              pattern: $ROUTE
+      - inside:
+          stopBy: end
+          any:
+          - kind: function_declaration
+            has:
+              kind: receiver_type
+              regex: ^(EntryProviderScope|NavGraphBuilder)\b
+          - kind: call_expression
+            has:
+              kind: simple_identifier
+              regex: ^(NavHost|entryProvider|navigation)$
+    fields:
+      path: '{ROUTE}'
+      name: '{ROUTE}'
+      attributes:
+        route_type: '{ROUTE}'
+    segments:
+      replace:
+      - pattern: ^(.+?)(NavKey|Route|Destination)$
+        with: \1
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: '[^A-Za-z0-9_.-]'
+        with: ''
+    unresolved:
+      any:
+      - kind: call_expression
+        all:
+        - has:
+            kind: simple_identifier
+            regex: ^(entry|composable|dialog)$
+        - has:
+            kind: call_suffix
+            all:
+            - not:
+                has:
+                  kind: type_arguments
+            - has:
+                kind: value_arguments
+                has:
+                  kind: value_argument
+                  nthChild: 1
+                  not:
+                    has:
+                      kind: string_literal
+        - inside:
+            stopBy: end
+            any:
+            - kind: function_declaration
+              has:
+                kind: receiver_type
+                regex: ^(EntryProviderScope|NavGraphBuilder)\b
+            - kind: call_expression
+              has:
+                kind: simple_identifier
+                regex: ^(NavHost|entryProvider|navigation)$
+      - kind: call_expression
+        has:
+          kind: simple_identifier
+          regex: ^NavEntry$
+- name: manifest-activities
+  run: abatlas-extract ast
+  layer: activity
+  rationale: Activity は app の manifest の MainActivity だけ (Activity が 1 つの作り)。feature/settings/impl
+    の manifest にある OssLicenses の 2 つは、 ライブラリ (play-services-oss-licenses) の画面に theme
+    を当てるだけの宣言で、class はリポジトリに無い (承認で外す候補)。 分析する variant は prodRelease なので、src/demo
+    は exclude に書いた (demo の manifest は無い)
+  params:
+    files:
+    - '**/src/*/AndroidManifest.xml'
+    exclude: *id001
+    language: html
+    rule:
+      kind: attribute
+      all:
+      - inside:
+          any:
+          - kind: start_tag
+            has:
+              kind: tag_name
+              regex: ^activity$
+          - kind: self_closing_tag
+            has:
+              kind: tag_name
+              regex: ^activity$
+      - has:
+          kind: attribute_name
+          regex: ^android:name$
+      - has:
+          kind: quoted_attribute_value
+          has:
+            kind: attribute_value
+            pattern: $NAME
+    fields:
+      path: (activity)/{NAME}
+      name: '{NAME}'
+      attributes:
+        component_class: '{NAME}'
+        manifest: '{file}'
+    segments:
+      replace:
+      - pattern: ^(?!\().*\.
+        with: ''
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(activity\)$
+        with: activity_a
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+- name: manifest-background
+  run: abatlas-extract ast
+  layer: background
+  rationale: app の manifest の Application (NiaApplication。onCreate で同期の Worker を登録する)
+    と、sync/work/src/prod の manifest の FCM の受け口 (SyncNotificationsService) を取る。receiver
+    と provider は、リポジトリの manifest に無い (core/data の TimeZoneMonitor が registerReceiver
+    するが、Flow の中で画面が見ている間だけ受けるので、入口にしない)
+  params:
+    files:
+    - '**/src/*/AndroidManifest.xml'
+    exclude: *id001
+    language: html
+    rule:
+      kind: attribute
+      all:
+      - inside:
+          any:
+          - kind: start_tag
+            has:
+              kind: tag_name
+              regex: ^(application|service|receiver|provider)$
+              pattern: $KIND
+          - kind: self_closing_tag
+            has:
+              kind: tag_name
+              regex: ^(application|service|receiver|provider)$
+              pattern: $KIND
+      - has:
+          kind: attribute_name
+          regex: ^android:name$
+      - has:
+          kind: quoted_attribute_value
+          has:
+            kind: attribute_value
+            pattern: $NAME
+    fields:
+      path: (background)/{KIND}/{NAME}
+      name: '{NAME}'
+      attributes:
+        component_class: '{NAME}'
+        component_kind: '{KIND}'
+        manifest: '{file}'
+    segments:
+      replace:
+      - pattern: ^(?!\().*\.
+        with: ''
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(background\)$
+        with: background_b
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+- name: workers
+  run: abatlas-extract ast
+  layer: background
+  rationale: Worker は sync/work の SyncWorker (ネットワークから Room と DataStore へ同期する) と DelegatingWorker。
+    DelegatingWorker は、Hilt の都合で置いた、class の名前から本物の Worker を作って doWork を渡すだけのもの (承認で外す候補)
+  params:
+    files:
+    - '**/src/main/**/*.kt'
+    - '**/src/*/kotlin/**/*.kt'
+    exclude: *id001
+    language: kotlin
+    rule:
+      kind: class_declaration
+      all:
+      - has:
+          kind: type_identifier
+          pattern: $NAME
+      - has:
+          kind: delegation_specifier
+          has:
+            kind: constructor_invocation
+            has:
+              kind: user_type
+              regex: ^(CoroutineWorker|Worker|ListenableWorker|RxWorker)$
+    fields:
+      path: (background)/worker/{NAME}
+      name: '{NAME}'
+      attributes:
+        component_class: '{NAME}'
+        component_kind: worker
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(background\)$
+        with: background_b
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+- name: agent-listed-shell
+  run: abatlas-extract listed
+  layer: shell
+  rationale: アプリ全体の枠 (MainActivity → NiaApp) が直接描く composable のうち、保存先を読み書きするのは SettingsDialog
+    だけ。 上のバー (NiaTopAppBar) と下のバー (NiaNavigationSuiteScaffold) は見た目だけで、未読の印は NiaApp
+    自身が NiaAppState から読む (MainActivity の入口の中で辿る)
+  params:
+    entries:
+    - id: shell_s.SettingsDialog
+      path: /(shell)/SettingsDialog
+      name: SettingsDialog
+      source:
+        file: feature/settings/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/settings/impl/SettingsDialog.kt
+        line: 74
+      reason: NiaApp (app/src/main/kotlin/com/google/samples/apps/nowinandroid/ui/NiaApp.kt
+        の 154 行目) が、上のバーの設定のボタンで開く dialog。 SettingsViewModel を通して、テーマや動的な色の設定を DataStore
+        (user_preferences.pb) に読み書きする。 destination ではない (TODO に dialog の画面にするとある)
+        ので、抽出器では取れない
+entries:
+- id: Bookmarks
+  path: /Bookmarks
+  layer: screen
+  source:
+    file: feature/bookmarks/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/bookmarks/impl/navigation/BookmarksEntryProvider.kt
+    line: 31
+  extractor: compose-typed-destinations
+  status: candidate
+  name: BookmarksNavKey
+  attributes:
+    route_type: BookmarksNavKey
+- id: ForYou
+  path: /ForYou
+  layer: screen
+  source:
+    file: feature/foryou/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/foryou/impl/navigation/ForYouEntryProvider.kt
+    line: 29
+  extractor: compose-typed-destinations
+  status: candidate
+  name: ForYouNavKey
+  attributes:
+    route_type: ForYouNavKey
+- id: Interests
+  path: /Interests
+  layer: screen
+  source:
+    file: feature/interests/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/interests/impl/navigation/InterestsEntryProvider.kt
+    line: 33
+  extractor: compose-typed-destinations
+  status: candidate
+  name: InterestsNavKey
+  attributes:
+    route_type: InterestsNavKey
+- id: Search
+  path: /Search
+  layer: screen
+  source:
+    file: feature/search/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/search/impl/navigation/SearchEntryProvider.kt
+    line: 28
+  extractor: compose-typed-destinations
+  status: candidate
+  name: SearchNavKey
+  attributes:
+    route_type: SearchNavKey
+- id: Topic
+  path: /Topic
+  layer: screen
+  source:
+    file: feature/topic/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/topic/impl/navigation/TopicEntryProvider.kt
+    line: 33
+  extractor: compose-typed-destinations
+  status: approved
+  name: TopicNavKey
+  attributes:
+    route_type: TopicNavKey
+- id: activity_a.MainActivity
+  path: /(activity)/MainActivity
+  layer: activity
+  source:
+    file: app/src/main/AndroidManifest.xml
+    line: 44
+  extractor: manifest-activities
+  status: approved
+  name: .MainActivity
+  attributes:
+    component_class: .MainActivity
+    manifest: app/src/main/AndroidManifest.xml
+- id: activity_a.OssLicensesActivity
+  path: /(activity)/OssLicensesActivity
+  layer: activity
+  source:
+    file: feature/settings/impl/src/main/AndroidManifest.xml
+    line: 24
+  extractor: manifest-activities
+  status: candidate
+  name: com.google.android.gms.oss.licenses.OssLicensesActivity
+  attributes:
+    component_class: com.google.android.gms.oss.licenses.OssLicensesActivity
+    manifest: feature/settings/impl/src/main/AndroidManifest.xml
+- id: activity_a.OssLicensesMenuActivity
+  path: /(activity)/OssLicensesMenuActivity
+  layer: activity
+  source:
+    file: feature/settings/impl/src/main/AndroidManifest.xml
+    line: 20
+  extractor: manifest-activities
+  status: candidate
+  name: com.google.android.gms.oss.licenses.OssLicensesMenuActivity
+  attributes:
+    component_class: com.google.android.gms.oss.licenses.OssLicensesMenuActivity
+    manifest: feature/settings/impl/src/main/AndroidManifest.xml
+- id: background_b.application.NiaApplication
+  path: /(background)/application/NiaApplication
+  layer: background
+  source:
+    file: app/src/main/AndroidManifest.xml
+    line: 32
+  extractor: manifest-background
+  status: candidate
+  name: .NiaApplication
+  attributes:
+    component_class: .NiaApplication
+    component_kind: application
+    manifest: app/src/main/AndroidManifest.xml
+- id: background_b.service.SyncNotificationsService
+  path: /(background)/service/SyncNotificationsService
+  layer: background
+  source:
+    file: sync/work/src/prod/AndroidManifest.xml
+    line: 21
+  extractor: manifest-background
+  status: candidate
+  name: .services.SyncNotificationsService
+  attributes:
+    component_class: .services.SyncNotificationsService
+    component_kind: service
+    manifest: sync/work/src/prod/AndroidManifest.xml
+- id: background_b.worker.DelegatingWorker
+  path: /(background)/worker/DelegatingWorker
+  layer: background
+  source:
+    file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/DelegatingWorker.kt
+    line: 60
+  extractor: workers
+  status: candidate
+  name: DelegatingWorker
+  attributes:
+    component_class: DelegatingWorker
+    component_kind: worker
+- id: background_b.worker.SyncWorker
+  path: /(background)/worker/SyncWorker
+  layer: background
+  source:
+    file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt
+    line: 50
+  extractor: workers
+  status: approved
+  name: SyncWorker
+  attributes:
+    component_class: SyncWorker
+    component_kind: worker
+- id: shell_s.SettingsDialog
+  path: /(shell)/SettingsDialog
+  layer: shell
+  source:
+    file: feature/settings/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/settings/impl/SettingsDialog.kt
+    line: 74
+  extractor: agent-listed-shell
+  status: candidate
+  name: SettingsDialog
+  attributes:
+    listed_by: agent
+    reason: NiaApp (app/src/main/kotlin/com/google/samples/apps/nowinandroid/ui/NiaApp.kt
+      の 154 行目) が、上のバーの設定のボタンで開く dialog。 SettingsViewModel を通して、テーマや動的な色の設定を DataStore
+      (user_preferences.pb) に読み書きする。 destination ではない (TODO に dialog の画面にするとある) ので、抽出器では取れない
+enumerated_at: '2026-11-18T00:14:33+00:00'

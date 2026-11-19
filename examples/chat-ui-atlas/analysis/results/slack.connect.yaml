@@ -1,0 +1,1184 @@
+format_version: 1
+entry:
+  id: slack.connect
+  path: /slack/connect
+  name: connect
+  layer: page
+  source: { file: src/routes/slack/connect/+page.svelte, line: 1 }
+target:
+  repo: github.com/huggingface/chat-ui
+  name: chat-ui
+  clone_path: ../chat-ui
+  scope: .
+  commit: 62d3bfb703365915ee87862fbd8f459310b4cfc4
+analyzer:
+  profile: { id: ui-sveltekit, version: "0.1.0" }
+  skill_version: "0.4.1"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-18T01:28:26Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T01:27:29Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "HuggingChat のアカウントを Slack のアカウント (ML Intern の bot) につなぐ画面。開くと、サーバーの load がログインを確かめ (無ければ /login へ移す)、URL の ticket があれば slack.links から期限内の接続のリンクを読み、Slack でのログイン (cookie の署名付きの身元) が ticket の Slack 利用者と同じかを確かめる (違えば 403)。利用者の既存の接続を slack.connections から読み、MCP の同期が使える設定なら mcp.selections の有無を読む。ticket と既存の接続ごとに、Slack Web API の auth.test と users.info で workspace の名前と表示名を引く (workspace の bot の token は、本拠の workspace なら設定から、ほかは slack.installations から)。画面は、ticket があれば接続の確認と送信の form、接続済みなら MCP の切り替えと接続ごとの切断の form を出す。form はすべて同じ route の default の action に送られ、切断なら slack.connections を消し (残りが無ければ mcp.selections も消す)、MCP の切り替えなら mcp.selections を作るか消す。接続なら connectAccount が ticket と Slack の身元とセッションを確かめ、ticket を 1 回だけ使えるように slack.links から消して、slack.connections を作るか更新し、/slack/connect?connected=1 へ移す"
+  evidence:
+    - { file: src/routes/slack/connect/+page.server.ts, line: 13 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 14 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 16 }
+    - { file: src/lib/server/slack/links.ts, line: 67 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 20 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 22 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 28 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 39 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 43 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 46 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 47 }
+    - { file: src/lib/server/slack/installations.ts, line: 128 }
+    - { file: src/lib/server/slack/installations.ts, line: 87 }
+    - { file: src/routes/slack/connect/+page.svelte, line: 23 }
+    - { file: src/routes/slack/connect/+page.svelte, line: 47 }
+    - { file: src/routes/slack/connect/+page.svelte, line: 59 }
+    - { file: src/routes/slack/connect/+page.svelte, line: 69 }
+    - { file: src/routes/slack/connect/+page.svelte, line: 89 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 85 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 91 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 96 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 101 }
+    - { file: src/lib/server/mcp/savedSelection.ts, line: 63 }
+    - { file: src/lib/server/mcp/savedSelection.ts, line: 66 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 105 }
+    - { file: src/lib/server/slack/links.ts, line: 109 }
+    - { file: src/lib/server/slack/links.ts, line: 117 }
+    - { file: src/lib/server/slack/links.ts, line: 122 }
+    - { file: src/routes/slack/connect/+page.server.ts, line: 117 }
+notes: "(1) 枠 (layout_l) とフック (hooks_h) は辿っていない。locals.user と locals.sessionId はフックが用意する値として parameters に書いただけ。(2) +page.svelte は部品を import せず、3 つの form を自分で描くので、actions.default の呼び出し元は入口のフレーム。3 つの form は action 属性が無く、同じ route の default に送られる。分岐は form の action の値で、1 つの action のフレームの rules に書いた。(3) 同じ関数は、入口から深さ優先で最初に着いた呼び出し元の下に 1 回だけ書いた: readConnectionLink → slackInstalled → installedWorkspace は load の下。connectAccount もこれを呼ぶが summary で触れるだけ。workspaceClient も load の下で、connectAccount から呼ぶ分は summary で触れるだけ。(4) workspaceClient は、自分では読み書きせず、データに届くのは installedWorkspace だけ。token の選び方を rules に書いたので終端の決まりを満たし、installedWorkspace は書き直さず、summary で「経路はフレーム q_installed_workspace と同じ」と示すだけにした (はじめは書き直していたが、レビューの指摘で消した)。(5) identity (Slack の cookie の署名を確かめる) と viewerConfig と slackConfig と slackMcpSyncAvailable は、データを読み書きしない補助の関数なので段にせず、確認は guards に、設定はその結果で動きを変える段 (load、readConnectionLink など) に書いた。config は既定で環境変数を読む (ENABLE_CONFIG_MANAGER が true なら DB の config のコレクションの値が先だが、値はメモリーに読み込み済みで、この入口の処理では読まない) ので kind は env にした。(6) Slack Web API の host と path は、@slack/web-api の WebClient の既定の送り先 (slack.com/api/<メソッド>) で、リポジトリに書いていないので interpretation にした。ほかの分析リポジトリの書き方 (host と path) に合わせた。(7) guards の value は、コードが否定の形 (!==、||) で書いている確認を、肯定の形で写した (umami-atlas の結果と同じ扱い)。Slack でのログインの有無の確認は、HuggingChat のログインと同じ authentication にし、どちらのログインかは note で分けた。origin の確認は other にした。HuggingChat のセッションと Hugging Face の OAuth の token の期限の確認は、ログインの確認そのものではなく、接続に必要な状態の検証として rules (validation) にした。(8) Slack を呼ぶ external のフレームは、load の 2 つ (auth.test、users.info) はメソッドごとに分け、eligibleParticipant の 3 つは 1 つのフレームにまとめた。(9) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(10) レビューの指摘 3 件 (すべて low) は、すべて直した: installedWorkspace の書き直しのフレームを消し、connectAccount の後ろの 3 つの呼び出し (sessions の読み込み、slack.links の削除、slack.connections の更新) を、設定で打ち切られるので conditional にし、eligibleParticipant のルールに DM でないことと所属の team があることを足した"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: page
+    layer: page
+    kind: page
+    name: "connect (src/routes/slack/connect/+page.svelte)"
+    source: { file: src/routes/slack/connect/+page.svelte, line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "load の結果 (data) と action の結果 (form) を受け取り、部品を import せずに自分で描く。action の結果にエラーがあれば出し、切断の直後は切断の文言を出す。そうでなく ticket があれば、接続先の Slack の利用者と workspace の名前、注意書き、接続の form (隠しの ticket と、MCP の同期が使えるときだけ MCP を使う印) を出す。接続済みなら、MCP の切り替えの form (使えるときだけ) と、接続ごとの切断の form を出す。どちらでもなければ、Slack で bot に話しかけてリンクを受け取るよう案内する"
+      evidence:
+        - { file: src/routes/slack/connect/+page.svelte, line: 3 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 17 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 18 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 23 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 25 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 47 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 49 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 59 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 63 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 69 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 84 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 97 }
+
+  # ---------------------------------------------------------------- 画面の load
+  - id: load
+    layer: api_route
+    kind: load
+    name: "load (src/routes/slack/connect/+page.server.ts)"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 11 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/routes/slack/connect/+page.svelte, line: 3 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 11 }
+    summary:
+      status: interpretation
+      value: "応答を保存させない見出しを付け、ログインしていなければ /login へ移す。URL の ticket があれば readConnectionLink で接続のリンクを読み (読めなければ 400)、Slack でのログインの身元 (cookie) が無ければ Slack のログインへ移し、身元が ticket の Slack 利用者と違えば 403。利用者の既存の接続を slack.connections から読み、MCP の同期が使える設定なら mcp.selections に利用者の行があるかを読む。Slack の設定が無いのに ticket か既存の接続があれば 503。ticket の workspace と、既存の接続ごとに、workspaceClient で bot の client を得て、auth.test と users.info で workspace の名前と表示名を引く (ticket の分は失敗すると 503、既存の接続の分は失敗すると id をそのまま名前にする)"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 12 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 13 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 16 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 17 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 20 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 21 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 22 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 28 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 37 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 39 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 41 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 43 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 46 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 47 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 58 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 63 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 64 }
+    parameters:
+      - name: ticket
+        value: "URL のクエリ ticket (Slack で bot が利用者だけに送る接続のリンクの token)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 15 }
+          - { file: src/lib/server/slack/links.ts, line: 61 }
+      - name: locals.user
+        value: "フックが用意したログイン中の利用者。_id で接続と MCP の選択を引く"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 13 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 29 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 13 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 14 }
+        note: "HuggingChat にログインしていなければ (locals.user が無い)、/login へ移して先へ進まない"
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 20 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 21 }
+          - { file: src/lib/server/slack/viewer/auth.ts, line: 51 }
+          - { file: src/lib/server/slack/viewer/auth.ts, line: 57 }
+        note: "ticket があるとき、Slack でのログイン (署名を確かめた cookie の身元。identity) が無ければ Slack のログインへ移して先へ進まない。identity は cookie を読むだけでデータを読み書きしないので、段にしていない"
+      - kind: ownership
+        value: "slack.team === (ticket.userTeamId ?? ticket.teamId) && slack.user === ticket.slackUserId"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 22 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 23 }
+        note: "Slack でログインしている利用者が、ticket を求めた Slack の利用者 (と、その所属の workspace) と同じでなければ 403。コードは否定の形 (!== と ||) で書いているので、肯定の形で写した"
+    links:
+      - kind: navigate
+        target: "${base}/login?next=${encodeURIComponent(url.pathname + url.search)}"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 14 }
+        note: "ログインしていないとき。/login は +server.ts (画面の入口ではない) なので entry_id は無い"
+      - kind: navigate
+        target: "${base}/slack/view/login?connect=${token}"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 21 }
+        note: "ticket があり、Slack でログインしていないとき。/slack/view/login は +server.ts なので entry_id は無い"
+    rules:
+      - kind: validation
+        value: "URL に ticket があるのに、期限内の有効な接続のリンクとして読めなければ、リンクの期限切れとして 400 で止める"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 17 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 18 }
+      - kind: validation
+        value: "ticket の workspace について、bot の client が得られなければ 503、auth.test の workspace と users.info の利用者の所属が ticket と合わなければ 503 で止める"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 44 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 49 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 50 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 58 }
+      - kind: decision
+        value: "既存の接続の workspace の名前と表示名が Slack から確かめられなければ、止めずに team の id と Slack の利用者の id をそのまま名前として出す"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 63 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 65 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 66 }
+      - kind: decision
+        value: "表示名は、Slack の profile の display_name、real_name、name、利用者の id の順に、最初にあるものを使う"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 54 }
+    settings:
+      - name: SLACK_ML_ENABLED
+        kind: env
+        effect: "true でなければ Slack の設定が無いものとし、ticket か既存の接続があると 503 で止める。MCP の同期も使えないものとし、mcp.selections を読まない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/config.ts, line: 30 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 40 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 41 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 44 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 37 }
+        note: "config は既定で環境変数を読み (ENABLE_CONFIG_MANAGER が true なら config のコレクションの値が先)。名前は環境変数の名前と同じ (src/lib/server/config.ts:10, 82)"
+      - name: SLACK_ML_ACCOUNT_MODE
+        kind: env
+        effect: "user でなければ MCP の同期が使えないものとし、mcp.selections を読まず、画面に MCP の印と切り替えを出さない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 45 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 37 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 39 }
+      - name: MCP_OAUTH_ENCRYPTION_KEY
+        kind: env
+        effect: "空なら MCP の同期が使えないものとし (MCP のヘッダーを暗号にして保存できないため)、mcp.selections を読まず、画面に MCP の印と切り替えを出さない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 41 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 46 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 37 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 39 }
+      - name: SLACK_ML_VIEWER_ORIGIN
+        kind: env
+        effect: "Sign in with Slack の 4 つの設定 (ORIGIN、CLIENT_ID、CLIENT_SECRET、SESSION_SECRET) のどれかが無いか不正なら、Slack の身元をいつも無しとし、ticket があると Slack のログインへ移す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/viewer/settings.ts, line: 14 }
+          - { file: src/lib/server/slack/viewer/settings.ts, line: 19 }
+          - { file: src/lib/server/slack/viewer/auth.ts, line: 53 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 21 }
+      - name: SLACK_ML_VIEWER_CLIENT_ID
+        kind: env
+        effect: "無ければ Slack の身元をいつも無しとし、ticket があると Slack のログインへ移す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/viewer/settings.ts, line: 15 }
+          - { file: src/lib/server/slack/viewer/auth.ts, line: 53 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 21 }
+      - name: SLACK_ML_VIEWER_CLIENT_SECRET
+        kind: env
+        effect: "無ければ Slack の身元をいつも無しとし、ticket があると Slack のログインへ移す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/viewer/settings.ts, line: 16 }
+          - { file: src/lib/server/slack/viewer/auth.ts, line: 53 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 21 }
+      - name: SLACK_ML_VIEWER_SESSION_SECRET
+        kind: env
+        effect: "無いか 32 文字より短ければ Slack の身元をいつも無しとし、ticket があると Slack のログインへ移す (値は cookie の署名を確かめる鍵)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/viewer/settings.ts, line: 11 }
+          - { file: src/lib/server/slack/viewer/settings.ts, line: 17 }
+          - { file: src/lib/server/slack/viewer/auth.ts, line: 55 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 21 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.connections } }
+        fields:
+          - { name: userId, use: [filter] }
+          - { name: _id, use: [read] }
+          - { name: teamId, use: [read] }
+          - { name: slackUserId, use: [read] }
+          - { name: userTeamId, use: [read] }
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 28 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 29 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 30 }
+          - { file: src/lib/server/database.ts, line: 160 }
+        note: "ログイン中の利用者の、Slack との接続の一覧"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: mcp.selections } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 38 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 39 }
+          - { file: src/lib/server/database.ts, line: 159 }
+        note: "MCP の同期が使える設定のときだけ読む (行の有無で、MCP を Slack で使う印の状態を決める)"
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: slack.com, path: /api/auth.test } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 46 }
+          - { file: src/lib/server/slack/installations.ts, line: 131 }
+        note: "Slack Web API の auth.test。bot の token の workspace の名前と id を受け取る。host と path は @slack/web-api の WebClient の既定の送り先で、リポジトリには書いていない。ticket があるときと、既存の接続ごとに呼ぶ"
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: slack.com, path: /api/users.info } }
+        fields:
+          - { name: user, use: [write] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 47 }
+          - { file: src/lib/server/slack/installations.ts, line: 131 }
+        note: "Slack Web API の users.info。Slack の利用者の所属の workspace と名前を受け取る。host と path は WebClient の既定の送り先"
+
+  - id: q_read_connection_link
+    layer: query
+    kind: function
+    name: "readConnectionLink (src/lib/server/slack/links.ts)"
+    source: { file: src/lib/server/slack/links.ts, line: 63 }
+    caller: load
+    call:
+      status: fact
+      when: conditional
+      condition: "URL に ticket があるとき"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 6 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 16 }
+    summary:
+      status: interpretation
+      value: "token の形 (43 文字の英数字と - と _) を確かめ、Slack を個人のアカウントで使う設定のときだけ、token の sha256 を _id にして期限内の接続のリンクを slack.links から読む。リンクの workspace をこの配備が受け持っているか (slackInstalled) も確かめ、どれかが外れれば null を返す。connectAccount も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 64 }
+        - { file: src/lib/server/slack/links.ts, line: 66 }
+        - { file: src/lib/server/slack/links.ts, line: 16 }
+        - { file: src/lib/server/slack/links.ts, line: 67 }
+        - { file: src/lib/server/slack/links.ts, line: 71 }
+        - { file: src/lib/server/slack/links.ts, line: 81 }
+    rules:
+      - kind: validation
+        value: "接続のリンクは、作ってから 10 分の期限 (expiresAt) の内だけ有効とする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 69 }
+          - { file: src/lib/server/slack/links.ts, line: 59 }
+      - kind: validation
+        value: "リンクの workspace を、この配備が受け持っていなければ (本拠の workspace でも、有効なインストールでもなければ)、リンクを無いものとする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 71 }
+    settings:
+      - name: SLACK_ML_ACCOUNT_MODE
+        kind: env
+        effect: "user (利用者ごとの個人のアカウントで使う) でなければ、slack.links を読まずに、リンクを無いものとする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 66 }
+          - { file: src/lib/server/slack/config.ts, line: 36 }
+      - name: SLACK_ML_ENABLED
+        kind: env
+        effect: "true でなければ Slack の設定が無いものとし、slack.links を読まずに、リンクを無いものとする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 65 }
+          - { file: src/lib/server/slack/links.ts, line: 66 }
+          - { file: src/lib/server/slack/config.ts, line: 30 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.links } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: expiresAt, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 67 }
+          - { file: src/lib/server/slack/links.ts, line: 68 }
+          - { file: src/lib/server/slack/links.ts, line: 69 }
+          - { file: src/lib/server/database.ts, line: 161 }
+        note: "token の形が合い、SLACK_ML_ACCOUNT_MODE が user のときだけ読む"
+
+  - id: ext_mongo_links_find_one
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (slack.links)"
+    source: { file: src/lib/server/slack/links.ts, line: 67 }
+    caller: q_read_connection_link
+    call:
+      status: fact
+      when: conditional
+      condition: "token の形が合い、Slack を個人のアカウントで使う設定のとき"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 64 }
+        - { file: src/lib/server/slack/links.ts, line: 66 }
+        - { file: src/lib/server/slack/links.ts, line: 67 }
+
+  - id: q_slack_installed
+    layer: query
+    kind: function
+    name: "slackInstalled (src/lib/server/slack/installations.ts)"
+    source: { file: src/lib/server/slack/installations.ts, line: 58 }
+    caller: q_read_connection_link
+    call:
+      status: fact
+      when: conditional
+      condition: "期限内の接続のリンクが見つかったとき"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 11 }
+        - { file: src/lib/server/slack/links.ts, line: 71 }
+    summary:
+      status: interpretation
+      value: "workspace がこの配備の受け持ちかを返す。Slack の設定が無ければ false、本拠の workspace なら true、それ以外は installedWorkspace で有効なインストールがあるかを見る"
+      evidence:
+        - { file: src/lib/server/slack/installations.ts, line: 59 }
+        - { file: src/lib/server/slack/installations.ts, line: 60 }
+        - { file: src/lib/server/slack/installations.ts, line: 61 }
+    rules:
+      - kind: decision
+        value: "本拠の workspace (設定の team id) は、インストールの記録を見ずに受け持ちとする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/installations.ts, line: 60 }
+    settings:
+      - name: SLACK_ML_TEAM_ID
+        kind: env
+        effect: "この team id の workspace は本拠として、slack.installations を読まずに受け持ちとする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/installations.ts, line: 60 }
+          - { file: src/lib/server/slack/config.ts, line: 32 }
+
+  - id: q_installed_workspace
+    layer: query
+    kind: function
+    name: "installedWorkspace (src/lib/server/slack/installations.ts)"
+    source: { file: src/lib/server/slack/installations.ts, line: 80 }
+    caller: q_slack_installed
+    call:
+      status: fact
+      when: conditional
+      condition: "workspace が本拠の workspace でないとき"
+      evidence:
+        - { file: src/lib/server/slack/installations.ts, line: 60 }
+        - { file: src/lib/server/slack/installations.ts, line: 61 }
+    summary:
+      status: interpretation
+      value: "ほかの workspace からのインストールを受け付ける設定でなければ、何も読まずに無しを返す。受け付けるなら、30 秒のメモリーのキャッシュに無いときだけ、止められていないインストールを slack.installations から読み、暗号にした bot の token を戻して返す (無しの結果はキャッシュしない)"
+      evidence:
+        - { file: src/lib/server/slack/installations.ts, line: 81 }
+        - { file: src/lib/server/slack/installations.ts, line: 84 }
+        - { file: src/lib/server/slack/installations.ts, line: 87 }
+        - { file: src/lib/server/slack/installations.ts, line: 88 }
+        - { file: src/lib/server/slack/installations.ts, line: 90 }
+        - { file: src/lib/server/slack/installations.ts, line: 96 }
+        - { file: src/lib/server/slack/installations.ts, line: 97 }
+    rules:
+      - kind: validation
+        value: "運用者が止めた (disabled) workspace のインストールは、受け持ちとしない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/installations.ts, line: 88 }
+    settings:
+      - name: SLACK_ML_PUBLIC_INSTALL
+        kind: env
+        effect: "true でなければ、ほかの workspace のインストールを受け持たず、slack.installations を読まない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/installations.ts, line: 81 }
+          - { file: src/lib/server/slack/config.ts, line: 45 }
+          - { file: src/lib/server/slack/config.ts, line: 62 }
+        note: "true でも、SLACK_ML_ACCOUNT_MODE が user で、Slack の client id と secret、MCP_OAUTH_ENCRYPTION_KEY、Sign in with Slack の設定がそろっていなければ、slackConfig が false に直す (config.ts:62-75)"
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.installations } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: disabled, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/slack/installations.ts, line: 87 }
+          - { file: src/lib/server/slack/installations.ts, line: 88 }
+          - { file: src/lib/server/database.ts, line: 166 }
+        note: "ほかの workspace のインストールを受け付ける設定で、30 秒のキャッシュに無いときだけ読む"
+
+  - id: ext_mongo_installations_find_one
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (slack.installations)"
+    source: { file: src/lib/server/slack/installations.ts, line: 88 }
+    caller: q_installed_workspace
+    call:
+      status: fact
+      when: conditional
+      condition: "ほかの workspace のインストールを受け付ける設定で、その workspace の結果がキャッシュに無いとき"
+      evidence:
+        - { file: src/lib/server/slack/installations.ts, line: 81 }
+        - { file: src/lib/server/slack/installations.ts, line: 84 }
+        - { file: src/lib/server/slack/installations.ts, line: 88 }
+
+  - id: ext_mongo_connections_find
+    layer: external
+    kind: library
+    name: "MongoDB driver find (slack.connections)"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 29 }
+    caller: load
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 28 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 29 }
+
+  - id: ext_mongo_mcp_selections_find_one
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (mcp.selections)"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 39 }
+    caller: load
+    call:
+      status: fact
+      when: conditional
+      condition: "MCP の同期が使える設定のとき"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 37 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 39 }
+
+  - id: q_workspace_client
+    layer: query
+    kind: function
+    name: "workspaceClient (src/lib/server/slack/installations.ts)"
+    source: { file: src/lib/server/slack/installations.ts, line: 122 }
+    caller: load
+    call:
+      status: fact
+      when: conditional
+      condition: "有効な ticket があるとき (その workspace の分)、または既存の接続があるとき (接続ごとに)"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 2 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 43 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 57 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 58 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 61 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 63 }
+    summary:
+      status: interpretation
+      value: "Slack の設定が無ければ無しを返す。workspace が本拠なら設定の bot の token を、そうでなければ installedWorkspace で読んだインストールの bot の token を使い、Slack Web API の client (やり直し無し、10 秒で打ち切り) を作って返す。installedWorkspace も呼ぶ。経路はフレーム q_installed_workspace と同じ。connectAccount も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/server/slack/installations.ts, line: 126 }
+        - { file: src/lib/server/slack/installations.ts, line: 128 }
+        - { file: src/lib/server/slack/installations.ts, line: 129 }
+        - { file: src/lib/server/slack/installations.ts, line: 130 }
+        - { file: src/lib/server/slack/installations.ts, line: 131 }
+        - { file: src/lib/server/slack/installations.ts, line: 31 }
+        - { file: src/lib/server/slack/links.ts, line: 97 }
+    rules:
+      - kind: decision
+        value: "本拠の workspace には設定の bot の token を、ほかの workspace には、そのインストールで保存した bot の token を使う"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/installations.ts, line: 128 }
+          - { file: src/lib/server/slack/installations.ts, line: 129 }
+          - { file: src/lib/server/slack/installations.ts, line: 130 }
+    settings:
+      - name: SLACK_ML_TEAM_ID
+        kind: env
+        effect: "この team id の workspace には、slack.installations を読まずに、設定の bot の token を使う"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/installations.ts, line: 128 }
+          - { file: src/lib/server/slack/config.ts, line: 32 }
+
+  - id: ext_slack_auth_test
+    layer: external
+    kind: library
+    name: "@slack/web-api WebClient auth.test"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 46 }
+    caller: load
+    call:
+      status: fact
+      when: conditional
+      condition: "workspaceClient が client を返したとき (有効な ticket があるか、既存の接続があるとき)"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 44 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 46 }
+
+  - id: ext_slack_users_info
+    layer: external
+    kind: library
+    name: "@slack/web-api WebClient users.info"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 47 }
+    caller: load
+    call:
+      status: fact
+      when: conditional
+      condition: "workspaceClient が client を返したとき (有効な ticket があるか、既存の接続があるとき)"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 44 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 47 }
+
+  # ---------------------------------------------------------------- form の action
+  - id: action_default
+    layer: api_route
+    kind: action
+    name: "actions.default (src/routes/slack/connect/+page.server.ts)"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 85 }
+    caller: page
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者が画面の form (接続、MCP の切り替え、切断のどれか) を送信したとき"
+      evidence:
+        - { file: src/routes/slack/connect/+page.svelte, line: 47 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 69 }
+        - { file: src/routes/slack/connect/+page.svelte, line: 89 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 85 }
+      note: "3 つの form はどれも action 属性が無いので、同じ route の名前の無い action (default) に送られる"
+    summary:
+      status: interpretation
+      value: "要求の origin が自分と同じか、ログインしているかを確かめる。form の action が disconnect なら、利用者の接続 (connectionId があればその 1 件、無ければすべて) を slack.connections から消し、残りが無ければ setMcpSyncEnabled で MCP の同期を切る。mcp なら、enabled の値で setMcpSyncEnabled を呼ぶ。どちらでもなければ connectAccount で ticket の Slack の利用者とつなぎ、MCP を使う印があれば MCP の同期を入れて、/slack/connect?connected=1 へ移す (つなげなければ 400 で理由を返す)"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 86 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 87 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 89 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 91 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 93 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 96 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 97 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 100 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 101 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 105 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 111 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 113 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 117 }
+    parameters:
+      - name: action
+        value: "form の項目。disconnect (切断の form のボタン)、mcp (MCP の切り替えの form)、無し (接続の form)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 89 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 100 }
+          - { file: src/routes/slack/connect/+page.svelte, line: 70 }
+          - { file: src/routes/slack/connect/+page.svelte, line: 91 }
+      - name: connectionId
+        value: "切断する接続の _id (切断の form の隠しの項目)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 90 }
+          - { file: src/routes/slack/connect/+page.svelte, line: 90 }
+      - name: enabled
+        value: "MCP の同期を入れるか (\"true\" なら入れる)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 101 }
+          - { file: src/routes/slack/connect/+page.svelte, line: 71 }
+      - name: ticket
+        value: "接続のリンクの token (接続の form の隠しの項目)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 106 }
+          - { file: src/routes/slack/connect/+page.svelte, line: 48 }
+      - name: useMcpServers
+        value: "接続と同時に MCP の同期を入れる印 (on なら入れる)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 111 }
+          - { file: src/routes/slack/connect/+page.svelte, line: 51 }
+    guards:
+      - kind: other
+        value: "request.headers.get(\"origin\") === url.origin"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 86 }
+        note: "ほかのサイトからの送信を拒む確認 (origin が違えば 403)。コードは否定の形 (!==) で書いているので、肯定の形で写した"
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 87 }
+        note: "HuggingChat にログインしていなければ (locals.user が無い) 401"
+    links:
+      - kind: navigate
+        target: "${base}/slack/connect?connected=1"
+        entry_id: slack.connect
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 117 }
+        note: "接続に成功したとき、同じ画面へ移し直す"
+    rules:
+      - kind: decision
+        value: "form の action の値で、切断、MCP の切り替え、接続のどれを行うかを分ける"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 89 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 100 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 104 }
+      - kind: decision
+        value: "切断で connectionId が無ければ、利用者の Slack との接続をすべて消す"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 92 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 93 }
+      - kind: decision
+        value: "保存した MCP の設定は Slack のためだけにあるので、最後の接続を切ったら MCP の同期も切る"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 95 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 96 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 97 }
+      - kind: decision
+        value: "接続に失敗したとき、ConnectionError ならその理由を、それ以外は決まった文言を 400 で返す"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 112 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 114 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.connections } }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: userId, use: [filter] }
+          - { name: _id, use: [filter] }
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 91 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 92 }
+          - { file: src/routes/slack/connect/+page.server.ts, line: 93 }
+          - { file: src/lib/server/database.ts, line: 160 }
+        note: "切断の form のときだけ。_id は connectionId が文字列のときだけ条件に入る"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.connections } }
+        fields:
+          - { name: "*", use: [read] }
+          - { name: userId, use: [filter] }
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 96 }
+          - { file: src/lib/server/database.ts, line: 160 }
+        note: "切断の後に、利用者の接続が残っているかを見る"
+
+  - id: ext_mongo_connections_delete_many
+    layer: external
+    kind: library
+    name: "MongoDB driver deleteMany (slack.connections)"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 91 }
+    caller: action_default
+    call:
+      status: fact
+      when: conditional
+      condition: "切断の form を送ったとき"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 89 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 91 }
+
+  - id: ext_mongo_connections_find_one
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (slack.connections)"
+    source: { file: src/routes/slack/connect/+page.server.ts, line: 96 }
+    caller: action_default
+    call:
+      status: fact
+      when: conditional
+      condition: "切断の form を送ったとき (消した後)"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 89 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 96 }
+
+  - id: q_set_mcp_sync_enabled
+    layer: query
+    kind: function
+    name: "setMcpSyncEnabled (src/lib/server/mcp/savedSelection.ts)"
+    source: { file: src/lib/server/mcp/savedSelection.ts, line: 61 }
+    caller: action_default
+    call:
+      status: fact
+      when: conditional
+      condition: "切断で利用者の接続が 1 件も残らなかったとき、MCP の切り替えの form を送ったとき、または接続に成功し MCP を使う印が付いていたとき"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 8 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 96 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 97 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 100 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 101 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 111 }
+    summary:
+      status: interpretation
+      value: "MCP の同期を切る (enabled が false) か、同期が使えない設定なら、mcp.selections の利用者の行を消す。入れるなら、利用者の行が無ければ作る (行があることが、Slack で MCP を使う同意の印。選んだ MCP の中身は、ブラウザが後で送る)"
+      evidence:
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 62 }
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 63 }
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 66 }
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 31 }
+    rules:
+      - kind: decision
+        value: "MCP の同期を入れるときは利用者の行を作り、切るときは行を消す (行の有無が同意の印)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 62 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 63 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 66 }
+    settings:
+      - name: SLACK_ML_ENABLED
+        kind: env
+        effect: "true でなければ、入れる指示でも、利用者の行を消す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 44 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 62 }
+      - name: SLACK_ML_ACCOUNT_MODE
+        kind: env
+        effect: "user でなければ、入れる指示でも、利用者の行を消す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 45 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 62 }
+      - name: MCP_OAUTH_ENCRYPTION_KEY
+        kind: env
+        effect: "空なら、入れる指示でも、利用者の行を消す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 46 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 62 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: mcp.selections } }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: _id, use: [filter] }
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 63 }
+          - { file: src/lib/server/database.ts, line: 159 }
+        note: "切る指示のとき、または同期が使えない設定のとき"
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: mcp.selections } }
+        fields:
+          - { name: _id, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 66 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 67 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 68 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 69 }
+          - { file: src/lib/server/database.ts, line: 159 }
+        note: "入れる指示で、同期が使える設定のとき。upsert で、行が無ければ _id (利用者の id) と updatedAt を持つ行を作る"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: mcp.selections } }
+        fields:
+          - { name: _id, use: [filter] }
+        evidence:
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 66 }
+          - { file: src/lib/server/mcp/savedSelection.ts, line: 69 }
+          - { file: src/lib/server/database.ts, line: 159 }
+        note: "upsert の更新の側。$setOnInsert だけなので、行が既にあれば項目を書き換えない"
+
+  - id: ext_mongo_mcp_selections_delete_one
+    layer: external
+    kind: library
+    name: "MongoDB driver deleteOne (mcp.selections)"
+    source: { file: src/lib/server/mcp/savedSelection.ts, line: 63 }
+    caller: q_set_mcp_sync_enabled
+    call:
+      status: fact
+      when: conditional
+      condition: "切る指示のとき、または MCP の同期が使えない設定のとき"
+      evidence:
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 62 }
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 63 }
+
+  - id: ext_mongo_mcp_selections_update_one
+    layer: external
+    kind: library
+    name: "MongoDB driver updateOne (mcp.selections)"
+    source: { file: src/lib/server/mcp/savedSelection.ts, line: 66 }
+    caller: q_set_mcp_sync_enabled
+    call:
+      status: fact
+      when: conditional
+      condition: "入れる指示で、MCP の同期が使える設定のとき"
+      evidence:
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 62 }
+        - { file: src/lib/server/mcp/savedSelection.ts, line: 66 }
+
+  - id: q_connect_account
+    layer: query
+    kind: function
+    name: "connectAccount (src/lib/server/slack/links.ts)"
+    source: { file: src/lib/server/slack/links.ts, line: 75 }
+    caller: action_default
+    call:
+      status: fact
+      when: conditional
+      condition: "接続の form を送ったとき (action の値が disconnect でも mcp でもない送信)"
+      evidence:
+        - { file: src/routes/slack/connect/+page.server.ts, line: 6 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 89 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 100 }
+        - { file: src/routes/slack/connect/+page.server.ts, line: 105 }
+    summary:
+      status: interpretation
+      value: "readConnectionLink で ticket を読み直し (無ければ期限切れ)、Slack でのログインの身元が期限内で ticket の Slack 利用者と同じかを確かめる。ticket が別の組織の利用者からの共有チャンネルのものなら、workspaceClient と eligibleParticipant で、利用者がまだそのチャンネルの参加者かを Slack に確かめる。HuggingChat のセッションを sessions から読み、Hugging Face の OAuth の token が期限内かを確かめる。ticket を slack.links から消して 1 回きりにし (消せなければ使用済み)、slack.connections に Slack の利用者と HuggingChat の利用者とセッションの対応を作るか更新する。readConnectionLink と workspaceClient も呼ぶ。経路はフレーム q_read_connection_link と q_workspace_client と同じ"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 81 }
+        - { file: src/lib/server/slack/links.ts, line: 86 }
+        - { file: src/lib/server/slack/links.ts, line: 95 }
+        - { file: src/lib/server/slack/links.ts, line: 97 }
+        - { file: src/lib/server/slack/links.ts, line: 100 }
+        - { file: src/lib/server/slack/links.ts, line: 109 }
+        - { file: src/lib/server/slack/links.ts, line: 114 }
+        - { file: src/lib/server/slack/links.ts, line: 116 }
+        - { file: src/lib/server/slack/links.ts, line: 117 }
+        - { file: src/lib/server/slack/links.ts, line: 121 }
+        - { file: src/lib/server/slack/links.ts, line: 122 }
+    parameters:
+      - name: token
+        value: "form の ticket"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 106 }
+      - name: sessionId
+        value: "フックが用意した HuggingChat のセッションの id (locals.sessionId)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 108 }
+      - name: slackIdentity
+        value: "cookie から読んだ Slack でのログインの身元 (identity)"
+        status: fact
+        evidence:
+          - { file: src/routes/slack/connect/+page.server.ts, line: 109 }
+    guards:
+      - kind: ownership
+        value: "slackIdentity.team === (ticket.userTeamId ?? ticket.teamId) && slackIdentity.user === ticket.slackUserId"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 86 }
+          - { file: src/lib/server/slack/links.ts, line: 89 }
+          - { file: src/lib/server/slack/links.ts, line: 90 }
+          - { file: src/lib/server/slack/links.ts, line: 92 }
+        note: "Slack でのログインの身元が無いか期限切れか、ticket を求めた Slack の利用者と違えば、ConnectionError で止める。コードは否定の形で書いているので、肯定の形で写した (身元の有無と期限の条件は値に入れていない)"
+      - kind: ownership
+        value: "participant?.team_id === ticket.userTeamId"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 95 }
+          - { file: src/lib/server/slack/links.ts, line: 100 }
+          - { file: src/lib/server/slack/links.ts, line: 106 }
+          - { file: src/lib/server/slack/links.ts, line: 107 }
+        note: "共有チャンネル (ticket の userTeamId が teamId と違う) のときだけ。利用者が、そのチャンネルの参加者で、ticket の組織に属していなければ止める。コードは否定の形 (!==) で書いているので、肯定の形で写した"
+    rules:
+      - kind: validation
+        value: "接続のリンクが読めなければ (期限切れか、受け持ちでない)、期限切れとして止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 81 }
+          - { file: src/lib/server/slack/links.ts, line: 82 }
+      - kind: validation
+        value: "HuggingChat のセッションが期限内で、Hugging Face の OAuth の token を持ち、その token も期限内でなければ、Hugging Face で入り直すよう求めて止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 112 }
+          - { file: src/lib/server/slack/links.ts, line: 114 }
+          - { file: src/lib/server/slack/links.ts, line: 115 }
+      - kind: validation
+        value: "接続のリンクは 1 回だけ使える。期限内のリンクを消せなかった (2 つのブラウザから同時に送った場合を含む) ときは、使用済みとして止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 116 }
+          - { file: src/lib/server/slack/links.ts, line: 117 }
+          - { file: src/lib/server/slack/links.ts, line: 121 }
+      - kind: calculation
+        value: "接続の _id は、team と Slack の利用者 (と、違えば利用者の所属の team) を : でつないだ文字にする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 13 }
+          - { file: src/lib/server/slack/links.ts, line: 14 }
+          - { file: src/lib/server/slack/links.ts, line: 123 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: sessions } }
+        fields:
+          - { name: "*", use: [read] }
+          - { name: sessionId, use: [filter] }
+          - { name: userId, use: [filter] }
+          - { name: expiresAt, use: [filter] }
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 109 }
+          - { file: src/lib/server/slack/links.ts, line: 110 }
+          - { file: src/lib/server/slack/links.ts, line: 111 }
+          - { file: src/lib/server/slack/links.ts, line: 112 }
+          - { file: src/lib/server/database.ts, line: 170 }
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.links } }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: _id, use: [filter] }
+          - { name: expiresAt, use: [filter] }
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 117 }
+          - { file: src/lib/server/slack/links.ts, line: 118 }
+          - { file: src/lib/server/slack/links.ts, line: 119 }
+          - { file: src/lib/server/database.ts, line: 161 }
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.connections } }
+        fields:
+          - { name: _id, use: [write] }
+          - { name: verifiedSlackIdentity, use: [write], set_to: "true" }
+          - { name: userTeamId, use: [write] }
+          - { name: teamId, use: [write] }
+          - { name: slackUserId, use: [write] }
+          - { name: userId, use: [write] }
+          - { name: sessionId, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 122 }
+          - { file: src/lib/server/slack/links.ts, line: 123 }
+          - { file: src/lib/server/slack/links.ts, line: 126 }
+          - { file: src/lib/server/slack/links.ts, line: 132 }
+          - { file: src/lib/server/slack/links.ts, line: 135 }
+          - { file: src/lib/server/database.ts, line: 160 }
+        note: "upsert の作成の側。まだ対応が無ければ作る"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.connections } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: verifiedSlackIdentity, use: [write], set_to: "true" }
+          - { name: userTeamId, use: [write] }
+          - { name: teamId, use: [write] }
+          - { name: slackUserId, use: [write] }
+          - { name: userId, use: [write] }
+          - { name: sessionId, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/slack/links.ts, line: 122 }
+          - { file: src/lib/server/slack/links.ts, line: 123 }
+          - { file: src/lib/server/slack/links.ts, line: 126 }
+          - { file: src/lib/server/slack/links.ts, line: 132 }
+          - { file: src/lib/server/slack/links.ts, line: 135 }
+          - { file: src/lib/server/database.ts, line: 160 }
+        note: "upsert の更新の側。同じ Slack の利用者の対応が既にあれば、HuggingChat の利用者とセッションを付け替える"
+
+  - id: ext_mongo_sessions_find_one
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (sessions)"
+    source: { file: src/lib/server/slack/links.ts, line: 109 }
+    caller: q_connect_account
+    call:
+      status: fact
+      when: conditional
+      condition: "Slack を個人のアカウントで使う設定で、接続のリンクと Slack の身元の確認を通ったとき"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 66 }
+        - { file: src/lib/server/slack/links.ts, line: 82 }
+        - { file: src/lib/server/slack/links.ts, line: 109 }
+      note: "readConnectionLink は、SLACK_ML_ENABLED が true でないか SLACK_ML_ACCOUNT_MODE が user でないと必ず null を返し、connectAccount はそこで止まる。打ち切るかどうかが設定で決まるので conditional にした"
+
+  - id: ext_mongo_links_delete_one
+    layer: external
+    kind: library
+    name: "MongoDB driver deleteOne (slack.links)"
+    source: { file: src/lib/server/slack/links.ts, line: 117 }
+    caller: q_connect_account
+    call:
+      status: fact
+      when: conditional
+      condition: "Slack を個人のアカウントで使う設定で、接続のリンク、Slack の身元、HuggingChat のセッションの確認を通ったとき"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 66 }
+        - { file: src/lib/server/slack/links.ts, line: 114 }
+        - { file: src/lib/server/slack/links.ts, line: 117 }
+
+  - id: ext_mongo_connections_update_one
+    layer: external
+    kind: library
+    name: "MongoDB driver updateOne (slack.connections)"
+    source: { file: src/lib/server/slack/links.ts, line: 122 }
+    caller: q_connect_account
+    call:
+      status: fact
+      when: conditional
+      condition: "Slack を個人のアカウントで使う設定で、確認をすべて通り、接続のリンクを消せたとき"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 66 }
+        - { file: src/lib/server/slack/links.ts, line: 121 }
+        - { file: src/lib/server/slack/links.ts, line: 122 }
+
+  - id: q_eligible_participant
+    layer: query
+    kind: function
+    name: "eligibleParticipant (src/lib/server/slack/access.ts)"
+    source: { file: src/lib/server/slack/access.ts, line: 6 }
+    caller: q_connect_account
+    call:
+      status: fact
+      when: conditional
+      condition: "ticket が共有チャンネルからのもので、利用者の所属の team が bot の workspace と違い、Slack の設定と client とチャンネルがそろっているとき"
+      evidence:
+        - { file: src/lib/server/slack/links.ts, line: 1 }
+        - { file: src/lib/server/slack/links.ts, line: 95 }
+        - { file: src/lib/server/slack/links.ts, line: 98 }
+        - { file: src/lib/server/slack/links.ts, line: 100 }
+    summary:
+      status: interpretation
+      value: "許可したチャンネルの一覧の外なら無しを返す。Slack の users.info と conversations.info で利用者とチャンネルを読み、workspace の正規の参加者で外部共有でないチャンネルならその利用者を返す。外部共有のチャンネルでは、個人のアカウントの設定で、bot・削除済み・ゲスト・見知らぬ利用者でないときだけ、conversations.members をページ送りで読んで、チャンネルの参加者かを確かめる"
+      evidence:
+        - { file: src/lib/server/slack/access.ts, line: 12 }
+        - { file: src/lib/server/slack/access.ts, line: 14 }
+        - { file: src/lib/server/slack/access.ts, line: 15 }
+        - { file: src/lib/server/slack/access.ts, line: 19 }
+        - { file: src/lib/server/slack/access.ts, line: 22 }
+        - { file: src/lib/server/slack/access.ts, line: 40 }
+        - { file: src/lib/server/slack/access.ts, line: 41 }
+    rules:
+      - kind: validation
+        value: "外部共有のチャンネルの利用者は、チャンネルが DM・グループ DM でなく、利用者が所属の team を持ち、bot、削除済み、制限付きのゲスト、見知らぬ利用者でなく、そのチャンネルの参加者のときだけ認める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/access.ts, line: 22 }
+          - { file: src/lib/server/slack/access.ts, line: 25 }
+          - { file: src/lib/server/slack/access.ts, line: 26 }
+          - { file: src/lib/server/slack/access.ts, line: 27 }
+          - { file: src/lib/server/slack/access.ts, line: 28 }
+          - { file: src/lib/server/slack/access.ts, line: 29 }
+          - { file: src/lib/server/slack/access.ts, line: 33 }
+          - { file: src/lib/server/slack/access.ts, line: 41 }
+      - kind: decision
+        value: "workspace の正規の参加者で、チャンネルが外部共有でなければ、参加者の一覧を読まずに認める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/access.ts, line: 19 }
+    settings:
+      - name: SLACK_ML_ALLOWED_CHANNELS
+        kind: env
+        effect: "空でなければ、一覧に無いチャンネルの利用者を認めない (Slack を呼ばずに無しを返す)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/access.ts, line: 12 }
+          - { file: src/lib/server/slack/config.ts, line: 41 }
+      - name: SLACK_ML_ACCOUNT_MODE
+        kind: env
+        effect: "user でなければ、外部共有のチャンネルの利用者を認めない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/access.ts, line: 18 }
+          - { file: src/lib/server/slack/access.ts, line: 23 }
+          - { file: src/lib/server/slack/config.ts, line: 36 }
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: slack.com, path: /api/users.info } }
+        fields:
+          - { name: user, use: [write] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/slack/access.ts, line: 14 }
+        note: "host と path は @slack/web-api の WebClient の既定の送り先で、リポジトリには書いていない。許可したチャンネルの一覧の内のときだけ"
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: slack.com, path: /api/conversations.info } }
+        fields:
+          - { name: channel, use: [write] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/slack/access.ts, line: 15 }
+        note: "host と path は WebClient の既定の送り先。許可したチャンネルの一覧の内のときだけ"
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: slack.com, path: /api/conversations.members } }
+        fields:
+          - { name: channel, use: [write] }
+          - { name: limit, use: [write] }
+          - { name: cursor, use: [write] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/slack/access.ts, line: 40 }
+        note: "host と path は WebClient の既定の送り先。外部共有のチャンネルで、個人のアカウントの設定のときだけ、ページ送りで繰り返す"
+
+  - id: ext_slack_participant
+    layer: external
+    kind: library
+    name: "@slack/web-api WebClient users.info / conversations.info / conversations.members"
+    source: { file: src/lib/server/slack/access.ts, line: 14 }
+    caller: q_eligible_participant
+    call:
+      status: fact
+      when: conditional
+      condition: "許可したチャンネルの一覧が空か、チャンネルがその中にあるとき"
+      evidence:
+        - { file: src/lib/server/slack/access.ts, line: 12 }
+        - { file: src/lib/server/slack/access.ts, line: 14 }
+        - { file: src/lib/server/slack/access.ts, line: 15 }
+        - { file: src/lib/server/slack/access.ts, line: 40 }
+      note: "3 つのメソッドを 1 つのフレームにまとめた。conversations.members (access.ts:40) は、外部共有のチャンネルで条件を満たすときだけ呼ぶ"

@@ -1,0 +1,42 @@
+format_version: 1
+entry_id: index.typeOrId_d.form.viewId_d
+reviewed_at: "2026-11-18T01:22:53Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    resolved: true
+    where: callstack/internal_get/call
+    claim: "useMetas.getMeta は、置き場 (metas) に表の定義があれば 161 行目で返り、internalGet を呼ぶのは置き場に無いとき (と、force のとき) だけなのに、呼び出しが always になっている"
+    evidence: { file: composables/useMetas.ts, line: 161 }
+    suggestion: "when を conditional にし、condition に「表の定義が置き場 (metas) に無いとき」と書き、根拠に 161 行目と 177 行目を書く"
+  - kind: classification_mismatch
+    severity: low
+    resolved: true
+    where: callstack/get_meta/call
+    claim: "condition の「リンク先の表の定義が、共有ビューから受け取った定義の中に無いとき」は getMeta の中の置き場の判定 (internalGet を呼ぶ条件) で、getMeta を呼ぶ条件ではない。また、getMeta は前もって入れる経路 (902 行目) のほかに、条件で列を出し分ける判定 (lib/form.ts 205 行目、259 行目) からも、値の有無にかかわらず呼ばれるのに、condition に入っていない"
+    evidence: { file: composables/useSharedFormViewStore.ts, line: 902 }
+    suggestion: "condition を「URL のクエリでリンクの列に値を前もって入れるとき、またはフォームの表示の条件がリンクやルックアップの列を参照するとき」にし、置き場の判定は internal_get の call の condition に移す"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/load_shared_view/rules
+    claim: "共有ビューの filter (フォームの表示の条件) で列を出し分ける業務のルールが、summary には書かれているが rules に無い (前もって入れて隠した列は、判定で表示に戻さない)"
+    evidence: { file: lib/form.ts, line: 634 }
+    suggestion: "rules に kind decision で「フォームの表示の条件 (共有ビューの filter) を満たさない列は隠す。前もって入れて隠した列は、条件を満たしても隠したままにする」を足し、根拠に useSharedFormViewStore.ts 300 行目、1028 行目と lib/form.ts 622 行目、635 行目を書く"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/sdk_internal_get_operation/io/0/fields
+    claim: "応答の表の定義から読む列 (id、title、base_id、columns) が fields に無く、送る側の列だけになっている"
+    evidence: { file: composables/useMetas.ts, line: 184 }
+    suggestion: "fields に id、title、base_id、columns を use read で足す (根拠は useMetas.ts 184 行目から 191 行目と、useSharedFormViewStore.ts 916 行目)"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/sdk_internal_post_operation_batch/io/0/fields
+    claim: "batch の応答から読む results (各要素の status、data、error) が fields に無い"
+    evidence: { file: composables/useInternalBatch.ts, line: 151 }
+    suggestion: "fields に results を use read で足す"
+notes: "(1) 固定の値で閉じている呼び出し (useProvideSmartsheetStore の shared に true を渡し、loadSavedFiltersForViewer が 312 行目で返る) は、3 つの条件を満たすことを確かめた (isPublic が true なら isViewOperationsAllowed は isSharedBase に関わらず true。314 行目でも isPublic で返る。getViewColumns も 394 行目で isPublic なら返る。この入口の木の中に、別の値で useProvideSmartsheetStore を呼ぶ経路は無い)。(2) showRecordPlanLimitExceededModal と useViewRowColorProvider が何もしない関数であることを確かめた。(3) loadSharedView の catch の最後の分岐 (ERR_UNKNOWN のときは誤りの文を出す、408 行目) は rules に無いが、表示だけなので指摘にしなかった。(4) sdk_data_relation_list の condition には、リンク先の表の定義が読めること (907 行目) と、値が空でないこと (942 行目) も効くが、主な条件は書かれているので指摘にしなかった。(5) 書きかけの保存 (useSharedFormDraft) は formDraftStorageManager のブラウザの中の保存で、context.md の決まりどおり I/O に書かないのは妥当。(6) analysis/results にほかの入口の結果が無いので、綴りの突き合わせはしていない。"

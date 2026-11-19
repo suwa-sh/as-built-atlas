@@ -1,0 +1,42 @@
+format_version: 1
+entry_id: system_s.widget.LatestPostsWidget
+reviewed_at: "2026-11-18T00:24:59Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/load_statuses/parameters/1
+    claim: "「Keychain から読み直したアカウント」は、AppIntents が設定の値を DefaultAppAccountEntityQuery で取り直すという読み取りで、根拠の LatestPostsWidget.swift:53 と SharedUtils.swift:15 には書かれていないのに、status が fact になっている"
+    evidence: { file: IceCubesAppWidgetsExtension/LatestPostsWidget/LatestPostsWidget.swift, line: 53 }
+    suggestion: "status を interpretation にし、根拠に AppAccountEntity.swift:26 (entities(for:)) を足すか、value を「設定の account (AppAccountEntity)。server と oauthToken を使う」というコードどおりの文にして fact のままにする"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "「OS が timeline を求めると、Keychain から選んだアカウントの token を読み直し」とあるが、Keychain を読むのは AppAccountsManager.shared (static var) の init だけで、拡張のプロセスで最初に shared に触れたとき 1 回しか動かず、timeline のたびには読み直さない"
+    evidence: { file: Packages/AppAccount/Sources/AppAccount/AppAccountsManager.swift, line: 30 }
+    suggestion: "「拡張のプロセスで最初に共有のアカウントの管理に触れたときに、Keychain のアカウントを読み (以後はメモリの値を使い)」のように、読む回数が分かる書き方に直す"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/accounts_manager/call
+    claim: "AppAccountsManager.init は static var shared の初期化で、プロセスの中で最初に shared に触れたときだけ動く (note にもそう書いてある) ので、entities(for:) のたびに動く always ではない"
+    evidence: { file: Packages/AppAccount/Sources/AppAccount/AppAccountsManager.swift, line: 30 }
+    suggestion: "when を conditional にし、condition に「ウィジェットの拡張のプロセスで、最初に AppAccountsManager.shared に触れたとき」と書く"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/accounts_manager
+    claim: "init が読む App Group の UserDefaults の latestCurrentAccountKey は、account_query の summary に含めた defaultResult() が返す既定のアカウント (どのサーバーと token で読むか) を決めるので、プロファイルの「流れや読み書きの相手が変わるときだけ get を書く」に当たるのに、io に無い"
+    evidence: { file: Packages/AppAccount/Sources/AppAccount/AppAccountsManager.swift, line: 37 }
+    suggestion: "io に op get、resource kind kvs (host (device)、instance group.com.thomasricouard.IceCubesApp、key_pattern latestCurrentAccountKey) を足し、根拠に AppAccountsManager.swift:10 と UserPreferences.swift:109 と AppAccountEntity.swift:38 を書く。書かない判断を保つなら、defaultResult() を経路から外す理由を notes に書く"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/posts_view
+    claim: "status.url が URL にできない投稿は、Link だけでなく投稿そのものを描かない (if let に else が無い) が、summary は「URL があれば、投稿全体をリンクにする」とだけ書き、URL の無い投稿が表示から消えることが rules にも summary にも無い"
+    evidence: { file: IceCubesAppWidgetsExtension/Shared/PostsWidgetView.swift, line: 54 }
+    suggestion: "rules に kind decision で「URL を読めない投稿は描かない」を足すか、summary をそのように直す"
+    resolved: true
+notes: "根拠の行は、ほぼすべて主張を支えていた (MastodonClient.swift の 108 / 121 / 146 / 209 / 213 行、TimelineFilter.swift の 202-205 / 221 / 222 行、Timelines.swift と Trends.swift の path と queryItems、AppAccount.swift の Keychain の読み書き、project.pbxproj の membershipExceptions)。アイコンの取得の io を unknown (not_traceable_in_repo) にしたのは、URL がタイムラインの応答で決まるのでプロファイルどおり。ウィジェットの Link の https の URL がアプリの onOpenURL に渡り、入口 system_s.link.icecubesapp の受け口 (SafariRouter.swift:38) につながるという解釈は、WidgetKit の動きに合う。DefaultTimelineEntityQuery.entities(for:) は渡された id を見ずに 4 つ全部を返す (TimelineFilterEntity.swift:26-27) が、どれを選ぶかは AppIntents の枠組みの側で、この結果の主張とは食い違わない。load_statuses の rules の「サーバーへは 6 件を求める」を calculation にしているのは、固定の引数なので decision か summary だけでもよいが、指摘にはしなかった。"

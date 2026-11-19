@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: activity_a.MainActivity
+reviewed_at: "2026-11-18T00:44:23Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    resolved: true
+    where: callstack/nia_app/links/0
+    claim: "下のバーの 3 つの navigate (links 0 から 2。ForYouNavKey、BookmarksNavKey、InterestsNavKey) と、上のバーの検索の navigate (links 3。SearchNavKey) は、navigator.navigate を書いたラムダを design system の部品 (NiaNavigationSuiteScope.item の onClick、NiaTopAppBar の onNavigationClick) に渡し、部品が押されたときに呼ぶもので、context.md と analysis-conventions.md の決まり (関数を渡して別の composable が呼ぶものは interpretation。根拠は渡している行と呼んでいる行) と Topic のレビューの前例 (onClick に渡したラムダの中の呼び出しを interpretation に直した) では interpretation になる。いまは 4 件とも fact で、呼んでいる行が根拠に無い"
+    evidence: { file: app/src/main/kotlin/com/google/samples/apps/nowinandroid/ui/NiaApp.kt, line: 170 }
+    suggestion: "links 0 から 3 の status を interpretation にし、呼んでいる行を根拠に足す (下のバーは core/designsystem/.../component/Navigation.kt の 252 行、検索は core/designsystem/.../component/TopAppBar.kt の 55 行)"
+  - kind: status_mismatch
+    severity: medium
+    resolved: true
+    where: callstack/nia_app/links/4
+    claim: "設定の dialog の overlay は、外側の NiaApp が書いたラムダ (showSettingsDialog = true) を、内側の NiaApp を通して NiaTopAppBar の onActionClick に渡し、部品のボタンが押されたときに呼ぶもので、関数を渡して別の composable が呼ぶ形なので、決まりどおりなら interpretation になる。いまは fact で、部品が呼んでいる行が根拠に無い"
+    evidence: { file: app/src/main/kotlin/com/google/samples/apps/nowinandroid/ui/NiaApp.kt, line: 243 }
+    suggestion: "status を interpretation にし、NiaTopAppBar がボタンに onActionClick を渡す行 (core/designsystem/.../component/TopAppBar.kt の 64 行) を根拠に足す"
+  - kind: evidence_mismatch
+    severity: low
+    resolved: true
+    where: callstack/nia_app/rules/0
+    claim: "「閉じるまで出したままにする」とあるが、showSnackbar の呼び出しは actionLabel も withDismissAction も渡しておらず、利用者が閉じる手段が無い。LaunchedEffect は isOffline を key にしていて、通信の状態が変わるたびに作り直すので、出したままにする期間は、利用者が閉じるまでではなく、通信が戻るまでと読める"
+    evidence: { file: app/src/main/kotlin/com/google/samples/apps/nowinandroid/ui/NiaApp.kt, line: 115 }
+    suggestion: "LaunchedEffect の作り直しで snackbar が消えること (Material3 の SnackbarHostState の振る舞い) を確かめたうえで、「通信が切れているあいだ、つながっていないことを知らせる snackbar を、通信が戻るまで出したままにする (閉じるボタンは無い)」に直す"
+notes: "(1) DataStore の初回の読み込みで IntToStringIdsMigration (core/datastore/.../di/DataStoreModule.kt の 54 行) が動き、UserPreferences を書き直しうる。アプリ全体で 1 回のことで、この入口に固有ではないので、Topic のレビューと同じく指摘にしなかった。起動の Activity は最初に DataStore を読む入口になりやすいので、どの入口に書くかを analysis-conventions.md で決めておくとよい。(2) TimeZoneBroadcastMonitor がコードで BroadcastReceiver を登録していることは、context.md の「コードで登録する receiver は listed で background の入口に足す」に当たりうるが、入口の一覧の問題で、結果の notes にも書いてあるので指摘にしなかった (足すかは人が決める)。(3) 設定の dialog のつながりを overlay にしたことは、schema の説明では embed (別の入口にした部品を、この入口の中に描く) にも読めるが、ボタンで開いていまの画面に重ねる dialog なので、overlay でも誤りとは言えないと見た。ほかの shell の入口と揃えるとよい。(4) 確かめて問題が無かったもの: DI の宣言を根拠にした call (DataModule.kt、UserNewsResourceRepositoryModule.kt、DaosModule.kt)、DataStore の項目名の綴り (Topic の結果と同じ 7 項目)、Room の表と列 (news_resources、news_resources_topics、topics)、ブックマークの経路を DAO まで書き直したこと (終端の決まり)、空の集合で早く返す枝の後ろを conditional にしたこと、ディープリンクの根拠 (DEEP_LINK_URI_PATTERN と NavigationState.kt の 50 行)、OfflineFirstUserDataRepository.userData を最初に着く MainActivityViewModel.uiState の下に 1 回だけ書いたこと、splash・theme・JankStats・isSystemInDarkTheme をフレームにしなかったこと"

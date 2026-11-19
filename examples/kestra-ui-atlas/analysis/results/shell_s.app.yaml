@@ -1,0 +1,1056 @@
+format_version: 1
+entry:
+  id: shell_s.app
+  path: /(shell)/app
+  name: "App.vue"
+  layer: shell
+  source: { file: src/App.vue, line: 1 }
+target:
+  repo: github.com/kestra-io/kestra
+  name: Kestra UI
+  clone_path: ../kestra
+  scope: ui
+  commit: 28867c6f0ef22f14610c8230406c24bcb35ec13a
+analyzer:
+  profile: { id: ui-vue-router, version: "0.4.0" }
+  skill_version: "0.4.2"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-19T05:51:50Z"
+  reviewed: { by: "claude-opus-5-5 (fresh context)", at: "2026-11-19T05:49:56Z", findings_open: 0 }
+summary:
+  status: interpretation
+  value: "アプリ全体の枠 (App.vue)。src/main.ts の createApp に渡す根のコンポーネントで、どの画面を開いても動く。このファイル自身が呼ぶ処理は 4 つ。(1) 保存したフィルターの計測の関数 (trackSavedFilter) を provide で配る。デザインシステムの KsFilter が、利用者の操作 (保存・適用・更新・削除) で呼び、PostHog へ送る。(2) anonymous でない route に入り、ログイン済みなら、バックエンドの設定を読む (GET /api/v1/configs)。設定が store に入ると、api の store が、ためていた計測のイベントを api.kestra.io (POST /v1/reports/events) と PostHog へ送る。(3) 設定に版と uuid があれば、kestra.io のお知らせを読む (api.kestra.io の GET /v1/feeds)。(4) 計測が有効なら PostHog を初期化する (接続の情報は api.kestra.io の GET /v1/config)。anonymous の route (ログインなど) と、ログインしていないときは、(2) から (4) を行わない。Basic 認証が初期設定されていないときは、(3) と (4) を行わない。枠が描く共通の部品のうち、別の入口にしたものは 5 つで、ここでは辿っていない: ErrorToast (shell_s.part.ErrorToast)、AppTopNavBar (shell_s.part.AppTopNavBar)、TourOverlay (shell_s.part.TourOverlay)、ReauthDialog (shell_s.part.ReauthDialog)、DrillDownDrawer (shell_s.part.DrillDownDrawer)。レイアウト (route.meta.layout か DefaultLayout) と <router-view> の中身も、別の入口なので含めない。"
+  evidence:
+    - { file: src/main.ts, line: 33 }
+    - { file: src/App.vue, line: 76 }
+    - { file: packages/design-system/src/components/Data/KsDataTable/KsFilter.vue, line: 155 }
+    - { file: src/App.vue, line: 123 }
+    - { file: src/App.vue, line: 126 }
+    - { file: src/App.vue, line: 88 }
+    - { file: src/stores/api.ts, line: 89 }
+    - { file: src/stores/api.ts, line: 170 }
+    - { file: src/App.vue, line: 102 }
+    - { file: src/App.vue, line: 103 }
+    - { file: src/App.vue, line: 111 }
+    - { file: src/App.vue, line: 95 }
+    - { file: src/App.vue, line: 3 }
+    - { file: src/App.vue, line: 8 }
+    - { file: src/App.vue, line: 16 }
+    - { file: src/App.vue, line: 18 }
+    - { file: src/App.vue, line: 19 }
+    - { file: src/App.vue, line: 10 }
+    - { file: src/App.vue, line: 11 }
+notes: "迷った点と、選んだ扱い。(1) 別の入口にした共通の部品 (ErrorToast、AppTopNavBar、TourOverlay、ReauthDialog、DrillDownDrawer) は辿らず、summary に並べた。links には書いていない (embed は、登録表の部品と共有の部品のためのつながりで、枠がいつも描く部品は、プロファイルが「部品の一覧を入口の summary に書く」と決めている)。(2) 同じ処理の書き場所は、入口から、コードに書いてある行の順に、深さ優先で辿って決めた。App.vue の呼び出しは、行の順に、provide で配る trackSavedFilter (76 行)、misc.loadConfigs (88 行)、api.loadFeeds (103 行)、initPosthogIfEnabled (111 行)。88 行から先は、同じファイルの中の補助の関数 loadGeneralResources (87 行。watch の 128 行から呼ぶ) の中にあり、フレームにせず、App.vue のフレームの中の処理として扱った。その結果、PostHog の経路 (api.posthogEvents から先) は、最初に着く trackSavedFilter の下に書いた。(3) api の store は、misc の store の configs を watch で見張り、変わると flushQueuedEvents を動かす (src/stores/api.ts 89 行)。context.md の「値の変化を見張って動く処理」の決まりに従い、configs を変える misc.loadConfigs の下にフレームを書いた。ためるのは、設定が入る前に呼ばれた api.events (ほかの入口の処理) なので、送るイベントの中身は、この入口からは決まらない。(4) この入口からは届かないように見える呼び出しの扱い (skill 0.4.2)。計測を止める分かれ道 (isUiAnonymousUsageEnabled が false、または開発モード) は、同じ configs で、手前のコードが先に弾いている所がある。trackSavedFilter (savedFilterTracking.ts 9 行) が弾いた後の sendPosthogEvent の 15 行、sendPosthogEvent の 15 行が弾いた後の capturePosthogEvent の 138 行の isUiAnonymousUsageEnabled の部分、capturePosthogEvent の 138 行と initPosthogIfEnabled の 192 行が弾いた後の ensurePosthogClient の 91 行。閉じた枝は disablePosthog や待ち行列を捨てる処理だけで、もともとフレームにしないので、木の形は変わらない。閉じた枝の設定を、capturePosthogEvent (isUiAnonymousUsageEnabled) と ensurePosthogClient (2 つとも) から外し、それぞれの summary の note に、弾く行と条件の行を書いた。(5) sendPosthogEvent の 15 行の分かれ道は、最初に着く経路 (trackSavedFilter から) では閉じているが、api.sendEventNow の 162 行から着く経路 (ためたイベントの送信) では開いている。skill の「呼び出し元によって、閉じたり開いたりするとき」に従い、開いている呼び出し元 (api.sendEventNow) の下に、api.posthogEvents と sendPosthogEvent をもう一度書き (id の末尾が _queued のフレーム)、設定 isUiAnonymousUsageEnabled はそちらに移した (最初のフレーム send_posthog_event からは外し、閉じていることを note に書いた)。開いている枝 (disablePosthog) はフレームにならないので、終端の決まりを満たすために、context.md の決まり (コードに書いてある順でいちばん早い呼び先を、読み書きのある external のフレームまで) で、capturePosthogEvent → ensurePosthogClient (146 行。162 行の capture より早い) → initPostHogForSetup → api.loadConfig → publicFetchJson → publicFetch → fetch を書いた。もう一度書いたフレームには、設定を繰り返していない。(6) 同じファイルの中の、外に出していない補助の関数 (src/utils/posthog.ts の flushQueue、loadPosthogClient、isPosthogDisabled、pruneQueue、src/stores/api.ts の buildEventPayload、analyticsDisabled) は、フレームにせず、呼び出し元の summary と call の根拠に書いた。(7) fetch を呼ぶ行 (src/utils/publicApi.ts 22 行) は、URL ごとに external のフレームを分けた。URL が違う呼び出し元 (api.sendEventNow、api.loadFeeds) の下には、external のフレームを持たせるために、publicFetch (と publicFetchJson) をもう一度書いた。initPosthogIfEnabled は、呼び先 (ensurePosthogClient) を先に書いてあり、設定しか持たないので、終端の決まりを満たすために、いちばん早い呼び先を、読み書きのある external のフレームまで、もう一度書いた (id の末尾が _again のフレーム)。もう一度書いたフレームには、設定を繰り返していない。(8) PostHog の送り先は、api.kestra.io の応答で決まるので、not_traceable_in_repo にした (3 件)。(9) 生成された SDK (@kestra-io/kestra-sdk) のソースは packages/kestra-sdk にあり、scope の中なので、URL を sdk.gen.ts から読んで書いた。(10) ログイン済みかの確認 (BasicAuth.isLoggedIn。cookie を見る) は、満たさなければ読み込みを行わないので、guards (authentication) に書いた。確認の関数はフレームにしていないので、呼んでいる App.vue のフレームに書いた。route.meta.anonymous は、確認ではなく分かれ道なので、呼び出しの condition に書いた。(11) 設定の名前は、ほかの入口の結果と同じ綴り (isAnonymousUsageEnabled、isUiAnonymousUsageEnabled、isBasicAuthInitialized、import.meta.env.MODE) にした。バックエンドの応答 (GET /api/v1/configs) の項目は kind を remote、import.meta.env.MODE はビルドのモードなので other にした。開発のときだけ SdkDriftBanner を描く切り替え (import.meta.env.DEV。App.vue 62 行) は、API の呼び出しを変えないので、書いていない。(12) 外部 API の fields は、送る項目 (問い合わせの引数は filter、本文は write) と、応答の型の項目 (read) を書いた。応答をまるごと store に入れる呼び出しは * にした。PostHog の初期化 (posthog.init、register_for_session、alias) は、送る中身が posthog-js の中で決まるので fields を書かず、note に、コードが渡す値を書いた。(13) 業務のルール (rules) は、書いていない。ためるイベントの上限 (50 件・2 分、PostHog は 100 件・5 分) は、業務の意味を持たない技術の上限なので、summary に書いた。(14) API を呼ばないので、フレームにしていない処理: useThemeCycle (App.vue 74 行)、doc.initResourceUrlTemplate (App.vue 100 行。URL の型の文字を store に入れるだけ。src/stores/doc.ts 140 行)、Utils.switchTheme、applyFontScale、revealApp、setDocumentTitle。別の入口にしていない部品 (DocIdDisplay、ServerUnreachableBanner、SdkDriftBanner、VersionUpgradeNotice、UnsavedChangesDialog、PwaInstallPrompt) は、部品とその composable の import と呼び出しを読み、API を呼ぶ行が無いことを確かめた。(15) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(16) レビューの指摘 1 件 (low。sendPosthogEvent の設定を、閉じた経路のフレームに残していた) は、(5) のとおり直した。レビューの提案は、終端を posthog-js の capture (162 行) までとしていたが、context.md の「コードに書いてある順でいちばん早い呼び先」に合わせ、146 行の ensurePosthogClient から先を書いた。"
+callstack:
+  - id: app
+    layer: shell
+    kind: shell
+    name: "App.vue (アプリの根のコンポーネント)"
+    source: { file: src/App.vue, line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "アプリ全体の枠。保存したフィルターの計測の関数 (trackSavedFilter) を provide で配る。route.meta.anonymous を見張り (最初の 1 回も動く)、anonymous でなく、ログイン済み (cookie で判定) なら loadGeneralResources (同じファイルの中の補助の関数) を動かす。loadGeneralResources は、設定の読み込み (misc.loadConfigs)、文書の URL の型の用意 (doc.initResourceUrlTemplate。API は呼ばない)、お知らせの読み込み (api.loadFeeds。設定に版と uuid があるとき)、PostHog の初期化 (initPosthogIfEnabled) を行う。Basic 認証が初期設定されていないか、ログインしていなければ、設定を読んだ所で終わる。失敗しても、警告を出すだけで画面は描く。利用者の識別子 (uid) は localStorage に置く。テンプレートでは、共通の部品と、レイアウト (route.meta.layout か DefaultLayout)、<router-view> を描く。別の入口にした部品 (ErrorToast、AppTopNavBar、TourOverlay、ReauthDialog、DrillDownDrawer)、レイアウト、<router-view> の中身は、ここでは辿らない。残りの部品 (DocIdDisplay、ServerUnreachableBanner、開発のときだけの SdkDriftBanner、VersionUpgradeNotice、UnsavedChangesDialog、PwaInstallPrompt) と useThemeCycle は、store の値やブラウザの中の保存を見るだけで、API を呼ばない。"
+      evidence:
+        - { file: src/App.vue, line: 76 }
+        - { file: src/App.vue, line: 123 }
+        - { file: src/App.vue, line: 126 }
+        - { file: src/App.vue, line: 128 }
+        - { file: src/App.vue, line: 88 }
+        - { file: src/App.vue, line: 100 }
+        - { file: src/App.vue, line: 103 }
+        - { file: src/App.vue, line: 111 }
+        - { file: src/App.vue, line: 95 }
+        - { file: src/App.vue, line: 130 }
+        - { file: src/App.vue, line: 89 }
+        - { file: src/App.vue, line: 10 }
+        - { file: src/App.vue, line: 11 }
+        - { file: src/App.vue, line: 2 }
+        - { file: src/App.vue, line: 4 }
+        - { file: src/App.vue, line: 74 }
+    parameters:
+      - name: "route.meta.anonymous"
+        value: "true の route (ログインなど) では、設定などの読み込みを行わない。AppTopNavBar、TourOverlay、VersionUpgradeNotice、PwaInstallPrompt も描かない。"
+        status: fact
+        evidence:
+          - { file: src/App.vue, line: 123 }
+          - { file: src/App.vue, line: 124 }
+          - { file: src/App.vue, line: 8 }
+          - { file: src/App.vue, line: 6 }
+          - { file: src/App.vue, line: 16 }
+          - { file: src/App.vue, line: 20 }
+      - name: "route.meta.layout"
+        value: "描くレイアウト。無ければ DefaultLayout。"
+        status: fact
+        evidence: [{ file: src/App.vue, line: 10 }]
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/App.vue, line: 126 }
+          - { file: src/App.vue, line: 95 }
+          - { file: src/utils/basicAuth.ts, line: 29 }
+          - { file: src/utils/basicAuth.ts, line: 32 }
+        note: "BasicAuth.isLoggedIn() が、cookie の kestraBasicAuthenticated=true を見る。ログインしていなければ、設定・お知らせの読み込みと PostHog の初期化を行わない (画面を描くことは止めない)。"
+    settings:
+      - name: "isBasicAuthInitialized"
+        kind: remote
+        effect: "false のとき、設定を読んだ所で終わり、お知らせの読み込みと PostHog の初期化を行わない。"
+        status: fact
+        evidence:
+          - { file: src/App.vue, line: 95 }
+          - { file: src/App.vue, line: 88 }
+        note: "バックエンドから受け取る設定 (GET /api/v1/configs の応答) の項目。"
+
+  - id: track_saved_filter
+    layer: component
+    kind: function
+    name: "trackSavedFilter"
+    source: { file: src/utils/savedFilterTracking.ts, line: 7 }
+    caller: app
+    call:
+      status: interpretation
+      when: conditional
+      condition: "利用者が、一覧の画面のフィルター (KsFilter) で、保存したフィルターを保存・適用・更新・削除したとき。"
+      evidence:
+        - { file: src/App.vue, line: 76 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/KsFilter.vue, line: 153 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/KsFilter.vue, line: 155 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/KsFilter.vue, line: 160 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/KsFilter.vue, line: 165 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/KsFilter.vue, line: 170 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/KsFilter.vue, line: 198 }
+      note: "App.vue が provide で関数を配り (76 行)、デザインシステムの KsFilter が inject して (KsFilter.vue 153 行)、保存・更新・削除・適用の操作のたびに呼ぶ (155 行)。App.vue が直接呼ぶ行は無い。"
+    summary:
+      status: interpretation
+      value: "保存したフィルターの操作 (操作の種類、画面の名前、条件の数) を、api.posthogEvents で PostHog に送る (type は SAVED_FILTER)。画面の計測が無効なら、何もしない。失敗は無視する。"
+      evidence:
+        - { file: src/utils/savedFilterTracking.ts, line: 9 }
+        - { file: src/utils/savedFilterTracking.ts, line: 11 }
+        - { file: src/utils/savedFilterTracking.ts, line: 12 }
+        - { file: src/utils/savedFilterTracking.ts, line: 17 }
+    settings:
+      - name: "isUiAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、保存したフィルターの計測を送らない。"
+        status: fact
+        evidence:
+          - { file: src/utils/savedFilterTracking.ts, line: 9 }
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+
+  - id: api_posthog_events
+    layer: store
+    kind: store_action
+    name: "api.posthogEvents"
+    source: { file: src/stores/api.ts, line: 176 }
+    caller: track_saved_filter
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isUiAnonymousUsageEnabled が false でないとき。"
+      evidence:
+        - { file: src/utils/savedFilterTracking.ts, line: 11 }
+        - { file: src/utils/savedFilterTracking.ts, line: 9 }
+    summary:
+      status: interpretation
+      value: "計測のイベントを PostHog へ送る入口。misc store の設定 (configs) と一緒に sendPosthogEvent へ渡すだけ。api.sendEventNow からも呼ばれる (162 行。イベントの options.posthog が false でないとき)。その経路では sendPosthogEvent の計測を止める分かれ道が開いているので、フレーム api_posthog_events_queued として、もう一度書いた。"
+      evidence:
+        - { file: src/stores/api.ts, line: 177 }
+        - { file: src/stores/api.ts, line: 161 }
+        - { file: src/stores/api.ts, line: 162 }
+
+  - id: send_posthog_event
+    layer: api_client
+    kind: function
+    name: "sendPosthogEvent"
+    source: { file: src/utils/analytics/posthogEvents.ts, line: 14 }
+    caller: api_posthog_events
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 177 }]
+    summary:
+      status: interpretation
+      value: "画面の計測が無効 (isUiAnonymousUsageEnabled が false) なら、PostHog を止めて (disablePosthog) 何も送らない。有効なら、イベントの名前を決め (種類が PAGE なら $pageview)、type / date / counter を除いた残りを属性にして capturePosthogEvent を呼ぶ。"
+      evidence:
+        - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 16 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 24 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 28 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 49 }
+      note: "15 行の分かれ道 (isUiAnonymousUsageEnabled が false なら disablePosthog を呼んで返す) は、この経路 (trackSavedFilter から) では閉じている。同じ configs を、src/utils/savedFilterTracking.ts 9 行が先に弾く。api.sendEventNow (src/stores/api.ts 162 行) から着く経路では開いているので、そちらの下に、このフレームをもう一度書き (send_posthog_event_queued)、設定もそちらに書いた。30 行からの PAGE の枝は、この経路では type が SAVED_FILTER (savedFilterTracking.ts 12 行) なので通らない (フレームにならない処理だけ)。"
+
+  - id: capture_posthog_event
+    layer: api_client
+    kind: function
+    name: "capturePosthogEvent"
+    source: { file: src/utils/posthog.ts, line: 133 }
+    caller: send_posthog_event
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isUiAnonymousUsageEnabled が false でないとき。"
+      evidence:
+        - { file: src/utils/analytics/posthogEvents.ts, line: 49 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+    summary:
+      status: interpretation
+      value: "開発モードなら、PostHog を止めて終わる。PostHog のクライアントがまだ読み込まれていなければ、用意を始めて (ensurePosthogClient)、イベントを待ち行列に入れる (最大 100 件、5 分で捨てる)。読み込み済みなら、posthog-js の capture を呼び、待ち行列に残りがあれば flushQueue (70 行。同じファイルの中の補助の関数。経路はフレーム posthog_capture_queued と同じ) で送る。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 138 }
+        - { file: src/utils/posthog.ts, line: 143 }
+        - { file: src/utils/posthog.ts, line: 145 }
+        - { file: src/utils/posthog.ts, line: 146 }
+        - { file: src/utils/posthog.ts, line: 148 }
+        - { file: src/utils/posthog.ts, line: 152 }
+        - { file: src/utils/posthog.ts, line: 15 }
+        - { file: src/utils/posthog.ts, line: 16 }
+        - { file: src/utils/posthog.ts, line: 162 }
+        - { file: src/utils/posthog.ts, line: 167 }
+      note: "138 行の isPosthogDisabled のうち、isUiAnonymousUsageEnabled が false の部分 (24 行) は閉じている。ここへ着く経路は sendPosthogEvent の 49 行だけで、同じ configs を、その 15 行が先に弾く。開いているのは、開発モード (import.meta.env.MODE) の部分だけ。"
+    settings:
+      - name: "import.meta.env.MODE"
+        kind: other
+        effect: "development のとき、PostHog を止めて、計測のイベントを送らない。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 138 }
+        note: "画面をビルド・起動するときのモード (Vite)。"
+
+  - id: ensure_posthog_client
+    layer: api_client
+    kind: function
+    name: "ensurePosthogClient"
+    source: { file: src/utils/posthog.ts, line: 88 }
+    caller: capture_posthog_event
+    call:
+      status: fact
+      when: conditional
+      condition: "開発モードでなく、PostHog のクライアントがまだ読み込まれていないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 146 }
+        - { file: src/utils/posthog.ts, line: 145 }
+        - { file: src/utils/posthog.ts, line: 138 }
+    summary:
+      status: interpretation
+      value: "PostHog のクライアントを 1 度だけ用意する。読み込み済みなら何もしない。設定 (configs) が無ければ用意しない。初期化が進んでいなければ、usePosthog の initPostHogForSetup を動的に import して初期化し、posthog-js を読み込み (loadPosthogClient)、待ち行列を送る (flushQueue)。initPosthogIfEnabled からも呼ばれる (197 行)。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 89 }
+        - { file: src/utils/posthog.ts, line: 90 }
+        - { file: src/utils/posthog.ts, line: 96 }
+        - { file: src/utils/posthog.ts, line: 97 }
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 99 }
+        - { file: src/utils/posthog.ts, line: 101 }
+        - { file: src/utils/posthog.ts, line: 197 }
+      note: "91 行の分かれ道 (計測が無効なら、待ち行列を捨てて返す) は、この入口からは閉じている。ここへ着く 2 つの経路は、どちらも同じ configs で、同じ判定 (isPosthogDisabled) を先に通る: capturePosthogEvent の 138 行と、initPosthogIfEnabled の 192 行。そのため、このフレームには設定を書いていない。"
+
+  - id: init_posthog_for_setup
+    layer: api_client
+    kind: function
+    name: "initPostHogForSetup"
+    source: { file: src/composables/usePosthog.ts, line: 67 }
+    caller: ensure_posthog_client
+    call:
+      status: fact
+      when: conditional
+      condition: "PostHog のクライアントが読み込まれておらず、設定 (configs) が読み込み済みで、初期化がまだ進んでいないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 89 }
+        - { file: src/utils/posthog.ts, line: 90 }
+        - { file: src/utils/posthog.ts, line: 96 }
+    summary:
+      status: interpretation
+      value: "posthog-js を読み込み、初期化済みなら、アンケートの表示を見張る受け口の登録 (installSurveyHooksOnce。API は呼ばない) だけを行う。未初期化なら、api store の loadConfig で PostHog の token と送り先を取り、posthog.init (85 行) で初期化する。token が無ければ初期化しない。そのあと、セッションの共通の属性 (from / iid / uid / アプリの版と種類) を登録し、未設定なら alias を付け、同じ受け口を登録する。uid は localStorage から読む (無ければ作って保存する)。失敗しても、エラーを出力するだけで続ける。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 69 }
+        - { file: src/composables/usePosthog.ts, line: 71 }
+        - { file: src/composables/usePosthog.ts, line: 75 }
+        - { file: src/composables/usePosthog.ts, line: 76 }
+        - { file: src/composables/usePosthog.ts, line: 81 }
+        - { file: src/composables/usePosthog.ts, line: 83 }
+        - { file: src/composables/usePosthog.ts, line: 85 }
+        - { file: src/composables/usePosthog.ts, line: 93 }
+        - { file: src/composables/usePosthog.ts, line: 95 }
+        - { file: src/composables/usePosthog.ts, line: 99 }
+        - { file: src/composables/usePosthog.ts, line: 101 }
+        - { file: src/utils/uid.ts, line: 8 }
+
+  - id: api_load_config
+    layer: store
+    kind: store_action
+    name: "api.loadConfig"
+    source: { file: src/stores/api.ts, line: 108 }
+    caller: init_posthog_for_setup
+    call:
+      status: fact
+      when: conditional
+      condition: "posthog-js がまだ初期化されていない (posthog.__loaded が偽の) とき。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 81 }
+        - { file: src/composables/usePosthog.ts, line: 75 }
+    summary:
+      status: interpretation
+      value: "kestra.io の公開 API から、計測の設定 (id、PostHog の token と apiHost) を取る。"
+      evidence:
+        - { file: src/stores/api.ts, line: 109 }
+        - { file: src/stores/api.ts, line: 12 }
+        - { file: src/stores/api.ts, line: 30 }
+
+  - id: public_fetch_json
+    layer: api_client
+    kind: function
+    name: "publicFetchJson"
+    source: { file: src/utils/publicApi.ts, line: 33 }
+    caller: api_load_config
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 109 }]
+    summary:
+      status: interpretation
+      value: "publicFetch を呼び、応答を JSON として返す。"
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+
+  - id: public_fetch
+    layer: api_client
+    kind: function
+    name: "publicFetch"
+    source: { file: src/utils/publicApi.ts, line: 16 }
+    caller: public_fetch_json
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+    summary:
+      status: interpretation
+      value: "Kestra のバックエンド用のクライアントを通さずに、ブラウザの fetch で kestra.io の公開 API を呼ぶ (CSRF や再ログインの処理は掛からない)。引数は URL の問い合わせに付ける。本文が無ければ GET、あれば POST (JSON)。2xx 以外は例外 (PublicApiError) にする。"
+      evidence:
+        - { file: src/utils/publicApi.ts, line: 15 }
+        - { file: src/utils/publicApi.ts, line: 19 }
+        - { file: src/utils/publicApi.ts, line: 22 }
+        - { file: src/utils/publicApi.ts, line: 23 }
+        - { file: src/utils/publicApi.ts, line: 29 }
+
+  - id: fetch_public_config
+    layer: external
+    kind: library
+    name: "fetch GET https://api.kestra.io/v1/config"
+    source: { file: src/utils/publicApi.ts, line: 22 }
+    caller: public_fetch
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 22 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "api.kestra.io", path: "GET /v1/config" } }
+        fields:
+          - { name: id, use: [read] }
+          - { name: "posthog.token", use: [read] }
+          - { name: "posthog.apiHost", use: [read] }
+        evidence:
+          - { file: src/stores/api.ts, line: 12 }
+          - { file: src/stores/api.ts, line: 109 }
+          - { file: src/stores/api.ts, line: 31 }
+          - { file: src/stores/api.ts, line: 32 }
+          - { file: src/utils/publicApi.ts, line: 23 }
+          - { file: src/utils/publicApi.ts, line: 26 }
+        note: "計測の設定 (PostHog の token と送り先) を読む。本文を渡さないので GET。cookie を付けて呼ぶ (withCredentials)。fields は、応答の型 (ApiConfig) の項目。"
+
+  - id: posthog_init
+    layer: external
+    kind: library
+    name: "posthog-js init / register_for_session / alias"
+    source: { file: src/composables/usePosthog.ts, line: 85 }
+    caller: init_posthog_for_setup
+    call:
+      status: fact
+      when: conditional
+      condition: "posthog-js がまだ初期化されておらず、api.kestra.io の応答に PostHog の token があるとき。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 85 }
+        - { file: src/composables/usePosthog.ts, line: 83 }
+        - { file: src/composables/usePosthog.ts, line: 75 }
+        - { file: src/composables/usePosthog.ts, line: 93 }
+        - { file: src/composables/usePosthog.ts, line: 96 }
+      note: "alias は、まだ付けていないときだけ呼ぶ (95 行)。"
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api }
+        evidence:
+          - { file: src/composables/usePosthog.ts, line: 85 }
+          - { file: src/composables/usePosthog.ts, line: 86 }
+          - { file: src/composables/usePosthog.ts, line: 93 }
+          - { file: src/composables/usePosthog.ts, line: 96 }
+        note: "PostHog の初期化と、利用者の別名の登録。送り先のホストは、https://api.kestra.io/v1/config の応答の posthog.apiHost で決まり (86 行)、値はリポジトリに無い。init や alias が実際に何を送るかも posthog-js の中で決まる。コードが渡す値は、セッションの属性 (from、iid、uid、app.version、app.type。28 から 34 行) と、alias の id (96 行)。"
+
+  - id: posthog_capture_queued
+    layer: external
+    kind: library
+    name: "posthog-js capture (待ち行列の分)"
+    source: { file: src/utils/posthog.ts, line: 81 }
+    caller: ensure_posthog_client
+    call:
+      status: fact
+      when: conditional
+      condition: "初期化と読み込みが済み、待ち行列に、5 分より新しいイベントが残っているとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 81 }
+        - { file: src/utils/posthog.ts, line: 101 }
+        - { file: src/utils/posthog.ts, line: 71 }
+        - { file: src/utils/posthog.ts, line: 73 }
+        - { file: src/utils/posthog.ts, line: 74 }
+      note: "同じファイルの中の補助の関数 flushQueue (70 行) の中の呼び出し。capturePosthogEvent が待ち行列に入れたイベントを、ここで送る。"
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api }
+        evidence:
+          - { file: src/utils/posthog.ts, line: 81 }
+          - { file: src/composables/usePosthog.ts, line: 86 }
+        note: "待ち行列に入れていた計測のイベントを PostHog へ送る。送り先のホストは、https://api.kestra.io/v1/config の応答の posthog.apiHost を posthog.init に渡して決まる (src/composables/usePosthog.ts 86 行)。値はリポジトリに無い。送る URL の形も posthog-js の中で決まる。"
+
+  - id: posthog_capture
+    layer: external
+    kind: library
+    name: "posthog-js capture"
+    source: { file: src/utils/posthog.ts, line: 162 }
+    caller: capture_posthog_event
+    call:
+      status: fact
+      when: conditional
+      condition: "PostHog のクライアントが読み込み済みのとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 162 }
+        - { file: src/utils/posthog.ts, line: 145 }
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api }
+        fields:
+          - { name: action, use: [write] }
+          - { name: filter_page, use: [write] }
+          - { name: filters_count, use: [write] }
+        evidence:
+          - { file: src/utils/posthog.ts, line: 162 }
+          - { file: src/composables/usePosthog.ts, line: 86 }
+          - { file: src/utils/savedFilterTracking.ts, line: 13 }
+          - { file: src/utils/savedFilterTracking.ts, line: 14 }
+          - { file: src/utils/savedFilterTracking.ts, line: 15 }
+        note: "計測のイベントを PostHog へ送る。送り先のホストは、https://api.kestra.io/v1/config の応答の posthog.apiHost を posthog.init に渡して決まる (src/composables/usePosthog.ts 86 行)。値はリポジトリに無い。送る URL の形も posthog-js の中で決まる。fields は、保存したフィルターの操作で送る属性。ためたイベントの送信 (api.sendEventNow の経路) では、属性は、ためられたイベントで変わる。"
+
+  - id: misc_load_configs
+    layer: store
+    kind: store_action
+    name: "misc.loadConfigs"
+    source: { file: src/composables/useBaseMisc.ts, line: 37 }
+    caller: app
+    call:
+      status: fact
+      when: conditional
+      condition: "route の meta.anonymous が真でなく、ログイン済みのとき (route.meta.anonymous が変わるたびと、最初の 1 回)。"
+      evidence:
+        - { file: src/App.vue, line: 88 }
+        - { file: src/App.vue, line: 128 }
+        - { file: src/App.vue, line: 123 }
+        - { file: src/App.vue, line: 124 }
+        - { file: src/App.vue, line: 126 }
+        - { file: src/override/stores/misc.ts, line: 4 }
+      note: "App.vue の中の補助の関数 loadGeneralResources (87 行) の中の呼び出し。misc の store は、useBaseMiscStore を defineStore に渡して作る (src/override/stores/misc.ts 4 行)。"
+    summary:
+      status: interpretation
+      value: "バックエンドからインスタンスの設定を読み、store の configs に入れて返す。configs が変わると、api の store の watch が flushQueuedEvents を動かす。"
+      evidence:
+        - { file: src/composables/useBaseMisc.ts, line: 38 }
+        - { file: src/composables/useBaseMisc.ts, line: 39 }
+        - { file: src/composables/useBaseMisc.ts, line: 40 }
+        - { file: src/stores/api.ts, line: 89 }
+
+  - id: sdk_configuration
+    layer: external
+    kind: sdk
+    name: "MiscAPI.configuration (@kestra-io/kestra-sdk/misc)"
+    source: { file: src/composables/useBaseMisc.ts, line: 38 }
+    caller: misc_load_configs
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/composables/useBaseMisc.ts, line: 38 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/configs" } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/composables/useBaseMisc.ts, line: 38 }
+          - { file: src/composables/useBaseMisc.ts, line: 39 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Misc.gen.ts, line: 9 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 33 }
+        note: "インスタンスの設定 (版、uuid、認証の初期設定の有無、計測の可否など) を読む。応答は、まるごと store に入れる。"
+
+  - id: api_flush_queued_events
+    layer: store
+    kind: store_action
+    name: "api.flushQueuedEvents"
+    source: { file: src/stores/api.ts, line: 114 }
+    caller: misc_load_configs
+    call:
+      status: interpretation
+      when: always
+      evidence:
+        - { file: src/stores/api.ts, line: 89 }
+        - { file: src/stores/api.ts, line: 90 }
+        - { file: src/composables/useBaseMisc.ts, line: 39 }
+        - { file: src/App.vue, line: 68 }
+      note: "関数の呼び出しではなく、値の見張り (watch) で動く。store の api は miscStore.configs を見張っていて (89 行)、misc.loadConfigs が configs を入れ替える (useBaseMisc.ts 39 行) と動く。store の api は、App.vue が useApiStore() を呼んだ時点 (App.vue 68 行) で作られている。"
+    summary:
+      status: interpretation
+      value: "設定が読めた時点で、ためてあった計測のイベントを 1 件ずつ sendEventNow で送る (1 件の失敗は無視して続ける)。設定がまだ無ければ何もしない。計測が無効なら、ためたイベントを捨てる。uid は localStorage から読む (無ければ作って保存する)。イベントをためるのは api.events (最大 50 件、2 分で捨てる) で、App.vue の経路からは呼ばれない (ためられているかどうかは、ほかの入口の動きによる)。"
+      evidence:
+        - { file: src/stores/api.ts, line: 118 }
+        - { file: src/stores/api.ts, line: 121 }
+        - { file: src/stores/api.ts, line: 122 }
+        - { file: src/stores/api.ts, line: 127 }
+        - { file: src/stores/api.ts, line: 129 }
+        - { file: src/stores/api.ts, line: 132 }
+        - { file: src/stores/api.ts, line: 133 }
+        - { file: src/stores/api.ts, line: 144 }
+        - { file: src/stores/api.ts, line: 49 }
+        - { file: src/stores/api.ts, line: 50 }
+    settings:
+      - name: "isAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、ためてあった計測のイベントを捨てて、送らない。"
+        status: fact
+        evidence:
+          - { file: src/stores/api.ts, line: 54 }
+          - { file: src/stores/api.ts, line: 121 }
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+
+  - id: api_send_event_now
+    layer: store
+    kind: store_action
+    name: "api.sendEventNow"
+    source: { file: src/stores/api.ts, line: 158 }
+    caller: api_flush_queued_events
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isAnonymousUsageEnabled が false でなく、ためてあった計測のイベントがあるとき (イベントごとに 1 回)。"
+      evidence:
+        - { file: src/stores/api.ts, line: 132 }
+        - { file: src/stores/api.ts, line: 121 }
+        - { file: src/stores/api.ts, line: 130 }
+    summary:
+      status: interpretation
+      value: "イベントに iid / uid / 日時 / 連番を足し (buildEventPayload、57 行。kestra.io へ送る分からは、page の origin / path / fullPath と $referrer / $referring_domain を除く)、options.posthog が false でなければ api.posthogEvents も呼び (162 行。フレーム api_posthog_events_queued)、kestra.io の公開の API へ publicFetch で POST する。ためたイベントが残っていれば api.flushQueuedEvents も呼ぶ (167 行。自分の呼び出し元と同じ処理で、経路はフレーム api_flush_queued_events と同じ)。"
+      evidence:
+        - { file: src/stores/api.ts, line: 159 }
+        - { file: src/stores/api.ts, line: 58 }
+        - { file: src/stores/api.ts, line: 73 }
+        - { file: src/stores/api.ts, line: 78 }
+        - { file: src/stores/api.ts, line: 161 }
+        - { file: src/stores/api.ts, line: 162 }
+        - { file: src/stores/api.ts, line: 166 }
+        - { file: src/stores/api.ts, line: 167 }
+        - { file: src/stores/api.ts, line: 170 }
+
+  - id: api_posthog_events_queued
+    layer: store
+    kind: store_action
+    name: "api.posthogEvents"
+    source: { file: src/stores/api.ts, line: 176 }
+    caller: api_send_event_now
+    call:
+      status: fact
+      when: conditional
+      condition: "ためたイベントの options.posthog が false でないとき。"
+      evidence:
+        - { file: src/stores/api.ts, line: 162 }
+        - { file: src/stores/api.ts, line: 161 }
+    summary:
+      status: interpretation
+      value: "フレーム api_posthog_events と同じ処理。この経路 (ためたイベントの送信) では、sendPosthogEvent の計測を止める分かれ道が開いているので、条件を持つフレーム (sendPosthogEvent) を下に書くために、もう一度書いた。"
+      evidence: [{ file: src/stores/api.ts, line: 177 }]
+
+  - id: send_posthog_event_queued
+    layer: api_client
+    kind: function
+    name: "sendPosthogEvent"
+    source: { file: src/utils/analytics/posthogEvents.ts, line: 14 }
+    caller: api_posthog_events_queued
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 177 }]
+    summary:
+      status: interpretation
+      value: "フレーム send_posthog_event と同じ関数。この経路では、15 行の分かれ道が開いている (手前の api.flushQueuedEvents が見るのは isAnonymousUsageEnabled で、isUiAnonymousUsageEnabled は弾いていない)。false なら PostHog を止めて (disablePosthog) 送らない。そうでなければ capturePosthogEvent を呼ぶ。PAGE の枝 (30 行) は、ためたイベントの type で決まる。"
+      evidence:
+        - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 16 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 30 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 49 }
+        - { file: src/stores/api.ts, line: 121 }
+      note: "開いている枝は disablePosthog だけで、フレームにならない。このフレームが終端にならないよう、context.md の決まり (呼び先のうち、コードに書いてある順でいちばん早い 1 つを、読み書きのある external のフレームまで書く) に従い、capturePosthogEvent → ensurePosthogClient → initPostHogForSetup → api.loadConfig → publicFetchJson → publicFetch → fetch を、もう一度書いた。"
+    settings:
+      - name: "isUiAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、PostHog を止めて、ためたイベントを PostHog へ送らない。"
+        status: fact
+        evidence:
+          - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+          - { file: src/stores/api.ts, line: 177 }
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+
+  - id: capture_posthog_event_queued
+    layer: api_client
+    kind: function
+    name: "capturePosthogEvent"
+    source: { file: src/utils/posthog.ts, line: 133 }
+    caller: send_posthog_event_queued
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isUiAnonymousUsageEnabled が false でないとき。"
+      evidence:
+        - { file: src/utils/analytics/posthogEvents.ts, line: 49 }
+        - { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+    summary:
+      status: interpretation
+      value: "フレーム capture_posthog_event と同じ関数。クライアントが未読込なら ensurePosthogClient で用意を始め、イベントを待ち行列に入れる。読み込み済みなら posthog-js の capture で送る (経路はフレーム posthog_capture と同じ)。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 146 }
+        - { file: src/utils/posthog.ts, line: 152 }
+        - { file: src/utils/posthog.ts, line: 162 }
+
+  - id: ensure_posthog_client_queued
+    layer: api_client
+    kind: function
+    name: "ensurePosthogClient"
+    source: { file: src/utils/posthog.ts, line: 88 }
+    caller: capture_posthog_event_queued
+    call:
+      status: fact
+      when: conditional
+      condition: "開発モードでなく、PostHog のクライアントがまだ読み込まれていないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 146 }
+        - { file: src/utils/posthog.ts, line: 145 }
+        - { file: src/utils/posthog.ts, line: 138 }
+    summary:
+      status: interpretation
+      value: "フレーム ensure_posthog_client と同じ関数。initPostHogForSetup で初期化し、posthog-js を読み込み、待ち行列を送る (経路はフレーム posthog_capture_queued と同じ)。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 101 }
+
+  - id: init_posthog_for_setup_queued
+    layer: api_client
+    kind: function
+    name: "initPostHogForSetup"
+    source: { file: src/composables/usePosthog.ts, line: 67 }
+    caller: ensure_posthog_client_queued
+    call:
+      status: fact
+      when: conditional
+      condition: "PostHog のクライアントが読み込まれておらず、設定 (configs) があり、初期化がまだ進んでいないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 89 }
+        - { file: src/utils/posthog.ts, line: 90 }
+        - { file: src/utils/posthog.ts, line: 96 }
+    summary:
+      status: interpretation
+      value: "フレーム init_posthog_for_setup と同じ関数。api.loadConfig で接続の情報を読み、posthog.init で初期化する (経路はフレーム posthog_init と同じ)。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 81 }
+        - { file: src/composables/usePosthog.ts, line: 85 }
+
+  - id: api_load_config_queued
+    layer: store
+    kind: store_action
+    name: "api.loadConfig"
+    source: { file: src/stores/api.ts, line: 108 }
+    caller: init_posthog_for_setup_queued
+    call:
+      status: fact
+      when: conditional
+      condition: "posthog-js がまだ初期化されていない (posthog.__loaded が偽の) とき。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 81 }
+        - { file: src/composables/usePosthog.ts, line: 75 }
+    summary:
+      status: interpretation
+      value: "フレーム api_load_config と同じ処理。kestra.io の公開 API から、計測の設定を取る。"
+      evidence: [{ file: src/stores/api.ts, line: 109 }]
+
+  - id: public_fetch_json_queued
+    layer: api_client
+    kind: function
+    name: "publicFetchJson"
+    source: { file: src/utils/publicApi.ts, line: 33 }
+    caller: api_load_config_queued
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 109 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch_json と同じ関数。publicFetch を呼び、応答を JSON として返す。"
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+
+  - id: public_fetch_queued
+    layer: api_client
+    kind: function
+    name: "publicFetch"
+    source: { file: src/utils/publicApi.ts, line: 16 }
+    caller: public_fetch_json_queued
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch と同じ関数。fetch で送る (本文が無いので GET)。"
+      evidence:
+        - { file: src/utils/publicApi.ts, line: 22 }
+        - { file: src/utils/publicApi.ts, line: 23 }
+
+  - id: fetch_public_config_queued
+    layer: external
+    kind: library
+    name: "fetch GET https://api.kestra.io/v1/config"
+    source: { file: src/utils/publicApi.ts, line: 22 }
+    caller: public_fetch_queued
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 22 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "api.kestra.io", path: "GET /v1/config" } }
+        fields:
+          - { name: id, use: [read] }
+          - { name: "posthog.token", use: [read] }
+          - { name: "posthog.apiHost", use: [read] }
+        evidence:
+          - { file: src/stores/api.ts, line: 12 }
+          - { file: src/stores/api.ts, line: 109 }
+          - { file: src/stores/api.ts, line: 31 }
+          - { file: src/stores/api.ts, line: 32 }
+          - { file: src/utils/publicApi.ts, line: 23 }
+        note: "計測の設定 (PostHog の token と送り先) を読む。フレーム fetch_public_config と同じ呼び出し。"
+
+  - id: public_fetch_events
+    layer: api_client
+    kind: function
+    name: "publicFetch"
+    source: { file: src/utils/publicApi.ts, line: 16 }
+    caller: api_send_event_now
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 170 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch と同じ関数。URL が違う (POST /v1/reports/events) ので、URL ごとの external のフレームを下に持つために、もう一度書いた。本文 (イベント) を渡すので POST になる。"
+      evidence:
+        - { file: src/utils/publicApi.ts, line: 22 }
+        - { file: src/utils/publicApi.ts, line: 23 }
+
+  - id: fetch_public_events
+    layer: external
+    kind: library
+    name: "fetch POST https://api.kestra.io/v1/reports/events"
+    source: { file: src/utils/publicApi.ts, line: 22 }
+    caller: public_fetch_events
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 22 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "api.kestra.io", path: "POST /v1/reports/events" } }
+        fields:
+          - { name: type, use: [write] }
+          - { name: iid, use: [write] }
+          - { name: uid, use: [write] }
+          - { name: date, use: [write] }
+          - { name: counter, use: [write] }
+        evidence:
+          - { file: src/stores/api.ts, line: 170 }
+          - { file: src/stores/api.ts, line: 12 }
+          - { file: src/stores/api.ts, line: 172 }
+          - { file: src/stores/api.ts, line: 36 }
+          - { file: src/stores/api.ts, line: 59 }
+          - { file: src/stores/api.ts, line: 60 }
+          - { file: src/stores/api.ts, line: 61 }
+          - { file: src/stores/api.ts, line: 62 }
+          - { file: src/utils/publicApi.ts, line: 23 }
+        note: "ためてあった計測のイベントを kestra.io へ送る。cookie を付けて呼ぶ (withCredentials)。fields は、どのイベントにも付く項目だけ。ほかの項目は、ためられたイベント (ほかの入口が api.events に渡したもの) によって変わる。"
+
+  - id: api_load_feeds
+    layer: store
+    kind: store_action
+    name: "api.loadFeeds"
+    source: { file: src/stores/api.ts, line: 93 }
+    caller: app
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isBasicAuthInitialized が真で、ログイン済みで、設定に version と uuid があるとき。"
+      evidence:
+        - { file: src/App.vue, line: 103 }
+        - { file: src/App.vue, line: 95 }
+        - { file: src/App.vue, line: 99 }
+        - { file: src/App.vue, line: 102 }
+      note: "App.vue の中の補助の関数 loadGeneralResources (87 行) の中の呼び出し。終わるのを待たない (await していない)。"
+    summary:
+      status: interpretation
+      value: "kestra.io の公開の API からお知らせ (feeds) を読み、store の feeds に入れる。"
+      evidence:
+        - { file: src/stores/api.ts, line: 94 }
+        - { file: src/stores/api.ts, line: 103 }
+    parameters:
+      - name: "options"
+        value: "version (設定の版)、iid (設定の uuid)、uid (localStorage の利用者の識別子)。問い合わせの引数として送る。"
+        status: fact
+        evidence:
+          - { file: src/App.vue, line: 104 }
+          - { file: src/App.vue, line: 105 }
+          - { file: src/App.vue, line: 106 }
+          - { file: src/stores/api.ts, line: 96 }
+
+  - id: public_fetch_json_feeds
+    layer: api_client
+    kind: function
+    name: "publicFetchJson"
+    source: { file: src/utils/publicApi.ts, line: 33 }
+    caller: api_load_feeds
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 94 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch_json と同じ関数。URL が違う (GET /v1/feeds) ので、URL ごとの external のフレームを下に持つために、もう一度書いた。"
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+
+  - id: public_fetch_feeds
+    layer: api_client
+    kind: function
+    name: "publicFetch"
+    source: { file: src/utils/publicApi.ts, line: 16 }
+    caller: public_fetch_json_feeds
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch と同じ関数。引数 (iid、uid、version) を URL の問い合わせに付け、fetch で送る (本文が無いので GET)。"
+      evidence:
+        - { file: src/utils/publicApi.ts, line: 19 }
+        - { file: src/utils/publicApi.ts, line: 22 }
+        - { file: src/utils/publicApi.ts, line: 23 }
+
+  - id: fetch_public_feeds
+    layer: external
+    kind: library
+    name: "fetch GET https://api.kestra.io/v1/feeds"
+    source: { file: src/utils/publicApi.ts, line: 22 }
+    caller: public_fetch_feeds
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 22 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "api.kestra.io", path: "GET /v1/feeds" } }
+        fields:
+          - { name: iid, use: [filter] }
+          - { name: uid, use: [filter] }
+          - { name: version, use: [filter, read] }
+          - { name: feeds, use: [read] }
+        evidence:
+          - { file: src/stores/api.ts, line: 94 }
+          - { file: src/stores/api.ts, line: 12 }
+          - { file: src/stores/api.ts, line: 97 }
+          - { file: src/stores/api.ts, line: 98 }
+          - { file: src/stores/api.ts, line: 99 }
+          - { file: src/stores/api.ts, line: 26 }
+          - { file: src/stores/api.ts, line: 27 }
+          - { file: src/stores/api.ts, line: 103 }
+          - { file: src/utils/publicApi.ts, line: 23 }
+        note: "お知らせの一覧を読む。版、インスタンスの uuid、利用者の識別子を、問い合わせの引数として送る。cookie を付けて呼ぶ (withCredentials)。read の項目は、応答の型 (FeedResponse) の項目。"
+
+  - id: init_posthog_if_enabled
+    layer: api_client
+    kind: function
+    name: "initPosthogIfEnabled"
+    source: { file: src/utils/posthog.ts, line: 191 }
+    caller: app
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isBasicAuthInitialized が真で、ログイン済みのとき。"
+      evidence:
+        - { file: src/App.vue, line: 111 }
+        - { file: src/App.vue, line: 95 }
+      note: "App.vue の中の補助の関数 loadGeneralResources (87 行) の中の呼び出し。終わるのを待たない (void)。"
+    summary:
+      status: interpretation
+      value: "画面の計測が無効 (isUiAnonymousUsageEnabled が false、または開発モード) なら、PostHog を止めて終わる。有効なら、ensurePosthogClient で PostHog を初期化する (経路はフレーム ensure_posthog_client と同じ。終端の決まりを満たすために、下にもう一度書いた)。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 192 }
+        - { file: src/utils/posthog.ts, line: 193 }
+        - { file: src/utils/posthog.ts, line: 197 }
+        - { file: src/utils/posthog.ts, line: 24 }
+    settings:
+      - name: "isUiAnonymousUsageEnabled"
+        kind: remote
+        effect: "false のとき、PostHog を止めて、初期化しない。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 192 }
+        note: "バックエンドから受け取る設定 (GET /api/v1/configs の応答) の項目。App.vue が、読んだ設定をそのまま渡す (App.vue 111 行)。"
+      - name: "import.meta.env.MODE"
+        kind: other
+        effect: "development のとき、PostHog を止めて、初期化しない。"
+        status: fact
+        evidence:
+          - { file: src/utils/posthog.ts, line: 24 }
+          - { file: src/utils/posthog.ts, line: 192 }
+
+  - id: ensure_posthog_client_again
+    layer: api_client
+    kind: function
+    name: "ensurePosthogClient"
+    source: { file: src/utils/posthog.ts, line: 88 }
+    caller: init_posthog_if_enabled
+    call:
+      status: fact
+      when: conditional
+      condition: "設定 isUiAnonymousUsageEnabled が false でなく、開発モードでないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 197 }
+        - { file: src/utils/posthog.ts, line: 192 }
+    summary:
+      status: interpretation
+      value: "フレーム ensure_posthog_client と同じ関数。initPostHogForSetup で初期化し、posthog-js を読み込み、flushQueue で、待ち行列を送る (経路はフレーム posthog_capture_queued と同じ)。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 99 }
+        - { file: src/utils/posthog.ts, line: 101 }
+
+  - id: init_posthog_for_setup_again
+    layer: api_client
+    kind: function
+    name: "initPostHogForSetup"
+    source: { file: src/composables/usePosthog.ts, line: 67 }
+    caller: ensure_posthog_client_again
+    call:
+      status: fact
+      when: conditional
+      condition: "PostHog のクライアントが読み込まれておらず、設定 (configs) があり、初期化がまだ進んでいないとき。"
+      evidence:
+        - { file: src/utils/posthog.ts, line: 98 }
+        - { file: src/utils/posthog.ts, line: 89 }
+        - { file: src/utils/posthog.ts, line: 90 }
+        - { file: src/utils/posthog.ts, line: 96 }
+    summary:
+      status: interpretation
+      value: "フレーム init_posthog_for_setup と同じ関数。api.loadConfig で接続の情報を読み、posthog.init で初期化する (経路はフレーム posthog_init と同じ)。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 81 }
+        - { file: src/composables/usePosthog.ts, line: 85 }
+
+  - id: api_load_config_again
+    layer: store
+    kind: store_action
+    name: "api.loadConfig"
+    source: { file: src/stores/api.ts, line: 108 }
+    caller: init_posthog_for_setup_again
+    call:
+      status: fact
+      when: conditional
+      condition: "posthog-js がまだ初期化されていない (posthog.__loaded が偽の) とき。"
+      evidence:
+        - { file: src/composables/usePosthog.ts, line: 81 }
+        - { file: src/composables/usePosthog.ts, line: 75 }
+    summary:
+      status: interpretation
+      value: "フレーム api_load_config と同じ処理。kestra.io の公開 API から、計測の設定を取る。"
+      evidence: [{ file: src/stores/api.ts, line: 109 }]
+
+  - id: public_fetch_json_again
+    layer: api_client
+    kind: function
+    name: "publicFetchJson"
+    source: { file: src/utils/publicApi.ts, line: 33 }
+    caller: api_load_config_again
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/api.ts, line: 109 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch_json と同じ関数。publicFetch を呼び、応答を JSON として返す。"
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+
+  - id: public_fetch_again
+    layer: api_client
+    kind: function
+    name: "publicFetch"
+    source: { file: src/utils/publicApi.ts, line: 16 }
+    caller: public_fetch_json_again
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 34 }]
+    summary:
+      status: interpretation
+      value: "フレーム public_fetch と同じ関数。fetch で送る (本文が無いので GET)。"
+      evidence:
+        - { file: src/utils/publicApi.ts, line: 22 }
+        - { file: src/utils/publicApi.ts, line: 23 }
+
+  - id: fetch_public_config_again
+    layer: external
+    kind: library
+    name: "fetch GET https://api.kestra.io/v1/config"
+    source: { file: src/utils/publicApi.ts, line: 22 }
+    caller: public_fetch_again
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/utils/publicApi.ts, line: 22 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "api.kestra.io", path: "GET /v1/config" } }
+        fields:
+          - { name: id, use: [read] }
+          - { name: "posthog.token", use: [read] }
+          - { name: "posthog.apiHost", use: [read] }
+        evidence:
+          - { file: src/stores/api.ts, line: 12 }
+          - { file: src/stores/api.ts, line: 109 }
+          - { file: src/stores/api.ts, line: 31 }
+          - { file: src/stores/api.ts, line: 32 }
+          - { file: src/utils/publicApi.ts, line: 23 }
+        note: "計測の設定 (PostHog の token と送り先) を読む。フレーム fetch_public_config と同じ呼び出し。"

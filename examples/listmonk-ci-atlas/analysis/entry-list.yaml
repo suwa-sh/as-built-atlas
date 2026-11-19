@@ -1,0 +1,134 @@
+format_version: 1
+target:
+  repo: github.com/knadh/listmonk
+  name: listmonk の CI
+  clone_path: ../listmonk
+  scope: .
+  commit: e735e0b23421192a4c1b18b6221f4708b872fcd5
+profile:
+  id: batch-github-actions
+  version: 0.1.0
+extractors:
+- name: workflows
+  run: abatlas-extract glob
+  layer: workflow
+  rationale: 範囲 (scope) がリポジトリの根なので、プロファイルの既定パラメータのまま使う。workflow は .github/workflows
+    の直下に 6 件あり、すべて on を持つ。
+  params:
+    files:
+    - .github/workflows/*.yml
+    - .github/workflows/*.yaml
+    segments:
+      strip_prefix: .github/workflows
+      drop_last: false
+    line_match: '^(on|''on''|"on")\s*:'
+    contains:
+      schedule: '^\s*schedule\s*:'
+      workflow_dispatch: ^\s*-?\s*workflow_dispatch\b|\[[^\]]*workflow_dispatch
+      workflow_call: ^\s*-?\s*workflow_call\b|\[[^\]]*workflow_call
+      push: ^\s*-?\s*push\b|\bon\s*:\s*\[?[^\]\n]*\bpush\b
+      pull_request: ^\s*-?\s*pull_request(_target)?\b|\bon\s*:\s*\[?[^\]\n]*\bpull_request
+entries:
+- id: build-sanity
+  path: /build-sanity
+  layer: workflow
+  source:
+    file: .github/workflows/build-sanity.yml
+    line: 3
+  extractor: workflows
+  status: candidate
+  name: build-sanity
+  attributes:
+    file_segments:
+    - build-sanity
+    schedule: false
+    workflow_dispatch: false
+    workflow_call: false
+    push: false
+    pull_request: true
+- id: github-pages
+  path: /github-pages
+  layer: workflow
+  source:
+    file: .github/workflows/github-pages.yml
+    line: 3
+  extractor: workflows
+  status: candidate
+  name: github-pages
+  attributes:
+    file_segments:
+    - github-pages
+    schedule: false
+    workflow_dispatch: true
+    workflow_call: false
+    push: true
+    pull_request: false
+- id: hodor-review
+  path: /hodor-review
+  layer: workflow
+  source:
+    file: .github/workflows/hodor-review.yml
+    line: 3
+  extractor: workflows
+  status: candidate
+  name: hodor-review
+  attributes:
+    file_segments:
+    - hodor-review
+    schedule: false
+    workflow_dispatch: false
+    workflow_call: false
+    push: false
+    pull_request: true
+- id: issues
+  path: /issues
+  layer: workflow
+  source:
+    file: .github/workflows/issues.yml
+    line: 2
+  extractor: workflows
+  status: approved
+  name: issues
+  attributes:
+    file_segments:
+    - issues
+    schedule: true
+    workflow_dispatch: true
+    workflow_call: false
+    push: false
+    pull_request: false
+- id: nightly
+  path: /nightly
+  layer: workflow
+  source:
+    file: .github/workflows/nightly.yml
+    line: 2
+  extractor: workflows
+  status: approved
+  name: nightly
+  attributes:
+    file_segments:
+    - nightly
+    schedule: true
+    workflow_dispatch: true
+    workflow_call: false
+    push: false
+    pull_request: false
+- id: release
+  path: /release
+  layer: workflow
+  source:
+    file: .github/workflows/release.yml
+    line: 3
+  extractor: workflows
+  status: approved
+  name: release
+  attributes:
+    file_segments:
+    - release
+    schedule: false
+    workflow_dispatch: false
+    workflow_call: false
+    push: true
+    pull_request: false
+enumerated_at: '2026-11-17T22:07:28+00:00'

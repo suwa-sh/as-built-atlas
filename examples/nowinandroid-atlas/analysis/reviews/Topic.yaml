@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: Topic
+reviewed_at: "2026-11-18T00:27:48Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: status_mismatch
+    severity: medium
+    where: callstack/custom_tab/call
+    claim: "launchCustomChromeTab は card_items が NewsResourceCardExpanded に渡す onClick のラムダの中にあり、子の Card が押されたときに呼ぶので、context.md の決まり (関数を渡して別の composable が呼ぶものの call は interpretation) では interpretation になる。同じラムダの中の setNewsResourceViewed (vm_viewed) は interpretation で書いていて、扱いが揃っていない"
+    evidence: { file: core/ui/src/main/kotlin/com/google/samples/apps/nowinandroid/core/ui/NewsResourceCardList.kt, line: 56 }
+    suggestion: "call.status を interpretation にし、子が onClick を呼ぶ行 (core/ui/.../NewsResourceCard.kt の 114 行) を根拠に足す (vm_viewed の call の根拠にも同じ行を足す)"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の概要の「描くたびに、画面の表示を Firebase Analytics に送る」は、TrackScreenViewEvent が DisposableEffect(Unit) で composition に入ったときに 1 回だけ送るコードと合わない (フレーム track_screen_view の summary は正しく「一度」と書いている)"
+    evidence: { file: core/ui/src/main/kotlin/com/google/samples/apps/nowinandroid/core/ui/AnalyticsExtensions.kt, line: 60 }
+    suggestion: "「画面が表示されたとき (composition に入ったとき) に一度、画面の表示を Firebase Analytics に送る」に直す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/vm_news_ui_state/summary
+    claim: "ブックマークの id の集合と組み合わせてニュースの state を作る、と書いているが、成功の state は組の first (ニュースの一覧) だけを使い、ブックマークの集合の値は捨てている (組み合わせは、変わったときに出し直すきっかけにしかならない)"
+    evidence: { file: feature/topic/impl/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/topic/impl/TopicViewModel.kt, line: 154 }
+    suggestion: "ブックマークの集合は値として使わず、変わったときに state を出し直すきっかけになるだけ、と書き、154 行を根拠に足す"
+    resolved: true
+notes: "(1) DataStore の fields の名前を proto の項目名 (followed_topic_ids など) で書いたことは、context.md の例 (it.followedTopicIdsMap) と書き方が違うが、message の項目そのものの綴りで、結果の notes に理由もあるので指摘にしなかった。ほかの入口と綴りを揃えるため、analysis-conventions.md の「名前と値の綴り」に決めを書いておくとよい。(2) DataStore の初回の読み込みで IntToStringIdsMigration (DataStoreModule.kt の 54 行) が動きうるが、アプリ全体で 1 回のことで、この入口に固有ではないので指摘にしなかった。(3) dao_get_news の useFilterNewsIds を interpretation にしたのは、2 つのファイルの組み合わせで決まるので妥当と見た。(4) 戻るボタンの navigator.goBack() を links に書かない扱い、private の部品と NewsResourceCardExpanded をフレームにしない扱い、FirebaseAnalyticsHelper.logEvent と userData を 1 回だけ書く扱いは、context.md の決まりどおり"

@@ -1,0 +1,408 @@
+format_version: 1
+entry:
+  id: part_p.dashboard-types.iokestraplugincoredashboardchartTable
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Table
+  name: "Table"
+  layer: part
+  source: { file: src/components/dashboard/dashboard-types.ts, line: 15 }
+target:
+  repo: github.com/kestra-io/kestra
+  name: Kestra UI
+  clone_path: ../kestra
+  scope: ui
+  commit: 28867c6f0ef22f14610c8230406c24bcb35ec13a
+analyzer:
+  profile: { id: ui-vue-router, version: "0.4.0" }
+  skill_version: "0.4.2"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-19T05:50:01Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-19T05:49:19Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "ダッシュボードの登録表 TYPES で、チャートの種類 io.kestra.plugin.core.dashboard.chart.Table に割り当てた部品 (sections/Table.vue)。useChartGenerator の generate でチャートのデータを取り、表示するチャートの定義の列 (data.columns) ごとに表の列を作って行を出す。列の field で、セルを描く小さい部品 (Link、Namespace、KsExecutionStatus、Duration、Date) を選び、フローの画面・実行の画面・名前空間の画面・状態で絞った実行の一覧へのリンクを出す。データの元が Executions で STATE の列を持つチャートでは、状態のタブ (すべて、実行中、一時停止、成功、警告、失敗) を出し、選んだタブの状態の絞り込みを足して取り直す。描く側が showDefault を真で渡したときは、有効なトリガーを次の実行の日時の順に並べる固定のチャートの定義に替える「予定」のタブも出す。チャートの設定でページ分けが有効なら、ページ番号と件数を送り、ページを替えると取り直す。データの取り方は描く側が渡す値で分かれる: データを先に持つ親 (CHART_RESULTS_KEY) が provide していればそれを使い API を呼ばない。そうでなく showDefault が偽なら、保存されたダッシュボードのチャートのデータ (POST /api/v1/main/dashboards/{id}/charts/{chartId}) を、真なら、チャートの定義を送るプレビュー (POST /api/v1/{tenant}/dashboards/charts/preview) を呼ぶ。描かれたとき、画面の URL が変わったとき、描く側が refresh を呼んだとき、タブやページを替えたときに読み直す。"
+  evidence:
+    - { file: src/components/dashboard/dashboard-types.ts, line: 15 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 187 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 28 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 40 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 116 }
+    - { file: src/components/dashboard/sections/table/columns/Link.vue, line: 6 }
+    - { file: src/components/dashboard/sections/table/columns/Link.vue, line: 13 }
+    - { file: src/components/dashboard/sections/table/columns/Namespace.vue, line: 6 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 148 }
+    - { file: src/components/dashboard/sections/quickFilters.ts, line: 89 }
+    - { file: src/components/dashboard/sections/quickFilters.ts, line: 6 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 204 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 96 }
+    - { file: src/components/dashboard/sections/quickFilters.ts, line: 65 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 195 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 212 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+    - { file: src/stores/dashboard.ts, line: 282 }
+    - { file: src/stores/dashboard.ts, line: 297 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 243 }
+    - { file: src/components/dashboard/sections/Table.vue, line: 241 }
+notes: "(1) 部品の入口なので、描く側 (Sections.vue が TYPES[chart.type] で引いて描く) は辿らず、描く側から受け取る props (dashboardId、chart、filters、showDefault)、inject される値 (CHART_RESULTS_KEY、IGNORED_FILTERS_INJECTION_KEY)、URL の値 (route.query、route.fullPath、route.params.tenant) を、入口のフレームの parameters に書いた (analysis-conventions.md と Markdown の結果と同じ扱い。route.params.tenant は、状態で絞った実行の一覧へ移るときに useStateFilter が読む)。(2) Table.vue:40 の <component :is=resolvedComponent(...)> で描くセルの部品 (Link、Namespace、KsExecutionStatus、Duration、Date) は、どれも API を呼ばない (Date.vue と Duration.vue は書式と経過の計算だけ) ので、フレームにせず、入口の summary に名前を書いた。部品の中の画面の移動 (Link.vue の flows/update と executions/update、Namespace.vue の namespaces/update、KsExecutionStatus の onClick で呼ぶ useStateFilter の executions/list) は、context.md の「フレームにしない子の部品や composable の中の、画面の遷移」に従い、入口のフレームの links に、部品の中の行を根拠にして書いた。どの列が描かれるかは保存されたチャートの定義の列で決まるので、links は interpretation にした。(3) 状態のタブの部品 TableQuickFilter と、表の部品 KsDataTable は、利用者の操作を emit で親へ返すだけ (TableQuickFilter.vue:56、Table.vue:3、Table.vue:25) で、API を呼ぶのは Table.vue の同じファイルの補助の関数 (onQuickFilterChange、handlePageChange → getData) なので、context.md の「子が emit で知らせ、同じファイルの補助の関数が受けるとき」に従い、どちらもフレームにせず、知らせる行と受ける関数の行を store の呼び出しの根拠に入れた。(4) 届かない呼び出しの扱い (skill 0.4.2 の表): Table.vue:187 が useChartGenerator の includeHooks に固定の値 false を直接書いて渡すので、描かれたときに generate を呼ぶ処理 (useDashboards.ts:116) は、表の 1 (固定の値で閉じている) に当たる。この部品の木の中で useChartGenerator を呼ぶのは Table.vue:187 だけなので、ほかに開いている経路は無い。フレームは減らない (描かれたときの読み込みは route.fullPath の immediate の watch から同じ generate を通る) が、useChartGenerator の summary の note に書いた。(5) 2 つの store の呼び出しは、showDefault と CHART_RESULTS_KEY がどちらも描く側の値 (表の 3) なので、両方を conditional にした。「予定」のタブは showDefault が真のときだけ出る (Table.vue:96) ので、予定のチャートの定義 (quickFilters.ts:65) はプレビューにだけ送られる。showDefault は描く側から来る値なので、閉じた扱いにせず、プレビューの I/O の note と generate の呼び出しの note に書いた。Table.vue:199 が generate の customFilters に固定の undefined を渡すので、絞り込みはいつも props の filters と URL のクエリから作る (呼び出しの分かれ道ではないので、useChartGenerator の summary に書いた)。(6) route.fullPath の watch (immediate) は、入口のファイルの中の見張りで、呼ぶ先が同じファイルの補助の関数 (refresh → getData) なので、別のフレームにせず、store の呼び出しの根拠に watch の行を入れた (analysis-conventions.md のとおり)。(7) ページの件数は sessionStorage に覚える (Table.vue:164-172) が、ブラウザの中の保存なので I/O に書かず、入口のフレームの summary に書いた。遅れて返った古い応答を捨てる処理 (Table.vue:191-200) も summary に書いた。(8) 応答の fields には、応答の型 ChartResults の項目 (results、total、ignoredFilters) と、部品のコードが固定の名前で読む行の項目 (行の鍵の id、Duration に渡す start_date) を書いた。プレビューには、予定のチャートの定義が固定の名前で決める列 (namespace、flowId、triggerId、next_execution_date) も書いた。保存されたダッシュボードの API の id は、URL のダッシュボードの id (filter) と、行の id (read) が同じ綴りなので、1 つの項目に filter と read を並べた。(9) ダッシュボードの id が無い・チャートの定義の本文が無いときに例外にする確認 (useDashboards.ts:90、96) は、値の有無の確認なので rules に書かなかった。(10) 接続先の設定 (VITE_APP_API_URL、KESTRA_BASE_PATH) は、どの入口でも同じに効く接続の設定なので settings に書かなかった。権限の確認 (guards) は、この部品の経路の上に無い。"
+callstack:
+  - id: table
+    layer: part
+    kind: component
+    name: "Table.vue"
+    source: { file: src/components/dashboard/sections/Table.vue, line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "ダッシュボードの表のチャート。useChartGenerator の generate で取ったデータの行 (results) を、表 (KsDataTable) に、表示するチャートの列 (activeChart.data.columns) ごとに出す。行が無ければ「データが無い」の表示 (KsNoData) を出す。列の field で、セルを描く部品を選ぶ (ID と FLOW_ID は Link、NAMESPACE は Namespace、STATE は KsExecutionStatus、DURATION は Duration、名前に date を含む field は Date、それ以外は値をそのまま)。上に状態のタブ (TableQuickFilter) を置き、タブを替えると、状態の絞り込みを替えて、ページを 1 に戻して取り直す。「予定」のタブを選ぶと、表示するチャートを、固定の定義の予定のチャートに替える。ページ分けが有効なら、ページ番号と件数を送り、ページを替えると取り直す。ページの件数はチャートごとに sessionStorage に覚える (既定は 25)。遅れて返った古い応答は捨てる。route.fullPath の watch (immediate) が、描かれたときと画面の URL が変わるたびに refresh → getData を呼ぶ。refresh は、書き出しのための exportParameters・exportChart と一緒に defineExpose で描く側にも出していて、描く側が呼んでも読み直す。"
+      evidence:
+        - { file: src/components/dashboard/sections/Table.vue, line: 3 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 13 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 14 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 28 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 40 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 48 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 105 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 116 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 168 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 172 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 200 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 204 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 212 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 226 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 241 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 243 }
+    parameters:
+      - name: dashboardId
+        value: "描く側から受け取る props。保存されたダッシュボードの id (省ける)。useChartGenerator に渡し、ダッシュボードのチャートのデータを取るときの URL に入る。ページの件数を覚える鍵にも使う"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 76 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 164 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 187 }
+      - name: chart
+        value: "描く側から受け取る props (必須)。保存されたチャートの定義。data.columns は表の列、data.type と列の field は状態のタブを出すか、chartOptions.pagination.enabled はページ分け、id はデータを取るときの URL に入るチャートの id、content はプレビューのときに送る定義の本文"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 77 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 28 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 89 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 47 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 101 }
+      - name: filters
+        value: "描く側から受け取る props (既定は空)。ダッシュボードの絞り込み。データを取るときに、URL のクエリの絞り込みとタブの状態の絞り込みと合わせて送る"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 78 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 180 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 74 }
+      - name: showDefault
+        value: "描く側から受け取る props (既定は false)。真なら、保存されたダッシュボードではなく、チャートの定義を送るプレビューでデータを取り、「予定」のタブも出す"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 79 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 96 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+      - name: CHART_RESULTS_KEY
+        value: "描く側が provide する値 (任意)。チャートのデータを先に持つ親が渡す関数。あれば、API を呼ばずにその関数の返す値を使う。useChartGenerator が inject する"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 21 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 59 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+      - name: IGNORED_FILTERS_INJECTION_KEY
+        value: "描く側が provide する値 (任意)。チャートのデータの元が絞り込めなかったダッシュボードの絞り込み (応答の ignoredFilters) を、描く側へ知らせる関数。useChartGenerator が inject し、データを取った後に呼ぶ"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 18 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 64 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 108 }
+      - name: route.query
+        value: "描く画面の URL のクエリ。絞り込みとして読み (decodeSearchParams)、props の filters に足して送る"
+        status: fact
+        evidence: [{ file: src/components/dashboard/composables/useDashboards.ts, line: 74 }]
+      - name: route.fullPath
+        value: "描く画面の URL。変わるたびに読み直す (watch)"
+        status: fact
+        evidence: [{ file: src/components/dashboard/sections/Table.vue, line: 243 }]
+      - name: route.params.tenant
+        value: "描く画面の URL のテナント。状態のバッジを押して、状態で絞った実行の一覧へ移るときに、行き先の params に入れる"
+        status: fact
+        evidence:
+          - { file: src/components/filter/composables/useStateFilter.ts, line: 37 }
+          - { file: src/components/filter/composables/useStateFilter.ts, line: 12 }
+    links:
+      - kind: navigate
+        target: "flows/update"
+        entry_id: flows.edit.namespace_d.id_d
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 120 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 140 }
+          - { file: src/components/dashboard/sections/table/columns/Link.vue, line: 3 }
+          - { file: src/components/dashboard/sections/table/columns/Link.vue, line: 6 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 76 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 77 }
+        note: "field が FLOW_ID の列のセル (Link、flow: true)。行に FLOW_ID と NAMESPACE の列の値があるとき、フローの画面へのリンク (KsEntityLink) を出す。params に行の名前空間とフローの id を渡す。ふだんは、どの列があるかは保存されたチャートの定義で決まる。「予定」のタブ (showDefault が真のとき) では、固定の定義が NAMESPACE と FLOW_ID の列をいつも持つ (quickFilters.ts:76-77) ので、保存された定義によらず出る。"
+      - kind: navigate
+        target: "executions/update"
+        entry_id: executions.namespace_d.flowId_d.id_d
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 118 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 138 }
+          - { file: src/components/dashboard/sections/table/columns/Link.vue, line: 11 }
+          - { file: src/components/dashboard/sections/table/columns/Link.vue, line: 13 }
+        note: "field が ID の列のセル (Link、execution: true)。行に FLOW_ID と NAMESPACE の列の値があるとき、実行の画面へのリンク (RouterLink) を出す。params に行の名前空間、フローの id、セルの値 (実行の id) を渡す。どの列があるかは保存されたチャートの定義で決まる。"
+      - kind: navigate
+        target: "namespaces/update"
+        entry_id: namespaces.edit.id_d
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 122 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 142 }
+          - { file: src/components/dashboard/sections/table/columns/Namespace.vue, line: 6 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 76 }
+        note: "field が NAMESPACE の列のセル (Namespace)。値があるとき、名前空間の画面へのリンク (KsEntityLink) を出す。params.id にセルの値を渡す。ふだんは、どの列があるかは保存されたチャートの定義で決まる。「予定」のタブ (showDefault が真のとき) では、固定の定義が NAMESPACE の列をいつも持つ (quickFilters.ts:76) ので、保存された定義によらず出る。"
+      - kind: navigate
+        target: "executions/list"
+        entry_id: executions
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 124 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 148 }
+          - { file: src/components/filter/composables/useStateFilter.ts, line: 37 }
+          - { file: src/components/filter/composables/useStateFilter.ts, line: 11 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 72 }
+        note: "field が STATE の列のセル (KsExecutionStatus、clickable)。状態のバッジを押すと、useStateFilter の navigateToStateFilter が、その状態で絞った (クエリ filters[state][IN]) 実行の一覧へ router.push で移る。どの列があるかは保存されたチャートの定義で決まる。"
+    rules:
+      - kind: decision
+        value: "状態のタブは、データの元が Executions で、STATE の列を持つチャートだけに出す"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 89 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 90 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 92 }
+          - { file: src/components/dashboard/sections/TableQuickFilter.vue, line: 3 }
+      - kind: decision
+        value: "状態のタブを選ぶと、タブに割り当てた実行の状態 (実行中、一時停止、成功、警告、失敗のそれぞれの状態の集まり) を state の IN の絞り込みとして足して取り直す"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 6 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 106 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 198 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 205 }
+      - kind: decision
+        value: "「すべて」のタブでは、チャートの定義の where が STATE で絞っていれば、全部の状態を state の IN の絞り込みとして送り、そうでなければ状態の絞り込みを送らない"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 95 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 101 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 102 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 161 }
+      - kind: decision
+        value: "「予定」のタブは showDefault が真で状態のタブを出すチャートだけに出し、選ぶと、無効でないトリガーを次の実行の日時の早い順に並べる固定のチャートの定義に替え、状態の絞り込みを外して取り直す"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Table.vue, line: 96 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 105 }
+          - { file: src/components/dashboard/sections/TableQuickFilter.vue, line: 48 }
+          - { file: src/components/dashboard/sections/TableQuickFilter.vue, line: 56 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 74 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 81 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 82 }
+      - kind: decision
+        value: "チャートの設定でページ分けが有効なら、ページ番号と件数を送り、表に総数を出してページを替えられるようにする"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 47 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 18 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 195 }
+
+  - id: use_chart_generator
+    layer: component
+    kind: composable
+    name: "useChartGenerator"
+    source: { file: src/components/dashboard/composables/useDashboards.ts, line: 53 }
+    caller: table
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/components/dashboard/sections/Table.vue, line: 187 }]
+    summary:
+      status: interpretation
+      value: "チャートのデータを取る generate を返す composable。Table.vue は、表示するチャート (activeChart)、props の filters、showDefault を、呼ぶたびに読む getter で渡し (175 行)、getData から、ページ分けが有効ならページの指定を、タブの状態の絞り込みがあれば足す絞り込みを付けて generate を呼ぶ (199 行。customFilters には固定の undefined を渡すので、絞り込みはいつも props の filters と URL のクエリから作る)。generate は、その絞り込みに足す絞り込みを合わせた本文を作り、データを先に持つ親 (CHART_RESULTS_KEY) が provide していればその関数の値を返して API を呼ばない。そうでなければ、同時に取るのを 3 件までに抑える待ち行列 (chartLoadQueue) に入れ、showDefault が偽ならダッシュボードの id とチャートの id でデータを取り (dashboard.generate)、真ならチャートの定義を送るプレビュー (dashboard.chartPreview) を呼ぶ。ダッシュボードの id が無い・チャートの定義の本文が無いときは例外にする。待っている間に部品が外されたら、取らずに終える。取った後、応答の ignoredFilters を、描く側が provide した関数 (IGNORED_FILTERS_INJECTION_KEY) に知らせる。"
+      evidence:
+        - { file: src/components/dashboard/sections/Table.vue, line: 175 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 199 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 73 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 74 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 75 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 85 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 87 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 91 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 97 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 108 }
+        - { file: src/components/dashboard/composables/chartLoadQueue.ts, line: 32 }
+      note: "固定の値で閉じている呼び出し: 描かれたときに generate を呼ぶ処理 (onMounted、useDashboards.ts:116) は、includeHooks が真のときだけ動く。Table.vue:187 が includeHooks に固定の値 false を直接書いて渡すので、この部品では動かない (この部品の木の中で useChartGenerator を呼ぶのは Table.vue:187 だけ)。"
+    rules:
+      - kind: decision
+        value: "チャートのデータを先に持つ親が provide していれば、API を呼ばずにその値を使う"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 79 }
+      - kind: decision
+        value: "showDefault が偽なら、保存されたダッシュボードのチャートとしてデータを取り、真なら、チャートの定義を送るプレビューでデータを取る"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+
+  - id: store_generate
+    layer: store
+    kind: store_action
+    name: "dashboard.generate"
+    source: { file: src/stores/dashboard.ts, line: 280 }
+    caller: use_chart_generator
+    call:
+      status: interpretation
+      when: conditional
+      condition: "データを先に持つ親が provide しておらず、描く側が showDefault を真で渡していないとき (描かれたとき、画面の URL が変わったとき、描く側が refresh を呼んだとき、利用者が状態のタブを替えたとき、利用者が表のページや件数を替えたとき)。"
+      evidence:
+        - { file: src/components/dashboard/sections/Table.vue, line: 243 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 227 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 3 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 209 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 25 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 223 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 199 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 85 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+        - { file: src/components/dashboard/composables/chartLoadQueue.ts, line: 20 }
+      note: "呼び出しは chartLoadQueue.enqueue に渡した関数の中にあり、同時に取る数の枠が空いたときに待ち行列が呼ぶ。「予定」のタブは showDefault が真のときだけ出る (Table.vue:96) ので、この呼び出しに送るチャートの id は、いつも props の chart の id。"
+    summary:
+      status: interpretation
+      value: "ダッシュボードの id とチャートの id で、チャートのデータの API に絞り込みとページの指定を POST する。応答が 404 なら例外にせず undefined を返す (Table.vue は「データが無い」を出す)。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 282 }
+        - { file: src/stores/dashboard.ts, line: 285 }
+
+  - id: client_post_generate
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().post"
+    source: { file: src/stores/dashboard.ts, line: 282 }
+    caller: store_generate
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 282 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/main/dashboards/{id}/charts/{chartId}" } }
+        fields:
+          - { name: id, use: [filter, read] }
+          - { name: chartId, use: [filter] }
+          - { name: filters, use: [filter] }
+          - { name: pageNumber, use: [filter] }
+          - { name: pageSize, use: [filter] }
+          - { name: results, use: [read] }
+          - { name: total, use: [read] }
+          - { name: ignoredFilters, use: [read] }
+          - { name: start_date, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 66 }
+          - { file: src/stores/dashboard.ts, line: 282 }
+          - { file: src/override/utils/route.ts, line: 15 }
+          - { file: src/override/utils/route.ts, line: 19 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 76 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 196 }
+          - { file: src/components/dashboard/types.ts, line: 18 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 16 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 18 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 114 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 151 }
+        note: "保存されたダッシュボードの 1 つのチャートのデータを、絞り込みとページの指定 (ページ分けが有効なときだけ) を送って読む。行の項目は、チャートの定義の列 (data.columns) の鍵で、実行時に決まる。固定の名前で読むのは、行の鍵に使う id (無ければ行の値をつないだもの) と、DURATION の列が終わっていない実行の経過を数えるときの start_date。id は、URL のダッシュボードの id (filter) と、行の id (read) の両方。URL の接頭辞は apiUrl() (baseUrl + /api/v1/main)。"
+
+  - id: store_chart_preview
+    layer: store
+    kind: store_action
+    name: "dashboard.chartPreview"
+    source: { file: src/stores/dashboard.ts, line: 296 }
+    caller: use_chart_generator
+    call:
+      status: interpretation
+      when: conditional
+      condition: "データを先に持つ親が provide しておらず、描く側が showDefault を真で渡したとき (描かれたとき、画面の URL が変わったとき、描く側が refresh を呼んだとき、利用者が状態のタブや「予定」のタブを替えたとき、利用者が表のページや件数を替えたとき)。"
+      evidence:
+        - { file: src/components/dashboard/sections/Table.vue, line: 243 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 227 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 3 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 209 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 25 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 223 }
+        - { file: src/components/dashboard/sections/Table.vue, line: 199 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 85 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+        - { file: src/components/dashboard/composables/chartLoadQueue.ts, line: 20 }
+      note: "呼び出しは chartLoadQueue.enqueue に渡した関数の中にあり、同時に取る数の枠が空いたときに待ち行列が呼ぶ。"
+    summary:
+      status: interpretation
+      value: "チャートのプレビューの SDK の関数を、受け取った本文のまま呼ぶ。"
+      evidence: [{ file: src/stores/dashboard.ts, line: 297 }]
+
+  - id: sdk_preview_chart
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/dashboards previewChart"
+    source: { file: src/stores/dashboard.ts, line: 297 }
+    caller: store_chart_preview
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 297 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/{tenant}/dashboards/charts/preview" } }
+        fields:
+          - { name: chart, use: [filter] }
+          - { name: globalFilter, use: [filter] }
+          - { name: results, use: [read] }
+          - { name: total, use: [read] }
+          - { name: ignoredFilters, use: [read] }
+          - { name: id, use: [read] }
+          - { name: start_date, use: [read] }
+          - { name: namespace, use: [read] }
+          - { name: flowId, use: [read] }
+          - { name: triggerId, use: [read] }
+          - { name: next_execution_date, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 297 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 101 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 102 }
+          - { file: src/components/dashboard/types.ts, line: 18 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Dashboards.gen.ts, line: 28 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 851 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 16 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 114 }
+          - { file: src/components/dashboard/sections/Table.vue, line: 151 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 76 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 79 }
+          - { file: src/components/dashboard/sections/quickFilters.ts, line: 86 }
+        note: "チャートの定義の本文 (chart) と絞り込み (globalFilter。ページ分けが有効ならページ番号と件数も入る) を送って、プレビューのデータを読む。送る本文は、ふだんは props の chart の content。「予定」のタブを選んでいるときは、quickFilters.ts の upcomingChartFor が作る固定の定義 (データの元が Triggers、DISABLED が false の行を next_execution_date の早い順。列は namespace、flowId、triggerId、next_execution_date) の YAML。予定のタブは showDefault が真のときだけ出る (Table.vue:96) ので、予定の定義はこの API にだけ送る。行の項目は、ふだんはチャートの定義の列の鍵で実行時に決まり、固定の名前で読むのは id と start_date。テナントの段は SDK が入れる (resolveTenant)。"

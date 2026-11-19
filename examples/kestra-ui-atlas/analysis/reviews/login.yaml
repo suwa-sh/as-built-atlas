@@ -1,0 +1,20 @@
+format_version: 1
+entry_id: login
+reviewed_at: "2026-11-19T05:49:53Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/login_view
+    claim: "フォームの検査で、パスワードが空なら送信しない決まり (validatePassword、136 行。rules の password、145 行) があるのに、rules にはメールアドレスの検査だけが書かれている。"
+    evidence: { file: src/components/basicauth/BasicAuthLogin.vue, line: 136 }
+    suggestion: "login_view の rules に、パスワードが空なら送信しない validation を足し、根拠に 136 行と 145 行と 185 行を書く。"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/login_view/rules/0
+    claim: "「メールアドレスが空でなく」の部分を決めている行 (126 行の !value?.trim()) が根拠に無い。主張そのものは、ソースと合っている。"
+    evidence: { file: src/components/basicauth/BasicAuthLogin.vue, line: 126 }
+    suggestion: "根拠に 126 行 (と、検査を登録している 144 行) を足す。"
+    resolved: true
+notes: "前のレビューの 2 件 (戻る先のつながりの書き漏れ、行き先を決める正規表現の根拠の不足) は、いまの結果で直っている (links/3 と links/4 に実行の画面とフローの編集の画面が足され、rules/3 の根拠に loginRedirectHint.ts の 29 行と 30 行がある)。辿る順 (送信の経路を先に辿り、見張りで動く api.flushQueuedEvents を misc.loadConfigs の下に置き、api.posthogEvents と ensurePosthogClient を、先に着く呼び出し元の下に書いた) は、コードの行の順と合っている。publicFetch を URL ごとにもう一度書いた扱い、PostHog の送り先を not_traceable_in_repo にした扱い、固定の値で閉じた 2 つの枝 (flow.findFlows の onlyTotal、identifyPosthogUser の properties) の note も、コードと合っている。links/3 と links/4 の target は、コードの文字 (redirectPath.value) ではなく、正規表現に当たる route の URL の形で書いているが、note に理由があり interpretation なので、指摘にしなかった。flow_find_flows の summary の note の「493 行の else、498 行」は、else の行が 497 行、store に入れる行が 499〜500 行で、少しずれているが、意味は読み取れる。"

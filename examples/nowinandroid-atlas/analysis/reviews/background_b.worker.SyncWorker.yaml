@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: background_b.worker.SyncWorker
+reviewed_at: "2026-11-18T00:44:51Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: medium
+    where: callstack/entry/rules/0
+    claim: "「全文検索の表を作り直して」と書いているが、populateFtsData は newsResourcesFts と topicsFts の既存の行を消さずに insertAll するだけで、作り直し (消してから入れ直す) の根拠が無い。FTS の entity は rowid を持たないので OnConflictStrategy.REPLACE がぶつかる行も無く、同期が成功するたびに全件が足される読みになる。入口の summary の「全文検索の表 (newsResourcesFts、topicsFts) を作り直して」も同じ"
+    evidence: { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 49 }
+    suggestion: "rules[0] と入口の summary を「端末のニュースと話題をすべて読んで、全文検索の表に書き足す (既存の行は消さない)」に直し、DefaultSearchContentsRepository.kt の 49 行と 57 行を根拠に足す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/dao_fts_news_insert/summary
+    claim: "「ぶつかる行は置き換える」は注釈 (@Insert(onConflict = REPLACE)) の字面どおりだが、NewsResourceFtsEntity は @Fts4 で rowid を宣言しておらず、insertAll は rowid を渡さないので、ぶつかる行は生まれず、置き換えは起きない (行が足されるだけ)。io[0] の note も同じ"
+    evidence: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceFtsEntity.kt, line: 27 }
+    suggestion: "summary を「読んだニュースを NewsResourceFtsEntity に直し、newsResourcesFts 表に書き足す (rowid を渡さないので、REPLACE の置き換えは起きず、既存の行は残る)」とし、status は interpretation のままにする"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/dao_fts_topics_insert/summary
+    claim: "dao_fts_news_insert と同じく、TopicFtsEntity は rowid を宣言しておらず、insertAll は rowid を渡さないので、「ぶつかる行は置き換える」ことは起きず、topicsFts に行が足されるだけになる。io[0] の note も同じ"
+    evidence: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicFtsEntity.kt, line: 27 }
+    suggestion: "summary を「読んだ話題を TopicFtsEntity に直し、topicsFts 表に書き足す (rowid を渡さないので、REPLACE の置き換えは起きず、既存の行は残る)」に直す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/ds_get_versions/summary
+    claim: "「読めなければ既定の版」の根拠の firstOrNull ?: ChangeListVersions() は、DataStore の data が値を 1 つも出さずに終わったときだけ効く。読み込みの失敗 (IOException など) は例外としてそのまま上がり、changeListSync の suspendRunCatching が受けて同期の失敗になるので、「読めなければ既定」とは言えない"
+    evidence: { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 164 }
+    suggestion: "「(値が 1 つも出なければ既定の版。読み込みの例外は、そのまま上がって同期の失敗になる)」に直し、164 行を根拠に足す"
+    resolved: true
+notes: "(1) changeListSync をフレームにせず、そのルールを話題とニュースの両方の repository に書いた扱い、SyncWorker の getChangeListVersions / updateChangeListVersions をフレームにしない扱い、getChangeListVersions・updateChangeListVersion・NewsResourceDao.getNewsResources・FirebaseAnalyticsHelper.logEvent を深さ優先で最初に着いた所に 1 回だけ書く扱いは、context.md の決まりどおりで、置き場も行の順と合っている。(2) 変更の一覧が空なら成功として早く返す (SyncUtilities.kt 89 行) ので、その後ろを conditional にしたのは、分析の skill の「成功として早く返す経路の後ろは conditional」と合っている。通知の許可で返す経路だけがある NotificationManagerCompat.notify を always にしたのも、skill の基準どおり。(3) setNewsResourcesViewed の viewed = false の枝 (remove) は、OfflineFirstNewsRepository.kt 99 行の固定の true で閉じており、3 つの条件を満たす (値は木の中のリテラル、条件はその値だけで決まる、別の呼び出し元から別の値で着く経路が無い)。(4) 綴り: DataStore の項目名 (proto の名前)、table 名、FirebaseAnalytics.logEvent の host / path は、Topic の結果と同じ。permission.POST_NOTIFICATIONS と通知の行き先 com.google.samples.apps.nowinandroid.MainActivity は、ほかの結果にまだ無い (MainActivity の結果は作業中で見ていない分もある)。(5) 指摘にしなかった実際の動き: FirebaseSyncSubscriber.subscribe の await が失敗すると、例外が doWork の外へ上がり、話題とニュースの同期は動かず、Result.retry ではなく Worker の失敗になる (sync_subscribe の summary の「失敗したときの処理は無い」は事実として正しい)。また、変わった話題が無いとき getTopics を空の並びで呼ぶと、@Query の id が付かない GET /topics になる (サーバーがどう返すかはリポジトリに無い)。どちらも分析結果の誤りではない。(6) analysis.tests が作業定義に無いので、tests の漏れは見ていない"

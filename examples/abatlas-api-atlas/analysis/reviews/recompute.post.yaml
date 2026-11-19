@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: recompute.post
+reviewed_at: "2026-11-18T00:27:16Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: resource_mismatch
+    severity: medium
+    where: callstack/profile/io/1
+    claim: "profile.yaml の読み取りが、directory の段を省いた interpretation になっている。analysis-conventions.md は、組み立て式のパスは変わる部分を * にすると決めており、読み取りそのものは 68 行で必ず起きる。同じ結果の oss_copy_outdated は同じファイルを .abatlas/profiles/* として fact で書いており、同じファイルが 2 つの別のデータ (resource_path) に分かれる"
+    evidence: { file: build.py, line: 68 }
+    suggestion: "directory を \"*\" (作業定義の profile.dir。無ければ配布物の profiles/<id>) にして status を fact にし、場所が profile.dir で決まることは note に書く"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "「途中で失敗すれば、作業用のファイルを消して 500 を返す」は言い過ぎ。作業用のファイルを消すのは dbt の失敗 (181 行) と宣言の検査の失敗 (188 行) だけで、合成・プロファイル・ETL の失敗はその前に止まる。また handler が 500 に変えるのは SystemExit だけで、publish_declarations の DuckDB の誤りや os.replace の OSError では作業用のファイルは残り、FastAPI の既定の 500 になる"
+    evidence: { file: api.py, line: 407 }
+    suggestion: "「dbt か宣言の検査で失敗すれば作業用のファイルを消して止め、SystemExit で止まった再集計は 500 を返す」のように、消す場合と 500 にする経路を分けて書く"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/profile/rules/0
+    claim: "プロファイルを読めずに止まる条件のうち、作業定義 (work-definition.yaml) が無いとき (32〜33 行) と、profile.dir を書かずに配布物に profiles/<id>/profile.yaml が無いとき (48〜51 行) が rules に無い"
+    evidence: { file: build.py, line: 51 }
+    suggestion: "rules[0] の条件に、作業定義が無いときと、profile.dir 未記入で配布物にプロファイルが無いときを足す (根拠 build.py 32、33、48〜51 行)"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/run_etl/io
+    claim: "run_etl は、補助 write_seeds の書き込みは io に写したのに、補助 target_files の読み取り (対象の範囲のファイルの一覧。git ls-files か、フォルダを歩く rglob) を io に写していない。この一覧は seed の target_files.csv の中身になる"
+    evidence: { file: etl.py, line: 303 }
+    suggestion: "対象の範囲のフォルダ (scope、作業定義から決まる) の list を filesystem の io として足し、git ls-files を別のプロセスで動かすことは note に書く (根拠 etl.py 303、67、74 行)"
+    resolved: true
+notes: "(1) 作業ツリーのずれ: 根拠の行は、いまのファイル (api.py の /recompute は 400 行、_reject_cross_site 195 行、LoopbackHostMiddleware 178 行、create_app の add_middleware 218 行。declarations.py の check_manifest 271 行、publish_declarations 207 行、publish_meta 233 行) と突き合わせ、すべて合った。レビューの間に api.py の行は変わらなかった (始めと終わりで /recompute は 400 行)。入口の一覧の 354 行と、target.commit は、いまのファイルの行と合わない (結果の notes(1) に書いてあるとおり)。(2) 指摘にしなかった判断: check_manifest を logic にしたこと (analysis-conventions.md は層を決めていない。検査が役割で、手本の adapter は読むだけの関数) は妥当と見た。build_repo の 174〜177 行と render_dbt_project の 111〜114 行を閉じた枝として辿らないことは、recompute が build_repo(repo) を select も profile_id も渡さずに呼ぶ (api.py 406 行、build.py 156 行) ので 3 つの条件を満たす。check_manifest と build_repo が manifest.json を別々に読むのは、コードのとおり (273 行と 195 行)。配布物の語彙と用語集の読み取り (resource_kinds、term_labels、profile_term_problems) を io に書かないことは、notes(6) の判断を受け入れた。(3) 綴り: _allowed_hosts()、ABATLAS_ALLOWED_HOSTS、LoopbackHostMiddleware のフレームの形、duckdb.connect、information_schema.columns の段は、手本 (marts.name_d.rows.get) と同じ。"

@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: kv
+reviewed_at: "2026-11-19T05:50:29Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    resolved: true
+    where: callstack/capture_posthog_event/settings/0
+    claim: "この入口の経路では、capturePosthogEvent に着く前に、sendPosthogEvent の 15 行が同じ configs で isUiAnonymousUsageEnabled が false の値をすべて弾いて返すので、138 行 (isPosthogDisabled、24 行) の isUiAnonymousUsageEnabled の部分は閉じている。閉じた分かれ道の中にだけある設定を、capture_posthog_event の settings に書いている。"
+    evidence: { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+    suggestion: "capture_posthog_event の settings から isUiAnonymousUsageEnabled を外し (import.meta.env.MODE は開いているので残す)、summary の note に、弾く行 (posthogEvents.ts 15 行) と条件の行 (posthog.ts 24・138 行) を書く。shell_s.app の結果と同じ書き方になる。"
+  - kind: missing_item
+    severity: low
+    resolved: true
+    where: callstack/sdk_list_all_keys/io/0/fields
+    claim: "一覧の応答の行から、画面が固定の名前で読む列 (namespace、key、description、updateDate、expirationDate) が fields に無く、results と total だけになっている。"
+    evidence: { file: src/components/kv/KVTable.vue, line: 99 }
+    suggestion: "results の行の列として、テンプレートで読む namespace (58 行)、key (70 行)、description (74 行)、updateDate (88 行)、expirationDate (99 行) を use: [read] で fields に足す (updateKvModal の 627・635・636 行でも読む)。"
+notes: "37 フレームの call / summary / parameters / io / links / guards / settings / rules の根拠の行を、対象のファイルを開いて確かめた。主張の誤りや辿り漏れは見つからなかった。確かめて、指摘にしなかった点: (1) SDK の 7 つの関数の URL と HTTP メソッドは、Kv.gen.ts / Namespaces.gen.ts の行と sdk.gen.ts の行のとおり。plugins の apiUrlWithoutTenants (override/utils/route.ts 16・23 行) も合っていた。(2) 閉じている呼び出しの扱い (KVTable.vue 382 行の 2 つめの listAllKeys は、KVs.vue 14 行が props を渡さず、既定の値 includeInherited: false (349 行) で A && B の片方が閉じる。configureLanguage の先は 228 行の lang=json で閉じる) は、skill の表の 1 の条件を満たしている。(3) InheritedKVs は、条件が store の状態 (入口の外から来る値) で決まるので、表の 3 として conditional で辿っているのは妥当。(4) namespaceValueProvider の下に loadAutocomplete と SDK をもう一度書いたのは、guards だけで閉じると、確認の後に外への呼び出しが続くのに先のフレームが無くなるため。もう一度書いたフレームに guards を繰り返していないことも確かめた。辿る順 (template の 166 行の NamespaceSelect が、script の 352 行の useKvFilter より先) も context.md のとおり。(5) plugins.loadIcon の call の unknown (dynamic_dispatch) は、呼ぶのが design-system の補完の部品 (useSuggestWidgetIcons.ts 63 行) で、候補の文字の形で決まるので妥当。(6) PostHog の送り先の not_traceable_in_repo は、context.md の典型例のとおり。(7) ensurePosthogClient の 91 行の isPosthogDisabled も、capturePosthogEvent の 138 行が先に弾くので閉じているが、閉じた枝は待ち行列を空にするだけでフレームにならず、設定も書かれていないので、指摘にしなかった (note に書くと、shell_s.app の結果とそろう)。(8) 必須の入力 (名前空間、キー、型、値) の確認は、空でないことだけの確認なので、rules に無くてよいと見た。(9) 綴り: guards の value (resource.KVSTORE, action.UPDATE、resource.NAMESPACE, action.LIST) と settings の name (isUiAnonymousUsageEnabled、import.meta.env.MODE) は、flows・dashboards.dashboard_o・login・shell_s.app の結果と同じ綴り。(10) flows の結果も、capturePosthogEvent に isUiAnonymousUsageEnabled を残している (1 件目の指摘と同じ形)。直すときは、入口の間でそろえるとよい。"

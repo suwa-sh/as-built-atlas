@@ -1,0 +1,358 @@
+format_version: 1
+entry:
+  id: marts.name_d.rows.get
+  path: /marts/{name}/rows/get
+  name: "get /marts/{name}/rows"
+  layer: operation
+  source: { file: api.py, line: 242 }
+target:
+  repo: github.com/suwa-sh/as-built-atlas
+  name: as-built-atlas (API + MCP)
+  clone_path: ../as-built-atlas
+  scope: abatlas
+  commit: aa48c0046e528ce4c04b1e778b5cd38ebc94b069
+analyzer:
+  profile: { id: api, version: "0.1.0" }
+  skill_version: "0.4.1"
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-18T00:16:33Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T00:15:51Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "名前で指定した集計表 (mart) の行を、DuckDB から読んで返す問い合わせの操作。Host がループバック名か許可した名前でなければ 403 で拒み、DuckDB のファイルが無ければ 503 を返す。宣言の表 (meta.declarations) から mart の実体の表を引き (宣言に無ければ 404)、列の一覧を information_schema から読み、クエリ文字列の残りを列ごとの絞り込み (一致・前方一致・部分一致・階層の配下・数値の範囲) にして、件数と、並べ替え・limit・offset を付けた行を返す"
+  evidence:
+    - { file: api.py, line: 242 }
+    - { file: api.py, line: 185 }
+    - { file: api.py, line: 188 }
+    - { file: api.py, line: 128 }
+    - { file: api.py, line: 221 }
+    - { file: declarations.py, line: 238 }
+    - { file: api.py, line: 133 }
+    - { file: api.py, line: 245 }
+    - { file: api.py, line: 251 }
+    - { file: api.py, line: 255 }
+    - { file: api.py, line: 263 }
+    - { file: api.py, line: 266 }
+callstack:
+  - id: op
+    layer: operation
+    kind: http_route
+    name: "GET /marts/{name}/rows"
+    source: { file: api.py, line: 242 }
+    caller: null
+    summary:
+      status: fact
+      value: "FastAPI の飾り @app.get(\"/marts/{name}/rows\") で、関数 query_mart に登録された route。定義ファイル (OpenAPI) はリポジトリに無く、この登録の行が操作の定義"
+      evidence:
+        - { file: api.py, line: 242 }
+        - { file: api.py, line: 243 }
+      note: "認証の確認 (ログインやトークン) は、この route にも、アプリ全体にも無い。全 route に掛かる Host の確認だけがある"
+    parameters:
+      - name: name
+        value: "path の値。問い合わせる mart の名前"
+        status: fact
+        evidence: [{ file: api.py, line: 243 }]
+      - name: limit
+        value: "query。整数、既定 200、1 以上 10000 以下"
+        status: fact
+        evidence: [{ file: api.py, line: 243 }]
+      - name: offset
+        value: "query。整数、既定 0、0 以上"
+        status: fact
+        evidence: [{ file: api.py, line: 243 }]
+      - name: order
+        value: "query。並べ替えの列。先頭に - を付けると降順。省けば mart の順"
+        status: fact
+        evidence:
+          - { file: api.py, line: 243 }
+          - { file: api.py, line: 244 }
+      - name: "<列>[__prefix|__contains|__under|__min|__max]"
+        value: "query。limit・offset・order 以外のキーは、すべて列の絞り込み。接尾辞で、前方一致・部分一致・階層の配下・数値の下限と上限を選ぶ (接尾辞が無ければ一致)"
+        status: fact
+        evidence:
+          - { file: api.py, line: 245 }
+          - { file: api.py, line: 59 }
+          - { file: api.py, line: 10 }
+  - id: host_check
+    layer: handler
+    kind: middleware
+    name: LoopbackHostMiddleware
+    source: { file: api.py, line: 176 }
+    caller: op
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: api.py, line: 216 }]
+      note: "create_app がアプリ全体に add_middleware で掛ける。すべての HTTP の要求が handler より前にここを通る"
+    summary:
+      status: interpretation
+      value: "要求の Host ヘッダからホスト名を取り出し、許可したホスト名 (ループバック名と ABATLAS_ALLOWED_HOSTS) に無ければ、先へ進めずに 403 を返す (DNS rebinding 対策)。許可されていれば、要求をそのまま内側のアプリに渡す"
+      evidence:
+        - { file: api.py, line: 184 }
+        - { file: api.py, line: 185 }
+        - { file: api.py, line: 188 }
+        - { file: api.py, line: 190 }
+    guards:
+      - kind: other
+        value: "_allowed_hosts()"
+        status: fact
+        evidence:
+          - { file: api.py, line: 185 }
+          - { file: api.py, line: 145 }
+        note: "Host ヘッダのホスト名が、許可した名前の集合 (既定は localhost / 127.0.0.1 / ::1) に入っていること。入っていなければ 403"
+    rules:
+      - kind: validation
+        value: "Host ヘッダのホスト名が、ループバック名か許可した名前でなければ、要求を 403 で拒む"
+        status: fact
+        evidence:
+          - { file: api.py, line: 139 }
+          - { file: api.py, line: 185 }
+          - { file: api.py, line: 188 }
+    settings:
+      - name: ABATLAS_ALLOWED_HOSTS
+        kind: env
+        effect: "カンマ区切りで並べたホスト名を、ループバック名に加えて、Host の確認で通すようになる"
+        status: fact
+        evidence:
+          - { file: api.py, line: 144 }
+          - { file: api.py, line: 185 }
+  - id: query_mart
+    layer: handler
+    kind: function
+    name: query_mart
+    source: { file: api.py, line: 243 }
+    caller: op
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: api.py, line: 242 }]
+    summary:
+      status: interpretation
+      value: "クエリ文字列から limit・offset・order 以外を絞り込みとして取り出し、DuckDB に読み取り専用でつなぐ。mart の宣言と列を引き、絞り込みを where にした select * の件数を数え、order があれば並べ替えを付けて limit / offset の行を読み、宣言・列・行・件数を返す"
+      evidence:
+        - { file: api.py, line: 245 }
+        - { file: api.py, line: 246 }
+        - { file: api.py, line: 247 }
+        - { file: api.py, line: 249 }
+        - { file: api.py, line: 252 }
+        - { file: api.py, line: 255 }
+        - { file: api.py, line: 262 }
+        - { file: api.py, line: 263 }
+        - { file: api.py, line: 266 }
+    rules:
+      - kind: validation
+        value: "並べ替えの列 (order から先頭の - を除いたもの) が mart の列に無ければ、400 で拒む"
+        status: fact
+        evidence:
+          - { file: api.py, line: 259 }
+          - { file: api.py, line: 260 }
+          - { file: api.py, line: 261 }
+      - kind: decision
+        value: "order の先頭が - なら降順、そうでなければ昇順に並べ、空の値 (null) は向きによらず最後に置く。order が無ければ並べ替えを付けない (mart の順)"
+        status: fact
+        evidence:
+          - { file: api.py, line: 257 }
+          - { file: api.py, line: 258 }
+          - { file: api.py, line: 259 }
+          - { file: api.py, line: 262 }
+      - kind: validation
+        value: "1 回に返す行の数 limit は 1 以上 10000 以下 (既定 200)、offset は 0 以上で、外れれば要求を拒む"
+        status: interpretation
+        evidence: [{ file: api.py, line: 243 }]
+        note: "範囲の検査は FastAPI の Query(ge=, le=) が行う (拒むときの応答は、FastAPI の入力の検査の誤り)"
+    io:
+      - op: read
+        status: unknown
+        reason: generated_at_runtime
+        resource: { kind: rdb, levels: { dbms: duckdb } }
+        detail: "select count(*) from (select * from <mart の表> where ...) と、select * from <mart の表> where ... order by ... limit ... offset ..."
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: api.py, line: 248 }
+          - { file: api.py, line: 252 }
+          - { file: api.py, line: 255 }
+          - { file: api.py, line: 263 }
+        note: "読む表 (schema と表の名前) は、path の name で引いた宣言の表 meta.declarations の行 (rel_schema / rel_alias) で決まり、コードからは読めない。絞り込みと並べ替えに使う列も、クエリ文字列で決まるので書かない (列は、その mart に実在するものだけが通る)"
+  - id: connect
+    layer: adapter
+    kind: method
+    name: MartCatalog.connect
+    source: { file: api.py, line: 126 }
+    caller: query_mart
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: api.py, line: 246 }]
+    summary:
+      status: interpretation
+      value: "DuckDB のファイル (既定は analysis/data/abatlas.duckdb) があれば、読み取り専用で接続を開く。無ければ 503 を返す"
+      evidence:
+        - { file: api.py, line: 118 }
+        - { file: api.py, line: 127 }
+        - { file: api.py, line: 128 }
+        - { file: api.py, line: 129 }
+        - { file: __init__.py, line: 42 }
+    rules:
+      - kind: validation
+        value: "集計の DuckDB のファイルがまだ無い (build していない) ときは、503 を返して、先に build するよう促す"
+        status: fact
+        evidence:
+          - { file: api.py, line: 127 }
+          - { file: api.py, line: 128 }
+  - id: duckdb
+    layer: external
+    kind: library
+    name: duckdb.connect
+    source: { file: api.py, line: 129 }
+    caller: connect
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: api.py, line: 129 }]
+      note: "read_only=True で開く。この接続 (DuckDBPyConnection) の execute を、この入口のほかの段 (read_declarations、columns、query_mart) が使う"
+  - id: mart
+    layer: logic
+    kind: function
+    name: _mart
+    source: { file: api.py, line: 218 }
+    caller: query_mart
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: api.py, line: 247 }]
+    summary:
+      status: interpretation
+      value: "mart の宣言をすべて読み、name が宣言されていなければ 404 を返す。宣言されていれば、その宣言 (説明・宣言・実体の表) を返す"
+      evidence:
+        - { file: api.py, line: 219 }
+        - { file: api.py, line: 220 }
+        - { file: api.py, line: 221 }
+        - { file: api.py, line: 222 }
+    rules:
+      - kind: validation
+        value: "宣言の表に無い mart の名前は、404 で拒む"
+        status: fact
+        evidence:
+          - { file: api.py, line: 220 }
+          - { file: api.py, line: 221 }
+  - id: read_declarations
+    layer: adapter
+    kind: function
+    name: read_declarations
+    source: { file: declarations.py, line: 236 }
+    caller: mart
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: api.py, line: 219 }
+        - { file: api.py, line: 121 }
+        - { file: api.py, line: 122 }
+      note: "MartCatalog.declarations は、渡された接続で read_declarations を呼ぶだけの包む関数なのでフレームにしない (_mart は接続を必ず渡すので、122 行の経路を通る)"
+    summary:
+      status: interpretation
+      value: "宣言の表 meta.declarations の全行を名前の順に読み、mart の名前ごとに、説明・宣言 (JSON)・実体の表 (schema と表の名前) の対応表にする"
+      evidence:
+        - { file: declarations.py, line: 237 }
+        - { file: declarations.py, line: 238 }
+        - { file: declarations.py, line: 239 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: duckdb, schema: meta, table: declarations } }
+        fields:
+          - { name: name, use: [read, filter] }
+          - { name: description, use: [read] }
+          - { name: rel_schema, use: [read] }
+          - { name: rel_alias, use: [read] }
+          - { name: declaration, use: [read] }
+        evidence:
+          - { file: declarations.py, line: 183 }
+          - { file: declarations.py, line: 237 }
+          - { file: declarations.py, line: 238 }
+        note: "name は order by に使う (filter)。表は build が書く (declarations.py の publish_declarations)"
+  - id: columns
+    layer: adapter
+    kind: method
+    name: MartCatalog.columns
+    source: { file: api.py, line: 131 }
+    caller: query_mart
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: api.py, line: 249 }]
+    summary:
+      status: interpretation
+      value: "DuckDB の information_schema.columns から、mart の実体の表の列の名前と型を、列の並び順で読む"
+      evidence:
+        - { file: api.py, line: 132 }
+        - { file: api.py, line: 133 }
+        - { file: api.py, line: 136 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: duckdb, schema: information_schema, table: columns } }
+        fields:
+          - { name: column_name, use: [read] }
+          - { name: data_type, use: [read] }
+          - { name: table_schema, use: [filter] }
+          - { name: table_name, use: [filter] }
+          - { name: ordinal_position, use: [filter] }
+        evidence:
+          - { file: api.py, line: 133 }
+          - { file: api.py, line: 134 }
+  - id: where
+    layer: logic
+    kind: function
+    name: _where
+    source: { file: api.py, line: 54 }
+    caller: query_mart
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: api.py, line: 251 }]
+    summary:
+      status: interpretation
+      value: "クエリ文字列の絞り込みを、SQL の条件とバインドする値に変える。キーの接尾辞で比べ方を選び、列の名前は実在を確かめてから引用して埋め、値は常にバインドする"
+      evidence:
+        - { file: api.py, line: 57 }
+        - { file: api.py, line: 59 }
+        - { file: api.py, line: 62 }
+        - { file: api.py, line: 64 }
+        - { file: api.py, line: 84 }
+        - { file: api.py, line: 85 }
+    rules:
+      - kind: validation
+        value: "絞り込みの列 (接尾辞を除いた名前) が mart の列に無ければ、400 で拒む"
+        status: fact
+        evidence:
+          - { file: api.py, line: 62 }
+          - { file: api.py, line: 63 }
+      - kind: validation
+        value: "__min / __max の値は数値でなければ、400 で拒む"
+        status: fact
+        evidence:
+          - { file: api.py, line: 65 }
+          - { file: api.py, line: 67 }
+          - { file: api.py, line: 69 }
+      - kind: decision
+        value: "キーの接尾辞で比べ方を決める。__min は以上、__max は以下 (数値に変えて比べる)、__prefix は前方一致、__contains は大小文字を区別しない部分一致、__under はそのパス自身かその下 (この 3 つは列を文字に変えて比べる)、接尾辞が無ければ、列の型のままの一致 (文字に変えない)"
+        status: fact
+        evidence:
+          - { file: api.py, line: 59 }
+          - { file: api.py, line: 70 }
+          - { file: api.py, line: 73 }
+          - { file: api.py, line: 76 }
+          - { file: api.py, line: 81 }
+          - { file: api.py, line: 84 }
+      - kind: decision
+        value: "__under の値が / のときは、全部の行が当たるので、条件を足さない"
+        status: fact
+        evidence:
+          - { file: api.py, line: 79 }
+          - { file: api.py, line: 80 }
+notes: "(1) 定義ファイル (OpenAPI) が無いので、入口のフレームの source は登録の行 (api.py 242 行の @app.get) にし、context.md の「入口の source がコードの登録の行のとき」に従って、handler へは登録の行が指す関数 query_mart へ辿るだけにした (call の根拠も登録の行)。(2) 全 route に掛かる middleware のうち、Host の確認 (LoopbackHostMiddleware) は、確認をする middleware なので handler 層のフレーム (kind middleware、caller は入口) にし、guards (kind other、value は _allowed_hosts()) と settings (ABATLAS_ALLOWED_HOSTS) を書いた。このフレームは誰も呼ばない終端になり、機械チェックは guards だけの終端を認めないので、同じ確認を rules (validation) にも書いた (重なりは承知の上)。保護ヘッダを付けるだけの SecurityHeadersMiddleware は、読み書きにも確認にも当たらないのでフレームにしない。(3) この route は、serve では MCP の Starlette アプリの下に Mount('/') で差し込まれる (api.py 396 行)。外側のアプリの DNS rebinding 対策 (TransportSecuritySettings) は /mcp の転送口に掛かるもので、この route には掛からないと読んだ (ライブラリの中なので辿らない)。(4) DuckDB は rdb (dbms duckdb) に当てはめた。宣言の表 meta.declarations と information_schema.columns は表の名前がコードにあるので fact。mart の実体の表は、DB に保存された宣言 (rel_schema / rel_alias) から決まるので、context.md の典型例に従って unknown + generated_at_runtime にし、dbms の段だけを書いた。DuckDB のファイルの場所 (ABATLAS_DUCKDB、既定は analysis/data/abatlas.duckdb) は、どの入口でも同じ接続先の設定なので、database の段にも settings にも書かない。(5) external は、接続を開く duckdb.connect の 1 フレームで閉じた。execute による読み取りは、SQL を実行している段 (read_declarations、columns、query_mart) の io に書いた。(6) MartCatalog.declarations は包む関数なのでフレームにせず、実体の read_declarations をフレームにした。_q / _rel / _escape_like は小さな補助なのでフレームにしない。"

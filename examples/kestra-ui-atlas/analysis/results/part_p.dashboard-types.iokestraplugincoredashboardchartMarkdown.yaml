@@ -1,0 +1,281 @@
+format_version: 1
+entry:
+  id: part_p.dashboard-types.iokestraplugincoredashboardchartMarkdown
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Markdown
+  name: "Markdown"
+  layer: part
+  source: { file: src/components/dashboard/dashboard-types.ts, line: 13 }
+target:
+  repo: github.com/kestra-io/kestra
+  name: Kestra UI
+  clone_path: ../kestra
+  scope: ui
+  commit: 28867c6f0ef22f14610c8230406c24bcb35ec13a
+analyzer:
+  profile: { id: ui-vue-router, version: "0.4.0" }
+  skill_version: "0.4.2"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-19T05:38:48Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-19T05:50:00Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "ダッシュボードの登録表 TYPES で、チャートの種類 io.kestra.plugin.core.dashboard.chart.Markdown に割り当てた部品 (sections/Markdown.vue)。保存されたチャートの定義のデータの元 (chart.source.type) が FlowDescription でなければ、定義に保存された文 (chart.source.content) をそのまま Markdown として出し、API を呼ばない。FlowDescription なら、useChartGenerator の generate でチャートのデータを取り、1 行目の description を Markdown として出す (無ければ「説明が無い」の表示)。データの取り方は描く側が渡す値で分かれる: データを先に持つ親 (CHART_RESULTS_KEY) が provide していればそれを使い API を呼ばない。そうでなく showDefault が偽なら、保存されたダッシュボードのチャートのデータ (POST /api/v1/main/dashboards/{id}/charts/{chartId}) を、真なら、チャートの定義を送るプレビュー (POST /api/v1/{tenant}/dashboards/charts/preview) を呼ぶ。描かれたとき、画面の URL が変わったとき、描く側が refresh を呼んだときに読み直す。"
+  evidence:
+    - { file: src/components/dashboard/dashboard-types.ts, line: 13 }
+    - { file: src/components/dashboard/sections/Markdown.vue, line: 40 }
+    - { file: src/components/dashboard/sections/Markdown.vue, line: 44 }
+    - { file: src/components/dashboard/sections/Markdown.vue, line: 3 }
+    - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+    - { file: src/components/dashboard/sections/Markdown.vue, line: 7 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+    - { file: src/stores/dashboard.ts, line: 282 }
+    - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+    - { file: src/stores/dashboard.ts, line: 297 }
+    - { file: src/components/dashboard/sections/Markdown.vue, line: 56 }
+    - { file: src/components/dashboard/sections/Markdown.vue, line: 52 }
+notes: "(1) 部品の入口なので、描く側 (Sections.vue が TYPES[chart.type] で引いて描く) は辿らず、描く側から受け取る props (dashboardId、chart、filters、showDefault)、inject される値 (CHART_RESULTS_KEY、IGNORED_FILTERS_INJECTION_KEY)、URL の値 (route.query、route.fullPath) を、入口のフレームの parameters に書いた。inject と route.query を読むのは useChartGenerator の中だが、analysis-conventions.md と context.md の部品の決まりに従い、入口のフレームに置き、根拠は読んでいる行にした。(2) 2 つの store の呼び出しの条件 (source.type、CHART_RESULTS_KEY の provide、showDefault) は、どれも保存された定義か描く側から来る値なので、skill の『届かないように見える呼び出し』の表の 3 に当たる。両方を conditional にし、条件に 3 つを書いた。(3) Markdown.vue:38 が useChartGenerator の includeHooks に固定の値 false を渡し、描かれたときに generate を呼ぶ処理 (useDashboards.ts:116) は includeHooks だけで決まるので、表の 1 (固定の値で閉じている) に当たる。この部品の木の中で useChartGenerator を呼ぶのは Markdown.vue:38 だけなので、閉じている経路しかない。辿らず、useChartGenerator の summary の note に書いた。(4) generate を引数なしで呼ぶ (Markdown.vue:43) ので、customFilters と pagination は渡らず、絞り込みはいつも props.filters と URL のクエリから作る。(5) route.fullPath の watch (immediate) は、入口のファイルの中の見張りで、中身が同じファイルの補助の関数 (refresh → getData) だけなので、フレームにせず、store の呼び出しの根拠に watch の行を入れた (analysis-conventions.md の決まり)。(6) 404 の応答 (dashboard.generate が handledIf で印を付けて undefined を返す) は、失敗の経路のフレームを持たず、「説明が無い」の表示になるだけなので、summary に書いた。(7) ダッシュボードの id が無い・チャートの定義 (chart.content) が無いときに例外にする確認 (useDashboards.ts:90、96) は、値の有無の確認なので rules に書かなかった。部品が外されたとき (isMounted が偽) に何もしないで返す確認も、業務のルールではないので書かなかった。(8) 接続先の設定 (VITE_APP_API_URL、KESTRA_BASE_PATH) は、どの入口でも同じに効く接続の設定なので settings に書かなかった。(9) 応答の fields は、analysis-conventions.md の決まりどおり、この部品が固定の名前で読む項目 (description) と、応答の型 ChartResults の項目 (results、total、ignoredFilters) を書いた。"
+callstack:
+  - id: markdown
+    layer: part
+    kind: component
+    name: "Markdown.vue"
+    source: { file: src/components/dashboard/sections/Markdown.vue, line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "ダッシュボードの Markdown のチャート。保存されたチャートの定義のデータの元 (chart.source.type) が FlowDescription なら、useChartGenerator の generate で取ったデータの 1 行目の description を、そうでなければ定義に保存された文 (chart.source.content) を、KsMarkdown (見た目の部品) で出す。値が無ければ、FlowDescription のときは「説明が無い」の案内、それ以外は「データが無い」の表示 (KsNoData) を出す。route.fullPath の watch (immediate) が、描かれたときと画面の URL が変わるたびに refresh → getData を呼ぶ。refresh は defineExpose で描く側にも出していて、描く側が呼んでも読み直す。"
+      evidence:
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 40 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 44 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 2 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 3 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 6 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 13 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 56 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 48 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 52 }
+    parameters:
+      - name: dashboardId
+        value: "描く側から受け取る props。保存されたダッシュボードの id (省ける)。useChartGenerator に渡し、ダッシュボードのチャートのデータを取るときの URL に入る"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 26 }
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 38 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+      - name: chart
+        value: "描く側から受け取る props (必須)。保存されたチャートの定義。source.type でデータの取り方を決め、source.content は出す文、id はデータを取るときの URL に入るチャートの id、content はプレビューのときに送る定義の本文"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 27 }
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 40 }
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 44 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 101 }
+      - name: filters
+        value: "描く側から受け取る props (既定は空)。ダッシュボードの絞り込み。データを取るときに、URL のクエリの絞り込みと合わせて送る"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 28 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 74 }
+      - name: showDefault
+        value: "描く側から受け取る props (既定は false)。真なら、保存されたダッシュボードではなく、チャートの定義を送るプレビューでデータを取る"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 29 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+      - name: CHART_RESULTS_KEY
+        value: "描く側が provide する値 (任意)。チャートのデータを先に持つ親が渡す関数。あれば、API を呼ばずにその関数の返す値を使う。useChartGenerator が inject する"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 21 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 59 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+      - name: IGNORED_FILTERS_INJECTION_KEY
+        value: "描く側が provide する値 (任意)。チャートのデータの元が絞り込めなかったダッシュボードの絞り込み (応答の ignoredFilters) を、描く側へ知らせる関数。useChartGenerator が inject し、データを取った後に呼ぶ"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 18 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 64 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 108 }
+      - name: route.query
+        value: "描く画面の URL のクエリ。絞り込みとして読み (decodeSearchParams)、props の filters に足して送る"
+        status: fact
+        evidence: [{ file: src/components/dashboard/composables/useDashboards.ts, line: 74 }]
+      - name: route.fullPath
+        value: "描く画面の URL。変わるたびに読み直す (watch)"
+        status: fact
+        evidence: [{ file: src/components/dashboard/sections/Markdown.vue, line: 56 }]
+    rules:
+      - kind: decision
+        value: "チャートのデータの元が FlowDescription なら、フローの説明をチャートのデータの API から取って出し、それ以外なら、チャートの定義に保存された文を出す"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 40 }
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 44 }
+
+  - id: use_chart_generator
+    layer: component
+    kind: composable
+    name: "useChartGenerator"
+    source: { file: src/components/dashboard/composables/useDashboards.ts, line: 53 }
+    caller: markdown
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/components/dashboard/sections/Markdown.vue, line: 38 }]
+    summary:
+      status: interpretation
+      value: "チャートのデータを取る generate を返す composable。Markdown.vue は、その generate を、データの元が FlowDescription のときだけ引数なしで呼ぶ。generate は、props の filters に URL のクエリの絞り込みを足した本文を作り、データを先に持つ親 (CHART_RESULTS_KEY) が provide していればその関数の値を返して API を呼ばない。そうでなければ、同時に取るのを 3 件までに抑える待ち行列 (chartLoadQueue) に入れ、showDefault が偽ならダッシュボードの id とチャートの id でデータを取り (dashboard.generate)、真ならチャートの定義を送るプレビュー (dashboard.chartPreview) を呼ぶ。ダッシュボードの id が無い・チャートの定義が無いときは例外にする。取った後、応答の ignoredFilters を、描く側が provide した関数 (IGNORED_FILTERS_INJECTION_KEY) に知らせる。"
+      evidence:
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 73 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 74 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 85 }
+        - { file: src/components/dashboard/composables/chartLoadQueue.ts, line: 1 }
+        - { file: src/components/dashboard/composables/chartLoadQueue.ts, line: 32 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 91 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 97 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 108 }
+      note: "固定の値で閉じている呼び出し: 描かれたときに generate を呼ぶ処理 (onMounted の中、useDashboards.ts:116) は、includeHooks が真のときだけ動く。Markdown.vue:38 が includeHooks に固定の値 false を渡すので、この部品では動かない (この部品の木の中で useChartGenerator を呼ぶのは Markdown.vue:38 だけ)。"
+    rules:
+      - kind: decision
+        value: "チャートのデータを先に持つ親が provide していれば、API を呼ばずにその値を使う"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 79 }
+      - kind: decision
+        value: "showDefault が偽なら、保存されたダッシュボードのチャートとしてデータを取り、真なら、チャートの定義を送るプレビューでデータを取る"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+
+  - id: store_generate
+    layer: store
+    kind: store_action
+    name: "dashboard.generate"
+    source: { file: src/stores/dashboard.ts, line: 280 }
+    caller: use_chart_generator
+    call:
+      status: interpretation
+      when: conditional
+      condition: "保存されたチャートのデータの元が FlowDescription で、データを先に持つ親が provide しておらず、描く側が showDefault を真で渡していないとき (描かれたとき、画面の URL が変わったとき、描く側が refresh を呼んだとき)。"
+      evidence:
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 56 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 49 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 85 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 93 }
+        - { file: src/components/dashboard/composables/chartLoadQueue.ts, line: 20 }
+      note: "呼び出しは chartLoadQueue.enqueue に渡した関数の中にあり、同時に取る数の枠が空いたときに待ち行列が呼ぶ。条件の値はどれも、保存された定義か描く側から来る値なので、閉じた扱いにしていない。"
+    summary:
+      status: interpretation
+      value: "ダッシュボードの id とチャートの id で、チャートのデータの API に絞り込みを POST する。応答が 404 なら例外にせず undefined を返す (Markdown.vue は「説明が無い」を出す)。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 282 }
+        - { file: src/stores/dashboard.ts, line: 285 }
+
+  - id: client_post_generate
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().post"
+    source: { file: src/stores/dashboard.ts, line: 282 }
+    caller: store_generate
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 282 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/main/dashboards/{id}/charts/{chartId}" } }
+        fields:
+          - { name: id, use: [filter] }
+          - { name: chartId, use: [filter] }
+          - { name: filters, use: [filter] }
+          - { name: results, use: [read] }
+          - { name: description, use: [read] }
+          - { name: total, use: [read] }
+          - { name: ignoredFilters, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 66 }
+          - { file: src/stores/dashboard.ts, line: 282 }
+          - { file: src/override/utils/route.ts, line: 15 }
+          - { file: src/override/utils/route.ts, line: 19 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 76 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 43 }
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+          - { file: src/components/dashboard/types.ts, line: 18 }
+        note: "保存されたダッシュボードの 1 つのチャートのデータを、絞り込みを送って読む。この部品は、1 行目の description (フローの説明) だけを使う。URL の接頭辞は apiUrl() (baseUrl + /api/v1/main)。generate を引数なしで呼ぶので、ページの指定 (pageNumber / pageSize) は送らない。"
+
+  - id: store_chart_preview
+    layer: store
+    kind: store_action
+    name: "dashboard.chartPreview"
+    source: { file: src/stores/dashboard.ts, line: 296 }
+    caller: use_chart_generator
+    call:
+      status: interpretation
+      when: conditional
+      condition: "保存されたチャートのデータの元が FlowDescription で、データを先に持つ親が provide しておらず、描く側が showDefault を真で渡したとき (描かれたとき、画面の URL が変わったとき、描く側が refresh を呼んだとき)。"
+      evidence:
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 56 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 49 }
+        - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 78 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 85 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 89 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 100 }
+        - { file: src/components/dashboard/composables/chartLoadQueue.ts, line: 20 }
+      note: "呼び出しは chartLoadQueue.enqueue に渡した関数の中にあり、同時に取る数の枠が空いたときに待ち行列が呼ぶ。条件の値はどれも、保存された定義か描く側から来る値なので、閉じた扱いにしていない。"
+    summary:
+      status: interpretation
+      value: "チャートのプレビューの SDK の関数を、受け取った本文のまま呼ぶ。"
+      evidence: [{ file: src/stores/dashboard.ts, line: 297 }]
+
+  - id: sdk_preview_chart
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/dashboards previewChart"
+    source: { file: src/stores/dashboard.ts, line: 297 }
+    caller: store_chart_preview
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 297 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/{tenant}/dashboards/charts/preview" } }
+        fields:
+          - { name: chart, use: [filter] }
+          - { name: globalFilter, use: [filter] }
+          - { name: results, use: [read] }
+          - { name: description, use: [read] }
+          - { name: total, use: [read] }
+          - { name: ignoredFilters, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 297 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Dashboards.gen.ts, line: 28 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 851 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 101 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 102 }
+          - { file: src/components/dashboard/composables/useDashboards.ts, line: 43 }
+          - { file: src/components/dashboard/sections/Markdown.vue, line: 43 }
+          - { file: src/components/dashboard/types.ts, line: 18 }
+        note: "チャートの定義の本文 (chart.content) と絞り込みを送って、プレビューのデータを読む。この部品は、1 行目の description (フローの説明) だけを使う。テナントの段は SDK が入れる (resolveTenant)。"

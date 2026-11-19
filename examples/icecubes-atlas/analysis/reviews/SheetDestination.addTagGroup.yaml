@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: SheetDestination.addTagGroup
+reviewed_at: "2026-11-18T00:32:08Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の概要が「タイトルを入れるときに、SwiftData の既存のタグのグループを読み」と書くが、読むのは TitleInputView の @Query で、入力の時ではなく View を描くとき (フレーム tag_group_query の when: always と食い違う表現)。入力の時に行うのは、読んだ並びとタイトルの突き合わせだけ"
+    evidence: { file: IceCubesApp/App/Tabs/TagGroup/EditTagGroupView.swift, line: 122 }
+    suggestion: "「sheet を描くときに SwiftData の既存のタグのグループを読み、入力したタイトルと同じものがあれば警告を出す」のように、読む時点と突き合わせる時点を分けて書く"
+    resolved: true
+notes: "(1) 根拠の行 (Router.swift:75、AppRegistry.swift:154/199/200/201/231/261/264、IceCubesApp+Scene.swift:69、EditTagGroupView.swift の各行、TagGroup.swift:5-15、CancelToolbarItem.swift:11) はすべて開いて、主張を支えていることを確かめた。(2) onSaved の callback を辿らない扱いは、分析の skill の 3 つの条件 (値は AppRegistry.swift:200 が引数を渡さないことで効く既定の nil、条件は onSaved の有無だけで決まる、この入口の木の中に別の値で EditTagGroupView に着く経路は無い) をすべて満たすので、指摘にしなかった。フレームに notes の項目が無いため summary の note に書いたのも妥当。(3) SymbolInputView、SymbolSearchResultsView、TagsInputView は読み書きに至らない private な View なので、フレームが無くても辿り漏れにしなかった。そこにあるタグや記号のルールは EditTagGroupView の rules に書かれている。(4) SwiftData の当てはめ (rdb、host (device)、dbms SwiftData、table TagGroup、既定の container なので database を書かない、insert は create、@Query は read) は context.md と合う。行をまるごと追加するので fields を * にしたのも、分析の skill の決まりどおり。(5) ModelContext.insert の call を interpretation にし、@Environment(\\.modelContext) の行と、注入の行 (withModelContainer) の両方を根拠にしたのは、context.md の @Environment の決まりに合わせたもので、妥当。(6) TitleInputView の rules/0 の「警告だけで、保存は止めない」は、isValid (417 行目) が 3 つの検証だけを並べていることから直接読めるので、fact のままでよいと判断した"

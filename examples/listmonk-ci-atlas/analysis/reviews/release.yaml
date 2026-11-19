@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: release
+reviewed_at: "2026-11-17T22:13:24Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/make-dist/summary
+    claim: "「GoReleaser は --clean で自前にビルドし直し」は、--clean が再ビルドの理由であるように読めるが、--clean は GoReleaser の出力の置き場を先に消すだけで、ビルドし直すのは .goreleaser.yml の builds の節による。根拠にも builds の節 (.goreleaser.yml 13 行) と --clean の行 (release.yml 62 行) が無い"
+    evidence: { file: .goreleaser.yml, line: 13 }
+    suggestion: "「GoReleaser は builds の節で自前にビルドし直し」と書き直し、根拠に .goreleaser.yml 13 行 (と、--clean に触れるなら release.yml 62 行) を足す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/goreleaser-action/summary
+    claim: "「linux/windows/darwin/freebsd/openbsd/netbsd の amd64/arm64/arm を作り」は、windows の arm を除く決まり (ignore) と arm の 6/7 の 2 種を書いておらず、根拠も goos の行 (16 行) だけで、goarch (23 行) と ignore (30 行) の行が無い"
+    evidence: { file: .goreleaser.yml, line: 30 }
+    suggestion: "windows の arm を除くことと arm は v6/v7 の 2 種であることを書き足し、根拠に .goreleaser.yml 23 行、27 行、30 行を足す"
+    resolved: true
+notes: "指摘にしなかった点: (1) docker/login-action の 2 つの step をフレームにせず、秘密の名前を job の parameters に書いた扱いは、context.md の「外部の action: 外へ送る・成果物を出し入れする・デプロイするものを external のフレームにする」に、資格情報の用意が当たるかが決まっていないため、分析側の判断 (notes の 1) を受け入れた。(2) 依存の取得のうち、build-icons.py の Feather zip の取得 (urlretrieve) だけはフレーム (feather-download) にし、go install stuffbin (Makefile 48 行) と bun install (Makefile 71 行) はフレームにしていない。context.md の「フレームにしない step: 依存の取得」は step の層の決まりで、program の層の中の依存の取得をフレームにするかは決まっていないので、指摘にしなかったが、扱いは揃っていない。揃えるなら、プロファイルの context.md に program の層の依存の取得の扱いを書くとよい。(3) build-icons の when: conditional は、static/admin/assets/static/icons.svg がリポジトリにあり (.gitignore に無い)、checkout 直後のファイルの時刻で作り直すかが決まるので、妥当と判断した。(4) make-build-frontend と make-build-bin が、別名の target (build-frontend → $(FRONTEND_DIST)、build → $(BIN)) を 1 つのフレームにまとめているのは、call の note に経緯があり、辿り漏れではないと判断した。(5) GoReleaser の hooks (make build-frontend、make pack-bin) を辿らないのは、context.md の external を boundary とする決まりどおり。呼ばれる target は make dist の側でフレームになっている"

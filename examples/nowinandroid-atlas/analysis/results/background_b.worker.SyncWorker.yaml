@@ -1,0 +1,1378 @@
+format_version: 1
+entry:
+  id: background_b.worker.SyncWorker
+  path: /(background)/worker/SyncWorker
+  name: SyncWorker
+  layer: background
+  source: { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 50 }
+target:
+  repo: github.com/android/nowinandroid
+  name: Now in Android
+  clone_path: ../nowinandroid
+  scope: .
+  commit: 2982e63cb691ad49cd009aab43dc206fee6699c2
+analyzer:
+  profile: { id: ui-android, version: "0.1.0" }
+  skill_version: "0.4.1"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-18T00:54:14Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T00:44:51Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "サーバーの内容を、端末の Room と Proto DataStore に取り込む WorkManager の Worker。doWork は、同期の開始を Firebase Analytics に送り、FCM の sync の topic を購読してから、話題とニュースの同期を並べて動かす。それぞれ、DataStore に保存した前回の版より後の変更の一覧をサーバーから取り、消されたものを Room から消し、変わったものをサーバーから取り直して Room に書き、版を DataStore に書く。ニュースの同期は、初めての同期なら取ったニュースをすべて既読にし、オンボーディングを終えた利用者には、フォロー中の話題に新しく加わったニュースを通知する (押すと MainActivity が開く)。同期の成否を Firebase Analytics に送り、両方成功なら端末のニュースと話題をすべて全文検索の表 (newsResourcesFts、topicsFts) に書き足して (既存の行は消さない) 成功を返し、どちらかが失敗なら WorkManager にやり直しを頼む"
+  evidence:
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 66 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 68 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 70 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 73 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 74 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 75 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 87 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 88 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 94 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 101 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 96 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 99 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 127 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 138 }
+    - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 41 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 78 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 80 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 81 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 49 }
+    - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 57 }
+    - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 84 }
+callstack:
+  - id: entry
+    layer: background
+    kind: worker
+    name: SyncWorker
+    source: { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 50 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "Hilt で作る CoroutineWorker (WorkManager からは DelegatingWorker が class の名前で作って呼ぶ)。自身が Synchronizer で、版の読み書きを NiaPreferencesDataSource に渡す。doWork は IO の dispatcher で、同期の開始の event を記録し (FirebaseAnalyticsHelper.logEvent)、FCM の topic を購読し、話題とニュースの同期を async で並べて待つ。終わったら成否の event を記録する (logSyncFinished。FirebaseAnalyticsHelper.logEvent も呼ぶ。経路はフレーム analytics_log_event と同じ)。OS が呼ぶ getForegroundInfo は、古い API level で前面の service として動くときの通知 (sync のチャンネル) を作るだけで、読み書きが無いのでフレームにしない"
+      evidence:
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 50 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 61 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 63 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 66 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 68 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 70 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 73 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 78 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 90 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 94 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/DelegatingWorker.kt, line: 71 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/DelegatingWorker.kt, line: 79 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/AnalyticsExtensions.kt, line: 27 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/initializers/SyncWorkHelpers.kt, line: 44 }
+    rules:
+      - kind: decision
+        value: "話題とニュースの同期がどちらも成功したときだけ、端末のニュースと話題をすべて全文検索の表に書き足して (既存の行は消さない) 成功を返す。どちらかが失敗したら、WorkManager にやり直しを頼む (Result.retry)"
+        status: fact
+        evidence:
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 76 }
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 80 }
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 81 }
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 82 }
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 84 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 49 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 57 }
+
+  - id: analytics_log_event
+    layer: datasource
+    kind: datasource
+    name: FirebaseAnalyticsHelper.logEvent
+    source: { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/FirebaseAnalyticsHelper.kt, line: 30 }
+    caller: entry
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 68 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/AnalyticsExtensions.kt, line: 23 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 59 }
+        - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/AnalyticsModule.kt, line: 33 }
+    summary:
+      status: interpretation
+      value: "AnalyticsEvent を Firebase Analytics の event として記録する。引数の key は 40 文字、値は 100 文字で切る。prodRelease の DI の実装。demo の variant では StubAnalyticsHelper (辿らない)。この入口では、同期の開始 (logSyncStarted) と、同期の終わり (logSyncFinished) から呼ぶ"
+      evidence:
+        - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/FirebaseAnalyticsHelper.kt, line: 31 }
+        - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/FirebaseAnalyticsHelper.kt, line: 35 }
+        - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/FirebaseAnalyticsHelper.kt, line: 36 }
+        - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/AnalyticsModule.kt, line: 33 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 78 }
+
+  - id: firebase_log_event
+    layer: external
+    kind: sdk
+    name: FirebaseAnalytics.logEvent
+    source: { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/FirebaseAnalyticsHelper.kt, line: 31 }
+    caller: analytics_log_event
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/FirebaseAnalyticsHelper.kt, line: 31 }
+        - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/AnalyticsModule.kt, line: 38 }
+    io:
+      - op: call
+        status: fact
+        resource:
+          kind: external_api
+          levels: { host: "(firebase-analytics)", path: "sdk:FirebaseAnalytics.logEvent" }
+        evidence:
+          - { file: core/analytics/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/analytics/FirebaseAnalyticsHelper.kt, line: 31 }
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/AnalyticsExtensions.kt, line: 24 }
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/AnalyticsExtensions.kt, line: 28 }
+          - { file: core/analytics/src/main/kotlin/com/google/samples/apps/nowinandroid/core/analytics/AnalyticsEvent.kt, line: 31 }
+        note: "この入口から送る event は network_sync_started、network_sync_successful、network_sync_failed の 3 つ。どれも引数 (extras) を付けない (AnalyticsEvent の extras の既定は空) ので、fields は書かない"
+
+  - id: sync_subscribe
+    layer: datasource
+    kind: datasource
+    name: FirebaseSyncSubscriber.subscribe
+    source: { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/status/FirebaseSyncSubscriber.kt, line: 30 }
+    caller: entry
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 70 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 60 }
+        - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/di/SyncModule.kt, line: 43 }
+    summary:
+      status: interpretation
+      value: "FCM の topic sync を購読し、終わるまで待つ (サーバーが sync の topic に送る知らせを受けられるようにする)。prodRelease の DI の実装。demo の variant では StubSyncSubscriber (辿らない)。購読が失敗したときの処理はここにも doWork にも無い"
+      evidence:
+        - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/status/FirebaseSyncSubscriber.kt, line: 31 }
+        - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/status/FirebaseSyncSubscriber.kt, line: 32 }
+        - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/status/FirebaseSyncSubscriber.kt, line: 33 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/initializers/SyncWorkHelpers.kt, line: 30 }
+        - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/di/SyncModule.kt, line: 43 }
+
+  - id: fcm_subscribe
+    layer: external
+    kind: sdk
+    name: FirebaseMessaging.subscribeToTopic
+    source: { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/status/FirebaseSyncSubscriber.kt, line: 32 }
+    caller: sync_subscribe
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/status/FirebaseSyncSubscriber.kt, line: 32 }
+        - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/di/SyncModule.kt, line: 49 }
+    io:
+      - op: call
+        status: fact
+        resource:
+          kind: external_api
+          levels: { host: "(firebase-messaging)", path: "sdk:FirebaseMessaging.subscribeToTopic" }
+        evidence:
+          - { file: sync/work/src/prod/kotlin/com/google/samples/apps/nowinandroid/sync/status/FirebaseSyncSubscriber.kt, line: 32 }
+          - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/initializers/SyncWorkHelpers.kt, line: 30 }
+        note: "購読する topic の名前は SYNC_TOPIC (\"sync\")"
+
+  - id: repo_topics_sync
+    layer: repository
+    kind: repository
+    name: OfflineFirstTopicsRepository.syncWith
+    source: { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 49 }
+    caller: entry
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 74 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 36 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 55 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/di/DataModule.kt, line: 43 }
+      note: "Synchronizer.sync() は syncWith(this@Synchronizer) の糖衣。Synchronizer は SyncWorker 自身"
+    summary:
+      status: interpretation
+      value: "共通の changeListSync (SyncUtilities.kt。段にしない補助の関数) に、話題の版の読み方 (topicVersion)、変更の一覧の取り方、版の書き方、消し方 (TopicDao.deleteTopics)、取り直し方 (サーバーから話題を取って Room に upsert) を渡して、話題の同期をする。版の読み書きは、Synchronizer (SyncWorker) を通して NiaPreferencesDataSource が行う"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 50 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 51 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 53 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 56 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 58 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 60 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 61 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 90 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 94 }
+    rules:
+      - kind: decision
+        value: "保存した前回の版より後の変更の一覧が空なら、何もせずに同期を成功とする"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 87 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 88 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+      - kind: decision
+        value: "変更の一覧を、消されたもの (isDelete) と、それ以外 (作られたものと変わったもの) に分け、消されたものを端末から消し、それ以外をサーバーから取り直して端末に書く"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 91 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 94 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 42 }
+      - kind: calculation
+        value: "変更の一覧の最後の要素の版を、次の同期の起点として話題の版 (topicVersion) に保存する"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 100 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 101 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 56 }
+      - kind: decision
+        value: "途中で例外が起きたら (coroutine の取り消しは除く)、同期を失敗とする (版は進めない)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 57 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 59 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 65 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 104 }
+
+  - id: ds_get_versions
+    layer: datasource
+    kind: datasource
+    name: NiaPreferencesDataSource.getChangeListVersions
+    source: { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 157 }
+    caller: repo_topics_sync
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 87 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 89 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 90 }
+      note: "changeListSync が Synchronizer (SyncWorker) の getChangeListVersions を呼び、SyncWorker がそのまま NiaPreferencesDataSource に渡す"
+    summary:
+      status: interpretation
+      value: "Proto DataStore の UserPreferences を 1 回読み、話題とニュースの変更の一覧の版を取り出す (値が 1 つも出なければ既定の版。読み込みの例外は、そのまま上がって同期の失敗になる)"
+      evidence:
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 157 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 160 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 161 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 164 }
+    io:
+      - op: get
+        status: fact
+        resource:
+          kind: kvs
+          levels: { host: "(device)", instance: user_preferences.pb, key_pattern: UserPreferences }
+        fields:
+          - { name: topicChangeListVersion, use: [read] }
+          - { name: newsResourceChangeListVersion, use: [read] }
+        evidence:
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 157 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 160 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 161 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/di/DataStoreModule.kt, line: 57 }
+          - { file: core/datastore-proto/src/main/proto/com/google/samples/apps/nowinandroid/data/user_preferences.proto, line: 28 }
+          - { file: core/datastore-proto/src/main/proto/com/google/samples/apps/nowinandroid/data/user_preferences.proto, line: 30 }
+        note: "項目の名前は proto の定義のとおり (この 2 つは proto でも camelCase で書いてある)"
+
+  - id: net_topic_changelist
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetwork.getTopicChangeList
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 99 }
+    caller: repo_topics_sync
+    call:
+      status: interpretation
+      when: always
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 53 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 88 }
+        - { file: core/network/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/network/di/FlavoredNetworkModule.kt, line: 31 }
+      note: "changeListFetcher のラムダとして渡し、changeListSync が呼ぶ"
+    summary:
+      status: interpretation
+      value: "前回の版より後の、話題の変更の一覧を、Retrofit の service に問い合わせる。prodRelease の DI の実装。demo の variant では DemoNiaNetworkDataSource (辿らない)"
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 100 }
+        - { file: core/network/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/network/di/FlavoredNetworkModule.kt, line: 31 }
+    parameters:
+      - name: after
+        value: "DataStore に保存した、話題の前回の版 (topicVersion)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 51 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 53 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 87 }
+
+  - id: api_topic_changelist
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetworkApi.getTopicChangeList
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 51 }
+    caller: net_topic_changelist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 100 }
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 90 }
+    io:
+      - op: call
+        status: fact
+        resource:
+          kind: external_api
+          levels: { host: "(backend)", path: "GET /changelists/topics" }
+        fields:
+          - { name: after, use: [write] }
+          - { name: id, use: [read] }
+          - { name: changeListVersion, use: [read] }
+          - { name: isDelete, use: [read] }
+        evidence:
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 50 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 52 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 53 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 61 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 82 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 32 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 37 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 42 }
+        note: "base URL は BuildConfig.BACKEND_URL (値はリポジトリに無い) なので host は (backend)。after は query の引数、id・changeListVersion・isDelete は応答の並びの各要素の項目"
+
+  - id: dao_delete_topics
+    layer: datasource
+    kind: dao
+    name: TopicDao.deleteTopics
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 75 }
+    caller: repo_topics_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあるとき (消された話題が無ければ、空の並びで呼ぶ)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 58 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 94 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 36 }
+      note: "modelDeleter に関数の参照 (topicDao::deleteTopics) を渡し、changeListSync が消された id の並びで呼ぶ"
+    summary:
+      status: fact
+      value: "topics 表から、id が消された話題の id の並びに含まれる行を消す"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 71 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 72 }
+    io:
+      - op: delete
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: topics }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 71 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 72 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+      - op: delete
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources_topics }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: topic_id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 28 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 38 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 40 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 41 }
+        note: "news_resources_topics の topic_id の外部キーが ON DELETE CASCADE なので、話題の行を消すと、その話題とニュースの対応の行も SQLite が消す"
+
+  - id: net_get_topics
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetwork.getTopics
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 93 }
+    caller: repo_topics_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあるとき (変わった話題が無ければ、空の並びで呼ぶ)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 60 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+        - { file: core/network/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/network/di/FlavoredNetworkModule.kt, line: 31 }
+      note: "modelUpdater のラムダの中で呼び、changeListSync が変わった id の並びでラムダを呼ぶ"
+    summary:
+      status: interpretation
+      value: "変わった話題の id の並びで、話題をサーバーから取り、応答の data を返す"
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 94 }
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 68 }
+
+  - id: api_get_topics
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetworkApi.getTopics
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 41 }
+    caller: net_get_topics
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 94 }
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 90 }
+    io:
+      - op: call
+        status: fact
+        resource:
+          kind: external_api
+          levels: { host: "(backend)", path: "GET /topics" }
+        fields:
+          - { name: id, use: [write, read] }
+          - { name: name, use: [read] }
+          - { name: shortDescription, use: [read] }
+          - { name: longDescription, use: [read] }
+          - { name: url, use: [read] }
+          - { name: imageUrl, use: [read] }
+          - { name: followed, use: [read] }
+        evidence:
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 40 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 42 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 43 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 61 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 68 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkTopic.kt, line: 26 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkTopic.kt, line: 33 }
+        note: "id は、送る query の引数 (id を並べる) と、応答の各話題の項目の両方。応答は data で包んだ話題の並び (NetworkResponse)。受け取る項目は NetworkTopic の項目"
+
+  - id: dao_upsert_topics
+    layer: datasource
+    kind: dao
+    name: TopicDao.upsertTopics
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 64 }
+    caller: repo_topics_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあるとき"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 61 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 36 }
+      note: "modelUpdater のラムダの中で呼ぶ"
+    summary:
+      status: interpretation
+      value: "サーバーから取った話題を TopicEntity に直し、topics 表に、id が同じ行があれば書き換え、無ければ足す"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 63 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 62 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/model/Topic.kt, line: 22 }
+    io:
+      - op: create
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: topics }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 63 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+      - op: update
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: topics }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 63 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicEntity.kt, line: 32 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "@Upsert は、主キー (id) が同じ行があれば書き換える"
+
+  - id: ds_update_versions
+    layer: datasource
+    kind: datasource
+    name: NiaPreferencesDataSource.updateChangeListVersion
+    source: { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 169 }
+    caller: repo_topics_sync
+    call:
+      status: fact
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあり、消すことと取り直すことが例外なく終わったとき"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 101 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 92 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 94 }
+      note: "changeListSync が Synchronizer (SyncWorker) の updateChangeListVersions を呼び、SyncWorker がそのまま NiaPreferencesDataSource に渡す"
+    summary:
+      status: interpretation
+      value: "UserPreferences のいまの版の 2 つを読み、渡された関数で新しい版を作って、2 つとも書き戻す (話題の同期では話題の版だけが変わる)。書き込みの IOException は、記録だけして飲み込む。ニュースの同期 (OfflineFirstNewsRepository.syncWith) も同じ method を呼ぶ"
+      evidence:
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 171 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 172 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 180 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 181 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 184 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstTopicsRepository.kt, line: 56 }
+    io:
+      - op: set
+        status: fact
+        resource:
+          kind: kvs
+          levels: { host: "(device)", instance: user_preferences.pb, key_pattern: UserPreferences }
+        fields:
+          - { name: topicChangeListVersion, use: [read, write] }
+          - { name: newsResourceChangeListVersion, use: [read, write] }
+        evidence:
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 171 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 174 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 175 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 180 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 181 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/di/DataStoreModule.kt, line: 57 }
+          - { file: core/datastore-proto/src/main/proto/com/google/samples/apps/nowinandroid/data/user_preferences.proto, line: 28 }
+          - { file: core/datastore-proto/src/main/proto/com/google/samples/apps/nowinandroid/data/user_preferences.proto, line: 30 }
+
+  - id: repo_news_sync
+    layer: repository
+    kind: repository
+    name: OfflineFirstNewsRepository.syncWith
+    source: { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 66 }
+    caller: entry
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 75 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 36 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 56 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/di/DataModule.kt, line: 48 }
+      note: "話題の同期と async で並べて動かす"
+    summary:
+      status: interpretation
+      value: "共通の changeListSync に、ニュースの版 (newsResourceVersion) の読み書き、変更の一覧の取り方、消し方 (NewsResourceDao.deleteNewsResources)、取り直し方を渡して、ニュースの同期をする。取り直しでは、利用者の設定を読み、40 件ずつサーバーからニュースを取り、話題の仮の行・ニュース・対応の行の順に Room に書き、新しく加わったニュースを通知する。版の読み書きは NiaPreferencesDataSource.getChangeListVersions と NiaPreferencesDataSource.updateChangeListVersion も呼ぶ。経路はフレーム ds_get_versions、ds_update_versions と同じ"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 68 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 69 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 72 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 75 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 77 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 79 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 103 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 108 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 114 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 119 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 138 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 87 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 101 }
+    rules:
+      - kind: decision
+        value: "保存した前回の版より後の変更の一覧が空なら、何もせずに同期を成功とする"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 87 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 88 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+      - kind: decision
+        value: "変更の一覧を、消されたもの (isDelete) と、それ以外 (作られたものと変わったもの) に分け、消されたものを端末から消し、それ以外をサーバーから取り直して端末に書く"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 91 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 94 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 42 }
+      - kind: calculation
+        value: "変更の一覧の最後の要素の版を、次の同期の起点としてニュースの版 (newsResourceVersion) に保存する"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 100 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 101 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 75 }
+      - kind: decision
+        value: "途中で例外が起きたら (coroutine の取り消しは除く)、同期を失敗とする (版は進めない)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 57 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 59 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 65 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 104 }
+      - kind: decision
+        value: "保存したニュースの版が 0 以下 (初めての同期) なら、取り直すニュースをすべて既読にする (過去のニュースで埋もれないように)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 71 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 96 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 99 }
+      - kind: calculation
+        value: "変わったニュースは、40 件ずつに分けてサーバーから取る"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 42 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 103 }
+      - kind: decision
+        value: "オンボーディングを終えた利用者 (should_hide_onboarding が true) のときだけ、フォロー中の話題に付いたニュースのうち、今回新しく加わったもの (取り直す前から端末にあったものを除く) を通知する"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 80 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 83 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 84 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 93 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 127 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 132 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 137 }
+
+  - id: net_news_changelist
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetwork.getNewsResourceChangeList
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 102 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: always
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 72 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 88 }
+        - { file: core/network/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/network/di/FlavoredNetworkModule.kt, line: 31 }
+      note: "changeListFetcher のラムダとして渡し、changeListSync が呼ぶ"
+    summary:
+      status: interpretation
+      value: "前回の版より後の、ニュースの変更の一覧を、Retrofit の service に問い合わせる"
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 103 }
+    parameters:
+      - name: after
+        value: "DataStore に保存した、ニュースの前回の版 (newsResourceVersion)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 69 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 72 }
+
+  - id: api_news_changelist
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetworkApi.getNewsResourcesChangeList
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 56 }
+    caller: net_news_changelist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 103 }
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 90 }
+    io:
+      - op: call
+        status: fact
+        resource:
+          kind: external_api
+          levels: { host: "(backend)", path: "GET /changelists/newsresources" }
+        fields:
+          - { name: after, use: [write] }
+          - { name: id, use: [read] }
+          - { name: changeListVersion, use: [read] }
+          - { name: isDelete, use: [read] }
+        evidence:
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 55 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 57 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 58 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 61 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 32 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 37 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkChangeList.kt, line: 42 }
+
+  - id: dao_delete_news
+    layer: datasource
+    kind: dao
+    name: NewsResourceDao.deleteNewsResources
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 119 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあるとき (消されたニュースが無ければ、空の並びで呼ぶ)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 77 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 94 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 41 }
+      note: "modelDeleter に関数の参照 (newsResourceDao::deleteNewsResources) を渡し、changeListSync が消された id の並びで呼ぶ"
+    summary:
+      status: fact
+      value: "news_resources 表から、id が消されたニュースの id の並びに含まれる行を消す"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 115 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 116 }
+    io:
+      - op: delete
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 115 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 116 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+      - op: delete
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources_topics }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: news_resource_id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 28 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 32 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 34 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 35 }
+        note: "news_resources_topics の news_resource_id の外部キーが ON DELETE CASCADE なので、ニュースの行を消すと、そのニュースと話題の対応の行も SQLite が消す"
+
+  - id: ds_user_data
+    layer: datasource
+    kind: datasource
+    name: NiaPreferencesDataSource.userData
+    source: { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 32 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあるとき"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 79 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 89 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+      note: "modelUpdater のラムダの最初で、Flow の最初の値を 1 回だけ読む (first)"
+    summary:
+      status: interpretation
+      value: "Proto DataStore の UserPreferences を読み、ブックマーク・既読・フォロー中の話題の id の集合と、テーマ・色・オンボーディングの設定を UserData にまとめる。この入口が使うのは、オンボーディングを終えたか (shouldHideOnboarding) と、フォロー中の話題 (followedTopics)"
+      evidence:
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 32 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 35 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 37 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 58 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 80 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 81 }
+    io:
+      - op: get
+        status: fact
+        resource:
+          kind: kvs
+          levels: { host: "(device)", instance: user_preferences.pb, key_pattern: UserPreferences }
+        fields:
+          - { name: bookmarked_news_resource_ids, use: [read] }
+          - { name: viewed_news_resource_ids, use: [read] }
+          - { name: followed_topic_ids, use: [read] }
+          - { name: theme_brand, use: [read] }
+          - { name: dark_theme_config, use: [read] }
+          - { name: use_dynamic_color, use: [read] }
+          - { name: should_hide_onboarding, use: [read] }
+        evidence:
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 32 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/di/DataStoreModule.kt, line: 57 }
+          - { file: core/datastore-proto/src/main/proto/com/google/samples/apps/nowinandroid/data/user_preferences.proto, line: 25 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 35 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 36 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 37 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 38 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 46 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 57 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 58 }
+        note: "項目の名前は、proto の message の項目名 (user_preferences.proto の 40〜50 行)。コードは followedTopicIdsMap などの生成された accessor で読む"
+
+  - id: dao_get_news_ids
+    layer: datasource
+    kind: dao
+    name: NewsResourceDao.getNewsResourceIds
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 92 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあり、利用者がオンボーディングを終えているとき"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 84 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 83 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 41 }
+    summary:
+      status: interpretation
+      value: "取り直す前に、変わったニュースのうち、フォロー中の話題に付いていて、すでに端末にあるものの id を読む (後で、新しく加わったニュースを見分けるため)"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 74 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 77 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 84 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 85 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 85 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 88 }
+    parameters:
+      - name: useFilterTopicIds
+        value: "true (filterTopicIds はフォロー中の話題の id の集合)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 85 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 86 }
+      - name: useFilterNewsIds
+        value: "true (filterNewsIds は変わったニュースの id の集合)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 87 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 88 }
+    io:
+      - op: read
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources }
+        fields:
+          - { name: id, use: [read, filter] }
+          - { name: publish_date, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 74 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 77 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 82 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 89 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "publish_date は ORDER BY に使う"
+      - op: read
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources_topics }
+        fields:
+          - { name: news_resource_id, use: [filter] }
+          - { name: topic_id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 84 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 85 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 28 }
+        note: "WHERE の副問い合わせで、フォロー中の話題に付いたニュースの id を引く"
+
+  - id: ds_set_viewed
+    layer: datasource
+    kind: datasource
+    name: NiaPreferencesDataSource.setNewsResourcesViewed
+    source: { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 143 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあり、初めてのニュースの同期 (保存したニュースの版が 0 以下) のとき"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 71 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 96 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 99 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+    summary:
+      status: interpretation
+      value: "UserPreferences の既読のニュースの id の map に、変わったニュースの id をすべて足す。viewed が false のときに map から外す枝 (viewedNewsResourceIds.remove) は、OfflineFirstNewsRepository.kt 99 行が viewed に固定の true を渡すので、この入口では動かない"
+      evidence:
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 150 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 99 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 144 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 146 }
+        - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 148 }
+    parameters:
+      - name: viewed
+        value: "true (OfflineFirstNewsRepository が固定の値で渡す)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 99 }
+    io:
+      - op: set
+        status: fact
+        resource:
+          kind: kvs
+          levels: { host: "(device)", instance: user_preferences.pb, key_pattern: UserPreferences }
+        fields:
+          - { name: viewed_news_resource_ids, use: [write] }
+        evidence:
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 144 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/NiaPreferencesDataSource.kt, line: 148 }
+          - { file: core/datastore/src/main/kotlin/com/google/samples/apps/nowinandroid/core/datastore/di/DataStoreModule.kt, line: 57 }
+          - { file: core/datastore-proto/src/main/proto/com/google/samples/apps/nowinandroid/data/user_preferences.proto, line: 43 }
+
+  - id: net_get_news
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetwork.getNewsResources
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 96 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "変更の一覧に、消されたもの以外のニュースがあるとき (40 件ごとに 1 回)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 103 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 104 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+        - { file: core/network/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/network/di/FlavoredNetworkModule.kt, line: 31 }
+      note: "modelUpdater のラムダの中の、40 件ずつの繰り返しの中で呼ぶ"
+    summary:
+      status: interpretation
+      value: "ニュースの id の並び (40 件まで) で、ニュースをサーバーから取り、応答の data を返す"
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 97 }
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 68 }
+
+  - id: api_get_news
+    layer: datasource
+    kind: datasource
+    name: RetrofitNiaNetworkApi.getNewsResources
+    source: { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 46 }
+    caller: net_get_news
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 97 }
+        - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 90 }
+    io:
+      - op: call
+        status: fact
+        resource:
+          kind: external_api
+          levels: { host: "(backend)", path: "GET /newsresources" }
+        fields:
+          - { name: id, use: [write, read] }
+          - { name: title, use: [read] }
+          - { name: content, use: [read] }
+          - { name: url, use: [read] }
+          - { name: headerImageUrl, use: [read] }
+          - { name: publishDate, use: [read] }
+          - { name: type, use: [read] }
+          - { name: topics, use: [read] }
+        evidence:
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 45 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 47 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 48 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 61 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/retrofit/RetrofitNiaNetwork.kt, line: 68 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkNewsResource.kt, line: 29 }
+          - { file: core/network/src/main/kotlin/com/google/samples/apps/nowinandroid/core/network/model/NetworkNewsResource.kt, line: 37 }
+        note: "id は、送る query の引数 (id を並べる) と、応答の各ニュースの項目の両方。応答は data で包んだニュースの並び。受け取る項目は NetworkNewsResource の項目 (topics はニュースに付いた話題の id の並び)"
+
+  - id: dao_insert_topic_shells
+    layer: datasource
+    kind: dao
+    name: TopicDao.insertOrIgnoreTopics
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 58 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "変更の一覧に、消されたもの以外のニュースがあるとき (40 件ごとに 1 回)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 103 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 108 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 36 }
+    summary:
+      status: interpretation
+      value: "取ったニュースに付いた話題の id で、名前などを空の文字にした話題の仮の行を作り、topics 表に無いものだけ足す (ニュースと話題の対応の外部キーを満たすため。すでにある話題の行は変えない)"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 57 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 106 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 110 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/model/NewsResource.kt, line: 41 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/model/NewsResource.kt, line: 45 }
+    io:
+      - op: create
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: topics }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 57 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "id 以外の列 (name、shortDescription、longDescription、url、imageUrl) は空の文字で書く。主キーが同じ行があれば足さない (OnConflictStrategy.IGNORE)"
+
+  - id: dao_upsert_news
+    layer: datasource
+    kind: dao
+    name: NewsResourceDao.upsertNewsResources
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 103 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "変更の一覧に、消されたもの以外のニュースがあるとき (40 件ごとに 1 回)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 103 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 114 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 41 }
+    summary:
+      status: interpretation
+      value: "サーバーから取ったニュースを NewsResourceEntity に直し、news_resources 表に、id が同じ行があれば書き換え、無ければ足す"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 102 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 115 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/model/NewsResource.kt, line: 27 }
+    io:
+      - op: create
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 102 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+      - op: update
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 102 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceEntity.kt, line: 32 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "@Upsert は、主キー (id) が同じ行があれば書き換える"
+
+  - id: dao_insert_cross_refs
+    layer: datasource
+    kind: dao
+    name: NewsResourceDao.insertOrIgnoreTopicCrossRefEntities
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 106 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "変更の一覧に、消されたもの以外のニュースがあるとき (40 件ごとに 1 回)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 103 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 119 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 41 }
+    summary:
+      status: interpretation
+      value: "取ったニュースとその話題の対応 (ニュースの id と話題の id の組) を、news_resources_topics 表に無いものだけ足す。すでにある対応は変えず、サーバー側で外れた対応も消さない"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 105 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 121 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/model/NewsResource.kt, line: 53 }
+    io:
+      - op: create
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources_topics }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 105 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 28 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "列は news_resource_id と topic_id の 2 つ (主キーの組)。同じ組があれば足さない (OnConflictStrategy.IGNORE)"
+
+  - id: dao_get_news
+    layer: datasource
+    kind: dao
+    name: NewsResourceDao.getNewsResources
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 61 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "前回の版より後の変更がサーバーにあり、利用者がオンボーディングを終えているとき"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 127 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 128 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 41 }
+    summary:
+      status: interpretation
+      value: "news_resources 表から、指定の話題に付いたニュース (news_resources_topics 表で対応を引く) のうち、指定の id のものを、公開日の新しい順に読む。@Relation で、ニュースごとの話題も topics 表から一緒に読む。ここでは、フォロー中の話題に付いた、今回新しく加わったニュースを読む。全文検索の表を作り直すとき (DefaultSearchContentsRepository.populateFtsData) も、絞り込みなしで呼ぶ。経路はこのフレームと同じ"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 43 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 46 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 53 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 54 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 58 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/PopulatedNewsResource.kt, line: 30 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 132 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 50 }
+    parameters:
+      - name: useFilterTopicIds
+        value: "true (filterTopicIds はフォロー中の話題の id の集合)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 129 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 130 }
+      - name: useFilterNewsIds
+        value: "true (filterNewsIds は、変わったニュースの id から、取り直す前に端末にあったものを除いた集合)"
+        status: fact
+        evidence:
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 131 }
+          - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 132 }
+    io:
+      - op: read
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources }
+        fields:
+          - { name: "*", use: [read] }
+          - { name: id, use: [filter] }
+          - { name: publish_date, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 43 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 51 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 58 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "publish_date は ORDER BY に使う"
+      - op: read
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: news_resources_topics }
+        fields:
+          - { name: news_resource_id, use: [filter] }
+          - { name: topic_id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 53 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 54 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceTopicCrossRef.kt, line: 28 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/PopulatedNewsResource.kt, line: 33 }
+        note: "WHERE の副問い合わせで、話題に付いたニュースの id を引く。@Relation の Junction (news_resource_id → topic_id) でも同じ表を使う"
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: topics }
+        fields:
+          - { name: "*", use: [read] }
+          - { name: id, use: [filter] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/PopulatedNewsResource.kt, line: 30 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/PopulatedNewsResource.kt, line: 39 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceDao.kt, line: 40 }
+        note: "@Transaction と @Relation (PopulatedNewsResource.topics) で、ニュースごとの話題を、Room が生成する問い合わせで読む"
+
+  - id: notifier
+    layer: datasource
+    kind: datasource
+    name: SystemTrayNotifier.postNewsNotifications
+    source: { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 60 }
+    caller: repo_news_sync
+    call:
+      status: interpretation
+      when: conditional
+      condition: "利用者がオンボーディングを終えていて、フォロー中の話題に付いた、今回新しく加わったニュースが 1 件以上あるとき"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 127 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 137 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/OfflineFirstNewsRepository.kt, line: 138 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/SyncUtilities.kt, line: 97 }
+        - { file: core/notifications/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/notifications/NotificationsModule.kt, line: 29 }
+    summary:
+      status: interpretation
+      value: "通知の許可が無ければ何もしない。許可があれば、新しいニュースの最初の 5 件まで、ニュースごとに題と本文の通知を作り (押すとそのニュースの deep link で MainActivity が開く)、件数を題にしたまとめの通知と一緒に出す。prodRelease の DI の実装。demo の variant では NoOpNotifier (辿らない)"
+      evidence:
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 63 }
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 67 }
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 72 }
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 74 }
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 80 }
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 90 }
+        - { file: core/notifications/src/prod/kotlin/com/google/samples/apps/nowinandroid/core/notifications/NotificationsModule.kt, line: 29 }
+    guards:
+      - kind: permission
+        value: "android.permission.POST_NOTIFICATIONS"
+        status: fact
+        evidence:
+          - { file: core/notifications/src/main/AndroidManifest.xml, line: 18 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 63 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 64 }
+        note: "Android の実行時の権限。許可されていなければ、通知を出さずに返す"
+    rules:
+      - kind: calculation
+        value: "通知は、新しいニュースの最初の 5 件 (MAX_NUM_NOTIFICATIONS) までにし、ニュースごとの通知と、件数を題にしたまとめの通知を 1 つ出す"
+        status: fact
+        evidence:
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 40 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 67 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 80 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 82 }
+
+  - id: notification_notify
+    layer: external
+    kind: library
+    name: NotificationManagerCompat.notify
+    source: { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 98 }
+    caller: notifier
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 96 }
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 98 }
+        - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 103 }
+      note: "ニュースごとの通知 (id はニュースの id の hashCode) と、まとめの通知を出す。通知のチャンネルは、通知を作るたびに createNotificationChannel で用意する"
+    links:
+      - kind: navigate
+        target: com.google.samples.apps.nowinandroid.MainActivity
+        entry_id: activity_a.MainActivity
+        status: fact
+        evidence:
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 41 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 74 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 153 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 158 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 159 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 161 }
+          - { file: core/notifications/src/main/kotlin/com/google/samples/apps/nowinandroid/core/notifications/SystemTrayNotifier.kt, line: 167 }
+        note: "ニュースごとの通知を押すと、ACTION_VIEW と deep link の URI (https://www.nowinandroid.apps.samples.google.com/foryou/<ニュースの id>) を付けた intent で、component に指定した MainActivity が開く。まとめの通知には PendingIntent を付けていない"
+
+  - id: repo_populate_fts
+    layer: repository
+    kind: repository
+    name: DefaultSearchContentsRepository.populateFtsData
+    source: { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 47 }
+    caller: entry
+    call:
+      status: fact
+      when: conditional
+      condition: "話題とニュースの同期がどちらも成功したとき"
+      evidence:
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 80 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 81 }
+        - { file: sync/work/src/main/kotlin/com/google/samples/apps/nowinandroid/sync/workers/SyncWorker.kt, line: 57 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/di/DataModule.kt, line: 63 }
+    summary:
+      status: interpretation
+      value: "端末のニュースをすべて (絞り込みなしで) 読んで、ニュースの全文検索の表に書き、話題をすべて読んで、話題の全文検索の表に書く。ニュースを読むのは NewsResourceDao.getNewsResources も呼ぶ。経路はフレーム dao_get_news と同じ (この呼び出しでは useFilterTopicIds と useFilterNewsIds が false)"
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 49 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 50 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 51 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 52 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 57 }
+
+  - id: dao_fts_news_insert
+    layer: datasource
+    kind: dao
+    name: NewsResourceFtsDao.insertAll
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceFtsDao.kt, line: 32 }
+    caller: repo_populate_fts
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 49 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 51 }
+    summary:
+      status: interpretation
+      value: "読んだニュースを、id・題・本文だけの NewsResourceFtsEntity に直し、newsResourcesFts 表に書き足す (rowid を渡さないので REPLACE の置き換えは起きず、既存の行は残る)"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceFtsDao.kt, line: 31 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/PopulatedNewsResource.kt, line: 53 }
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 55 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceFtsEntity.kt, line: 27 }
+    io:
+      - op: create
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: newsResourcesFts }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/NewsResourceFtsDao.kt, line: 31 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceFtsEntity.kt, line: 26 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/NewsResourceFtsEntity.kt, line: 27 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "全文検索の表 (@Fts4)。列は newsResourceId、title、content。@Insert(onConflict = REPLACE) だが、entity は rowid を宣言せず渡さないので、同期が成功するたびに行が足される読みになる"
+
+  - id: dao_one_off_topics
+    layer: datasource
+    kind: dao
+    name: TopicDao.getOneOffTopicEntities
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 44 }
+    caller: repo_populate_fts
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 57 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 36 }
+    summary:
+      status: fact
+      value: "topics 表の行を、すべて 1 回だけ読む"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 43 }
+    io:
+      - op: read
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: topics }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicDao.kt, line: 43 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicEntity.kt, line: 29 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+
+  - id: dao_fts_topics_insert
+    layer: datasource
+    kind: dao
+    name: TopicFtsDao.insertAll
+    source: { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicFtsDao.kt, line: 32 }
+    caller: repo_populate_fts
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: core/data/src/main/kotlin/com/google/samples/apps/nowinandroid/core/data/repository/DefaultSearchContentsRepository.kt, line: 57 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DaosModule.kt, line: 46 }
+    summary:
+      status: interpretation
+      value: "読んだ話題を、id・名前・短い説明・長い説明だけの TopicFtsEntity に直し、topicsFts 表に書き足す (rowid を渡さないので REPLACE の置き換えは起きず、既存の行は残る)"
+      evidence:
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicFtsDao.kt, line: 31 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicFtsEntity.kt, line: 43 }
+        - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicFtsEntity.kt, line: 27 }
+    io:
+      - op: create
+        status: fact
+        resource:
+          kind: rdb
+          levels: { host: "(device)", dbms: sqlite, database: nia-database, table: topicsFts }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/dao/TopicFtsDao.kt, line: 31 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicFtsEntity.kt, line: 26 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/model/TopicFtsEntity.kt, line: 27 }
+          - { file: core/database/src/main/kotlin/com/google/samples/apps/nowinandroid/core/database/di/DatabaseModule.kt, line: 39 }
+        note: "全文検索の表 (@Fts4)。列は topicId、name、shortDescription、longDescription。@Insert(onConflict = REPLACE) だが、entity は rowid を宣言せず渡さないので、同期が成功するたびに行が足される読みになる"
+notes: "(1) changeListSync (SyncUtilities.kt) は、話題とニュースの両方の同期が、違うラムダを渡して呼ぶ共通の補助の関数なので、フレームにしなかった。フレームにすると、同じ処理を 1 回だけ書く決まりで、ニュースの側の呼び先が話題の側の下に入ってしまう。そのルール (変更が無ければ成功、消すものと取り直すものに分ける、最後の版を保存、例外なら失敗) は、呼ぶ段の両方 (OfflineFirstTopicsRepository.syncWith と OfflineFirstNewsRepository.syncWith) に書いた。(2) changeListSync は、変更の一覧が空なら成功として早く返す (SyncUtilities.kt 89 行) ので、その後ろの、消す・取り直す・版を書く呼び出しを conditional にした。版を読む・変更の一覧を取る呼び出しは、その前なので always。(3) changeListSync にラムダや関数の参照で渡して、changeListSync が呼ぶもの (変更の一覧の取得、消す DAO、取り直しのラムダの中の呼び出し) は、call を interpretation にした (根拠は、渡す行と呼ぶ行)。(4) SyncWorker 自身が Synchronizer で、getChangeListVersions と updateChangeListVersions を NiaPreferencesDataSource にそのまま渡すだけなので、SyncWorker の method をフレームにせず、呼び出しの根拠に入れた。(5) Retrofit は、DI で決まる実装の method (RetrofitNiaNetwork.<method>) と、注釈が中身を決める private の service の method (RetrofitNiaNetworkApi.<method>) を別のフレームにし、I/O を service の側に書いた。応答の項目 (NetworkTopic、NetworkNewsResource、NetworkChangeList の項目) を read、query の引数を write で fields に書いた。(6) 話題とニュースの行を消すと、news_resources_topics の外部キーの ON DELETE CASCADE で対応の行も消えるので、消す DAO のフレームに news_resources_topics の delete を interpretation で足した。(7) 同じ処理: NiaPreferencesDataSource.getChangeListVersions と updateChangeListVersion は話題の同期の下に、NewsResourceDao.getNewsResources はニュースの同期の下 (オンボーディングを終えたときの枝) に 1 回だけ書き、ほかの呼び出し元 (ニュースの同期、全文検索の表の作り直し) の summary に書いた。FirebaseAnalyticsHelper.logEvent は、同期の開始の記録の下に 1 回だけ書いた。(8) 通知の行き先は、PendingIntent の component に書いた Activity の class 名 (TARGET_ACTIVITY_NAME の値) を target にし、deep link の URI は note に書いた。通知の許可 (POST_NOTIFICATIONS) は、満たさなければ通知を出さないので guards (permission) に書いた。(9) getForegroundInfo (古い API level で前面の service として動くときの通知) は、読み書きもつながりも無いのでフレームにせず、入口の summary に書いた。traceAsync (androidx.tracing) も辿らない。(10) BACKEND_URL は、どの入口でも同じように効く接続先の設定なので settings に書かず、host を (backend) にした。(11) この Worker を WorkManager に登録する側 (SyncInitializer、SyncNotificationsService、WorkManagerSyncManager) は、この入口の外なので辿らない。DelegatingWorker が class の名前で SyncWorker を作って doWork を呼ぶ。(12) レビューの指摘 4 件 (medium 1、low 3) はすべて直した。全文検索の表は「作り直す」ではなく「書き足す (既存の行は消さない)」にし、FTS の insertAll の REPLACE は rowid を渡さないので置き換えが起きないことを書いた。版の読み込みは「値が出なければ既定、例外は同期の失敗」に直した"

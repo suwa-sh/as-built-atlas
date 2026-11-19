@@ -1,0 +1,20 @@
+format_version: 1
+entry_id: signin
+reviewed_at: "2026-11-18T01:34:50Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/page/rules/0
+    claim: "入力の検証のルールが、メールの形の確かめだけを書いており、メールとパスワードの欄が空なら送らない (required) という確かめが書かれていない"
+    evidence: { file: pages/signin.vue, line: 35 }
+    suggestion: "rules/0 の value に、メールとパスワードがどちらも必須であること (35 行目、50 行目) を足し、evidence に 2 行を加える"
+  - kind: missing_item
+    severity: low
+    where: callstack/global_sign_in/summary
+    claim: "トークンを状態に置くと、useGlobal の見張り (watch) がトークンを cookie nc_token (path=/api、10 時間) に書く動きがあるが、summary に書かれていない"
+    evidence: { file: composables/useGlobal/index.ts, line: 78 }
+    suggestion: "summary に、トークンの変化で cookie nc_token が書かれ、ブラウザが直接読む /api の要求 (画像など) の認証に使われること (composables/useGlobal/index.ts 69 行目から 78 行目) を 1 文で足す。cookie なので I/O には書かない"
+    resolved: true
+notes: "(1) 根拠の行は、page、useGlobal、useAuthLastMethod、tele のプラグイン、teleUtils、AuthShell、AuthLivePreview、GeneralLanguage、useBranding、ncUtils、validation、a.i18n、middleware/03.auth.global.ts の各行を開いて確かめ、どれも主張を支えていた。(2) $e の呼び出しを interpretation にしているのは、プロファイルの「provide で渡した関数は interpretation」に合う。(3) トークンの変化を見張って socket を開き、ためた通知を送る処理 (plugins/tele.ts 63 行目) は、プロファイルの『page を分析するときはプラグインを辿らない』に従って、別の入口 shell_s.plugin.tele (入口の一覧にある) に任せており、漏れに数えなかった。(4) socket.emit の I/O の path を /socket.io と書いているが、実際は appInfo.ncSiteUrl の path の後ろに付く (utils/teleUtils.ts 60 行目、61 行目)。note に書いてあるので指摘にしなかった。socket.io の送り先の綴りを、ほかの入口とそろえる決まりを analysis-conventions.md に足すかは、人が決める。(5) 設定の名前 (appInfo.googleAuthEnabled) と、$api.utils.appInfo のフレームの名前と path は、shell_s.middleware.03-auth-global の結果と同じ綴りだった。(6) AuthLastUsedBadge、AuthSubmitButton、見本の場面の部品 (components/auth/preview/) は、データにも計測にも至らない見た目だけの部品なので、フレームが無いのは漏れではない"

@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: layout_l.settings.nav_g
+reviewed_at: "2026-11-18T01:36:23Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: low
+    where: callstack/layout/rules
+    claim: "ML Intern のモードのスイッチが入っているときは、そのモードの決まったモデルだけを、決まった順で選ばせる (ほかのモデルは送信のときに既定のモデルに替えられるため) という業務の決まりが、コードのコメントに理由付きで書いてあるのに、settings の effect にだけ書かれ、rules に decision として無い。"
+    evidence: { file: "src/routes/settings/(nav)/+layout.svelte", line: 108 }
+    suggestion: "rules に kind: decision で「ML_ASSISTANT_MODE のビルドで ML Intern のスイッチが入っているときは、data.mlAssistantModels のモデルだけを、その順で一覧に出す」を足し、根拠に 108〜117 行を付ける (settings の effect はそのまま残してよい)。"
+    resolved: true
+notes: "(1) 根拠の行は、+layout.svelte の全行と、+layout.ts (ssr = false だけ)、isDesktop.ts (innerWidth > 768)、mlAssistantFlag.ts:13 と vite.config.ts:29 (ビルドのときの define)、PublicConfig.svelte.ts:34 (isHuggingChat は PUBLIC_APP_ASSETS === huggingchat)、config.ts:128-136 (getPublicConfig)、settings.ts:41 (getContext)、mlAssistant.svelte.ts:14、models.ts:28 と 292 を開いて確かめ、すべて主張を支えていた。(2) links の entry_id (settings.application、settings.model_c、settings、root_r) は、どれも入口の一覧にある。(3) モデルのアイコン (model.logoUrl) の I/O の reason は dynamic_dispatch。モデルの定義 (設定の MODELS か router の一覧) から決まるので generated_at_runtime とも読めるが、問い合わせを組み立てるのではなく URL の値が実行時に決まるだけなので、指摘にしなかった。(4) huggingface.co/api/avatars の I/O の fields は hubOrg (write) だけで、返る画像の読み (name: \"*\"、read) は無い。slack.connect の external_api は応答を \"*\" read で書いているが、img の画像は列を持つデータではないので、指摘にしなかった。そろえるかは人が決める。(5) goto の external フレームを、呼ぶ行ごとに 5 つに分けたのは、analysis-conventions.md の external の決まりに合う。+layout.ts を設定の export としてフレームにせず summary に書いたのも、context.md の決まりに合う。"

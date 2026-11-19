@@ -1,0 +1,173 @@
+format_version: 1
+entry:
+  id: core.mart_entry_guards
+  path: /core/mart_entry_guards
+  name: mart_entry_guards
+  layer: model
+  source: { file: models/core/mart_entry_guards.sql, line: 1 }
+target:
+  repo: github.com/suwa-sh/as-built-atlas
+  scope: dbt-template
+  commit: 3bf40cb
+analyzer:
+  profile: { id: transform-dbt, version: "0.1.0" }
+  skill_version: "0.4.0"
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-17T22:36:08Z"
+  tests: true
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T22:35:25Z"
+    findings_open: 0
+notes: |
+  - model は macro を呼ばない (ref だけ) ので、結果は入口のフレーム 1 つにした。CTE inner_count はフレームにせず summary に書いた
+  - ref('stg_*') の相手は、analysis-conventions.md のとおり schema staging、table stg_* の view とした (dbt_project.yml の staging の +materialized / +schema と generate_schema_name を根拠に interpretation)
+  - schema は dbt_project.yml の core の +schema: mart を generate_schema_name がそのまま使うので mart。dbms は profiles.yml の type: duckdb。database は env_var('ABATLAS_DUCKDB') で決まるので書かず、settings にも書かなかった
+  - join (using / on) と group by と order by に使う列は filter にした。order by は表を作るときの並べ替えだが、skill の「並べ替えの条件に使う列は filter」に従った
+  - inner join で、入口の一覧 (stg_entries) とフレーム (stg_frames) に対応が無い確認の行は落ちるが、業務の絞り込みではなく対応付けなので rules に書かなかった。guard_key の組み立ても行の識別子を作るだけなので rules に書かなかった
+  - models/core/schema.yml の mart_entry_guards には列のテストが無く、範囲に tests/ も unit_tests も無いので、tests は書かなかった
+summary:
+  status: interpretation
+  value: "権限の確認 (stg_guards) 1 件を 1 行にし、入口のパスとフレームの名前・層を付け、枠の入口なら中で動く入口の数 (inner_entry_count) を添えた core の表 mart.mart_entry_guards を作る"
+  evidence:
+    - { file: models/core/mart_entry_guards.sql, line: 1 }
+    - { file: models/core/mart_entry_guards.sql, line: 2 }
+    - { file: models/core/mart_entry_guards.sql, line: 8 }
+    - { file: models/core/mart_entry_guards.sql, line: 9 }
+    - { file: models/core/mart_entry_guards.sql, line: 13 }
+    - { file: models/core/mart_entry_guards.sql, line: 14 }
+    - { file: models/core/mart_entry_guards.sql, line: 15 }
+    - { file: dbt_project.yml, line: 221 }
+    - { file: dbt_project.yml, line: 222 }
+callstack:
+  - id: mart_entry_guards
+    layer: model
+    kind: model
+    name: mart_entry_guards
+    source: { file: models/core/mart_entry_guards.sql, line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "CTE inner_count で stg_entry_within を包む入口ごとに数え、stg_guards を stg_entries と stg_frames に結合して、確認 1 件 = 1 行の表を mart.mart_entry_guards (table) に作る。行は入口のパス、フレームの順、確認の順に並べる"
+      evidence:
+        - { file: models/core/mart_entry_guards.sql, line: 3 }
+        - { file: models/core/mart_entry_guards.sql, line: 4 }
+        - { file: models/core/mart_entry_guards.sql, line: 5 }
+        - { file: models/core/mart_entry_guards.sql, line: 13 }
+        - { file: models/core/mart_entry_guards.sql, line: 14 }
+        - { file: models/core/mart_entry_guards.sql, line: 15 }
+        - { file: models/core/mart_entry_guards.sql, line: 16 }
+        - { file: models/core/mart_entry_guards.sql, line: 17 }
+        - { file: dbt_project.yml, line: 221 }
+        - { file: dbt_project.yml, line: 222 }
+    rules:
+      - kind: calculation
+        value: "包む入口 (within_entry_id) ごとに、包まれる入口の数を重複なく数えて inner_entry_count にし、包む入口でない入口は 0 にする"
+        status: fact
+        evidence:
+          - { file: models/core/mart_entry_guards.sql, line: 4 }
+          - { file: models/core/mart_entry_guards.sql, line: 5 }
+          - { file: models/core/mart_entry_guards.sql, line: 10 }
+    io:
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: staging, table: stg_entry_within }
+        fields:
+          - { name: within_entry_id, use: [read, filter] }
+          - { name: entry_id, use: [read] }
+        evidence:
+          - { file: models/core/mart_entry_guards.sql, line: 4 }
+          - { file: models/core/mart_entry_guards.sql, line: 5 }
+          - { file: dbt_project.yml, line: 218 }
+          - { file: dbt_project.yml, line: 219 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+        note: "CTE inner_count の中で読む。within_entry_id で group by し、entry_id を count(distinct) する"
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: staging, table: stg_guards }
+        fields:
+          - { name: entry_id, use: [read, filter] }
+          - { name: frame_id, use: [read, filter] }
+          - { name: idx, use: [read, filter] }
+          - { name: kind, use: [read] }
+          - { name: value, use: [read] }
+          - { name: status, use: [read] }
+        evidence:
+          - { file: models/core/mart_entry_guards.sql, line: 8 }
+          - { file: models/core/mart_entry_guards.sql, line: 11 }
+          - { file: models/core/mart_entry_guards.sql, line: 12 }
+          - { file: models/core/mart_entry_guards.sql, line: 13 }
+          - { file: models/core/mart_entry_guards.sql, line: 14 }
+          - { file: models/core/mart_entry_guards.sql, line: 15 }
+          - { file: models/core/mart_entry_guards.sql, line: 16 }
+          - { file: models/core/mart_entry_guards.sql, line: 17 }
+          - { file: dbt_project.yml, line: 218 }
+          - { file: dbt_project.yml, line: 219 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: staging, table: stg_entries }
+        fields:
+          - { name: entry_id, use: [read, filter] }
+          - { name: path, use: [read, filter] }
+        evidence:
+          - { file: models/core/mart_entry_guards.sql, line: 8 }
+          - { file: models/core/mart_entry_guards.sql, line: 14 }
+          - { file: models/core/mart_entry_guards.sql, line: 17 }
+          - { file: dbt_project.yml, line: 218 }
+          - { file: dbt_project.yml, line: 219 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: staging, table: stg_frames }
+        fields:
+          - { name: name, use: [read] }
+          - { name: layer, use: [read] }
+          - { name: entry_id, use: [filter] }
+          - { name: frame_id, use: [filter] }
+          - { name: seq, use: [filter] }
+        evidence:
+          - { file: models/core/mart_entry_guards.sql, line: 9 }
+          - { file: models/core/mart_entry_guards.sql, line: 15 }
+          - { file: models/core/mart_entry_guards.sql, line: 17 }
+          - { file: dbt_project.yml, line: 218 }
+          - { file: dbt_project.yml, line: 219 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+      - op: create
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: mart, table: mart_entry_guards }
+        fields:
+          - { name: entry_id, use: [write] }
+          - { name: path, use: [write] }
+          - { name: kind, use: [write] }
+          - { name: value, use: [write] }
+          - { name: frame_name, use: [write] }
+          - { name: layer, use: [write] }
+          - { name: inner_entry_count, use: [write] }
+          - { name: status, use: [write] }
+          - { name: guard_key, use: [write] }
+        evidence:
+          - { file: models/core/mart_entry_guards.sql, line: 8 }
+          - { file: models/core/mart_entry_guards.sql, line: 9 }
+          - { file: models/core/mart_entry_guards.sql, line: 10 }
+          - { file: models/core/mart_entry_guards.sql, line: 11 }
+          - { file: models/core/mart_entry_guards.sql, line: 12 }
+          - { file: dbt_project.yml, line: 221 }
+          - { file: dbt_project.yml, line: 222 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+        note: "models/core の +materialized: table で表を作る。schema は +schema: mart を generate_schema_name がそのまま使う"

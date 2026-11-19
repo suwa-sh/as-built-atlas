@@ -1,0 +1,1034 @@
+format_version: 1
+entry:
+  id: dashboards.dashboard_o
+  path: /dashboards/:dashboard?
+  name: "home"
+  layer: screen
+  source: { file: src/routes/routes.ts, line: 21 }
+target:
+  repo: github.com/kestra-io/kestra
+  name: Kestra UI
+  clone_path: ../kestra
+  scope: ui
+  commit: 28867c6f0ef22f14610c8230406c24bcb35ec13a
+analyzer:
+  profile: { id: ui-vue-router, version: "0.4.0" }
+  skill_version: "0.4.2"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-19T05:51:36Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-19T05:51:01Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "ダッシュボードの画面 (ホーム)。route home (/:tenant?/dashboards/:dashboard?) が Dashboard.vue を描く。URL のテナントとダッシュボードの段を見張る watch が、描かれたときと段が変わるたびに、描くダッシュボードの id を決め (URL の段、利用者が前に選んだもの、テナントの既定 (GET /api/v1/main/dashboards/settings/default-dashboards)、UI に同梱の既定の順)、同じファイルの load で、保存されたダッシュボード (GET /api/v1/{tenant}/dashboards/{id}) か、UI に同梱の既定の定義 (GET /api/v1/{tenant}/dashboards/defaults/definitions) を読む。読んだ定義のチャートの並びを Sections.vue に渡し、Sections.vue が、各チャートの定義の type で登録表 TYPES からチャートの部品を引いて描く (部品は別の入口。embed で指す)。上のヘッダー (Header.vue) は、ダッシュボードを管理できるとき (OSS 版でなく、作成の権限がある) に、パンくずの切り替えにダッシュボードの一覧 (GET /api/v1/{tenant}/dashboards) を出し、既定にする (POST /api/v1/tenants/main/settings/default-dashboards) と削除 (DELETE /api/v1/main/dashboards/{id}) の操作と、編集・作成の画面への移動を出す。絞り込みの部品の名前空間の候補は POST /api/v1/{tenant}/namespaces/autocomplete で読む。チャートごとの CSV の書き出し (POST .../dashboards/charts/export か .../dashboards/{id}/charts/{chartId}/export) ができる。入れ子の route (children) は無い。"
+  evidence:
+    - { file: src/routes/routes.ts, line: 21 }
+    - { file: src/routes/routes.ts, line: 24 }
+    - { file: src/components/dashboard/Dashboard.vue, line: 218 }
+    - { file: src/components/dashboard/Dashboard.vue, line: 222 }
+    - { file: src/stores/dashboard.ts, line: 151 }
+    - { file: src/stores/dashboard.ts, line: 96 }
+    - { file: src/components/dashboard/Dashboard.vue, line: 223 }
+    - { file: src/stores/dashboard.ts, line: 214 }
+    - { file: src/stores/dashboard.ts, line: 103 }
+    - { file: src/components/dashboard/Dashboard.vue, line: 24 }
+    - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+    - { file: src/components/dashboard/components/Header.vue, line: 100 }
+    - { file: src/components/dashboard/components/Header.vue, line: 115 }
+    - { file: src/components/dashboard/components/Header.vue, line: 137 }
+    - { file: src/components/dashboard/components/Header.vue, line: 144 }
+    - { file: src/components/filter/configurations/dashboardFilters.ts, line: 27 }
+    - { file: src/stores/dashboard.ts, line: 300 }
+notes: "(1) 登録表を引くフレームは Sections.vue のフレームにした (analysis-conventions の「Sections.vue の <component :is=\"TYPES[chart.type]\"> のフレームで止め」と、context.md の「登録表を引くフレームは、<component :is> を書いたコンポーネントのフレーム」に従う)。TYPES の 6 項目は辿らず、入口の一覧の状態 (approved 2 件、candidate 4 件) によらず、6 件を kind: embed、status: interpretation で links に書いた。根拠は、登録表を引く行 (Sections.vue:60) と、登録表の項目の行 (dashboard-types.ts:11〜16)。(2) Sections.vue 自身の、チャートの書き出しのボタン (dashboard.export) は辿った。書き出しの前に、描いた部品の exportParameters / exportChart を呼ぶ所 (Sections.vue:210, 212) と、KsFilter の再読み込みのボタンから部品の refresh を呼ぶ所 (Sections.vue:128) は、部品の中なので辿らず、summary に書いた。(3) 関数を props で渡して、別の部品が呼ぶ形 (context.md の「関数を渡して、別の部品が呼ぶとき」) を 2 つ、フレームにした。Dashboard.vue の load (Header.vue に :load で渡し、Header がパンくずの切り替えと削除の後に呼ぶ) と、Header.vue の titleSiblings (TopNavBar に渡し、パンくずの部品 KsBreadcrumbMenu が呼ぶ)。どちらも同じファイルの関数だが、context.md の「同じファイルの補助の関数は、フレームにしない」より、渡して呼ぶ形の決まりを先に当てた。(4) URL の段を見張る watch (Dashboard.vue:218) は、store の getDashboardId を直接呼ぶので、analysis-conventions の「中身が同じファイルの補助の関数だけの watch はフレームにしない」に当たらず、context.md の決まりどおりフレームにした。watch が呼ぶ load は、フレーム load と同じ経路なので、watch の summary に書いた。watch の caller は、context.md の「見張っている値を変える側のフレーム」に従い、URL の段を渡す route にした (レビューの指摘で直した)。(5) route が props を渡さないので、Dashboard.vue の isFlow・isNamespace は既定の値 false、header は既定の値 true (引数を渡さないことで効く既定値)。isFlow・isNamespace で開く枝 (スマホの時の選択の部品、名前空間・フローの絞り込みの設定、フローと名前空間の既定の定義) は、固定の値で閉じている呼び出しとして辿らず、Dashboard.vue と load の summary の note に書いた。スマホの時の選択の部品の条件 isMobile && isFlow && canSelectDashboard は、isFlow が閉じていて、skill の「A && B は、どちらか 1 つが閉じていれば、閉じている」に当たる。(6) Sections.vue の、route の名前が flows/update・namespaces/update のときの絞り込み (Sections.vue:194, 201) と、選べるチャート (selectableChartId。Dashboard.vue が渡さない) は、計算の中の分かれ道で、その先に呼び出しが無いので、Sections.vue の summary に書いた。(7) dashboard.loadDefaults は、入口から辿る順 (テンプレートの 2 行の Header が先) で、最初にパンくずの読み込み (dashboard.list の中) で着くので、そこに書いた。load (184 行) と saveDefaults (125 行) から呼ぶ所は、summary に書いた。getDashboardId は判定のルールを持つが、テナントの既定を探すときに loadDefaults で外へ呼ぶので、loadDefaults とその先の HTTP の呼び出しを、その下にもう一度書いた (権限の確認・設定・ルールは繰り返していない)。(8) URL のテナントの段が無いときは、watch の中で何も読まない (Dashboard.vue:219) が、アプリ全体の guard (tenantGuard、useTenant.ts:11) がテナントの無い URL を main 付きに書き換え、watch はテナントの段が変わると動き直すので、watch の下の呼び出しは always とした。(9) Dashboard.vue が同じ route へ移る router.push / router.replace (URL にダッシュボードの id を入れる) は、ほかの入口へのつながりではないので、links に書かず summary に書いた。(10) 既定にする操作と、既定の読み込み・削除の URL のテナントの段は、basePath() の固定の値 /api/v1/main から取る (override/utils/route.ts:15) ので、main として書いた。"
+callstack:
+  - id: route
+    layer: screen
+    kind: route
+    name: "home"
+    source: { file: src/routes/routes.ts, line: 21 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "URL /:tenant?/dashboards/:dashboard? に Dashboard.vue を割り当てる route。props を渡さないので、Dashboard.vue は既定の値 (header: true、isFlow: false、isNamespace: false) で描かれる。meta は docId (ヘルプの文書の id) だけで、データの読み込みに効かない。route ごとの guard (beforeEnter) と children は無い。"
+      evidence:
+        - { file: src/routes/routes.ts, line: 21 }
+        - { file: src/routes/routes.ts, line: 24 }
+        - { file: src/routes/routes.ts, line: 25 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 87 }
+    parameters:
+      - name: tenant
+        value: "URL の先頭の、省ける段 (:tenant?)"
+        status: fact
+        evidence: [{ file: src/routes/routes.ts, line: 23 }]
+      - name: dashboard
+        value: "URL の、省ける段 (:dashboard?)。描くダッシュボードの id。無ければ、Dashboard.vue が id を決めて URL に入れる"
+        status: fact
+        evidence:
+          - { file: src/routes/routes.ts, line: 23 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 157 }
+
+  - id: dashboard
+    layer: component
+    kind: component
+    name: "Dashboard.vue"
+    source: { file: src/components/dashboard/Dashboard.vue, line: 1 }
+    caller: route
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/routes/routes.ts, line: 24 }]
+    summary:
+      status: interpretation
+      value: "ダッシュボードの画面。上にヘッダー (Header.vue。同じファイルの load を渡す) を、その下に、描くダッシュボードが決まった後にだけ絞り込みの部品 (KsFilter。設定は useDashboardFilter) を、さらにチャートの並び (Sections.vue) を描く。URL のテナントとダッシュボードの段を見張る watch (immediate) が、描く id を決めて load を呼ぶ。読んだダッシュボードは store の activeDashboard に入り、そのチャートの並び (charts) に YAML の本文 (content) を足して Sections.vue に渡す。同梱の既定を描くときは showDefault を真にして渡す (部品はプレビューの API でデータを取る)。KsFilter の再読み込みのボタンは Sections.vue の refreshCharts を呼ぶ。useRestoreUrl (保存した URL のクエリへ戻す)、useIsMobile、useDashboardSelection は、ブラウザの中の保存と画面の移動だけで API を呼ばないので、フレームにしていない。"
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 2 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 8 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 12 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 17 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 24 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 28 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 55 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 103 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 115 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 122 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 218 }
+      note: "固定の値で閉じている呼び出し: route が props を渡さないので isFlow と isNamespace は既定の値 false (Dashboard.vue:89, 90。値を渡している行は routes.ts:24 で、props を書いていない)。そのため、スマホの時のダッシュボードの選択の部品 (Dashboards = override/components/dashboard/Selector.vue、Dashboard.vue:4〜5。条件 isMobile && isFlow && canSelectDashboard の isFlow が閉じている) と、名前空間・フローの絞り込みの設定 (useNamespaceDashboardFilter / useFlowDashboardFilter を KsFilter に渡す枝、Dashboard.vue:66, 67。62, 63 行で作るだけで、KsFilter に渡らない) は動かず、dashboardLocation はいつも home (Dashboard.vue:99)。header は既定の値 true (Dashboard.vue:88) なので、ヘッダーはいつも描く。"
+    parameters:
+      - name: route.params.dashboard
+        value: "URL の段。描くダッシュボードの id。default でなければ、そのまま使う"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/Dashboard.vue, line: 155 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 218 }
+          - { file: src/stores/dashboard.ts, line: 157 }
+      - name: route.params.tenant
+        value: "URL の段。変わると読み直す。無いときは何も読まない (アプリ全体の guard が main を補う)"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/Dashboard.vue, line: 218 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 219 }
+      - name: route.query
+        value: "URL のクエリ。ダッシュボードの id を入れた URL へ移るときに、そのまま引き継ぐ。絞り込みの条件は、KsFilter と Sections.vue (書き出し) が読む"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/Dashboard.vue, line: 160 }
+          - { file: src/components/dashboard/sections/Sections.vue, line: 214 }
+
+  - id: header
+    layer: component
+    kind: component
+    name: "Header.vue"
+    source: { file: src/components/dashboard/components/Header.vue, line: 1 }
+    caller: dashboard
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/components/dashboard/Dashboard.vue, line: 2 }]
+      note: "v-if の header は既定の値 true (Dashboard.vue:88。route が props を渡さない)、dashboard は store の値か DEFAULT_DASHBOARD でいつもある (Dashboard.vue:103) ので、この入口からはいつも描く。"
+    summary:
+      status: interpretation
+      value: "ダッシュボードのヘッダー。上のバー (TopNavBar。topNav store に見出し・説明・パンくずの読み込みの関数を書くだけ) に、ダッシュボードの題 (無ければ「既定」) を出す。ダッシュボードを管理できるとき (canManageDashboards。ダッシュボードの作成の権限があり、OSS 版でない) は、パンくずのダッシュボードの切り替え (titleSiblings) と、操作のメニューを出す。メニューには、保存されたダッシュボード (id が default でない) なら、編集の画面への移動、既定にする (saveDefaults の後に、同じファイルの fetchDashboards で一覧を読み直す。経路はフレーム store_list と同じ)、削除 (確かめてから delete、その後 Dashboard.vue の load で既定を描く。経路はフレーム load と同じ) を、いつも作成の画面への移動を出す。管理できず、選ぶことはできるとき (showSelector。作成の権限があるか、保存したダッシュボードを扱えない設定) は、OSS 版の選択の部品 (override/components/dashboard/Selector.vue。作成の画面へ移るボタンだけで、API を呼ばず、dashboard の知らせも出さないので、11 行の load は呼ばれない) を出す。フローの作成の権限があれば、フローの作成の画面へのボタンを出す。useRouteContext は文書の題を変えるだけ。"
+      evidence:
+        - { file: src/components/dashboard/components/Header.vue, line: 2 }
+        - { file: src/components/dashboard/components/Header.vue, line: 6 }
+        - { file: src/components/dashboard/components/Header.vue, line: 9 }
+        - { file: src/components/dashboard/components/Header.vue, line: 11 }
+        - { file: src/components/dashboard/components/Header.vue, line: 13 }
+        - { file: src/components/dashboard/components/Header.vue, line: 14 }
+        - { file: src/components/dashboard/components/Header.vue, line: 23 }
+        - { file: src/components/dashboard/components/Header.vue, line: 29 }
+        - { file: src/components/dashboard/components/Header.vue, line: 39 }
+        - { file: src/components/dashboard/components/Header.vue, line: 100 }
+        - { file: src/components/dashboard/components/Header.vue, line: 102 }
+        - { file: src/components/dashboard/components/Header.vue, line: 106 }
+        - { file: src/components/dashboard/components/Header.vue, line: 138 }
+        - { file: src/components/dashboard/components/Header.vue, line: 143 }
+        - { file: src/components/dashboard/components/Header.vue, line: 146 }
+        - { file: src/components/dashboard/components/Header.vue, line: 150 }
+        - { file: src/components/layout/TopNavBar.vue, line: 36 }
+        - { file: src/override/components/dashboard/Selector.vue, line: 2 }
+        - { file: src/override/components/dashboard/Selector.vue, line: 15 }
+    links:
+      - kind: navigate
+        target: "dashboards/update"
+        entry_id: dashboards.dashboard_d.edit
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/components/Header.vue, line: 18 }
+          - { file: src/components/dashboard/components/Header.vue, line: 14 }
+        note: "操作のメニューの「編集」。params.dashboard に、描いているダッシュボードの id を渡す。管理できて、保存されたダッシュボードのときだけ出す。"
+      - kind: navigate
+        target: "dashboards/create"
+        entry_id: dashboards.new
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/components/Header.vue, line: 35 }
+          - { file: src/components/dashboard/components/Header.vue, line: 10 }
+          - { file: src/override/components/dashboard/Selector.vue, line: 2 }
+        note: "操作のメニューの「作成」(管理できるとき) と、OSS 版の選択の部品のボタン (管理できず、選べるとき)。"
+      - kind: navigate
+        target: "flows/create"
+        entry_id: flows.new
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/components/Header.vue, line: 44 }
+          - { file: src/components/dashboard/components/Header.vue, line: 40 }
+        note: "フローの作成のボタン。フローの作成の権限があるときだけ出す。"
+    guards:
+      - kind: permission
+        value: "resource.DASHBOARD, action.CREATE"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/components/Header.vue, line: 92 }
+          - { file: src/components/dashboard/components/Header.vue, line: 100 }
+          - { file: src/components/dashboard/components/Header.vue, line: 107 }
+        note: "authStore.user.isAllowed (すべての名前空間 \"*\")。満たし、OSS 版でないときだけ、管理のメニューとパンくずの切り替えを出す。選択の部品は、満たすときか、保存したダッシュボードを扱えない設定のときに出す (107 行)。この範囲 (OSS 版) の isAllowed は、いつも true を返す (src/override/stores/auth.ts 16 行)。"
+      - kind: permission
+        value: "resource.FLOW, action.CREATE"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/components/Header.vue, line: 90 }
+          - { file: src/components/dashboard/components/Header.vue, line: 40 }
+        note: "authStore.user.isAllowed (すべての名前空間 \"*\")。満たすときだけ、フローの作成のボタンを出す。"
+    settings:
+      - name: "edition"
+        kind: remote
+        effect: "OSS なら、ダッシュボードの管理のメニュー (編集・既定にする・削除・作成) とパンくずのダッシュボードの切り替えを出さず、ダッシュボードの一覧も読まない。代わりに、選べるときは OSS 版の選択の部品を出す。"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/components/Header.vue, line: 98 }
+          - { file: src/components/dashboard/components/Header.vue, line: 100 }
+          - { file: src/components/dashboard/components/Header.vue, line: 120 }
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+      - name: "isCustomDashboardsEnabled"
+        kind: remote
+        effect: "false なら、作成の権限が無くても、選択の部品を出す (管理できないとき)。"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/components/Header.vue, line: 95 }
+          - { file: src/components/dashboard/components/Header.vue, line: 107 }
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+
+  - id: title_siblings
+    layer: component
+    kind: function
+    name: "titleSiblings"
+    source: { file: src/components/dashboard/components/Header.vue, line: 119 }
+    caller: header
+    call:
+      status: interpretation
+      when: conditional
+      condition: "ダッシュボードを管理できる (OSS 版でなく、作成の権限がある) とき。管理できなければ、関数を渡さない。渡すと、パンくずのメニューがすぐ呼ぶ。"
+      evidence:
+        - { file: src/components/dashboard/components/Header.vue, line: 6 }
+        - { file: src/components/dashboard/components/Header.vue, line: 120 }
+        - { file: src/components/layout/TopNavBar.vue, line: 36 }
+        - { file: src/components/layout/AppTopNavBar.vue, line: 8 }
+        - { file: packages/design-system/src/components/Navigation/KsBreadcrumb/KsBreadcrumb.vue, line: 41 }
+        - { file: packages/design-system/src/components/Navigation/KsBreadcrumb/KsBreadcrumbMenu.vue, line: 55 }
+        - { file: packages/design-system/src/components/Navigation/KsBreadcrumb/KsBreadcrumbMenu.vue, line: 60 }
+      note: "Header.vue が TopNavBar に渡し (6 行)、TopNavBar が topNav store に入れ (36 行)、上のバー (AppTopNavBar → KsBreadcrumb → KsBreadcrumbMenu) が watch (immediate) で呼ぶ。開いているダッシュボードが変わるたびに、新しい関数を作る。"
+    summary:
+      status: interpretation
+      value: "パンくずのダッシュボードの切り替えの中身を返す関数を作る。呼ばれると、同じファイルの fetchDashboards で dashboard store の list を呼び、2 件以上なら、各ダッシュボードを並べ (同梱の既定は「既定」と出す)、押すと Dashboard.vue の load (経路はフレーム load と同じ) を、その id で呼ぶ。"
+      evidence:
+        - { file: src/components/dashboard/components/Header.vue, line: 115 }
+        - { file: src/components/dashboard/components/Header.vue, line: 122 }
+        - { file: src/components/dashboard/components/Header.vue, line: 123 }
+        - { file: src/components/dashboard/components/Header.vue, line: 124 }
+        - { file: src/components/dashboard/components/Header.vue, line: 126 }
+        - { file: src/components/dashboard/components/Header.vue, line: 129 }
+
+  - id: store_list
+    layer: store
+    kind: store_action
+    name: "dashboard.list"
+    source: { file: src/stores/dashboard.ts, line: 68 }
+    caller: title_siblings
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/dashboard/components/Header.vue, line: 123 }
+        - { file: src/components/dashboard/components/Header.vue, line: 115 }
+      note: "呼び出しは、同じファイルの fetchDashboards の中 (115 行) にある。既定にする操作の後 (138 行) にも、同じ fetchDashboards で読み直す。"
+    summary:
+      status: interpretation
+      value: "ダッシュボードの一覧の権限があれば、ダッシュボードを 100 件まで検索する SDK の関数を呼ぶ (無ければ空)。続けて loadDefaults でテナントの既定を読み、行ごとに、この route (home) のテナントの既定 (defaultHomeDashboard) かを印にする。既定に当たる行が無ければ、UI に同梱の既定 (id: default) を先頭に足す。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 70 }
+        - { file: src/stores/dashboard.ts, line: 71 }
+        - { file: src/stores/dashboard.ts, line: 72 }
+        - { file: src/stores/dashboard.ts, line: 75 }
+        - { file: src/stores/dashboard.ts, line: 81 }
+        - { file: src/stores/dashboard.ts, line: 83 }
+        - { file: src/stores/dashboard.ts, line: 203 }
+    guards:
+      - kind: permission
+        value: "resource.DASHBOARD, action.LIST"
+        status: fact
+        evidence: [{ file: src/stores/dashboard.ts, line: 70 }]
+        note: "authStore.user.hasAnyAction を満たさなければ、検索せずに空の一覧にする (user が無ければ、満たすものとする)。"
+    rules:
+      - kind: decision
+        value: "一覧に、この画面のテナントの既定のダッシュボードが無ければ、UI に同梱の既定のダッシュボードを、既定として先頭に足す。"
+        status: fact
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 75 }
+          - { file: src/stores/dashboard.ts, line: 81 }
+          - { file: src/stores/dashboard.ts, line: 82 }
+          - { file: src/stores/dashboard.ts, line: 83 }
+
+  - id: sdk_search_dashboards
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/dashboards searchDashboards"
+    source: { file: src/stores/dashboard.ts, line: 71 }
+    caller: store_list
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者が、どれかの名前空間でダッシュボードの一覧の権限を持つとき。"
+      evidence: [{ file: src/stores/dashboard.ts, line: 71 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/{tenant}/dashboards" } }
+        fields:
+          - { name: size, use: [filter] }
+          - { name: results, use: [read] }
+          - { name: id, use: [read] }
+          - { name: title, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 71 }
+          - { file: src/stores/dashboard.ts, line: 74 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Dashboards.gen.ts, line: 10 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 806 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 810 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 811 }
+        note: "ダッシュボードの一覧 (id と題) を読む。Header.vue は list({}) と呼ぶので、並び順 (sort)・ページ・検索の文字は送らない。{tenant} は SDK が入れる段。"
+
+  - id: store_load_defaults
+    layer: store
+    kind: store_action
+    name: "dashboard.loadDefaults"
+    source: { file: src/stores/dashboard.ts, line: 90 }
+    caller: store_list
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 72 }]
+    summary:
+      status: interpretation
+      value: "テナントの既定のダッシュボード (ホーム・名前空間・フローの概要) の設定を読み、store の defaultDashboards に入れる。バックエンドが保存したダッシュボードを扱えない設定なら、読まずに空にする。SDK にこの API が無い (EE 版の SDK だけ) ので、生の HTTP の client で呼ぶ。Dashboard.vue の load (184 行) と dashboard.saveDefaults (125 行) からも呼ぶ。経路はこのフレームと同じ。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 88 }
+        - { file: src/stores/dashboard.ts, line: 91 }
+        - { file: src/stores/dashboard.ts, line: 96 }
+        - { file: src/stores/dashboard.ts, line: 97 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 184 }
+        - { file: src/stores/dashboard.ts, line: 125 }
+    settings:
+      - name: "isCustomDashboardsEnabled"
+        kind: remote
+        effect: "false なら、テナントの既定の設定を読まず、空とする。"
+        status: fact
+        evidence: [{ file: src/stores/dashboard.ts, line: 91 }]
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+
+  - id: client_get_default_dashboards
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().get"
+    source: { file: src/stores/dashboard.ts, line: 96 }
+    caller: store_load_defaults
+    call:
+      status: fact
+      when: conditional
+      condition: "バックエンドが保存したダッシュボードを扱える設定のとき。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 91 }
+        - { file: src/stores/dashboard.ts, line: 96 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/main/dashboards/settings/default-dashboards" } }
+        fields:
+          - { name: defaultHomeDashboard, use: [read] }
+          - { name: defaultNamespaceOverviewDashboard, use: [read] }
+          - { name: defaultFlowOverviewDashboard, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 66 }
+          - { file: src/stores/dashboard.ts, line: 96 }
+          - { file: src/override/utils/route.ts, line: 15 }
+          - { file: src/override/utils/route.ts, line: 19 }
+          - { file: src/components/dashboard/types.ts, line: 73 }
+          - { file: src/components/dashboard/types.ts, line: 74 }
+          - { file: src/components/dashboard/types.ts, line: 75 }
+        note: "テナントの既定のダッシュボードの id (ホーム・名前空間の概要・フローの概要) を読む。URL の接頭辞は apiUrl() (baseUrl + /api/v1/main)。"
+
+  - id: store_save_defaults
+    layer: store
+    kind: store_action
+    name: "dashboard.saveDefaults"
+    source: { file: src/stores/dashboard.ts, line: 124 }
+    caller: header
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者が、操作のメニューで「既定にする」を押したとき (管理できて、保存されたダッシュボードを描いているときだけ出す)。"
+      evidence:
+        - { file: src/components/dashboard/components/Header.vue, line: 137 }
+        - { file: src/components/dashboard/components/Header.vue, line: 23 }
+        - { file: src/components/dashboard/components/Header.vue, line: 14 }
+    summary:
+      status: interpretation
+      value: "loadDefaults でいまの既定を読み (経路はフレーム store_load_defaults と同じ)、描いているダッシュボードの id を、ホームの既定 (defaultHomeDashboard) として重ねた設定を、テナントの設定の API に POST し、応答を store の defaultDashboards に入れる。テナントの id は basePath() の 3 つ目の段 (この範囲では、固定の値 main)。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 125 }
+        - { file: src/stores/dashboard.ts, line: 126 }
+        - { file: src/stores/dashboard.ts, line: 128 }
+        - { file: src/stores/dashboard.ts, line: 133 }
+        - { file: src/stores/dashboard.ts, line: 134 }
+        - { file: src/components/dashboard/components/Header.vue, line: 137 }
+
+  - id: client_post_default_dashboards
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().post"
+    source: { file: src/stores/dashboard.ts, line: 133 }
+    caller: store_save_defaults
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 133 }]
+      note: "130 行の例外 (テナントが選ばれていない) は、basePath() が固定の値 /api/v1/main を返す (src/override/utils/route.ts 15 行) ので起きない。"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/tenants/main/settings/default-dashboards" } }
+        fields:
+          - { name: defaultHomeDashboard, use: [write] }
+          - { name: defaultNamespaceOverviewDashboard, use: [write] }
+          - { name: defaultFlowOverviewDashboard, use: [write] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 126 }
+          - { file: src/stores/dashboard.ts, line: 128 }
+          - { file: src/stores/dashboard.ts, line: 133 }
+          - { file: src/override/utils/route.ts, line: 15 }
+          - { file: src/override/utils/route.ts, line: 16 }
+          - { file: src/override/utils/route.ts, line: 23 }
+          - { file: src/components/dashboard/components/Header.vue, line: 137 }
+          - { file: src/components/dashboard/types.ts, line: 73 }
+        note: "テナントの既定のダッシュボードの設定を書く。ホームの既定を、描いているダッシュボードの id にし、ほかの 2 つは読んだ値のまま送る。URL の接頭辞は apiUrlWithoutTenants() (baseUrl + /api/v1)、テナントの段は basePath() から取る main。"
+
+  - id: store_delete
+    layer: store
+    kind: store_action
+    name: "dashboard.delete"
+    source: { file: src/stores/dashboard.ts, line: 246 }
+    caller: header
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者が、操作のメニューで「削除」を押し、確かめの小窓で認めたとき (管理できて、保存されたダッシュボードを描いているときだけ出す)。"
+      evidence:
+        - { file: src/components/dashboard/components/Header.vue, line: 144 }
+        - { file: src/components/dashboard/components/Header.vue, line: 143 }
+        - { file: src/components/dashboard/components/Header.vue, line: 29 }
+    summary:
+      status: interpretation
+      value: "ダッシュボードを id で削除する API を呼び、ブラウザの中に保存したブックマーク (bookmarks store。localStorage) から、そのダッシュボードのページを除く。Header.vue は、削除の後に通知を出し、Dashboard.vue の load で既定のダッシュボードを描き直す。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 247 }
+        - { file: src/stores/dashboard.ts, line: 251 }
+        - { file: src/stores/bookmarks.ts, line: 35 }
+        - { file: src/components/dashboard/components/Header.vue, line: 145 }
+        - { file: src/components/dashboard/components/Header.vue, line: 146 }
+
+  - id: client_delete_dashboard
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().delete"
+    source: { file: src/stores/dashboard.ts, line: 247 }
+    caller: store_delete
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 247 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "DELETE /api/v1/main/dashboards/{id}" } }
+        fields:
+          - { name: id, use: [filter] }
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 247 }
+          - { file: src/stores/dashboard.ts, line: 66 }
+          - { file: src/override/utils/route.ts, line: 15 }
+          - { file: src/override/utils/route.ts, line: 19 }
+          - { file: src/components/dashboard/components/Header.vue, line: 142 }
+        note: "描いているダッシュボードを削除する。SDK に無い (EE 版だけの) API なので、生の HTTP の client で呼ぶ (dashboard.ts 230 行)。"
+
+  - id: load
+    layer: component
+    kind: function
+    name: "Dashboard.vue load"
+    source: { file: src/components/dashboard/Dashboard.vue, line: 139 }
+    caller: dashboard
+    call:
+      status: interpretation
+      when: always
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 2 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 223 }
+        - { file: src/components/dashboard/components/Header.vue, line: 129 }
+        - { file: src/components/dashboard/components/Header.vue, line: 146 }
+      note: "Dashboard.vue が Header.vue に :load で渡し (2 行)、Header がパンくずの切り替え (129 行) と削除の後 (146 行) に呼ぶ。URL の段を見張る watch (フレーム watch_route) も、描かれたときと段が変わるたびに呼ぶ (223 行) ので、always とした。140 行の早い return は、route の名前 home が ALLOWED_CREATION_ROUTES に入っているので通らない。"
+    summary:
+      status: interpretation
+      value: "ダッシュボードを読んで描く。保存したダッシュボードを扱えない設定なら、id を無視して UI に同梱の既定 (loadDefaultDefinitions の main) を描く。そうでなければ、URL にダッシュボードの段が無いときは id を入れた URL へ移って (router.push。同じ route なので watch が動き直す) 終え、段と id が違えば URL を置き換える。id が default なら、テナントの既定 (loadDefaults の defaultHomeDashboard。経路はフレーム store_load_defaults と同じ) を探し、それでも default なら同梱の既定を、そうでなければ dashboard store の load で保存されたダッシュボードを読む。見つからなければ、エラーの通知 (core store の message) を出して同梱の既定を描く。最後に、チャートの並びを作り、絞り込みの部品を描けるようにする。"
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 146 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 149 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 157 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 158 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 167 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 168 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 184 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 186 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 193 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 197 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 205 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 210 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 214 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 215 }
+      note: "固定の値で閉じている呼び出し: isFlow・isNamespace が既定の値 false (Dashboard.vue:89, 90。route が props を渡さない) なので、フローの既定の定義の置き換え (processFlowYaml、Dashboard.vue:127) と名前空間の既定の定義 (Dashboard.vue:129) は通らず、テナントの既定は、いつもホームのもの (Dashboard.vue:186) を使う。"
+    settings:
+      - name: "isCustomDashboardsEnabled"
+        kind: remote
+        effect: "false なら、URL・利用者が前に選んだもの・テナントの既定の id を無視して、UI に同梱の既定のダッシュボードを描く (保存したダッシュボードを読まない)。"
+        status: fact
+        evidence: [{ file: src/components/dashboard/Dashboard.vue, line: 146 }]
+        note: "バックエンドから受け取って misc store が持つ設定 (configs) の項目。"
+    rules:
+      - kind: decision
+        value: "描く id が default なら、テナントの既定のホームのダッシュボード (defaultHomeDashboard) を使い、それも無ければ UI に同梱の既定の定義を描く。"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/Dashboard.vue, line: 182 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 186 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 191 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 193 }
+      - kind: decision
+        value: "保存されたダッシュボードが見つからなければ、エラーの通知を出して、UI に同梱の既定の定義を描く。"
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/Dashboard.vue, line: 199 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 205 }
+          - { file: src/components/dashboard/Dashboard.vue, line: 210 }
+
+  - id: store_load_default_definitions
+    layer: store
+    kind: store_action
+    name: "dashboard.loadDefaultDefinitions"
+    source: { file: src/stores/dashboard.ts, line: 101 }
+    caller: load
+    call:
+      status: fact
+      when: conditional
+      condition: "UI に同梱の既定のダッシュボードを描くとき (保存したダッシュボードを扱えない設定のとき、描く id が default のままのとき、保存されたダッシュボードが見つからないとき)。"
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 125 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 135 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 149 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 193 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 210 }
+      note: "呼び出しは、同じファイルの useDefaultDashboardBundledInUI → getDefaultDashboardBundledInUI の中にある。"
+    summary:
+      status: interpretation
+      value: "UI に同梱の既定のダッシュボードの定義 (main・flow・namespace の YAML) を、まだ持っていなければ SDK の関数で読み、store の defaultDefinitions に入れて返す (2 回目からは読まない)。この入口では main を使う。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 102 }
+        - { file: src/stores/dashboard.ts, line: 103 }
+        - { file: src/stores/dashboard.ts, line: 105 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 131 }
+
+  - id: sdk_default_dashboard_definitions
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/dashboards defaultDashboardDefinitions"
+    source: { file: src/stores/dashboard.ts, line: 103 }
+    caller: store_load_default_definitions
+    call:
+      status: fact
+      when: conditional
+      condition: "store が、まだ既定の定義を持っていないとき。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 102 }
+        - { file: src/stores/dashboard.ts, line: 103 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/{tenant}/dashboards/defaults/definitions" } }
+        fields:
+          - { name: main, use: [read] }
+          - { name: flow, use: [read] }
+          - { name: namespace, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 24 }
+          - { file: src/stores/dashboard.ts, line: 103 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Dashboards.gen.ts, line: 35 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 869 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 870 }
+        note: "UI に同梱の既定のダッシュボードの定義 (ホーム・フロー・名前空間の YAML) を読む。{tenant} は SDK が入れる段。"
+
+  - id: store_load
+    layer: store
+    kind: store_action
+    name: "dashboard.load"
+    source: { file: src/stores/dashboard.ts, line: 211 }
+    caller: load
+    call:
+      status: fact
+      when: conditional
+      condition: "保存したダッシュボードを扱える設定で、描く id (テナントの既定を当てた後) が default でないとき。"
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 197 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 146 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 191 }
+    summary:
+      status: interpretation
+      value: "ダッシュボードを id で読む SDK の関数を呼び、store の activeDashboard と、編集の本文 (sourceCode) に入れる。失敗したら (404 は扱い済みとして) undefined を返し、Dashboard.vue が同梱の既定を描く。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 214 }
+        - { file: src/stores/dashboard.ts, line: 217 }
+        - { file: src/stores/dashboard.ts, line: 218 }
+        - { file: src/stores/dashboard.ts, line: 221 }
+        - { file: src/stores/dashboard.ts, line: 222 }
+
+  - id: sdk_dashboard
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/dashboards dashboard"
+    source: { file: src/stores/dashboard.ts, line: 214 }
+    caller: store_load
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/stores/dashboard.ts, line: 214 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/{tenant}/dashboards/{id}" } }
+        fields:
+          - { name: id, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 214 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Dashboards.gen.ts, line: 42 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 883 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 884 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 885 }
+        note: "保存されたダッシュボード (題、チャートの並び、期間の既定、本文) をまるごと読む。{tenant} は SDK が入れる段。"
+
+  - id: use_dashboard_filter
+    layer: component
+    kind: composable
+    name: "useDashboardFilter"
+    source: { file: src/components/filter/configurations/dashboardFilters.ts, line: 8 }
+    caller: dashboard
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 61 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 68 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 12 }
+      note: "68 行で、isNamespace と isFlow がどちらも既定の値 false (route が props を渡さないので、いつも) なので、この設定を絞り込みの部品へ渡す。"
+    summary:
+      status: interpretation
+      value: "絞り込みの部品 (KsFilter) に渡す設定を作る。名前空間 (候補の取り方は namespaceValueProvider())、期間 (timeRange。候補は useValues の固定の値)、実行の状態、範囲 (scope)、ラベル の 5 つの条件を持つ。"
+      evidence:
+        - { file: src/components/filter/configurations/dashboardFilters.ts, line: 17 }
+        - { file: src/components/filter/configurations/dashboardFilters.ts, line: 27 }
+        - { file: src/components/filter/configurations/dashboardFilters.ts, line: 30 }
+        - { file: src/components/filter/configurations/dashboardFilters.ts, line: 42 }
+        - { file: src/components/filter/configurations/dashboardFilters.ts, line: 55 }
+        - { file: src/components/filter/configurations/dashboardFilters.ts, line: 67 }
+
+  - id: namespace_value_provider
+    layer: component
+    kind: function
+    name: "namespaceValueProvider"
+    source: { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 7 }
+    caller: use_dashboard_filter
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/components/filter/configurations/dashboardFilters.ts, line: 27 }]
+      note: "ここで作った関数を、絞り込みの部品 (packages/design-system の KsFilter) が、条件の値を選ぶときに呼ぶ (ConditionRow.vue 243 行、FilterEditPopper.vue 544 行)。"
+    summary:
+      status: interpretation
+      value: "名前空間の候補を返す関数を作る。利用者がどの名前空間にも一覧の権限を持たなければ、空を返す。持っていれば、namespaces store の loadAutocomplete で名前空間を取り、それぞれの親の名前空間も足して、重複を除いて返す。"
+      evidence:
+        - { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 9 }
+        - { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 13 }
+        - { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 14 }
+        - { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 17 }
+    guards:
+      - kind: permission
+        value: "resource.NAMESPACE, action.LIST"
+        status: fact
+        evidence:
+          - { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 7 }
+          - { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 9 }
+        note: "authStore.user.hasAnyActionOnAnyNamespace を満たさなければ、候補を取らずに空を返す。dashboardFilters.ts は引数を渡さないので、既定の値 (7 行) が使われる。"
+
+  - id: store_load_autocomplete
+    layer: store
+    kind: store_action
+    name: "namespaces.loadAutocomplete"
+    source: { file: src/composables/useBaseNamespaces.ts, line: 42 }
+    caller: namespace_value_provider
+    call:
+      status: interpretation
+      when: conditional
+      condition: "利用者が、絞り込みの条件で名前空間の値の候補を開いたとき。"
+      evidence:
+        - { file: src/components/filter/configurations/namespaceValueProvider.ts, line: 13 }
+        - { file: src/components/filter/configurations/dashboardFilters.ts, line: 27 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/filter/ConditionRow.vue, line: 243 }
+        - { file: packages/design-system/src/components/Data/KsDataTable/filter/layout/FilterEditPopper.vue, line: 544 }
+      note: "呼び出しは、namespaceValueProvider が返す関数の中にある。その関数を呼ぶのは、設定を受け取った絞り込みの部品。namespaces store (src/override/stores/namespaces.ts) は useBaseNamespacesStore の中身をそのまま返すので、action の定義は useBaseNamespaces.ts にある。"
+    summary:
+      status: interpretation
+      value: "名前空間の候補を取り、いちばん新しい呼び出しの応答だけを store の autocomplete に入れる。existingOnly: false を既定にする。ここからは、引数なしで呼ぶ。"
+      evidence:
+        - { file: src/composables/useBaseNamespaces.ts, line: 44 }
+        - { file: src/composables/useBaseNamespaces.ts, line: 45 }
+
+  - id: sdk_autocomplete_namespaces
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/namespaces autocompleteNamespaces"
+    source: { file: src/composables/useBaseNamespaces.ts, line: 44 }
+    caller: store_load_autocomplete
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/composables/useBaseNamespaces.ts, line: 44 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/{tenant}/namespaces/autocomplete" } }
+        fields:
+          - { name: existingOnly, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/composables/useBaseNamespaces.ts, line: 44 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Namespaces.gen.ts, line: 12 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 3714 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 3715 }
+        note: "名前空間の候補の一覧を読む (POST だが、検索の条件を本文で送るだけで、書き込みではない)。この経路では q と ids を渡さない。応答 (名前空間の名前の並び) は、まるごと受け取る。"
+
+  - id: sections
+    layer: component
+    kind: component
+    name: "Sections.vue"
+    source: { file: src/components/dashboard/sections/Sections.vue, line: 1 }
+    caller: dashboard
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: src/components/dashboard/Dashboard.vue, line: 24 }]
+    summary:
+      status: interpretation
+      value: "ダッシュボードのチャートの並び。Dashboard.vue から受け取ったチャートの並び (props.charts。保存されたダッシュボードの定義か、UI に同梱の既定の定義の charts) を、1 件ずつ枠に入れ、題 (chartOptions.displayName か id) と説明を出す。枠が画面に近づいたチャートだけ (useLazyChartBlocks) を、登録表 TYPES から、そのチャートの定義の type (例: io.kestra.plugin.core.dashboard.chart.TimeSeries) で引いた部品で描く (<component :is>、60 行)。部品には、チャートの定義 (chart)、ダッシュボードの id (dashboardId)、絞り込み (filters)、showDefault (同梱の既定を描くとき真) を渡す。部品は別の入口なので辿らない。描いた部品は、refresh を持つものだけ覚えておき、refreshCharts として Dashboard.vue に出す (KsFilter の再読み込みのボタンから、部品の refresh を呼ぶ)。部品が知らせた、効かなかった絞り込み (IGNORED_FILTERS_INJECTION_KEY を provide) を、toast で出す (API は呼ばない)。チャートごとに、Markdown 以外なら CSV の書き出しのボタン (exportChart。描いた部品の exportParameters と exportChart から、ページの指定と書き出す定義を受け取って dashboard store の export を呼ぶ) を、保存されたダッシュボード (id が default でない) なら、チャートの編集へのリンクを出す。"
+      evidence:
+        - { file: src/components/dashboard/sections/Sections.vue, line: 5 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 17 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 29 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 38 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 58 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 61 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 64 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 122 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 128 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 152 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 173 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 186 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 210 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 27 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 115 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 37 }
+      note: "部品は、保存されたダッシュボードの定義の、チャートごとの type (charts[].type) で選ばれる。定義は、Dashboard.vue の load が dashboard store の load (GET /api/v1/{tenant}/dashboards/{id}) か loadDefaultDefinitions (同梱の既定) で読み、loadCharts で props.charts にする。TYPES に無い type は、何も描かない。固定の値で閉じている枝: 絞り込み (filters) は、Dashboard.vue が baseFilters を渡さず (Dashboard.vue:24〜30)、route の名前が home (routes.ts:22) で flows/update・namespaces/update ではない (Sections.vue:194, 201) ので、いつも空。選べるチャート (selectableChartId) も渡さないので、chartProps (Sections.vue:157) はいつも空。どちらも、その先に呼び出しは無い。"
+    links:
+      - kind: embed
+        target: "io.kestra.plugin.core.dashboard.chart.Bar"
+        entry_id: part_p.dashboard-types.iokestraplugincoredashboardchartBar
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+          - { file: src/components/dashboard/dashboard-types.ts, line: 11 }
+        note: "チャートの定義の type が、このキーのとき描く。"
+      - kind: embed
+        target: "io.kestra.plugin.core.dashboard.chart.KPI"
+        entry_id: part_p.dashboard-types.iokestraplugincoredashboardchartKPI
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+          - { file: src/components/dashboard/dashboard-types.ts, line: 12 }
+        note: "チャートの定義の type が、このキーのとき描く。"
+      - kind: embed
+        target: "io.kestra.plugin.core.dashboard.chart.Markdown"
+        entry_id: part_p.dashboard-types.iokestraplugincoredashboardchartMarkdown
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+          - { file: src/components/dashboard/dashboard-types.ts, line: 13 }
+        note: "チャートの定義の type が、このキーのとき描く。"
+      - kind: embed
+        target: "io.kestra.plugin.core.dashboard.chart.Pie"
+        entry_id: part_p.dashboard-types.iokestraplugincoredashboardchartPie
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+          - { file: src/components/dashboard/dashboard-types.ts, line: 14 }
+        note: "チャートの定義の type が、このキーのとき描く。"
+      - kind: embed
+        target: "io.kestra.plugin.core.dashboard.chart.Table"
+        entry_id: part_p.dashboard-types.iokestraplugincoredashboardchartTable
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+          - { file: src/components/dashboard/dashboard-types.ts, line: 15 }
+        note: "チャートの定義の type が、このキーのとき描く。"
+      - kind: embed
+        target: "io.kestra.plugin.core.dashboard.chart.TimeSeries"
+        entry_id: part_p.dashboard-types.iokestraplugincoredashboardchartTimeSeries
+        status: interpretation
+        evidence:
+          - { file: src/components/dashboard/sections/Sections.vue, line: 60 }
+          - { file: src/components/dashboard/dashboard-types.ts, line: 16 }
+        note: "チャートの定義の type が、このキーのとき描く。"
+      - kind: navigate
+        target: "dashboards/update"
+        entry_id: dashboards.dashboard_d.edit
+        status: fact
+        evidence:
+          - { file: src/components/dashboard/sections/Sections.vue, line: 44 }
+          - { file: src/components/dashboard/sections/Sections.vue, line: 38 }
+        note: "チャートの編集のボタン。params.dashboard にダッシュボードの id を、query.highlight にチャートの id を渡す。保存されたダッシュボード (id が default でない) のときだけ出す。"
+
+  - id: store_export
+    layer: store
+    kind: store_action
+    name: "dashboard.export"
+    source: { file: src/stores/dashboard.ts, line: 300 }
+    caller: sections
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者が、チャートの CSV の書き出しのボタンを押したとき (Markdown 以外のチャートに出す)。"
+      evidence:
+        - { file: src/components/dashboard/sections/Sections.vue, line: 212 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 34 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 29 }
+        - { file: src/components/dashboard/composables/useDashboards.ts, line: 37 }
+    summary:
+      status: interpretation
+      value: "チャートのデータを CSV で書き出す SDK の関数を呼び、受け取った中身を chart__{チャートの id}.csv としてブラウザに保存させる (downloadBlob)。Sections.vue は、ダッシュボードの絞り込み、URL のクエリの絞り込み、部品が渡した絞り込みとページの指定を合わせて渡す。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 301 }
+        - { file: src/stores/dashboard.ts, line: 305 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 210 }
+        - { file: src/components/dashboard/sections/Sections.vue, line: 214 }
+    rules:
+      - kind: decision
+        value: "UI に同梱の既定のダッシュボード (id が default) なら、チャートの定義の本文を送って書き出し、保存されたダッシュボードなら、ダッシュボードの id とチャートの id で書き出す。"
+        status: fact
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 301 }
+          - { file: src/stores/dashboard.ts, line: 302 }
+          - { file: src/stores/dashboard.ts, line: 303 }
+
+  - id: sdk_export_chart
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/dashboards exportChart"
+    source: { file: src/stores/dashboard.ts, line: 302 }
+    caller: store_export
+    call:
+      status: fact
+      when: conditional
+      condition: "描いているのが UI に同梱の既定のダッシュボード (id が default) のとき。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 301 }
+        - { file: src/stores/dashboard.ts, line: 302 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/{tenant}/dashboards/charts/export" } }
+        fields:
+          - { name: format, use: [filter] }
+          - { name: chart, use: [filter] }
+          - { name: globalFilter, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 302 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Dashboards.gen.ts, line: 17 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 826 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 830 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 831 }
+        note: "チャートの定義の本文 (chart.content) と絞り込みを送って、チャートのデータを CSV で読む (format は CSV)。応答はまるごとファイルにする。{tenant} は SDK が入れる段。"
+
+  - id: sdk_export_dashboard_chart
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk/dashboards exportDashboardChart"
+    source: { file: src/stores/dashboard.ts, line: 303 }
+    caller: store_export
+    call:
+      status: fact
+      when: conditional
+      condition: "描いているのが保存されたダッシュボード (id が default でない) のとき。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 301 }
+        - { file: src/stores/dashboard.ts, line: 303 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /api/v1/{tenant}/dashboards/{id}/charts/{chartId}/export" } }
+        fields:
+          - { name: format, use: [filter] }
+          - { name: id, use: [filter] }
+          - { name: chartId, use: [filter] }
+          - { name: filters, use: [filter] }
+          - { name: pageNumber, use: [filter] }
+          - { name: pageSize, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 303 }
+          - { file: src/components/dashboard/sections/Sections.vue, line: 112 }
+          - { file: src/components/dashboard/sections/Sections.vue, line: 213 }
+          - { file: src/components/dashboard/sections/Sections.vue, line: 214 }
+          - { file: packages/kestra-sdk/src/openapi/sdk/Dashboards.gen.ts, line: 49 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 901 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 908 }
+          - { file: packages/kestra-sdk/src/openapi/sdk.gen.ts, line: 909 }
+        note: "保存されたダッシュボードの 1 つのチャートのデータを、絞り込みとページの指定 (部品が exportParameters で渡すときだけ) を送って CSV で読む。応答はまるごとファイルにする。{tenant} は SDK が入れる段。"
+
+  - id: watch_route
+    layer: component
+    kind: function
+    name: "Dashboard.vue watch route.params.dashboard, route.params.tenant"
+    source: { file: src/components/dashboard/Dashboard.vue, line: 218 }
+    caller: route
+    call:
+      status: interpretation
+      when: always
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 218 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 225 }
+        - { file: src/routes/routes.ts, line: 23 }
+      note: "immediate なので、描かれたときに 1 回動き、URL のダッシュボードかテナントの段が変わるたびに動き直す。context.md の決まりどおり、caller は見張る値 (route.params.dashboard / route.params.tenant) を変える側のフレームにした。値を変えるのは、URL の段を渡す route (routes.ts:23) と、load の router.push / router.replace (Dashboard.vue:158, 168)。load は、この watch から呼ばれるので、入口から辿る順で先に着く route を caller にした。見張りを登録しているのは Dashboard.vue。"
+    summary:
+      status: interpretation
+      value: "URL のテナントの段があれば、戻り先の URL の指定を消し、dashboard store の getDashboardId で描く id を決めて、load を呼ぶ (経路はフレーム load と同じ)。テナントの段が無ければ、何もしない。"
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 219 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 220 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 222 }
+        - { file: src/components/dashboard/Dashboard.vue, line: 223 }
+
+  - id: store_get_dashboard_id
+    layer: store
+    kind: store_action
+    name: "dashboard.getDashboardId"
+    source: { file: src/stores/dashboard.ts, line: 151 }
+    caller: watch_route
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/components/dashboard/Dashboard.vue, line: 222 }
+      note: "テナントの段が無いとき (Dashboard.vue:219) は呼ばないが、アプリ全体の guard (src/composables/useTenant.ts 11 行) がテナントの無い URL を main 付きに書き換え、watch はテナントの段が変わると動き直すので、always とした。"
+    summary:
+      status: interpretation
+      value: "描くダッシュボードの id を決める。URL のダッシュボードの段が default でなければそれを、無ければ利用者が前に選んだ id (ブラウザの localStorage の userDashboard/{tenant}/{route の名前}) を、それも無ければテナントの既定 (getTenantDefaultDashboardId → loadDefaults の defaultHomeDashboard) を、それも無ければ default を返す。route の名前が home・flows/update・namespaces/update でなければ例外にする (この入口は home なので通らない)。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 153 }
+        - { file: src/stores/dashboard.ts, line: 157 }
+        - { file: src/stores/dashboard.ts, line: 161 }
+        - { file: src/stores/dashboard.ts, line: 162 }
+        - { file: src/stores/dashboard.ts, line: 167 }
+        - { file: src/stores/dashboard.ts, line: 172 }
+        - { file: src/stores/dashboard.ts, line: 181 }
+        - { file: src/stores/dashboard.ts, line: 188 }
+        - { file: src/stores/dashboard.ts, line: 191 }
+    rules:
+      - kind: decision
+        value: "描くダッシュボードは、URL で指定した id、利用者が前に選んだ id、テナントの既定のホームのダッシュボード、UI に同梱の既定の順に決める。"
+        status: fact
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 157 }
+          - { file: src/stores/dashboard.ts, line: 163 }
+          - { file: src/stores/dashboard.ts, line: 168 }
+          - { file: src/stores/dashboard.ts, line: 172 }
+
+  - id: store_load_defaults_for_id
+    layer: store
+    kind: store_action
+    name: "dashboard.loadDefaults"
+    source: { file: src/stores/dashboard.ts, line: 90 }
+    caller: store_get_dashboard_id
+    call:
+      status: fact
+      when: conditional
+      condition: "URL のダッシュボードの段が無いか default で、利用者が前に選んだ id もブラウザに無いとき。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 167 }
+        - { file: src/stores/dashboard.ts, line: 188 }
+        - { file: src/stores/dashboard.ts, line: 157 }
+        - { file: src/stores/dashboard.ts, line: 163 }
+      note: "呼び出しは、同じファイルの外に出していない getTenantDefaultDashboardId の中 (188 行) にある。"
+    summary:
+      status: interpretation
+      value: "テナントの既定のダッシュボードの設定を読む。経路はフレーム store_load_defaults と同じ (getDashboardId が外への呼び出しを持つので、もう一度書いた)。"
+      evidence: [{ file: src/stores/dashboard.ts, line: 96 }]
+
+  - id: client_get_default_dashboards_for_id
+    layer: external
+    kind: sdk
+    name: "@kestra-io/kestra-sdk useClient().get"
+    source: { file: src/stores/dashboard.ts, line: 96 }
+    caller: store_load_defaults_for_id
+    call:
+      status: fact
+      when: conditional
+      condition: "バックエンドが保存したダッシュボードを扱える設定のとき。"
+      evidence:
+        - { file: src/stores/dashboard.ts, line: 91 }
+        - { file: src/stores/dashboard.ts, line: 96 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "GET /api/v1/main/dashboards/settings/default-dashboards" } }
+        fields:
+          - { name: defaultHomeDashboard, use: [read] }
+          - { name: defaultNamespaceOverviewDashboard, use: [read] }
+          - { name: defaultFlowOverviewDashboard, use: [read] }
+        evidence:
+          - { file: src/stores/dashboard.ts, line: 66 }
+          - { file: src/stores/dashboard.ts, line: 96 }
+          - { file: src/override/utils/route.ts, line: 15 }
+          - { file: src/override/utils/route.ts, line: 19 }
+          - { file: src/components/dashboard/types.ts, line: 73 }
+          - { file: src/components/dashboard/types.ts, line: 74 }
+          - { file: src/components/dashboard/types.ts, line: 75 }
+        note: "テナントの既定のダッシュボードの id を読む。この経路では defaultHomeDashboard を使う。"

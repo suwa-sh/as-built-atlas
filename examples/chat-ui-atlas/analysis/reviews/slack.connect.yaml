@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: slack.connect
+reviewed_at: "2026-11-18T01:27:29Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/q_installed_workspace_rw
+    claim: "workspaceClient のフレーム (q_workspace_client) は rules と settings を持ち、終端でも機械チェックに落ちないので、プロファイルの「同じ処理が何度も呼ばれるとき」の決まりでは installedWorkspace を書き直す場面ではなく、slack.installations の読み込みがこの入口の中で 2 回数えられる"
+    evidence: { file: src/lib/server/slack/installations.ts, line: 130 }
+    suggestion: "q_installed_workspace_rw を消し、q_workspace_client の summary の「経路はフレーム q_installed_workspace と同じ」だけで示す (読み書きの経路を見せたい書き方なら、analysis-conventions.md に決まりとして足す)"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/ext_mongo_sessions_find_one/call
+    claim: "connectAccount は readConnectionLink が null だと止まり、readConnectionLink は SLACK_ML_ENABLED が true でないか SLACK_ML_ACCOUNT_MODE が user でないと必ず null を返すので、打ち切るかどうかが設定で決まり、sessions の読み込み (と、その後ろの slack.links の削除、slack.connections の更新) は always ではない"
+    evidence: { file: src/lib/server/slack/links.ts, line: 66 }
+    suggestion: "ext_mongo_sessions_find_one、ext_mongo_links_delete_one、ext_mongo_connections_update_one の when を conditional にし、condition に「Slack を個人のアカウントで使う設定で、接続のリンクと Slack の身元の確認を通ったとき」と書く"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/q_eligible_participant/rules/0
+    claim: "外部共有のチャンネルの利用者を認める条件に、DM のチャンネル (D で始まる id、is_im、is_mpim) でないことと、利用者の team_id があることが抜けている"
+    evidence: { file: src/lib/server/slack/access.ts, line: 25 }
+    suggestion: "rules[0] の value に、DM・グループ DM のチャンネルでないことと team_id があることを足し、evidence に access.ts:25-28 を足す"
+    resolved: true
+notes: "(1) guards の value (load と connectAccount の ownership、action_default の origin) は、コードの否定の形の式を肯定の形に書き直しており、厳密にはコードに書いてある文字そのものではない。公開の実例 examples/umami-atlas の analysis/results/websites.yaml の guards の note にも「式を肯定の形で書いた」とあり、同じ扱いなので指摘にしなかった。ただし、この分析リポジトリの analysis-conventions.md には決まりが無いので、続ける書き方なら conventions に書いておくとよい。(2) +page.server.ts は connectAccount と readConnectionLink を $lib/server/slack/connections から import しているが、connections.ts は links.ts を再び export するだけなので、フレームの source を links.ts にしたのは正しい。(3) workspaceClient の本拠の workspace の bot の token (SLACK_ML_BOT_TOKEN) は settings に無いが、資格の値で動きの分かれ道ではないので指摘にしなかった。(4) database.ts のコレクションの行 (159 mcp.selections、160 slack.connections、161 slack.links、166 slack.installations、170 sessions)、external フレームの source の行、upsert の create と update の分け方は、すべてコードと合っていた"

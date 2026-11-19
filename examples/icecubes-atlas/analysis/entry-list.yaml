@@ -1,0 +1,1449 @@
+format_version: 1
+target:
+  repo: github.com/Dimillian/IceCubesApp
+  name: Ice Cubes
+  clone_path: ../IceCubesApp
+  scope: .
+  commit: 98098b9c4b5928f89f338203193c2bf40ab7f38c
+profile:
+  id: ui-ios
+  version: 0.1.0
+extractors:
+- name: swiftui-destinations
+  run: abatlas-extract ast
+  layer: screen
+  rationale: 行き先の enum は RouterDestination (navigationDestination(for:) に渡す。AppRegistry.swift:66)、SheetDestination
+    (sheet(item:) に渡す。AppRegistry.swift:154)、AppTab (TabView のタブ。Tabs.swift の makeContentView)、SettingsStartingPoint
+    (設定の画面の navigationDestination(item:) に渡す。SettingsTab.swift:78)。既定の正規表現に StartingPoint
+    を足した。WindowDestinationEditor / WindowDestinationMedia は openWindow で開く macOS と
+    visionOS の window で、sheet と同じ View を描くので、正規表現に入れない
+  params:
+    files:
+    - '**/*.swift'
+    exclude:
+    - '*Tests/*'
+    - '*.build/*'
+    - Pods/*
+    - '*/Pods/*'
+    - Carthage/*
+    - '*/Carthage/*'
+    language: swift
+    rule:
+      kind: simple_identifier
+      pattern: $CASE
+      inside:
+        kind: enum_entry
+        inside:
+          kind: enum_class_body
+          inside:
+            kind: class_declaration
+            has:
+              field: name
+              regex: (Destination|Route|Screen|Tab|StartingPoint)$
+              pattern: $ENUM
+    fields:
+      path: /{ENUM}/{CASE}
+      name: '{ENUM}.{CASE}'
+      attributes:
+        destination_enum: '{ENUM}'
+        destination_case: '{CASE}'
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    unresolved:
+      any:
+      - kind: call_suffix
+        follows:
+          any:
+          - kind: navigation_expression
+            has:
+              kind: navigation_suffix
+              regex: ^\.(navigationDestination|sheet|fullScreenCover)$
+          - kind: simple_identifier
+            regex: ^(navigationDestination|sheet|fullScreenCover)$
+        has:
+          kind: value_arguments
+          has:
+            kind: value_argument
+            has:
+              kind: value_argument_label
+              regex: ^(for|item)$
+      - kind: class_declaration
+        has:
+          kind: inheritance_specifier
+          regex: ^UI(Table|Collection|Page|Navigation|TabBar|Split|Hosting)?ViewController$
+- name: os-entry-points
+  run: abatlas-extract ast
+  layer: system
+  rationale: ウィジェット 5、App Intents 5、通知の拡張 1、アクションの拡張 1 を、準拠するプロトコルで取る。既定のまま。設定の画面だけの
+    intent (WidgetConfigurationIntent) は取らない
+  params:
+    files:
+    - '**/*.swift'
+    exclude:
+    - '*Tests/*'
+    - '*.build/*'
+    - Pods/*
+    - '*/Pods/*'
+    - Carthage/*
+    - '*/Carthage/*'
+    language: swift
+    allow_empty: true
+    rule:
+      kind: class_declaration
+      all:
+      - has:
+          field: name
+          pattern: $NAME
+      - has:
+          kind: inheritance_specifier
+          regex: ^(Widget|ControlWidget|AppIntent|AudioPlaybackIntent|LiveActivityIntent|ForegroundContinuableIntent|UNNotificationServiceExtension|UNNotificationContentExtension|NSExtensionRequestHandling)$
+          pattern: $BASE
+    fields:
+      path: /(system)/{BASE}/{NAME}
+      name: '{NAME}'
+      attributes:
+        conforms_to: '{BASE}'
+    segments:
+      replace:
+      - pattern: ^(Widget|ControlWidget)$
+        with: widget
+      - pattern: ^(AppIntent|AudioPlaybackIntent|LiveActivityIntent|ForegroundContinuableIntent)$
+        with: intent
+      - pattern: ^UNNotification(Service|Content)Extension$
+        with: notification
+      - pattern: ^NSExtensionRequestHandling$
+        with: extension
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(([a-z])([a-z]*)\)$
+        with: \1\2_\1
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+- name: agent-listed-screen
+  run: abatlas-extract listed
+  layer: screen
+  rationale: 行き先の enum を通らずに、設定の画面とフィルターの一覧から push で開く View のうち、行き先の enum の入口が描く View
+    と別のもので、保存や API を使うもの。push の先は、開く側に含めると、設定の画面 1 件が 12 画面ぶんになるため、別の入口にする。IconSelectorView
+    (アプリのアイコンを OS の API で替えるだけ)、ThemePreviewView (見た目だけ)、SceneDelegate (window の大きさを見るだけ)
+    は、保存も API も使わないので足さない。AboutView / SupportAppView / AddAccountView / PushNotificationsView
+    は、SheetDestination の入口が同じ View を描くので足さない
+  params:
+    entries:
+    - id: view_v.TabbarEntriesSettingsView
+      path: /(view)/TabbarEntriesSettingsView
+      name: TabbarEntriesSettingsView
+      source:
+        file: IceCubesApp/App/Tabs/Settings/TabbarEntriesSettingsView.swift
+        line: 6
+      reason: 設定の画面から NavigationLink(destination:) で開く (SettingsTab.swift:193)。タブの並びを
+        iOSTabs に書き、@AppStorage (UserDefaults) に保存する。SettingsStartingPoint.tabAndSidebarEntries
+        は EmptyView を描くので、この View の入口にはならない
+    - id: view_v.WishlistView
+      path: /(view)/WishlistView
+      name: WishlistView
+      source:
+        file: IceCubesApp/App/Tabs/Settings/WishlistView.swift
+        line: 6
+      reason: 設定の画面から NavigationLink で開く (SettingsTab.swift:337)。WishKit の SDK の画面を描き、要望の一覧を他社のサービスから読む
+    - id: view_v.EditFilterView
+      path: /(view)/EditFilterView
+      name: EditFilterView
+      source:
+        file: Packages/Account/Sources/Account/Filters/EditFilterView.swift
+        line: 8
+      reason: フィルターの一覧 (SheetDestination.accountFiltersList の FiltersListView) から
+        NavigationLink(destination:) で開く (FiltersListView.swift:31、63)。フィルターを API
+        で作る・直す・消す (EditFilterView.swift:288、292、319)
+- name: agent-listed-shell
+  run: abatlas-extract listed
+  layer: shell
+  rationale: アプリ全体の枠。@main の App、AppDelegate、タブを持つルートの View、app の scene が描く共通の sheet
+    (メディアの表示)。SceneDelegate (DesignSystem/SceneDelegate.swift) は window の大きさを見るだけで、保存も
+    API も使わないので足さない
+  params:
+    entries:
+    - id: shell_s.app
+      path: /(shell)/app
+      name: IceCubesApp
+      source:
+        file: IceCubesApp/App/Main/IceCubesApp.swift
+        line: 19
+      reason: '@main の App。scene の onAppear で RevenueCat と通知の登録 (IceCubesApp+Scene.swift:12)、withAppDependencyGraph
+        の task でインスタンスの取得とストリーミングの接続 (AppRegistry.swift:44)、scenePhase の変化でストリーミングと通知の件数とサーバーの設定の読み込み
+        (IceCubesApp.swift:57)'
+    - id: shell_s.delegate.AppDelegate
+      path: /(shell)/delegate/AppDelegate
+      name: AppDelegate
+      source:
+        file: IceCubesApp/App/Main/IceCubesApp.swift
+        line: 89
+      reason: '@UIApplicationDelegateAdaptor で渡す AppDelegate。起動のときに通知のアカウントを設定し、計測を送る
+        (IceCubesApp.swift:96-98)。通知の token を受けて、購読をサーバーへ登録する (IceCubesApp.swift:105-113)'
+    - id: shell_s.root.AppView
+      path: /(shell)/root/AppView
+      name: AppView
+      source:
+        file: IceCubesApp/App/Main/AppView.swift
+        line: 17
+      reason: app の scene が最初に描く View で、TabView を持つ (IceCubesApp+Scene.swift:10)。SwiftData
+        の LocalTimeline と TagGroup を @Query で読み、@AppStorage のピン留めのフィルターを読む (AppView.swift:34-37)
+    - id: shell_s.part.MediaUIView
+      path: /(shell)/part/MediaUIView
+      name: MediaUIView
+      source:
+        file: Packages/MediaUI/Sources/MediaUI/MediaUIView.swift
+        line: 8
+      reason: 'app の scene が sheet(item: $quickLook.selectedMediaAttachment) で描く (IceCubesApp+Scene.swift:29)。どの画面からでも、投稿の画像を開くと出る。画像を
+        URLSession で読み込み、写真のライブラリへ保存する (MediaUIView.swift:181、197)'
+- name: agent-listed-system
+  run: abatlas-extract listed
+  layer: system
+  rationale: Info.plist だけで決まる、OS から起動される入口。共有の拡張は principal class が UIViewController
+    なので抽出器で取れない。URL スキームの受け口は onOpenURL。BGTaskScheduler とバックグラウンドのタスクは使っていない (rg で確かめた)。ユニバーサルリンク
+    (applinks) は entitlements に無い
+  params:
+    entries:
+    - id: system_s.extension.ShareViewController
+      path: /(system)/extension/ShareViewController
+      name: ShareViewController
+      source:
+        file: IceCubesShareExtension/ShareViewController.swift
+        line: 11
+      reason: 共有の拡張の NSExtensionPrincipalClass (IceCubesShareExtension/Info.plist:26)。ほかのアプリから共有したものを、投稿の編集の画面で開く
+    - id: system_s.link.icecubesapp
+      path: /(system)/link/icecubesapp
+      name: icecubesapp
+      source:
+        file: IceCubesApp/App/Router/SafariRouter.swift
+        line: 38
+      reason: Info.plist の CFBundleURLSchemes の icecubesapp (IceCubesApp/Info.plist:14)。onOpenURL
+        で受けて、https に書き換えて handleDeepLink に渡す。投稿の画面へ移る前に、サーバーの peers を読むことがある (Router.swift:245)
+entries:
+- id: AppTab.anyTimelineFilter
+  path: /AppTab/anyTimelineFilter
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 23
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.anyTimelineFilter
+  attributes:
+    destination_enum: AppTab
+    destination_case: anyTimelineFilter
+- id: AppTab.bookmarks
+  path: /AppTab/bookmarks
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 16
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.bookmarks
+  attributes:
+    destination_enum: AppTab
+    destination_case: bookmarks
+- id: AppTab.explore
+  path: /AppTab/explore
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.explore
+  attributes:
+    destination_enum: AppTab
+    destination_case: explore
+- id: AppTab.favorites
+  path: /AppTab/favorites
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 17
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.favorites
+  attributes:
+    destination_enum: AppTab
+    destination_case: favorites
+- id: AppTab.federated
+  path: /AppTab/federated
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 14
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.federated
+  attributes:
+    destination_enum: AppTab
+    destination_case: federated
+- id: AppTab.followedTags
+  path: /AppTab/followedTags
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 20
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.followedTags
+  attributes:
+    destination_enum: AppTab
+    destination_case: followedTags
+- id: AppTab.links
+  path: /AppTab/links
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 22
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.links
+  attributes:
+    destination_enum: AppTab
+    destination_case: links
+- id: AppTab.lists
+  path: /AppTab/lists
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 21
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.lists
+  attributes:
+    destination_enum: AppTab
+    destination_case: lists
+- id: AppTab.local
+  path: /AppTab/local
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 14
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.local
+  attributes:
+    destination_enum: AppTab
+    destination_case: local
+- id: AppTab.mentions
+  path: /AppTab/mentions
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.mentions
+  attributes:
+    destination_enum: AppTab
+    destination_case: mentions
+- id: AppTab.messages
+  path: /AppTab/messages
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.messages
+  attributes:
+    destination_enum: AppTab
+    destination_case: messages
+- id: AppTab.metrics
+  path: /AppTab/metrics
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 18
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.metrics
+  attributes:
+    destination_enum: AppTab
+    destination_case: metrics
+- id: AppTab.notifications
+  path: /AppTab/notifications
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.notifications
+  attributes:
+    destination_enum: AppTab
+    destination_case: notifications
+- id: AppTab.other
+  path: /AppTab/other
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.other
+  attributes:
+    destination_enum: AppTab
+    destination_case: other
+- id: AppTab.post
+  path: /AppTab/post
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 19
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.post
+  attributes:
+    destination_enum: AppTab
+    destination_case: post
+- id: AppTab.profile
+  path: /AppTab/profile
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 15
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.profile
+  attributes:
+    destination_enum: AppTab
+    destination_case: profile
+- id: AppTab.settings
+  path: /AppTab/settings
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.settings
+  attributes:
+    destination_enum: AppTab
+    destination_case: settings
+- id: AppTab.timeline
+  path: /AppTab/timeline
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.timeline
+  attributes:
+    destination_enum: AppTab
+    destination_case: timeline
+- id: AppTab.trending
+  path: /AppTab/trending
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Tabs.swift
+    line: 14
+  extractor: swiftui-destinations
+  status: candidate
+  name: AppTab.trending
+  attributes:
+    destination_enum: AppTab
+    destination_case: trending
+- id: RouterDestination.accountDetail
+  path: /RouterDestination/accountDetail
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 9
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.accountDetail
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: accountDetail
+- id: RouterDestination.accountDetailWithAccount
+  path: /RouterDestination/accountDetailWithAccount
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 10
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.accountDetailWithAccount
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: accountDetailWithAccount
+- id: RouterDestination.accountMediaGridView
+  path: /RouterDestination/accountMediaGridView
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 12
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.accountMediaGridView
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: accountMediaGridView
+- id: RouterDestination.accountSettingsWithAccount
+  path: /RouterDestination/accountSettingsWithAccount
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 11
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.accountSettingsWithAccount
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: accountSettingsWithAccount
+- id: RouterDestination.accountsList
+  path: /RouterDestination/accountsList
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 25
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.accountsList
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: accountsList
+- id: RouterDestination.blockedAccounts
+  path: /RouterDestination/blockedAccounts
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 32
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.blockedAccounts
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: blockedAccounts
+- id: RouterDestination.collectionDetail
+  path: /RouterDestination/collectionDetail
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 19
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.collectionDetail
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: collectionDetail
+- id: RouterDestination.conversationDetail
+  path: /RouterDestination/conversationDetail
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 16
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.conversationDetail
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: conversationDetail
+- id: RouterDestination.conversations
+  path: /RouterDestination/conversations
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 34
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.conversations
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: conversations
+- id: RouterDestination.favoritedBy
+  path: /RouterDestination/favoritedBy
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 22
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.favoritedBy
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: favoritedBy
+- id: RouterDestination.followers
+  path: /RouterDestination/followers
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 20
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.followers
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: followers
+- id: RouterDestination.following
+  path: /RouterDestination/following
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 21
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.following
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: following
+- id: RouterDestination.hashTag
+  path: /RouterDestination/hashTag
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 17
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.hashTag
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: hashTag
+- id: RouterDestination.instanceInfo
+  path: /RouterDestination/instanceInfo
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 35
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.instanceInfo
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: instanceInfo
+- id: RouterDestination.linkTimeline
+  path: /RouterDestination/linkTimeline
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 27
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.linkTimeline
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: linkTimeline
+- id: RouterDestination.list
+  path: /RouterDestination/list
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 18
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.list
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: list
+- id: RouterDestination.metrics
+  path: /RouterDestination/metrics
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 36
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.metrics
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: metrics
+- id: RouterDestination.mutedAccounts
+  path: /RouterDestination/mutedAccounts
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 33
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.mutedAccounts
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: mutedAccounts
+- id: RouterDestination.notificationForAccount
+  path: /RouterDestination/notificationForAccount
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 31
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.notificationForAccount
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: notificationForAccount
+- id: RouterDestination.notificationsRequests
+  path: /RouterDestination/notificationsRequests
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 30
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.notificationsRequests
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: notificationsRequests
+- id: RouterDestination.quotes
+  path: /RouterDestination/quotes
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 24
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.quotes
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: quotes
+- id: RouterDestination.rebloggedBy
+  path: /RouterDestination/rebloggedBy
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 23
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.rebloggedBy
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: rebloggedBy
+- id: RouterDestination.remoteStatusDetail
+  path: /RouterDestination/remoteStatusDetail
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 15
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.remoteStatusDetail
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: remoteStatusDetail
+- id: RouterDestination.statusDetail
+  path: /RouterDestination/statusDetail
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 13
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.statusDetail
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: statusDetail
+- id: RouterDestination.statusDetailWithStatus
+  path: /RouterDestination/statusDetailWithStatus
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 14
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.statusDetailWithStatus
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: statusDetailWithStatus
+- id: RouterDestination.tagsList
+  path: /RouterDestination/tagsList
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 29
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.tagsList
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: tagsList
+- id: RouterDestination.trendingLinks
+  path: /RouterDestination/trendingLinks
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 28
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.trendingLinks
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: trendingLinks
+- id: RouterDestination.trendingTimeline
+  path: /RouterDestination/trendingTimeline
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 26
+  extractor: swiftui-destinations
+  status: candidate
+  name: RouterDestination.trendingTimeline
+  attributes:
+    destination_enum: RouterDestination
+    destination_case: trendingTimeline
+- id: SettingsStartingPoint.content
+  path: /SettingsStartingPoint/content
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 131
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.content
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: content
+- id: SettingsStartingPoint.display
+  path: /SettingsStartingPoint/display
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 126
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.display
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: display
+- id: SettingsStartingPoint.haptic
+  path: /SettingsStartingPoint/haptic
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 127
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.haptic
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: haptic
+- id: SettingsStartingPoint.recentTags
+  path: /SettingsStartingPoint/recentTags
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 130
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.recentTags
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: recentTags
+- id: SettingsStartingPoint.remoteTimelines
+  path: /SettingsStartingPoint/remoteTimelines
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 128
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.remoteTimelines
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: remoteTimelines
+- id: SettingsStartingPoint.swipeActions
+  path: /SettingsStartingPoint/swipeActions
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 132
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.swipeActions
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: swipeActions
+- id: SettingsStartingPoint.tabAndSidebarEntries
+  path: /SettingsStartingPoint/tabAndSidebarEntries
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 133
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.tabAndSidebarEntries
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: tabAndSidebarEntries
+- id: SettingsStartingPoint.tagGroups
+  path: /SettingsStartingPoint/tagGroups
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 129
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.tagGroups
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: tagGroups
+- id: SettingsStartingPoint.translation
+  path: /SettingsStartingPoint/translation
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 134
+  extractor: swiftui-destinations
+  status: candidate
+  name: SettingsStartingPoint.translation
+  attributes:
+    destination_enum: SettingsStartingPoint
+    destination_case: translation
+- id: SheetDestination.about
+  path: /SheetDestination/about
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 78
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.about
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: about
+- id: SheetDestination.accountEditInfo
+  path: /SheetDestination/accountEditInfo
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 85
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.accountEditInfo
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: accountEditInfo
+- id: SheetDestination.accountFiltersList
+  path: /SheetDestination/accountFiltersList
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 86
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.accountFiltersList
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: accountFiltersList
+- id: SheetDestination.accountPushNotficationsSettings
+  path: /SheetDestination/accountPushNotficationsSettings
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 80
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.accountPushNotficationsSettings
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: accountPushNotficationsSettings
+- id: SheetDestination.addAccount
+  path: /SheetDestination/addAccount
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 73
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.addAccount
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: addAccount
+- id: SheetDestination.addRemoteLocalTimeline
+  path: /SheetDestination/addRemoteLocalTimeline
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 74
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.addRemoteLocalTimeline
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: addRemoteLocalTimeline
+- id: SheetDestination.addTagGroup
+  path: /SheetDestination/addTagGroup
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 75
+  extractor: swiftui-destinations
+  status: approved
+  name: SheetDestination.addTagGroup
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: addTagGroup
+- id: SheetDestination.editStatusEditor
+  path: /SheetDestination/editStatusEditor
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 65
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.editStatusEditor
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: editStatusEditor
+- id: SheetDestination.editTagGroup
+  path: /SheetDestination/editTagGroup
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 83
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.editTagGroup
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: editTagGroup
+- id: SheetDestination.imageURL
+  path: /SheetDestination/imageURL
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 64
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.imageURL
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: imageURL
+- id: SheetDestination.listAddAccount
+  path: /SheetDestination/listAddAccount
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 72
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.listAddAccount
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: listAddAccount
+- id: SheetDestination.listCreate
+  path: /SheetDestination/listCreate
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 70
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.listCreate
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: listCreate
+- id: SheetDestination.listEdit
+  path: /SheetDestination/listEdit
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 71
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.listEdit
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: listEdit
+- id: SheetDestination.mentionStatusEditor
+  path: /SheetDestination/mentionStatusEditor
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 69
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.mentionStatusEditor
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: mentionStatusEditor
+- id: SheetDestination.newStatusEditor
+  path: /SheetDestination/newStatusEditor
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 62
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.newStatusEditor
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: newStatusEditor
+- id: SheetDestination.prefilledStatusEditor
+  path: /SheetDestination/prefilledStatusEditor
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 63
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.prefilledStatusEditor
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: prefilledStatusEditor
+- id: SheetDestination.quoteLinkStatusEditor
+  path: /SheetDestination/quoteLinkStatusEditor
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 68
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.quoteLinkStatusEditor
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: quoteLinkStatusEditor
+- id: SheetDestination.quoteStatusEditor
+  path: /SheetDestination/quoteStatusEditor
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 67
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.quoteStatusEditor
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: quoteStatusEditor
+- id: SheetDestination.replyToStatusEditor
+  path: /SheetDestination/replyToStatusEditor
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 66
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.replyToStatusEditor
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: replyToStatusEditor
+- id: SheetDestination.report
+  path: /SheetDestination/report
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 81
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.report
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: report
+- id: SheetDestination.settings
+  path: /SheetDestination/settings
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 77
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.settings
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: settings
+- id: SheetDestination.shareImage
+  path: /SheetDestination/shareImage
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 82
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.shareImage
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: shareImage
+- id: SheetDestination.statusEditHistory
+  path: /SheetDestination/statusEditHistory
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 76
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.statusEditHistory
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: statusEditHistory
+- id: SheetDestination.support
+  path: /SheetDestination/support
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 79
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.support
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: support
+- id: SheetDestination.timelineContentFilter
+  path: /SheetDestination/timelineContentFilter
+  layer: screen
+  source:
+    file: Packages/Env/Sources/Env/Router.swift
+    line: 84
+  extractor: swiftui-destinations
+  status: candidate
+  name: SheetDestination.timelineContentFilter
+  attributes:
+    destination_enum: SheetDestination
+    destination_case: timelineContentFilter
+- id: shell_s.app
+  path: /(shell)/app
+  layer: shell
+  source:
+    file: IceCubesApp/App/Main/IceCubesApp.swift
+    line: 19
+  extractor: agent-listed-shell
+  status: candidate
+  name: IceCubesApp
+  attributes:
+    listed_by: agent
+    reason: '@main の App。scene の onAppear で RevenueCat と通知の登録 (IceCubesApp+Scene.swift:12)、withAppDependencyGraph
+      の task でインスタンスの取得とストリーミングの接続 (AppRegistry.swift:44)、scenePhase の変化でストリーミングと通知の件数とサーバーの設定の読み込み
+      (IceCubesApp.swift:57)'
+- id: shell_s.delegate.AppDelegate
+  path: /(shell)/delegate/AppDelegate
+  layer: shell
+  source:
+    file: IceCubesApp/App/Main/IceCubesApp.swift
+    line: 89
+  extractor: agent-listed-shell
+  status: approved
+  name: AppDelegate
+  attributes:
+    listed_by: agent
+    reason: '@UIApplicationDelegateAdaptor で渡す AppDelegate。起動のときに通知のアカウントを設定し、計測を送る
+      (IceCubesApp.swift:96-98)。通知の token を受けて、購読をサーバーへ登録する (IceCubesApp.swift:105-113)'
+- id: shell_s.part.MediaUIView
+  path: /(shell)/part/MediaUIView
+  layer: shell
+  source:
+    file: Packages/MediaUI/Sources/MediaUI/MediaUIView.swift
+    line: 8
+  extractor: agent-listed-shell
+  status: candidate
+  name: MediaUIView
+  attributes:
+    listed_by: agent
+    reason: 'app の scene が sheet(item: $quickLook.selectedMediaAttachment) で描く (IceCubesApp+Scene.swift:29)。どの画面からでも、投稿の画像を開くと出る。画像を
+      URLSession で読み込み、写真のライブラリへ保存する (MediaUIView.swift:181、197)'
+- id: shell_s.root.AppView
+  path: /(shell)/root/AppView
+  layer: shell
+  source:
+    file: IceCubesApp/App/Main/AppView.swift
+    line: 17
+  extractor: agent-listed-shell
+  status: candidate
+  name: AppView
+  attributes:
+    listed_by: agent
+    reason: app の scene が最初に描く View で、TabView を持つ (IceCubesApp+Scene.swift:10)。SwiftData
+      の LocalTimeline と TagGroup を @Query で読み、@AppStorage のピン留めのフィルターを読む (AppView.swift:34-37)
+- id: system_s.extension.ActionRequestHandler
+  path: /(system)/extension/ActionRequestHandler
+  layer: system
+  source:
+    file: IceCubesActionExtension/ActionRequestHandler.swift
+    line: 17
+  extractor: os-entry-points
+  status: candidate
+  name: ActionRequestHandler
+  attributes:
+    conforms_to: NSExtensionRequestHandling
+- id: system_s.extension.ShareViewController
+  path: /(system)/extension/ShareViewController
+  layer: system
+  source:
+    file: IceCubesShareExtension/ShareViewController.swift
+    line: 11
+  extractor: agent-listed-system
+  status: candidate
+  name: ShareViewController
+  attributes:
+    listed_by: agent
+    reason: 共有の拡張の NSExtensionPrincipalClass (IceCubesShareExtension/Info.plist:26)。ほかのアプリから共有したものを、投稿の編集の画面で開く
+- id: system_s.intent.InlinePostImageIntent
+  path: /(system)/intent/InlinePostImageIntent
+  layer: system
+  source:
+    file: IceCubesAppIntents/InlinePostImageIntent.swift
+    line: 11
+  extractor: os-entry-points
+  status: candidate
+  name: InlinePostImageIntent
+  attributes:
+    conforms_to: AppIntent
+- id: system_s.intent.InlinePostIntent
+  path: /(system)/intent/InlinePostIntent
+  layer: system
+  source:
+    file: IceCubesAppIntents/InlinePostIntent.swift
+    line: 38
+  extractor: os-entry-points
+  status: candidate
+  name: InlinePostIntent
+  attributes:
+    conforms_to: AppIntent
+- id: system_s.intent.PostImageIntent
+  path: /(system)/intent/PostImageIntent
+  layer: system
+  source:
+    file: IceCubesAppIntents/PostImageIntent.swift
+    line: 4
+  extractor: os-entry-points
+  status: candidate
+  name: PostImageIntent
+  attributes:
+    conforms_to: AppIntent
+- id: system_s.intent.PostIntent
+  path: /(system)/intent/PostIntent
+  layer: system
+  source:
+    file: IceCubesAppIntents/PostIntent.swift
+    line: 4
+  extractor: os-entry-points
+  status: candidate
+  name: PostIntent
+  attributes:
+    conforms_to: AppIntent
+- id: system_s.intent.TabIntent
+  path: /(system)/intent/TabIntent
+  layer: system
+  source:
+    file: IceCubesAppIntents/TabIntent.swift
+    line: 78
+  extractor: os-entry-points
+  status: candidate
+  name: TabIntent
+  attributes:
+    conforms_to: AppIntent
+- id: system_s.link.icecubesapp
+  path: /(system)/link/icecubesapp
+  layer: system
+  source:
+    file: IceCubesApp/App/Router/SafariRouter.swift
+    line: 38
+  extractor: agent-listed-system
+  status: candidate
+  name: icecubesapp
+  attributes:
+    listed_by: agent
+    reason: Info.plist の CFBundleURLSchemes の icecubesapp (IceCubesApp/Info.plist:14)。onOpenURL
+      で受けて、https に書き換えて handleDeepLink に渡す。投稿の画面へ移る前に、サーバーの peers を読むことがある (Router.swift:245)
+- id: system_s.notification.NotificationService
+  path: /(system)/notification/NotificationService
+  layer: system
+  source:
+    file: IceCubesNotifications/NotificationService.swift
+    line: 14
+  extractor: os-entry-points
+  status: candidate
+  name: NotificationService
+  attributes:
+    conforms_to: UNNotificationServiceExtension
+- id: system_s.widget.AccountWidget
+  path: /(system)/widget/AccountWidget
+  layer: system
+  source:
+    file: IceCubesAppWidgetsExtension/AccountWidget/AccountWidget.swift
+    line: 52
+  extractor: os-entry-points
+  status: candidate
+  name: AccountWidget
+  attributes:
+    conforms_to: Widget
+- id: system_s.widget.HashtagPostsWidget
+  path: /(system)/widget/HashtagPostsWidget
+  layer: system
+  source:
+    file: IceCubesAppWidgetsExtension/HashtagPostsWidget/HashtagPostsWidget.swift
+    line: 79
+  extractor: os-entry-points
+  status: candidate
+  name: HashtagPostsWidget
+  attributes:
+    conforms_to: Widget
+- id: system_s.widget.LatestPostsWidget
+  path: /(system)/widget/LatestPostsWidget
+  layer: system
+  source:
+    file: IceCubesAppWidgetsExtension/LatestPostsWidget/LatestPostsWidget.swift
+    line: 97
+  extractor: os-entry-points
+  status: approved
+  name: LatestPostsWidget
+  attributes:
+    conforms_to: Widget
+- id: system_s.widget.ListsPostWidget
+  path: /(system)/widget/ListsPostWidget
+  layer: system
+  source:
+    file: IceCubesAppWidgetsExtension/ListsWidget/ListsWidget.swift
+    line: 79
+  extractor: os-entry-points
+  status: candidate
+  name: ListsPostWidget
+  attributes:
+    conforms_to: Widget
+- id: system_s.widget.MentionsWidget
+  path: /(system)/widget/MentionsWidget
+  layer: system
+  source:
+    file: IceCubesAppWidgetsExtension/MentionWidget/MentionWidget.swift
+    line: 87
+  extractor: os-entry-points
+  status: candidate
+  name: MentionsWidget
+  attributes:
+    conforms_to: Widget
+- id: view_v.EditFilterView
+  path: /(view)/EditFilterView
+  layer: screen
+  source:
+    file: Packages/Account/Sources/Account/Filters/EditFilterView.swift
+    line: 8
+  extractor: agent-listed-screen
+  status: candidate
+  name: EditFilterView
+  attributes:
+    listed_by: agent
+    reason: フィルターの一覧 (SheetDestination.accountFiltersList の FiltersListView) から NavigationLink(destination:)
+      で開く (FiltersListView.swift:31、63)。フィルターを API で作る・直す・消す (EditFilterView.swift:288、292、319)
+- id: view_v.TabbarEntriesSettingsView
+  path: /(view)/TabbarEntriesSettingsView
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Settings/TabbarEntriesSettingsView.swift
+    line: 6
+  extractor: agent-listed-screen
+  status: candidate
+  name: TabbarEntriesSettingsView
+  attributes:
+    listed_by: agent
+    reason: 設定の画面から NavigationLink(destination:) で開く (SettingsTab.swift:193)。タブの並びを
+      iOSTabs に書き、@AppStorage (UserDefaults) に保存する。SettingsStartingPoint.tabAndSidebarEntries
+      は EmptyView を描くので、この View の入口にはならない
+- id: view_v.WishlistView
+  path: /(view)/WishlistView
+  layer: screen
+  source:
+    file: IceCubesApp/App/Tabs/Settings/WishlistView.swift
+    line: 6
+  extractor: agent-listed-screen
+  status: candidate
+  name: WishlistView
+  attributes:
+    listed_by: agent
+    reason: 設定の画面から NavigationLink で開く (SettingsTab.swift:337)。WishKit の SDK の画面を描き、要望の一覧を他社のサービスから読む
+enumerated_at: '2026-11-18T00:14:39+00:00'

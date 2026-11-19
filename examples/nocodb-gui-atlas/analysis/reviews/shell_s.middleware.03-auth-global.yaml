@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: shell_s.middleware.03-auth-global
+reviewed_at: "2026-11-18T01:33:01Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: medium
+    where: callstack/middleware/rules/4
+    claim: "根拠の 162 行目と 165 行目の signOut は、この版では通らない。useGlobal.refreshToken (composables/useGlobal/actions.ts 124 行目、136 行目、138 行目) は、サーバーに断られたとき (応答がある失敗) は null を返して投げず、投げるのは応答の無い失敗だけなので、middleware の catch に e.response を持つ誤りは届かない (useSharedExecutionFn の待つ側も、錠を取ったタブが投げた誤りだけを受け取る。composables/useSharedExecutionFn.ts 140 行目、130 行目)。断られたときに状態を消すのは、refresh_token のフレームの中の signOut (actions.ts 126 行目、127 行目) で、それも token と user があるときだけ"
+    evidence: { file: composables/useGlobal/actions.ts, line: 136 }
+    suggestion: "ルールの根拠を actions.ts の 124 行目、126 行目、136 行目、138 行目にし、値を「サーバーに断られたら、token と user が残っているときだけ、作り直しの中で状態を消す。応答の無い失敗は投げ直し、middleware の 162 行目の分岐は、この版の refreshToken では通らない」のように直すか、refresh_token のフレームの rules に移す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/middleware/summary
+    claim: "summary の「サーバーに断られた作り直しの後に、ブラウザの中のログインの状態を消す (useGlobal.signOut)」と、根拠の 165 行目は、上の指摘と同じ理由で、この版では通らない経路を書いている (note の「165 行目」も同じ)"
+    evidence: { file: middleware/03.auth.global.ts, line: 162 }
+    suggestion: "summary から 165 行目の signOut の記述を外すか、「この版の refreshToken は断られても投げないので通らない」と note に書く"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/refresh_token/summary
+    claim: "「サーバーに断られたら、ログインの状態を消して誤りの文を出す」には、状態に token と user が残っていて、skipSignOut が false のときだけ、という条件 (actions.ts 126 行目) が抜けている。ログインしていない状態で middleware から呼ばれる経路では、token の期限が切れているときだけ当たる"
+    evidence: { file: composables/useGlobal/actions.ts, line: 126 }
+    suggestion: "summary に、消すのは token と user が残っているときだけ、と条件を足す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/middleware/rules/8
+    claim: "「ログインせずに、ログイン中の状態を消して /signin へ移す」の状態を消す部分は、そのタブがログイン済みのときだけ (281 行目の if)。認可の code の交換は、ログインしていないときにしか動かないので、その経路では消さない"
+    evidence: { file: middleware/03.auth.global.ts, line: 281 }
+    suggestion: "「ログイン済みなら状態を消してから」と条件を書き足す"
+    resolved: true
+notes: "(1) 機械チェックは OK (作業定義の profile.dir から ui-nuxt のプロファイルを読めている)。(2) else の枝 (195 行目) は、ログインしていない利用者が requiresAuth が false の page に来たときにも通るので、load_roles の call.condition と role の guards の「ログイン済みで」は、厳密には狭い。ただし requiresAuth が false の page (signin、signup、共有の view など) には baseId の段が無く、allowedRoles を持つ page も見当たらないので、動きは変わらず、指摘にしなかった。(3) refresh_token のフレームの source は内側の _refreshToken (actions.ts 96 行目) で、middleware が実際に呼ぶのは useSharedExecutionFn が返す包み (composables/useSharedExecutionFn.ts 99 行目)。包みはブラウザの中の保存の錠を扱うだけで、summary にも書いてあるので、辿り漏れにしなかった。(4) checkForRedirect の navigateTo の戻り値を 107 行目で捨てている件は、分析の note のとおり。Nuxt の route middleware の中の navigateTo は、移動せずに行き先を返す作りなので、ui-redirect の移動はここでは効かない疑いが強い。(5) URL の code と short-token を await の前に URL から消す処理 (224 行目、293 行目) は、二重の交換を防ぐ技術上の決まりで、業務のルールとしては数えなかった。(6) 綴りは、ほかの入口の結果 index.typeOrId_d.form.viewId_d と食い違いが無い (host (backend)、sdk:<モジュール>.<関数>、<composable>.<関数> の name)。"

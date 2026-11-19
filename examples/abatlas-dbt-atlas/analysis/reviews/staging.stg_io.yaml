@@ -1,0 +1,21 @@
+format_version: 1
+entry_id: staging.stg_io
+reviewed_at: "2026-11-17T22:31:54Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    resolved: true
+    claim: "入口の概要の「seed の io は分析結果の読み書きを 1 件 1 行にした表」という説明を支える行が根拠に無い (挙げた stg_io.sql:1 と dbt_project.yml:218 は select * と materialized: view の行で、io の中身は示さない)"
+    evidence: { file: dbt_project.yml, line: 74 }
+    suggestion: "seed io の列の型の定義 (dbt_project.yml:74 から始まる entry_id / frame_id / idx / op などの行) を根拠に足す"
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/stg_io/summary
+    resolved: true
+    claim: "フレームの概要の「staging.stg_io の view にする」の view と schema staging を支える行が根拠に無い (stg_io.sql:1 には materialized も schema も書かれていない)"
+    evidence: { file: dbt_project.yml, line: 218 }
+    suggestion: "dbt_project.yml:218 (+materialized: view) と 219 (+schema: staging) を根拠に足す"
+notes: "読み書き 2 件の根拠 (stg_io.sql:1、dbt_project.yml:18 / 74 / 218 / 219、generate_schema_name.sql:6、profiles.yml:6) はすべて主張を支えていた。ref('io') の相手は、範囲に io という model が無く、dbt_project.yml の seeds に io があるので seed で合っている。database を書かなかった扱いは、profiles.yml の path が env_var('ABATLAS_DUCKDB') で決まるため context.md の「読めなければ書かない」に沿うとみて指摘にしなかった (既定値 target/abatlas.duckdb から database 名を abatlas とする書き方もあり得る)。schema.yml の stg_io にテストは無く、範囲に tests/ も unit_tests も hook も無いので、tests・rules・settings・macro のフレームの漏れは無い。"

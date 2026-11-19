@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: shell_s.app
+reviewed_at: "2026-11-19T05:49:56Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: classification_mismatch
+    severity: low
+    resolved: true
+    where: callstack/send_posthog_event/settings/0
+    claim: "isUiAnonymousUsageEnabled の分かれ道 (posthogEvents.ts 15 行) は、このフレームへ着く経路 (trackSavedFilter から) では savedFilterTracking.ts 9 行が先に弾いて閉じているのに、設定をこのフレームに残している。開いている経路は api.sendEventNow (api.ts 162 行) からで、skill 0.4.2 は、開いている呼び出し元の下に条件を持つフレームをもう一度書き、閉じた経路のフレームには閉じた分かれ道の中だけの設定を書かないと決めている。note (5) の「もう一度書くと終端の決まりを満たせない」は、_again のフレームと同じく、external のフレーム (posthog-js capture) までもう一度書けば満たせるので、理由として成り立たない。"
+    evidence: { file: src/utils/analytics/posthogEvents.ts, line: 15 }
+    suggestion: "api_send_event_now の下に、api.posthogEvents と sendPosthogEvent をもう一度書いて、そこに isUiAnonymousUsageEnabled の設定を置き (終端は capturePosthogEvent から posthog-js capture の external のフレームまで)、send_posthog_event からは設定を外して、summary の note に閉じていることだけを書く。"
+notes: "根拠の行は、App.vue、savedFilterTracking.ts、KsFilter.vue、api.ts、posthog.ts、posthogEvents.ts、publicApi.ts、usePosthog.ts、useBaseMisc.ts、uid.ts、basicAuth.ts、Misc.gen.ts / sdk.gen.ts をすべて開いて確かめ、主張を支えていた。手前のコードが弾く枝の扱い (capturePosthogEvent の isUiAnonymousUsageEnabled の部分、ensurePosthogClient の 91 行) は、同じ configs を同期で渡し、=== false の比較で弾いているので、skill の 3 つの条件を満たしている。別の入口にしていない部品 (DocIdDisplay、ServerUnreachableBanner、SdkDriftBanner、VersionUpgradeNotice、UnsavedChangesDialog、PwaInstallPrompt) と useThemeCycle、doc.initResourceUrlTemplate は、API を呼ばないことを確かめた。trackSavedFilter は App.vue が provide するだけで、呼ぶのは画面の KsFilter だが、画面の結果 (kv、flows) はこれを辿っていないので、枠の側に書く扱いで二重に数えることはない。設定の綴りは kv.yaml と同じ。"

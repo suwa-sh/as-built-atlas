@@ -1,0 +1,1114 @@
+format_version: 1
+target:
+  repo: github.com/kestra-io/kestra
+  name: Kestra UI
+  clone_path: ../kestra
+  scope: ui
+  commit: 28867c6f0ef22f14610c8230406c24bcb35ec13a
+profile:
+  id: ui-vue-router
+  version: 0.4.0
+extractors:
+- name: vue-routes
+  run: abatlas-extract ast
+  layer: screen
+  rationale: 画面の定義は src/routes/routes.ts の `const routes = [...]` だけにある (main.ts が
+    initApp に渡し、utils/init.ts が createRouter に渡す)。 同じフォルダの *.spec.ts はテストなので、files
+    をこの 1 ファイルに絞った。 全部の画面の先頭に付く、省ける段 `:tenant?` は segments.drop で落とした (`/` だけの root
+    は (root) になる)。
+  params:
+    files:
+    - src/routes/routes.ts
+    language: typescript
+    rule:
+      kind: object
+      inside:
+        kind: array
+        inside:
+          kind: variable_declarator
+      all:
+      - has:
+          kind: pair
+          all:
+          - has:
+              field: key
+              regex: ^name$
+          - has:
+              field: value
+              kind: string
+              pattern: $NAME
+      - has:
+          kind: pair
+          all:
+          - has:
+              field: key
+              regex: ^path$
+          - has:
+              field: value
+              kind: string
+              pattern: $PATH
+    fields:
+      path: '{PATH}'
+      name: '{NAME}'
+      attributes:
+        route_name: '{NAME}'
+        route_path: '{PATH}'
+    segments:
+      drop:
+      - ^:tenant\?$
+      empty: (root)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^:([A-Za-z0-9_]+)(\(.*\))?[?*]$
+        with: \1_o
+      - pattern: ^:([A-Za-z0-9_]+)(\(.*\))?\+?$
+        with: \1_d
+      - pattern: ^\(root\)$
+        with: root_r
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    unresolved:
+      any:
+      - kind: identifier
+        inside:
+          kind: array
+          inside:
+            kind: variable_declarator
+      - kind: spread_element
+        inside:
+          kind: array
+          inside:
+            kind: variable_declarator
+      - kind: call_expression
+        inside:
+          kind: array
+          inside:
+            kind: variable_declarator
+      - kind: pair
+        all:
+        - has:
+            field: key
+            regex: ^(name|path|children)$
+        - not:
+            has:
+              field: value
+              kind: string
+- name: agent-listed-screen
+  run: abatlas-extract listed
+  layer: screen
+  rationale: routes の配列に、別のファイルで定義した画面が 2 つ (FLOW_ROUTE、EXECUTION_ROUTE) と、name を定数で書いた画面が
+    1 つある。 構文を読む抽出器は、文字で書いた name と path しか取れない。path は、vue-routes と同じく先頭の `:tenant?`
+    を落として書いた。
+  params:
+    entries:
+    - id: flows.edit.namespace_d.id_d
+      path: /flows/edit/:namespace/:id
+      source:
+        file: src/components/flows/flowTabs.ts
+        line: 149
+      reason: src/routes/routes.ts:36 の routes の配列に FLOW_ROUTE として入っている。定義はこのファイルにあり、
+        path は "/:tenant?/flows/edit/:namespace/:id" (文字)、name は定数 FLOW_PARENT_ROUTE
+        = "flows/update"。 別のファイルの定義を名前で並べているので、抽出器では取れない。children (タブ) は、この画面に含める
+    - id: executions.namespace_d.flowId_d.id_d
+      path: /executions/:namespace/:flowId/:id
+      source:
+        file: src/components/executions/executionTabs.ts
+        line: 107
+      reason: src/routes/routes.ts:44 の routes の配列に EXECUTION_ROUTE として入っている。定義はこのファイルにあり、
+        path は "/:tenant?/executions/:namespace/:flowId/:id" (文字)、name は定数 EXECUTION_PARENT_ROUTE
+        = "executions/update"。 別のファイルの定義を名前で並べているので、抽出器では取れない。children (タブ) は、この画面に含める
+    - id: namespaces.edit.id_d
+      path: /namespaces/edit/:id
+      source:
+        file: src/routes/routes.ts
+        line: 70
+      reason: routes の配列の直下の route。path は "/:tenant?/namespaces/edit/:id" (文字) で、component
+        は Namespace.vue。 name を定数 NAMESPACE_PARENT_ROUTE (= "namespaces/update"、src/utils/namespaceTabRoutes.ts:3)
+        で書いているので、抽出器の規則に当たらない。 children (createNamespaceTabRoutes() が作る 16 個のタブ) は、この画面に含める
+- name: agent-listed-shell
+  run: abatlas-extract listed
+  layer: shell
+  rationale: 'アプリ全体の枠は、抽出器が拾わない (プロファイルの決まり)。根のコンポーネント、レイアウト 2 つ、枠が描く共通の部品 8 つ、ルーターの共通の
+    guard を足した。 共通の部品は、プロファイルの版 0.2.0 の決まりで、部品ごとに別の入口にした (App.vue が描く 5 つ、DefaultLayout
+    が描く 3 つ。LeftMenu は OnlyLeftMenuLayout も描く)。 枠が描く部品のうち、API にも外部への送信にも至らないことを確かめて、入口にしていないもの:
+    DocIdDisplay (App.vue:2。doc の store の状態を出すだけ)、ServerUnreachableBanner (App.vue:4。画面の中の状態を出すだけ)、SdkDriftBanner
+    (App.vue:5。開発のビルドだけで描かれ、window のイベントを聞くだけ)、VersionUpgradeNotice (App.vue:6。misc
+    の store に読み込み済みの設定と localStorage を見るだけ)、UnsavedChangesDialog (App.vue:17。画面の中の状態だけ)、PwaInstallPrompt
+    (App.vue:20。ブラウザのインストールの確認だけ)、RouteTabsSidebar (DefaultLayout.vue:3。routeTabs
+    の store に入ったタブへのリンクと、ツアーへのリンクを出すだけ)、Errors (DefaultLayout.vue:5 と OnlyLeftMenuLayout.vue:4。固定の文言と画像だけ)。
+    FullScreenLayout (src/components/layout/FullScreenLayout.vue。setup と login の meta.layout)
+    は、<router-view> を div で包むだけで、 store も API も呼ばないことを確かめたので、入口にしていない。root の meta.layout
+    ({template: "<div />"}) も、同じ理由で入口にしていない。'
+  params:
+    entries:
+    - id: shell_s.part.ErrorToast
+      path: /(shell)/part/ErrorToast
+      source:
+        file: src/components/ErrorToast.vue
+        line: 1
+      reason: src/App.vue:3 が、テンプレートに直接書いて描く共通の部品 (エラーの通知)。エラーを出すたびに apiStore.events
+        (ErrorToast.vue:89) を呼び、利用状況を外へ送る。route の定義ではないので、抽出器では取れない
+    - id: shell_s.part.AppTopNavBar
+      path: /(shell)/part/AppTopNavBar
+      source:
+        file: src/components/layout/AppTopNavBar.vue
+        line: 1
+      reason: src/App.vue:8 が、テンプレートに直接書いて描く共通の部品 (上のバー)。GlobalSearch、AiMenuIcon、NotificationBell
+        (AppTopNavBar.vue:33、50、52) を描き、NotificationBell が notifications の store から通知の
+        API を呼ぶ。route の定義ではないので、抽出器では取れない
+    - id: shell_s.part.TourOverlay
+      path: /(shell)/part/TourOverlay
+      source:
+        file: src/components/onboarding/tour/TourOverlay.vue
+        line: 1
+      reason: src/App.vue:16 が、テンプレートに直接書いて描く共通の部品 (製品のツアー。App.vue:60 の defineAsyncComponent
+        で読み込む)。useOnboardingAnalytics (TourOverlay.vue:164) が計測を外へ送り、ツアーの操作が flow
+        や実行の API を呼ぶ。route の定義ではないので、抽出器では取れない
+    - id: shell_s.part.ReauthDialog
+      path: /(shell)/part/ReauthDialog
+      source:
+        file: src/components/ReauthDialog.vue
+        line: 1
+      reason: src/App.vue:18 が、テンプレートに直接書いて描く共通の部品 (再ログインの小窓)。submitReauth (ReauthDialog.vue:65
+        で import) が、ログインの API を呼ぶ。route の定義ではないので、抽出器では取れない
+    - id: shell_s.part.DrillDownDrawer
+      path: /(shell)/part/DrillDownDrawer
+      source:
+        file: src/components/dashboard/DrillDownDrawer.vue
+        line: 1
+      reason: src/App.vue:19 が、テンプレートに直接書いて描く共通の部品 (ダッシュボードの掘り下げの引き出し)。開いたときに、掘り下げ先の検索
+        (DrillDownDrawer.vue:90) と LogsWrapper (同 9) が、実行・flow・ログの API を呼ぶ。route の定義ではないので、抽出器では取れない
+    - id: shell_s.part.LeftMenu
+      path: /(shell)/part/LeftMenu
+      source:
+        file: src/override/components/LeftMenu.vue
+        line: 1
+      reason: src/override/components/layout/DefaultLayout.vue:2 と src/components/layout/OnlyLeftMenuLayout.vue:2
+        が、テンプレートに直接書いて描く共通の部品 (左のメニュー)。2 つの枠が描くが、入口は 1 件にした。Auth (LeftMenu.vue:14)
+        のログアウトが BasicAuth.logout を、パスワード変更の小窓が miscStore.changeBasicAuth (ChangePasswordDialog.vue:122)
+        を呼び、ProductTourItem (LeftMenu.vue:11) が描かれたときに flow の検索 (tourVariant.ts:35
+        の shouldShowWelcome) を呼ぶ。route の定義ではないので、抽出器では取れない
+    - id: shell_s.part.ContextDrawer
+      path: /(shell)/part/ContextDrawer
+      source:
+        file: src/components/ContextDrawer.vue
+        line: 1
+      reason: src/override/components/layout/DefaultLayout.vue:8 が、テンプレートに直接書いて描く共通の部品
+        (右の引き出し)。useContextButtons (ContextDrawer.vue:58) が並べるタブ (src/override/composables/contextButtons.ts:24-27
+        の ContextNews、ContextDocs、ContextNotifications、CopilotChat) を描き、文書の読み込み (doc
+        の store の fetchResource) や通知の API を呼ぶ。route の定義ではないので、抽出器では取れない
+    - id: shell_s.part.SurveyDialog
+      path: /(shell)/part/SurveyDialog
+      source:
+        file: src/components/SurveyDialog.vue
+        line: 1
+      reason: src/override/components/layout/DefaultLayout.vue:10 が、テンプレートに直接書いて描く共通の部品
+        (ログインの後のアンケート)。答えを apiStore.posthogEvents (SurveyDialog.vue:161) で外へ送る。route
+        の定義ではないので、抽出器では取れない
+    - id: shell_s.app
+      path: /(shell)/app
+      source:
+        file: src/App.vue
+        line: 1
+      reason: src/main.ts:33 の createApp(App) に渡している根のコンポーネント。miscStore.loadConfigs()、docStore.initResourceUrlTemplate()、
+        apiStore.loadFeeds() を呼び、AppTopNavBar などの共通の部品を描く。route の定義ではないので、抽出器では取れない
+    - id: shell_s.layout.DefaultLayout
+      path: /(shell)/layout/DefaultLayout
+      source:
+        file: src/override/components/layout/DefaultLayout.vue
+        line: 1
+      reason: src/App.vue:10 が、route の meta.layout が無いときに描く既定のレイアウト。LeftMenu (Auth
+        の中のパスワード変更が miscStore.changeBasicAuth を呼ぶ) と、 ContextDrawer (通知の一覧が notifications
+        の store から SDK を呼ぶ) を描くので、データを読み書きする。route の定義ではないので、抽出器では取れない。 迷った点 (版 0.2.0)。描いている部品
+        (LeftMenu、ContextDrawer、SurveyDialog) を別の入口 (shell_s.part.*) にしたので、このファイル自身は
+        layout の store と localStorage を使うだけで、API を呼ばない。部品を分けた後も入口に残すかが、プロファイルから決められないので、入口のままにした
+        (承認のときに、人が外せる)
+    - id: shell_s.layout.OnlyLeftMenuLayout
+      path: /(shell)/layout/OnlyLeftMenuLayout
+      source:
+        file: src/components/layout/OnlyLeftMenuLayout.vue
+        line: 1
+      reason: src/routes/routes.ts:92 の docs/view が meta.layout に指定しているレイアウト。LeftMenu
+        を描き、その中の Auth のパスワード変更が miscStore.changeBasicAuth を呼ぶので、データの書き込みに至る。route
+        の定義ではないので、抽出器では取れない。 迷った点 (版 0.2.0)。描いている部品 (LeftMenu) を別の入口 (shell_s.part.LeftMenu)
+        にしたので、このファイル自身は layout の store を使うだけで、API を呼ばない。部品を分けた後も入口に残すかが、プロファイルから決められないので、入口のままにした
+        (承認のときに、人が外せる)
+    - id: shell_s.guard
+      path: /(shell)/guard
+      source:
+        file: src/utils/eventsRouter.ts
+        line: 35
+      reason: 'ルーターの共通の guard を 1 件にまとめた入口。データを読む・外へ送る guard は 3 つ。登録の場所は: src/utils/eventsRouter.ts:35
+        の afterEach (apiStore.events が利用状況を外へ送る)、 src/utils/init.ts:58 の beforeResolve
+        (src/main.ts:106 の関数を、main.ts:171 で initApp に渡している。miscStore.loadLoginConfig
+        / loadBasicAuthValidationErrors / loadConfigs)、 src/utils/init.ts:63 の entityNotFoundGuard
+        (定義は src/utils/routeEntityGuard.ts:55。route の meta.entity が store の読み込みを呼ぶ)。
+        source は、プロファイルの決まり (登録している行のうち、ファイルのパスの辞書順でいちばん早いファイルの、いちばん小さい行) で、eventsRouter.ts:35
+        にした。データを読まない guard の登録 (init.ts:48、49、52、55、69、src/utils/kestraHttp.ts:300
+        と 305、src/utils/unsavedChange.ts:23、src/composables/useRestoreUrl.ts:78) は、数えていない。route
+        の定義ではないので、抽出器では取れない'
+- name: agent-listed-part
+  run: abatlas-extract listed
+  layer: part
+  rationale: 'ダッシュボードのチャートは、登録表 src/components/dashboard/dashboard-types.ts の TYPES
+    (11-16 行。チャートの種類の名前 → コンポーネント) から、保存されたダッシュボードの定義の chart.type で引いて描く (src/components/dashboard/sections/Sections.vue:60)。
+    6 項目すべてが useChartGenerator (src/components/dashboard/composables/useDashboards.ts:93
+    の dashboardStore.generate) でチャートのデータの API を呼ぶ (Markdown は、source.type が FlowDescription
+    のときだけ)。データに届く部品が 3 つ以上なので、プロファイルの決まりで、項目 1 つ = 入口 1 件にした。 どの項目も、route の component
+    ではない。 登録表に当てはめなかった、近い対応表: src/components/no-code/components/tasks/getTaskComponent.ts:12
+    の import.meta.glob("./Task*.vue") (flow の編集の入力欄。キーは、保存された値ではなく、サーバーが返すプラグインの schema
+    の形から getType で組み立てる型の名前なので、今回は外した)、 src/override/components/executions/executionsExtensions.ts:20
+    の cellComponents と executionTabsExtension.ts:14 の secondaryActionComponents (OSS
+    では中身が空)、src/components/dashboard/sections/Table.vue:40 の resolvedComponent (表の列の名前で引くセルの見た目だけ)。
+    id は、キー (クラスの完全な名前) から記号 (.) を除いたもの。登録表の名前の - は、画面の id と同じく残した'
+  params:
+    entries:
+    - id: part_p.dashboard-types.iokestraplugincoredashboardchartBar
+      path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Bar
+      name: Bar
+      source:
+        file: src/components/dashboard/dashboard-types.ts
+        line: 11
+      reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Bar (sections/Bar.vue)。Bar.vue:91
+        の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+        は Dashboard.vue:24 (home、flow と namespace の概要のタブ)、Executions.vue:97、LogsWrapper.vue:25
+        が描く
+    - id: part_p.dashboard-types.iokestraplugincoredashboardchartKPI
+      path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.KPI
+      name: KPI
+      source:
+        file: src/components/dashboard/dashboard-types.ts
+        line: 12
+      reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.KPI (sections/KPI.vue)。KPI.vue:52
+        の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+        は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+    - id: part_p.dashboard-types.iokestraplugincoredashboardchartMarkdown
+      path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Markdown
+      name: Markdown
+      source:
+        file: src/components/dashboard/dashboard-types.ts
+        line: 13
+      reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Markdown (sections/Markdown.vue)。chart.source.type
+        が FlowDescription のときだけ、Markdown.vue:43 の generate がチャートのデータの API を呼ぶ (それ以外は、保存された文を出すだけ)。API
+        に届くかが保存された値で決まるので、迷ったが入口にした (承認のときに、人が外せる)。Sections.vue:60 が chart.type で引いて描き、Sections
+        は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+    - id: part_p.dashboard-types.iokestraplugincoredashboardchartPie
+      path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Pie
+      name: Pie
+      source:
+        file: src/components/dashboard/dashboard-types.ts
+        line: 14
+      reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Pie (sections/Pie.vue)。Pie.vue:84
+        の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+        は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+    - id: part_p.dashboard-types.iokestraplugincoredashboardchartTable
+      path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Table
+      name: Table
+      source:
+        file: src/components/dashboard/dashboard-types.ts
+        line: 15
+      reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Table (sections/Table.vue)。Table.vue:187
+        の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+        は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+    - id: part_p.dashboard-types.iokestraplugincoredashboardchartTimeSeries
+      path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.TimeSeries
+      name: TimeSeries
+      source:
+        file: src/components/dashboard/dashboard-types.ts
+        line: 16
+      reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.TimeSeries (sections/TimeSeries.vue)。TimeSeries.vue:457
+        の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+        は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+entries:
+- id: admin.auditlogs
+  path: /admin/auditlogs
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 124
+  extractor: vue-routes
+  status: candidate
+  name: admin/auditlogs/list
+  attributes:
+    route_name: admin/auditlogs/list
+    route_path: /:tenant?/admin/auditlogs
+- id: admin.concurrency-limits
+  path: /admin/concurrency-limits
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 100
+  extractor: vue-routes
+  status: candidate
+  name: admin/concurrency-limits
+  attributes:
+    route_name: admin/concurrency-limits
+    route_path: /:tenant?/admin/concurrency-limits
+- id: admin.iam
+  path: /admin/iam
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 122
+  extractor: vue-routes
+  status: candidate
+  name: admin/iam
+  attributes:
+    route_name: admin/iam
+    route_path: /:tenant?/admin/iam
+- id: admin.instance
+  path: /admin/instance
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 127
+  extractor: vue-routes
+  status: candidate
+  name: admin/instance
+  attributes:
+    route_name: admin/instance
+    route_path: /:tenant?/admin/instance
+- id: admin.mcp-servers
+  path: /admin/mcp-servers
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 101
+  extractor: vue-routes
+  status: candidate
+  name: admin/mcp-servers
+  attributes:
+    route_name: admin/mcp-servers
+    route_path: /:tenant?/admin/mcp-servers
+- id: admin.mcp-servers.edit.id_d.tab_o
+  path: /admin/mcp-servers/edit/:id/:tab?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 102
+  extractor: vue-routes
+  status: candidate
+  name: admin/mcp-servers/update
+  attributes:
+    route_name: admin/mcp-servers/update
+    route_path: /:tenant?/admin/mcp-servers/edit/:id/:tab?
+- id: admin.mcp-servers.new.tab_o
+  path: /admin/mcp-servers/new/:tab?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 103
+  extractor: vue-routes
+  status: candidate
+  name: admin/mcp-servers/create
+  attributes:
+    route_name: admin/mcp-servers/create
+    route_path: /:tenant?/admin/mcp-servers/new/:tab?
+- id: admin.policies
+  path: /admin/policies
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 126
+  extractor: vue-routes
+  status: candidate
+  name: admin/policies
+  attributes:
+    route_name: admin/policies
+    route_path: /:tenant?/admin/policies
+- id: admin.quotas
+  path: /admin/quotas
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 125
+  extractor: vue-routes
+  status: candidate
+  name: admin/quotas/list
+  attributes:
+    route_name: admin/quotas/list
+    route_path: /:tenant?/admin/quotas
+- id: admin.stats.type_o
+  path: /admin/stats/:type?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 99
+  extractor: vue-routes
+  status: candidate
+  name: admin/stats
+  attributes:
+    route_name: admin/stats
+    route_path: /:tenant?/admin/stats/:type?
+- id: admin.tenants.list
+  path: /admin/tenants/list
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 123
+  extractor: vue-routes
+  status: candidate
+  name: admin/tenants/list
+  attributes:
+    route_name: admin/tenants/list
+    route_path: /:tenant?/admin/tenants/list
+- id: admin.triggers.tab_o
+  path: /admin/triggers/:tab?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 98
+  extractor: vue-routes
+  status: candidate
+  name: admin/triggers
+  attributes:
+    route_name: admin/triggers
+    route_path: /:tenant?/admin/triggers/:tab?
+- id: ai
+  path: /ai
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 18
+  extractor: vue-routes
+  status: candidate
+  name: ai
+  attributes:
+    route_name: ai
+    route_path: /:tenant?/ai
+- id: apps
+  path: /apps
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 117
+  extractor: vue-routes
+  status: candidate
+  name: apps/list
+  attributes:
+    route_name: apps/list
+    route_path: /:tenant?/apps
+- id: assets
+  path: /assets
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 119
+  extractor: vue-routes
+  status: candidate
+  name: assets/list
+  attributes:
+    route_name: assets/list
+    route_path: /:tenant?/assets
+- id: blueprints.kind_d.tab_d
+  path: /blueprints/:kind/:tab
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 53
+  extractor: vue-routes
+  status: candidate
+  name: blueprints
+  attributes:
+    route_name: blueprints
+    route_path: /:tenant?/blueprints/:kind/:tab
+- id: blueprints.kind_d.tab_d.blueprintId_d
+  path: /blueprints/:kind/:tab/:blueprintId
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 54
+  extractor: vue-routes
+  status: candidate
+  name: blueprints/view
+  attributes:
+    route_name: blueprints/view
+    route_path: /:tenant?/blueprints/:kind/:tab/:blueprintId
+- id: cases
+  path: /cases
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 121
+  extractor: vue-routes
+  status: candidate
+  name: cases/list
+  attributes:
+    route_name: cases/list
+    route_path: /:tenant?/cases
+- id: credentials
+  path: /credentials
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 120
+  extractor: vue-routes
+  status: candidate
+  name: credentials/list
+  attributes:
+    route_name: credentials/list
+    route_path: /:tenant?/credentials
+- id: dashboards.dashboard_d.edit
+  path: /dashboards/:dashboard/edit
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 116
+  extractor: vue-routes
+  status: candidate
+  name: dashboards/update
+  attributes:
+    route_name: dashboards/update
+    route_path: /:tenant?/dashboards/:dashboard/edit
+- id: dashboards.dashboard_o
+  path: /dashboards/:dashboard?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 21
+  extractor: vue-routes
+  status: approved
+  name: home
+  attributes:
+    route_name: home
+    route_path: /:tenant?/dashboards/:dashboard?
+  note: 試しの分析のために承認した (部品の決まりの試し)
+- id: dashboards.new
+  path: /dashboards/new
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 115
+  extractor: vue-routes
+  status: candidate
+  name: dashboards/create
+  attributes:
+    route_name: dashboards/create
+    route_path: /:tenant?/dashboards/new
+- id: docs.path_o
+  path: /docs/:path(.*)?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 92
+  extractor: vue-routes
+  status: candidate
+  name: docs/view
+  attributes:
+    route_name: docs/view
+    route_path: /:tenant?/docs/:path(.*)?
+- id: executions
+  path: /executions
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 39
+  extractor: vue-routes
+  status: candidate
+  name: executions/list
+  attributes:
+    route_name: executions/list
+    route_path: /:tenant?/executions
+- id: executions.namespace_d.flowId_d.id_d
+  path: /executions/:namespace/:flowId/:id
+  layer: screen
+  source:
+    file: src/components/executions/executionTabs.ts
+    line: 107
+  extractor: agent-listed-screen
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/routes/routes.ts:44 の routes の配列に EXECUTION_ROUTE として入っている。定義はこのファイルにあり、
+      path は "/:tenant?/executions/:namespace/:flowId/:id" (文字)、name は定数 EXECUTION_PARENT_ROUTE
+      = "executions/update"。 別のファイルの定義を名前で並べているので、抽出器では取れない。children (タブ) は、この画面に含める
+- id: flows
+  path: /flows
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 29
+  extractor: vue-routes
+  status: approved
+  name: flows/list
+  attributes:
+    route_name: flows/list
+    route_path: /:tenant?/flows
+  note: 試しの分析のために承認した
+- id: flows.edit.namespace_d.id_d
+  path: /flows/edit/:namespace/:id
+  layer: screen
+  source:
+    file: src/components/flows/flowTabs.ts
+    line: 149
+  extractor: agent-listed-screen
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/routes/routes.ts:36 の routes の配列に FLOW_ROUTE として入っている。定義はこのファイルにあり、
+      path は "/:tenant?/flows/edit/:namespace/:id" (文字)、name は定数 FLOW_PARENT_ROUTE
+      = "flows/update"。 別のファイルの定義を名前で並べているので、抽出器では取れない。children (タブ) は、この画面に含める
+- id: flows.new
+  path: /flows/new
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 35
+  extractor: vue-routes
+  status: candidate
+  name: flows/create
+  attributes:
+    route_name: flows/create
+    route_path: /:tenant?/flows/new
+- id: flows.search
+  path: /flows/search
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 34
+  extractor: vue-routes
+  status: candidate
+  name: flows/search
+  attributes:
+    route_name: flows/search
+    route_path: /:tenant?/flows/search
+- id: kv
+  path: /kv
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 47
+  extractor: vue-routes
+  status: approved
+  name: kv/list
+  attributes:
+    route_name: kv/list
+    route_path: /:tenant?/kv
+  note: 試しの分析のために承認した
+- id: login
+  path: /login
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 109
+  extractor: vue-routes
+  status: approved
+  name: login
+  attributes:
+    route_name: login
+    route_path: /:tenant?/login
+  note: 試しの分析のために承認した
+- id: logs
+  path: /logs
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 62
+  extractor: vue-routes
+  status: candidate
+  name: logs/list
+  attributes:
+    route_name: logs/list
+    route_path: /:tenant?/logs
+- id: namespaces
+  path: /namespaces
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 69
+  extractor: vue-routes
+  status: candidate
+  name: namespaces/list
+  attributes:
+    route_name: namespaces/list
+    route_path: /:tenant?/namespaces
+- id: namespaces.edit.id_d
+  path: /namespaces/edit/:id
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 70
+  extractor: agent-listed-screen
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: routes の配列の直下の route。path は "/:tenant?/namespaces/edit/:id" (文字) で、component
+      は Namespace.vue。 name を定数 NAMESPACE_PARENT_ROUTE (= "namespaces/update"、src/utils/namespaceTabRoutes.ts:3)
+      で書いているので、抽出器の規則に当たらない。 children (createNamespaceTabRoutes() が作る 16 個のタブ) は、この画面に含める
+- id: part_p.dashboard-types.iokestraplugincoredashboardchartBar
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Bar
+  layer: part
+  source:
+    file: src/components/dashboard/dashboard-types.ts
+    line: 11
+  extractor: agent-listed-part
+  status: candidate
+  name: Bar
+  attributes:
+    listed_by: agent
+    reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Bar (sections/Bar.vue)。Bar.vue:91
+      の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+      は Dashboard.vue:24 (home、flow と namespace の概要のタブ)、Executions.vue:97、LogsWrapper.vue:25
+      が描く
+- id: part_p.dashboard-types.iokestraplugincoredashboardchartKPI
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.KPI
+  layer: part
+  source:
+    file: src/components/dashboard/dashboard-types.ts
+    line: 12
+  extractor: agent-listed-part
+  status: candidate
+  name: KPI
+  attributes:
+    listed_by: agent
+    reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.KPI (sections/KPI.vue)。KPI.vue:52
+      の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+      は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+- id: part_p.dashboard-types.iokestraplugincoredashboardchartMarkdown
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Markdown
+  layer: part
+  source:
+    file: src/components/dashboard/dashboard-types.ts
+    line: 13
+  extractor: agent-listed-part
+  status: approved
+  name: Markdown
+  attributes:
+    listed_by: agent
+    reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Markdown (sections/Markdown.vue)。chart.source.type
+      が FlowDescription のときだけ、Markdown.vue:43 の generate がチャートのデータの API を呼ぶ (それ以外は、保存された文を出すだけ)。API
+      に届くかが保存された値で決まるので、迷ったが入口にした (承認のときに、人が外せる)。Sections.vue:60 が chart.type で引いて描き、Sections
+      は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+  note: 試しの分析のために承認した (部品の決まりの試し)
+- id: part_p.dashboard-types.iokestraplugincoredashboardchartPie
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Pie
+  layer: part
+  source:
+    file: src/components/dashboard/dashboard-types.ts
+    line: 14
+  extractor: agent-listed-part
+  status: candidate
+  name: Pie
+  attributes:
+    listed_by: agent
+    reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Pie (sections/Pie.vue)。Pie.vue:84
+      の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+      は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+- id: part_p.dashboard-types.iokestraplugincoredashboardchartTable
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.Table
+  layer: part
+  source:
+    file: src/components/dashboard/dashboard-types.ts
+    line: 15
+  extractor: agent-listed-part
+  status: approved
+  name: Table
+  attributes:
+    listed_by: agent
+    reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.Table (sections/Table.vue)。Table.vue:187
+      の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+      は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+  note: 試しの分析のために承認した (部品の決まりの試し)
+- id: part_p.dashboard-types.iokestraplugincoredashboardchartTimeSeries
+  path: /(part)/dashboard-types/io.kestra.plugin.core.dashboard.chart.TimeSeries
+  layer: part
+  source:
+    file: src/components/dashboard/dashboard-types.ts
+    line: 16
+  extractor: agent-listed-part
+  status: candidate
+  name: TimeSeries
+  attributes:
+    listed_by: agent
+    reason: 登録表 TYPES の項目 io.kestra.plugin.core.dashboard.chart.TimeSeries (sections/TimeSeries.vue)。TimeSeries.vue:457
+      の useChartGenerator がチャートのデータの API を呼ぶ。Sections.vue:60 が chart.type で引いて描き、Sections
+      は Dashboard.vue:24、Executions.vue:97、LogsWrapper.vue:25 が描く
+- id: pathMatch_d
+  path: /:pathMatch(.*)
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 112
+  extractor: vue-routes
+  status: candidate
+  name: errors/404-wildcard
+  attributes:
+    route_name: errors/404-wildcard
+    route_path: /:tenant?/:pathMatch(.*)
+- id: plugins
+  path: /plugins
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 57
+  extractor: vue-routes
+  status: candidate
+  name: plugins/list
+  attributes:
+    route_name: plugins/list
+    route_path: /:tenant?/plugins
+- id: plugins.cls_d.version_o
+  path: /plugins/:cls/:version?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 59
+  extractor: vue-routes
+  status: candidate
+  name: plugins/view
+  attributes:
+    route_name: plugins/view
+    route_path: /:tenant?/plugins/:cls/:version?
+- id: plugins.groups.name_d.subGroup_o
+  path: /plugins/groups/:name/:subGroup?
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 58
+  extractor: vue-routes
+  status: candidate
+  name: plugins/group
+  attributes:
+    route_name: plugins/group
+    route_path: /:tenant?/plugins/groups/:name/:subGroup?
+- id: preferences
+  path: /preferences
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 95
+  extractor: vue-routes
+  status: candidate
+  name: preferences
+  attributes:
+    route_name: preferences
+    route_path: /:tenant?/preferences
+- id: promote.targets
+  path: /promote/targets
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 128
+  extractor: vue-routes
+  status: candidate
+  name: promote/targets
+  attributes:
+    route_name: promote/targets
+    route_path: /:tenant?/promote/targets
+- id: root_r
+  path: /(root)
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 16
+  extractor: vue-routes
+  status: candidate
+  name: root
+  attributes:
+    route_name: root
+    route_path: /
+- id: secrets
+  path: /secrets
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 50
+  extractor: vue-routes
+  status: candidate
+  name: secrets/list
+  attributes:
+    route_name: secrets/list
+    route_path: /:tenant?/secrets
+- id: setup
+  path: /setup
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 107
+  extractor: vue-routes
+  status: candidate
+  name: setup
+  attributes:
+    route_name: setup
+    route_path: /:tenant?/setup
+- id: shell_s.app
+  path: /(shell)/app
+  layer: shell
+  source:
+    file: src/App.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: approved
+  attributes:
+    listed_by: agent
+    reason: src/main.ts:33 の createApp(App) に渡している根のコンポーネント。miscStore.loadConfigs()、docStore.initResourceUrlTemplate()、
+      apiStore.loadFeeds() を呼び、AppTopNavBar などの共通の部品を描く。route の定義ではないので、抽出器では取れない
+  note: 試しの分析のために承認した
+- id: shell_s.guard
+  path: /(shell)/guard
+  layer: shell
+  source:
+    file: src/utils/eventsRouter.ts
+    line: 35
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: 'ルーターの共通の guard を 1 件にまとめた入口。データを読む・外へ送る guard は 3 つ。登録の場所は: src/utils/eventsRouter.ts:35
+      の afterEach (apiStore.events が利用状況を外へ送る)、 src/utils/init.ts:58 の beforeResolve
+      (src/main.ts:106 の関数を、main.ts:171 で initApp に渡している。miscStore.loadLoginConfig
+      / loadBasicAuthValidationErrors / loadConfigs)、 src/utils/init.ts:63 の entityNotFoundGuard
+      (定義は src/utils/routeEntityGuard.ts:55。route の meta.entity が store の読み込みを呼ぶ)。
+      source は、プロファイルの決まり (登録している行のうち、ファイルのパスの辞書順でいちばん早いファイルの、いちばん小さい行) で、eventsRouter.ts:35
+      にした。データを読まない guard の登録 (init.ts:48、49、52、55、69、src/utils/kestraHttp.ts:300 と
+      305、src/utils/unsavedChange.ts:23、src/composables/useRestoreUrl.ts:78) は、数えていない。route
+      の定義ではないので、抽出器では取れない'
+- id: shell_s.layout.DefaultLayout
+  path: /(shell)/layout/DefaultLayout
+  layer: shell
+  source:
+    file: src/override/components/layout/DefaultLayout.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/App.vue:10 が、route の meta.layout が無いときに描く既定のレイアウト。LeftMenu (Auth の中のパスワード変更が
+      miscStore.changeBasicAuth を呼ぶ) と、 ContextDrawer (通知の一覧が notifications の store
+      から SDK を呼ぶ) を描くので、データを読み書きする。route の定義ではないので、抽出器では取れない。 迷った点 (版 0.2.0)。描いている部品
+      (LeftMenu、ContextDrawer、SurveyDialog) を別の入口 (shell_s.part.*) にしたので、このファイル自身は
+      layout の store と localStorage を使うだけで、API を呼ばない。部品を分けた後も入口に残すかが、プロファイルから決められないので、入口のままにした
+      (承認のときに、人が外せる)
+- id: shell_s.layout.OnlyLeftMenuLayout
+  path: /(shell)/layout/OnlyLeftMenuLayout
+  layer: shell
+  source:
+    file: src/components/layout/OnlyLeftMenuLayout.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/routes/routes.ts:92 の docs/view が meta.layout に指定しているレイアウト。LeftMenu
+      を描き、その中の Auth のパスワード変更が miscStore.changeBasicAuth を呼ぶので、データの書き込みに至る。route の定義ではないので、抽出器では取れない。
+      迷った点 (版 0.2.0)。描いている部品 (LeftMenu) を別の入口 (shell_s.part.LeftMenu) にしたので、このファイル自身は
+      layout の store を使うだけで、API を呼ばない。部品を分けた後も入口に残すかが、プロファイルから決められないので、入口のままにした (承認のときに、人が外せる)
+- id: shell_s.part.AppTopNavBar
+  path: /(shell)/part/AppTopNavBar
+  layer: shell
+  source:
+    file: src/components/layout/AppTopNavBar.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/App.vue:8 が、テンプレートに直接書いて描く共通の部品 (上のバー)。GlobalSearch、AiMenuIcon、NotificationBell
+      (AppTopNavBar.vue:33、50、52) を描き、NotificationBell が notifications の store から通知の
+      API を呼ぶ。route の定義ではないので、抽出器では取れない
+- id: shell_s.part.ContextDrawer
+  path: /(shell)/part/ContextDrawer
+  layer: shell
+  source:
+    file: src/components/ContextDrawer.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/override/components/layout/DefaultLayout.vue:8 が、テンプレートに直接書いて描く共通の部品
+      (右の引き出し)。useContextButtons (ContextDrawer.vue:58) が並べるタブ (src/override/composables/contextButtons.ts:24-27
+      の ContextNews、ContextDocs、ContextNotifications、CopilotChat) を描き、文書の読み込み (doc
+      の store の fetchResource) や通知の API を呼ぶ。route の定義ではないので、抽出器では取れない
+- id: shell_s.part.DrillDownDrawer
+  path: /(shell)/part/DrillDownDrawer
+  layer: shell
+  source:
+    file: src/components/dashboard/DrillDownDrawer.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/App.vue:19 が、テンプレートに直接書いて描く共通の部品 (ダッシュボードの掘り下げの引き出し)。開いたときに、掘り下げ先の検索
+      (DrillDownDrawer.vue:90) と LogsWrapper (同 9) が、実行・flow・ログの API を呼ぶ。route の定義ではないので、抽出器では取れない
+- id: shell_s.part.ErrorToast
+  path: /(shell)/part/ErrorToast
+  layer: shell
+  source:
+    file: src/components/ErrorToast.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/App.vue:3 が、テンプレートに直接書いて描く共通の部品 (エラーの通知)。エラーを出すたびに apiStore.events
+      (ErrorToast.vue:89) を呼び、利用状況を外へ送る。route の定義ではないので、抽出器では取れない
+- id: shell_s.part.LeftMenu
+  path: /(shell)/part/LeftMenu
+  layer: shell
+  source:
+    file: src/override/components/LeftMenu.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/override/components/layout/DefaultLayout.vue:2 と src/components/layout/OnlyLeftMenuLayout.vue:2
+      が、テンプレートに直接書いて描く共通の部品 (左のメニュー)。2 つの枠が描くが、入口は 1 件にした。Auth (LeftMenu.vue:14) のログアウトが
+      BasicAuth.logout を、パスワード変更の小窓が miscStore.changeBasicAuth (ChangePasswordDialog.vue:122)
+      を呼び、ProductTourItem (LeftMenu.vue:11) が描かれたときに flow の検索 (tourVariant.ts:35 の
+      shouldShowWelcome) を呼ぶ。route の定義ではないので、抽出器では取れない
+- id: shell_s.part.ReauthDialog
+  path: /(shell)/part/ReauthDialog
+  layer: shell
+  source:
+    file: src/components/ReauthDialog.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/App.vue:18 が、テンプレートに直接書いて描く共通の部品 (再ログインの小窓)。submitReauth (ReauthDialog.vue:65
+      で import) が、ログインの API を呼ぶ。route の定義ではないので、抽出器では取れない
+- id: shell_s.part.SurveyDialog
+  path: /(shell)/part/SurveyDialog
+  layer: shell
+  source:
+    file: src/components/SurveyDialog.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/override/components/layout/DefaultLayout.vue:10 が、テンプレートに直接書いて描く共通の部品
+      (ログインの後のアンケート)。答えを apiStore.posthogEvents (SurveyDialog.vue:161) で外へ送る。route
+      の定義ではないので、抽出器では取れない
+- id: shell_s.part.TourOverlay
+  path: /(shell)/part/TourOverlay
+  layer: shell
+  source:
+    file: src/components/onboarding/tour/TourOverlay.vue
+    line: 1
+  extractor: agent-listed-shell
+  status: candidate
+  attributes:
+    listed_by: agent
+    reason: src/App.vue:16 が、テンプレートに直接書いて描く共通の部品 (製品のツアー。App.vue:60 の defineAsyncComponent
+      で読み込む)。useOnboardingAnalytics (TourOverlay.vue:164) が計測を外へ送り、ツアーの操作が flow や実行の
+      API を呼ぶ。route の定義ではないので、抽出器では取れない
+- id: tests
+  path: /tests
+  layer: screen
+  source:
+    file: src/routes/routes.ts
+    line: 118
+  extractor: vue-routes
+  status: candidate
+  name: tests/list
+  attributes:
+    route_name: tests/list
+    route_path: /:tenant?/tests
+enumerated_at: '2026-11-18T01:38:20+00:00'

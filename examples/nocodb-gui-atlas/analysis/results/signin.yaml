@@ -1,0 +1,621 @@
+format_version: 1
+entry:
+  id: signin
+  path: /signin
+  name: signin
+  layer: page
+  source: { file: pages/signin.vue, line: 1 }
+target:
+  repo: github.com/nocodb/nocodb
+  scope: packages/nc-gui
+  commit: 657eb609d038355d4c489ba70b9fcf1d96295e07
+analyzer:
+  profile: { id: ui-nuxt, version: "0.1.0" }
+  skill_version: "0.4.1"
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-18T01:35:44Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T01:34:50Z"
+    findings_open: 1
+summary:
+  status: interpretation
+  value: "メールとパスワードでサインインする画面。URL は /signin で、入れ子の親を持たない葉の page。名前の無い NuxtLayout (既定の default の layout) の中に描かれる (layout は辿らない)。フォームを送ると、入力の検証を通ったときだけバックエンドのサインインの API を呼び、成功すればトークンを保存して、URL のクエリを付けたままトップ (/) へ移る。失敗すれば、誤りの文をボタンの上に出す。バックエンドの設定 (appInfo) で、Google と OpenID Connect の続けるボタンを出し (押すとバックエンドの認証の開始の URL へ移る)、メールでのサインインを止めていればフォームを出さず、招待だけの登録なら登録の画面への案内を出さない。パスワードを忘れたときの画面への案内もある。サインインの成功と失敗、方式のボタン、見本の場面の切り替え、言語の切り替えで、計測の通知を送るが、ログインしていない間は、認証の通知はブラウザにためてログインの後に送り、それ以外は捨てる"
+  evidence:
+    - { file: pages/signin.vue, line: 61 }
+    - { file: pages/signin.vue, line: 90 }
+    - { file: pages/signin.vue, line: 132 }
+    - { file: pages/signin.vue, line: 64 }
+    - { file: pages/signin.vue, line: 68 }
+    - { file: pages/signin.vue, line: 171 }
+    - { file: pages/signin.vue, line: 98 }
+    - { file: pages/signin.vue, line: 83 }
+    - { file: pages/signin.vue, line: 179 }
+    - { file: pages/signin.vue, line: 154 }
+    - { file: pages/signin.vue, line: 66 }
+    - { file: utils/teleUtils.ts, line: 7 }
+    - { file: utils/teleUtils.ts, line: 87 }
+notes: "(1) definePageMeta の requiresAuth: false (pages/signin.vue 5 行目) は、global の middleware 03.auth.global (別の入口) が読む印なので、この入口の guards に書かなかった。ログイン済みでこの画面に来た利用者は、その middleware がほかの画面へ移す (middleware/03.auth.global.ts 183 行目)。(2) appInfo (バックエンドの設定) は、この画面では読み込まず、枠 (plugins / middleware の別の入口) が読んだ状態を useGlobal から使う。appInfo の項目で画面の作りが変わるので、page のフレームの settings に kind: remote で書いた。バックエンドでこれらを決める環境変数の名前は、scope (packages/nc-gui) の外 (packages/nocodb) にあるので、名前はコードの識別子 (appInfo.googleAuthEnabled など) のまま書いた。(3) 計測の $e は、プラグイン plugins/tele.ts が provide する関数なので、provide した関数 ($e、73 行目) → SocketTele.emit → socket.emit (socket.io-client) の順にフレームにした。isEeUI は、この版では固定の false (utils/ncUtils.ts 1 行目) なので、$e はいつも provide される。$e は、この入口の中で 4 か所 (page の送信の結果、useAuthLastMethod.selectMethod、AuthLivePreview、GeneralLanguage) から呼ばれる。最初に着いた page の下に書き、ほかの 3 か所は、呼び出し元が終端の決まりを満たせなくなるので、socket.emit まで、もう一度書いた (同じ処理が何度も呼ばれるときの決まり)。業務のルール (ログインしていない間の計測のため置き) は、最初の SocketTele.emit のフレームにだけ書いた。(4) 計測の socket は、ログインしたときだけ開く (plugins/tele.ts 14 行目、63 行目)。この画面ではログインしていないので、socket.emit はほぼ通らない。サインインの成功の通知 (66 行目) も、トークンを置いた直後 (64 行目) に同じ流れで送るので、まだ socket が無く、ブラウザにためられ、トークンの変化を見張るプラグインの処理 (別の入口 shell_s.plugin.tele) が socket を開いたときに送る (utils/teleUtils.ts 73 行目)。状態で決まる条件で、固定の値で閉じていないので、消さずに conditional で書いた。socket.io の送り先の path の書き方は、ほかの入口にまだ例が無いので /socket.io と書いた (送り先は、appInfo.ncSiteUrl の path に /socket.io を足したもの)。(5) Google と OpenID Connect のボタンは、window.location.href で、バックエンドの認証の開始の URL (`${appInfo.ncSiteUrl}/auth/google` など) へ画面ごと移る。入口の一覧の画面ではなく、データの呼び出しでもないので、links の navigate に、式のまま target を書き、ncSiteUrl がバックエンドの応答で決まるので unknown (not_traceable_in_repo) にした。(6) signIn の 55 行目の if (!formValidator.value.validate()) return は、validate() が Promise を返すので、実際には打ち切らない。入力の検証を通ったときだけ送信が動くのは、a-form の @finish (132 行目) による。(7) useAuthLastMethod の commitAuthMethod / isLastUsed / stageAuthMethod、useGlobal の token と lang、計測のため置き (holdSignedOutTele) は、localStorage と sessionStorage の読み書きなので、I/O に書かなかった。useBranding はこの版では固定の値を返すだけ (composables/useBranding.ts 20 行目)、useSidebar は横のメニューを出さない印を置くだけなので、フレームにしなかった。言語の切り替えの setI18nLanguage は、言語のファイルを画面の部品として読み込む (plugins/a.i18n.ts 40 行目) だけで、データの読み書きではないので辿らなかった。(8) nuxt.config.ts は有償版の設定 (ee/) を extends する作りで、useGlobal、useAuthLastMethod、useBranding、tele のプラグインなどは、有償版では上書きされうる。(9) 全部の API の呼び出しに掛かる応答の差し込み (トークンの更新、composables/useApi/interceptors.ts) は、この入口に固有でないので辿らなかった。useApi が足す読み込み中と誤りの状態の差し込み (composables/useApi/index.ts 102 行目、125 行目) は、ボタンの読み込み中の表示と誤りの文に使われるだけなので、page の summary に書いた。(10) レビューの指摘のうち、入力の検証のルールに、メールとパスワードが必須 (pages/signin.vue 35 行目、50 行目) であることを足す指摘 (low) は、直さなかった。分析の skill が「入力が空でないことだけの確認は、rules に書かない」と決めているため。"
+callstack:
+  - id: page
+    layer: page
+    kind: route
+    name: pages/signin.vue
+    source: { file: pages/signin.vue, line: 1 }
+    caller: null
+    parameters:
+      - name: form
+        value: "email と password。フォームの入力欄から受け取り、そのままサインインの API に送る"
+        status: fact
+        evidence:
+          - { file: pages/signin.vue, line: 27 }
+          - { file: pages/signin.vue, line: 61 }
+      - name: route.query
+        value: "URL のクエリ。サインインの後に移るトップ、パスワードを忘れたときの画面、登録の画面へ、そのまま引き継ぐ"
+        status: fact
+        evidence:
+          - { file: pages/signin.vue, line: 70 }
+          - { file: pages/signin.vue, line: 154 }
+          - { file: pages/signin.vue, line: 181 }
+    rules:
+      - kind: validation
+        value: "メールの欄は、空でなければ、メールの形 (validateEmail) であることを確かめ、そうでなければ送らずに誤りの文を出す"
+        status: fact
+        evidence:
+          - { file: pages/signin.vue, line: 38 }
+          - { file: pages/signin.vue, line: 40 }
+          - { file: pages/signin.vue, line: 42 }
+          - { file: pages/signin.vue, line: 132 }
+          - { file: utils/validation.ts, line: 7 }
+        note: "validateEmail は nocodb-sdk の関数を写したもの (utils/validation.ts 2 行目)。SDK のソースは scope の外なので、形の中身は読んでいない"
+    settings:
+      - name: appInfo.disableEmailAuth
+        kind: remote
+        effect: "true なら、メールとパスワードのフォームを出さない (サインインの API を呼ぶ経路が無くなる)。OpenID Connect のボタンの文も「サインイン」に変わる"
+        status: fact
+        evidence:
+          - { file: pages/signin.vue, line: 132 }
+          - { file: pages/signin.vue, line: 114 }
+          - { file: pages/signin.vue, line: 124 }
+        note: "appInfo はバックエンドの応答 ($api.utils.appInfo) を useGlobal に置いたもの。バックエンドで決める環境変数の名前は scope の外"
+      - name: appInfo.googleAuthEnabled
+        kind: remote
+        effect: "true なら、Google で続けるボタンを出す"
+        status: fact
+        evidence:
+          - { file: pages/signin.vue, line: 86 }
+          - { file: pages/signin.vue, line: 99 }
+      - name: appInfo.oidcAuthEnabled
+        kind: remote
+        effect: "true なら、OpenID Connect で続けるボタンを出す"
+        status: fact
+        evidence:
+          - { file: pages/signin.vue, line: 86 }
+          - { file: pages/signin.vue, line: 109 }
+      - name: appInfo.inviteOnlySignup
+        kind: remote
+        effect: "true なら、登録の画面への案内を出さない"
+        status: fact
+        evidence: [{ file: pages/signin.vue, line: 179 }]
+    links:
+      - kind: navigate
+        target: "/"
+        entry_id: index.index
+        status: interpretation
+        evidence:
+          - { file: pages/signin.vue, line: 68 }
+          - { file: pages/signin.vue, line: 69 }
+        note: "サインインの API が成功したときに、URL のクエリを付けたまま移る。/ には入れ子の親 index (pages/index.vue) と子 index.index (pages/index/index.vue) が描かれる。葉の page を entry_id にした"
+      - kind: navigate
+        target: "/forgot-password"
+        entry_id: forgot-password
+        status: fact
+        evidence: [{ file: pages/signin.vue, line: 154 }]
+      - kind: navigate
+        target: "/signup"
+        entry_id: signup.token_o
+        status: interpretation
+        evidence: [{ file: pages/signin.vue, line: 181 }]
+        note: "appInfo.inviteOnlySignup が true でないときだけ出る (179 行目)。/signup は、省ける段を持つ pages/signup/[[token]].vue に当たる"
+      - kind: navigate
+        target: "${appInfo.ncSiteUrl}/auth/google"
+        status: unknown
+        reason: not_traceable_in_repo
+        evidence:
+          - { file: pages/signin.vue, line: 100 }
+          - { file: pages/signin.vue, line: 83 }
+        note: "Google で続けるボタンを押すと、window.location.href で画面ごと移る。行き先はバックエンドの認証の開始の URL で、入口の一覧の画面ではない。ncSiteUrl はバックエンドの応答 (appInfo) で決まり、値はリポジトリに無い"
+      - kind: navigate
+        target: "${appInfo.ncSiteUrl}/auth/oidc"
+        status: unknown
+        reason: not_traceable_in_repo
+        evidence:
+          - { file: pages/signin.vue, line: 110 }
+          - { file: pages/signin.vue, line: 83 }
+        note: "OpenID Connect で続けるボタンを押すと、window.location.href で画面ごと移る。行き先はバックエンドの認証の開始の URL で、入口の一覧の画面ではない。ncSiteUrl はバックエンドの応答 (appInfo) で決まり、値はリポジトリに無い"
+    summary:
+      status: interpretation
+      value: "サインインの画面の枠 (AuthShell) の中に、方式のボタン、メールとパスワードのフォーム、パスワードを忘れたときと登録の案内を描く。横のメニューは出さない (useSidebar)。フォームの送信 (@finish) で、誤りの文を消し、前に使った方式がメールだったかを覚え、サインインの API を呼ぶ。成功すれば、最後に使った方式をメールとしてブラウザに覚え (commitAuthMethod)、トークンを useGlobal.signIn に渡し、成功の計測を送って、URL のクエリを付けたままトップへ移る。失敗すれば、失敗の計測を送り、useApi が受け取った誤りの文を送信のボタンの上 (AuthSubmitButton) に出す。読み込み中は、ボタンと枠を読み込み中の表示にする"
+      evidence:
+        - { file: pages/signin.vue, line: 91 }
+        - { file: pages/signin.vue, line: 23 }
+        - { file: pages/signin.vue, line: 132 }
+        - { file: pages/signin.vue, line: 57 }
+        - { file: pages/signin.vue, line: 59 }
+        - { file: pages/signin.vue, line: 61 }
+        - { file: pages/signin.vue, line: 63 }
+        - { file: pages/signin.vue, line: 64 }
+        - { file: pages/signin.vue, line: 66 }
+        - { file: pages/signin.vue, line: 68 }
+        - { file: pages/signin.vue, line: 73 }
+        - { file: pages/signin.vue, line: 171 }
+        - { file: pages/signin.vue, line: 96 }
+        - { file: composables/useApi/index.ts, line: 136 }
+      note: "commitAuthMethod と isLastUsed は、localStorage と sessionStorage の読み書き (composables/useAuthLastMethod.ts 5 行目、8 行目、22 行目) なので、I/O に書かなかった"
+  - id: sdk_auth_signin
+    layer: external
+    kind: sdk
+    name: api.auth.signin
+    source: { file: pages/signin.vue, line: 61 }
+    caller: page
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者がサインインのフォームを送り、入力の検証を通ったとき"
+      evidence:
+        - { file: pages/signin.vue, line: 132 }
+        - { file: pages/signin.vue, line: 61 }
+      note: "フォームはメールでのサインインを止めていないとき (appInfo.disableEmailAuth が true でないとき) だけ描かれる"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "sdk:auth.signin" } }
+        evidence:
+          - { file: pages/signin.vue, line: 61 }
+          - { file: pages/signin.vue, line: 62 }
+          - { file: pages/signin.vue, line: 19 }
+          - { file: composables/useApi/index.ts, line: 61 }
+          - { file: composables/useApi/index.ts, line: 13 }
+        fields:
+          - { name: email, use: [write] }
+          - { name: password, use: [write] }
+          - { name: token, use: [read] }
+        note: "メールとパスワードを送り、ログインのトークンを受け取る。api は useApi({ useGlobalInstance: true }) が返す、プラグインが provide した nocodb-sdk の Api。SDK のソース (packages/nocodb-sdk) は範囲の外"
+  - id: global_sign_in
+    layer: component
+    kind: composable
+    name: useGlobal.signIn
+    source: { file: composables/useGlobal/actions.ts, line: 75 }
+    caller: page
+    call:
+      status: fact
+      when: conditional
+      condition: "サインインの API が成功したとき"
+      evidence:
+        - { file: pages/signin.vue, line: 64 }
+        - { file: pages/signin.vue, line: 11 }
+    rules:
+      - kind: decision
+        value: "新しいトークンを受け取ったとき、バックエンドの設定に既定のワークスペースの id がまだ無ければ、設定を読み直す (最初の利用者の登録の後に、既定のワークスペースが作られるため)"
+        status: fact
+        evidence:
+          - { file: composables/useGlobal/actions.ts, line: 91 }
+          - { file: composables/useGlobal/actions.ts, line: 92 }
+    summary:
+      status: interpretation
+      value: "トークンを状態に置き (ブラウザの localStorage に保存される)、トークンの中身 (JWT) から利用者の id、メール、名前、役割を状態に置く。トークンが変わると、useGlobal の見張りが、ブラウザが直接送る /api の要求 (画像の読み込みなど) の認証に使う cookie nc_token (10 時間) も書く。既定のワークスペースが設定に無ければ、バックエンドの設定を読み直す"
+      evidence:
+        - { file: composables/useGlobal/actions.ts, line: 77 }
+        - { file: composables/useGlobal/state.ts, line: 84 }
+        - { file: composables/useGlobal/state.ts, line: 116 }
+        - { file: composables/useGlobal/actions.ts, line: 80 }
+        - { file: composables/useGlobal/index.ts, line: 69 }
+        - { file: composables/useGlobal/index.ts, line: 78 }
+        - { file: composables/useGlobal/actions.ts, line: 92 }
+      note: "トークンの保存は localStorage と cookie なので、I/O に書かない"
+  - id: global_load_app_info
+    layer: component
+    kind: composable
+    name: useGlobal.loadAppInfo
+    source: { file: composables/useGlobal/actions.ts, line: 60 }
+    caller: global_sign_in
+    call:
+      status: fact
+      when: conditional
+      condition: "受け取ったトークンがあり、バックエンドの設定に既定のワークスペースの id が無いとき"
+      evidence: [{ file: composables/useGlobal/actions.ts, line: 92 }]
+    summary:
+      status: interpretation
+      value: "読み込みの状態を読み込み中にしてバックエンドの設定 (appInfo) を読み、状態に置く。失敗したら、読み込みの状態を誤りにする"
+      evidence:
+        - { file: composables/useGlobal/actions.ts, line: 62 }
+        - { file: composables/useGlobal/actions.ts, line: 64 }
+        - { file: composables/useGlobal/actions.ts, line: 67 }
+  - id: sdk_utils_app_info
+    layer: external
+    kind: sdk
+    name: "$api.utils.appInfo"
+    source: { file: composables/useGlobal/actions.ts, line: 64 }
+    caller: global_load_app_info
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: composables/useGlobal/actions.ts, line: 64 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "sdk:utils.appInfo" } }
+        evidence:
+          - { file: composables/useGlobal/actions.ts, line: 63 }
+          - { file: composables/useGlobal/actions.ts, line: 64 }
+        fields:
+          - { name: "*", use: [read] }
+        note: "バックエンドの設定 (認証の方式の有効、既定のワークスペースの id など) をまるごと読み、状態に置く。SDK のソースは範囲の外"
+  - id: tele_emit
+    layer: api_client
+    kind: function
+    name: "$e"
+    source: { file: plugins/tele.ts, line: 73 }
+    caller: page
+    call:
+      status: interpretation
+      when: conditional
+      condition: "利用者がフォームを送り、サインインの API の結果が返ったとき (成功なら成功の通知、失敗なら失敗の通知を送る)"
+      evidence:
+        - { file: pages/signin.vue, line: 17 }
+        - { file: pages/signin.vue, line: 66 }
+        - { file: pages/signin.vue, line: 73 }
+        - { file: plugins/tele.ts, line: 73 }
+      note: "$e は、プラグイン plugins/tele.ts が provide した関数を useNuxtApp から受け取って呼ぶ。成功の a:auth:sign-in:success (66 行目) と、失敗の a:auth:sign-in:error (73 行目) の 2 か所"
+    summary:
+      status: interpretation
+      value: "計測の通知の名前と中身を受け取り、いまの画面のルートの path と base の id を足して、計測の socket の送り口 (SocketTele.emit) に渡す"
+      evidence:
+        - { file: plugins/tele.ts, line: 74 }
+        - { file: plugins/tele.ts, line: 29 }
+        - { file: plugins/tele.ts, line: 31 }
+        - { file: plugins/tele.ts, line: 32 }
+        - { file: plugins/tele.ts, line: 33 }
+  - id: socket_tele_emit
+    layer: api_client
+    kind: function
+    name: SocketTele.emit
+    source: { file: utils/teleUtils.ts, line: 82 }
+    caller: tele_emit
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: plugins/tele.ts, line: 31 }
+        - { file: plugins/tele.ts, line: 12 }
+    rules:
+      - kind: decision
+        value: "計測の socket が無い (ログインしていない) 間は、認証と招待の通知 (名前が a: か c: で始まり、auth、signin、invite などが続くもの) だけを、新しい 50 件まで、24 時間の間ブラウザにため、ログインして socket を開いたときにまとめて送る。それ以外の通知は捨てる"
+        status: fact
+        evidence:
+          - { file: utils/teleUtils.ts, line: 87 }
+          - { file: utils/teleUtils.ts, line: 7 }
+          - { file: utils/teleUtils.ts, line: 9 }
+          - { file: utils/teleUtils.ts, line: 11 }
+          - { file: utils/teleUtils.ts, line: 23 }
+          - { file: utils/teleUtils.ts, line: 27 }
+          - { file: utils/teleUtils.ts, line: 73 }
+    summary:
+      status: interpretation
+      value: "通知の名前を中身に入れ、socket があれば event という名前で送り、無ければブラウザにためる (holdSignedOutTele)"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 83 }
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: utils/teleUtils.ts, line: 87 }
+      note: "ためる先は localStorage (utils/teleUtils.ts 28 行目) なので、I/O に書かない"
+  - id: socket_emit
+    layer: external
+    kind: library
+    name: socket.emit
+    source: { file: utils/teleUtils.ts, line: 86 }
+    caller: socket_tele_emit
+    call:
+      status: fact
+      when: conditional
+      condition: "計測の socket が開いているとき (ログインしていて、tele のプラグインが socket を開いたとき)"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: plugins/tele.ts, line: 14 }
+        - { file: plugins/tele.ts, line: 65 }
+      note: "この入口からは、ほぼ成り立たないように見える。この画面はログインしていない利用者が開き (ログイン済みなら middleware/03.auth.global.ts 183 行目でほかの画面へ移される)、成功の通知 (pages/signin.vue 66 行目) も、トークンを置いた直後に同じ流れで送るので、まだ socket が開いていない。通知はブラウザにためられ、トークンの変化を見張るプラグインの処理 (別の入口) が socket を開くときに送る (utils/teleUtils.ts 73 行目)"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "/socket.io" } }
+        evidence:
+          - { file: utils/teleUtils.ts, line: 86 }
+          - { file: utils/teleUtils.ts, line: 61 }
+          - { file: utils/teleUtils.ts, line: 63 }
+          - { file: utils/teleUtils.ts, line: 50 }
+        fields:
+          - { name: event, use: [write] }
+          - { name: data, use: [write] }
+          - { name: path, use: [write] }
+          - { name: pid, use: [write] }
+        note: "socket.io (socket.io-client) の接続で、event という名前の計測の通知を送る。送り先は appInfo.ncSiteUrl の path に /socket.io を足したもの。バックエンドの SocketGateway から計測のサービスへ回る (utils/teleUtils.ts 50 行目の注記)"
+  - id: select_method
+    layer: component
+    kind: composable
+    name: useAuthLastMethod.selectMethod
+    source: { file: composables/useAuthLastMethod.ts, line: 47 }
+    caller: page
+    call:
+      status: fact
+      when: conditional
+      condition: "利用者が Google か OpenID Connect で続けるボタンを押したとき"
+      evidence:
+        - { file: pages/signin.vue, line: 15 }
+        - { file: pages/signin.vue, line: 82 }
+        - { file: pages/signin.vue, line: 100 }
+        - { file: pages/signin.vue, line: 110 }
+      note: "ボタンは、その方式がバックエンドの設定で有効なときだけ出る (99 行目、109 行目)。呼んだ後に、バックエンドの認証の開始の URL へ画面ごと移る (83 行目。page の links)"
+    summary:
+      status: interpretation
+      value: "押した方式の計測の通知 (c:auth:provider:select) を送り、方式を、サインインが終わるまでの仮の値としてブラウザ (sessionStorage) に置く。計測は $e を呼び、経路はフレーム tele_emit と同じ (ここでは終端の決まりのため、もう一度書いた)"
+      evidence:
+        - { file: composables/useAuthLastMethod.ts, line: 48 }
+        - { file: composables/useAuthLastMethod.ts, line: 49 }
+        - { file: composables/useAuthLastMethod.ts, line: 17 }
+  - id: select_method_tele_emit
+    layer: api_client
+    kind: function
+    name: "$e"
+    source: { file: plugins/tele.ts, line: 73 }
+    caller: select_method
+    call:
+      status: interpretation
+      when: always
+      evidence:
+        - { file: composables/useAuthLastMethod.ts, line: 40 }
+        - { file: composables/useAuthLastMethod.ts, line: 48 }
+        - { file: plugins/tele.ts, line: 73 }
+    summary:
+      status: interpretation
+      value: "フレーム tele_emit と同じ処理。いまの画面のルートの path と base の id を足して、SocketTele.emit に渡す"
+      evidence:
+        - { file: plugins/tele.ts, line: 74 }
+        - { file: plugins/tele.ts, line: 31 }
+  - id: select_method_socket_tele_emit
+    layer: api_client
+    kind: function
+    name: SocketTele.emit
+    source: { file: utils/teleUtils.ts, line: 82 }
+    caller: select_method_tele_emit
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: plugins/tele.ts, line: 31 }]
+    summary:
+      status: interpretation
+      value: "フレーム socket_tele_emit と同じ処理 (業務のルールも同じ。そちらに書いた)。c:auth:provider:select はためる対象の名前なので、socket が無ければブラウザにためる"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: utils/teleUtils.ts, line: 87 }
+        - { file: utils/teleUtils.ts, line: 7 }
+  - id: select_method_socket_emit
+    layer: external
+    kind: library
+    name: socket.emit
+    source: { file: utils/teleUtils.ts, line: 86 }
+    caller: select_method_socket_tele_emit
+    call:
+      status: fact
+      when: conditional
+      condition: "計測の socket が開いているとき (ログインしていて、tele のプラグインが socket を開いたとき)"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: plugins/tele.ts, line: 14 }
+      note: "この入口からは、ほぼ成り立たないように見える (理由はフレーム socket_emit の note と同じ)"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "/socket.io" } }
+        evidence:
+          - { file: utils/teleUtils.ts, line: 86 }
+          - { file: utils/teleUtils.ts, line: 61 }
+          - { file: utils/teleUtils.ts, line: 63 }
+        fields:
+          - { name: event, use: [write] }
+          - { name: data, use: [write] }
+          - { name: path, use: [write] }
+          - { name: pid, use: [write] }
+        note: "方式のボタンを押した計測の通知を、socket.io の event という名前で送る"
+  - id: auth_shell
+    layer: component
+    kind: component
+    name: AuthShell
+    source: { file: components/auth/Shell.vue, line: 1 }
+    caller: page
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: pages/signin.vue, line: 91 }]
+    summary:
+      status: interpretation
+      value: "サインインと登録の画面の枠。画面の幅が広いときだけ、左に製品の見出しと見本の場面 (AuthLivePreview) を描き、右に言語の切り替え (GeneralLanguage)、見出し、渡されたフォームを描く"
+      evidence:
+        - { file: components/auth/Shell.vue, line: 24 }
+        - { file: components/auth/Shell.vue, line: 30 }
+        - { file: components/auth/Shell.vue, line: 57 }
+        - { file: components/auth/Shell.vue, line: 64 }
+  - id: auth_live_preview
+    layer: component
+    kind: component
+    name: AuthLivePreview
+    source: { file: components/auth/LivePreview.vue, line: 1 }
+    caller: auth_shell
+    call:
+      status: fact
+      when: conditional
+      condition: "画面の幅が 1024px 以上のとき"
+      evidence:
+        - { file: components/auth/Shell.vue, line: 24 }
+        - { file: components/auth/Shell.vue, line: 30 }
+        - { file: components/auth/Shell.vue, line: 48 }
+        - { file: components/auth/Shell.vue, line: 57 }
+      note: "48 行目の条件 !isWhiteLabelled は、この版の useBranding が常に false を返す (composables/useBranding.ts 27 行目) ので、いつも成り立つ"
+    summary:
+      status: interpretation
+      value: "製品の見本の場面 (表、インターフェース、ダッシュボード、自動化) をタブで切り替えて見せる。データは読まない。タブを押すと、切り替えの計測の通知 (c:auth:preview:switch) を送る。計測は $e を呼び、経路はフレーム tele_emit と同じ (ここでは終端の決まりのため、もう一度書いた)"
+      evidence:
+        - { file: components/auth/LivePreview.vue, line: 12 }
+        - { file: components/auth/LivePreview.vue, line: 58 }
+        - { file: components/auth/LivePreview.vue, line: 45 }
+        - { file: components/auth/LivePreview.vue, line: 22 }
+  - id: live_preview_tele_emit
+    layer: api_client
+    kind: function
+    name: "$e"
+    source: { file: plugins/tele.ts, line: 73 }
+    caller: auth_live_preview
+    call:
+      status: interpretation
+      when: conditional
+      condition: "利用者が見本の場面のタブを押したとき"
+      evidence:
+        - { file: components/auth/LivePreview.vue, line: 10 }
+        - { file: components/auth/LivePreview.vue, line: 45 }
+        - { file: components/auth/LivePreview.vue, line: 22 }
+        - { file: plugins/tele.ts, line: 73 }
+    summary:
+      status: interpretation
+      value: "フレーム tele_emit と同じ処理。いまの画面のルートの path と base の id を足して、SocketTele.emit に渡す"
+      evidence:
+        - { file: plugins/tele.ts, line: 74 }
+        - { file: plugins/tele.ts, line: 31 }
+  - id: live_preview_socket_tele_emit
+    layer: api_client
+    kind: function
+    name: SocketTele.emit
+    source: { file: utils/teleUtils.ts, line: 82 }
+    caller: live_preview_tele_emit
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: plugins/tele.ts, line: 31 }]
+    summary:
+      status: interpretation
+      value: "フレーム socket_tele_emit と同じ処理 (業務のルールも同じ。そちらに書いた)。c:auth:preview:switch はためる対象の名前なので、socket が無ければブラウザにためる"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: utils/teleUtils.ts, line: 87 }
+        - { file: utils/teleUtils.ts, line: 7 }
+  - id: live_preview_socket_emit
+    layer: external
+    kind: library
+    name: socket.emit
+    source: { file: utils/teleUtils.ts, line: 86 }
+    caller: live_preview_socket_tele_emit
+    call:
+      status: fact
+      when: conditional
+      condition: "計測の socket が開いているとき (ログインしていて、tele のプラグインが socket を開いたとき)"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: plugins/tele.ts, line: 14 }
+      note: "この入口からは、ほぼ成り立たないように見える (理由はフレーム socket_emit の note と同じ)"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "/socket.io" } }
+        evidence:
+          - { file: utils/teleUtils.ts, line: 86 }
+          - { file: utils/teleUtils.ts, line: 61 }
+          - { file: utils/teleUtils.ts, line: 63 }
+        fields:
+          - { name: event, use: [write] }
+          - { name: data, use: [write] }
+          - { name: path, use: [write] }
+          - { name: pid, use: [write] }
+        note: "見本の場面の切り替えの計測の通知を、socket.io の event という名前で送る"
+  - id: general_language
+    layer: component
+    kind: component
+    name: GeneralLanguage
+    source: { file: components/general/language/index.vue, line: 1 }
+    caller: auth_shell
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: components/auth/Shell.vue, line: 64 }]
+    summary:
+      status: interpretation
+      value: "言語の切り替えのボタンと一覧を描く。言語を選ぶと、言語のファイルを読み込んで表示の言語を替え、選んだ言語を useGlobal の状態 (ブラウザに保存) に置き、計測の通知 (c:navbar:lang) を送る。計測は $e を呼び、経路はフレーム tele_emit と同じ (ここでは終端の決まりのため、もう一度書いた)"
+      evidence:
+        - { file: components/general/language/index.vue, line: 44 }
+        - { file: components/general/language/index.vue, line: 65 }
+        - { file: components/general/language/index.vue, line: 28 }
+        - { file: components/general/language/index.vue, line: 29 }
+        - { file: components/general/language/index.vue, line: 31 }
+  - id: language_tele_emit
+    layer: api_client
+    kind: function
+    name: "$e"
+    source: { file: plugins/tele.ts, line: 73 }
+    caller: general_language
+    call:
+      status: interpretation
+      when: conditional
+      condition: "利用者が言語の一覧から言語を選んだとき"
+      evidence:
+        - { file: components/general/language/index.vue, line: 9 }
+        - { file: components/general/language/index.vue, line: 65 }
+        - { file: components/general/language/index.vue, line: 31 }
+        - { file: plugins/tele.ts, line: 73 }
+    summary:
+      status: interpretation
+      value: "フレーム tele_emit と同じ処理。いまの画面のルートの path と base の id を足して、SocketTele.emit に渡す"
+      evidence:
+        - { file: plugins/tele.ts, line: 74 }
+        - { file: plugins/tele.ts, line: 31 }
+  - id: language_socket_tele_emit
+    layer: api_client
+    kind: function
+    name: SocketTele.emit
+    source: { file: utils/teleUtils.ts, line: 82 }
+    caller: language_tele_emit
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: plugins/tele.ts, line: 31 }]
+    summary:
+      status: interpretation
+      value: "フレーム socket_tele_emit と同じ処理 (業務のルールも同じ。そちらに書いた)。c:navbar:lang はためる対象の名前ではないので、socket が無ければ捨てる"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: utils/teleUtils.ts, line: 87 }
+        - { file: utils/teleUtils.ts, line: 7 }
+        - { file: utils/teleUtils.ts, line: 24 }
+  - id: language_socket_emit
+    layer: external
+    kind: library
+    name: socket.emit
+    source: { file: utils/teleUtils.ts, line: 86 }
+    caller: language_socket_tele_emit
+    call:
+      status: fact
+      when: conditional
+      condition: "計測の socket が開いているとき (ログインしていて、tele のプラグインが socket を開いたとき)"
+      evidence:
+        - { file: utils/teleUtils.ts, line: 86 }
+        - { file: plugins/tele.ts, line: 14 }
+      note: "この入口からは、ほぼ成り立たないように見える (理由はフレーム socket_emit の note と同じ)。この通知はためる対象でもないので、この画面ではふつう捨てられる"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "/socket.io" } }
+        evidence:
+          - { file: utils/teleUtils.ts, line: 86 }
+          - { file: utils/teleUtils.ts, line: 61 }
+          - { file: utils/teleUtils.ts, line: 63 }
+        fields:
+          - { name: event, use: [write] }
+          - { name: data, use: [write] }
+          - { name: path, use: [write] }
+          - { name: pid, use: [write] }
+        note: "言語の切り替えの計測の通知を、socket.io の event という名前で送る"

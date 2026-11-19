@@ -1,0 +1,361 @@
+format_version: 1
+target:
+  repo: github.com/huggingface/chat-ui
+  name: chat-ui
+  clone_path: ../chat-ui
+  scope: .
+  commit: 62d3bfb703365915ee87862fbd8f459310b4cfc4
+profile:
+  id: ui-sveltekit
+  version: 0.1.0
+extractors:
+- name: sveltekit-pages
+  run: abatlas-extract glob
+  layer: page
+  rationale: routes は既定の src/routes (svelte.config に kit.files の設定は無い)。プロファイルの既定のまま。+page@
+    の書き方と、matcher 付きの段は、このリポジトリには無い
+  params:
+    files:
+    - src/routes/**/+page.svelte
+    - src/routes/**/+page@*.svelte
+    segments:
+      strip_prefix: src/routes
+      drop:
+      - \([^)]+\)
+      empty: (root)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: \[([xu])\+([0-9A-Fa-f]+)\]
+        with: \1\2
+      - pattern: \[\.\.\.([^=\]]+)(=[^\]]+)?\]
+        with: \1_c
+      - pattern: \[\[([^=\]]+)(=[^\]]+)?\]\]
+        with: \1_o
+      - pattern: \[([^=\]\[]+)(=[^\]]+)?\]
+        with: \1_d
+      - pattern: ^\(root\)$
+        with: root_r
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: ^\s*<script
+    contains:
+      form: (?i)<form[^>]*method=["']?post
+- name: sveltekit-layouts
+  run: abatlas-extract glob
+  layer: layout
+  rationale: +layout.svelte は 3 つ (routes 直下、settings、settings/(nav))。+layout.ts は
+    routes 直下 (load で 7 つの API を読む) と settings/(nav) (ssr = false だけ) にあり、どちらも同じフォルダに
+    +layout.svelte があるので、+layout.svelte の無い枠の load は無い。+layout.server.ts は無い
+  params:
+    files:
+    - src/routes/**/+layout.svelte
+    - src/routes/**/+layout@*.svelte
+    segments:
+      strip_prefix: src/routes
+      prefix:
+      - (layout)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(layout\)$
+        with: layout_l
+      - pattern: \[([xu])\+([0-9A-Fa-f]+)\]
+        with: \1\2
+      - pattern: \[\.\.\.([^=\]]+)(=[^\]]+)?\]
+        with: \1_c
+      - pattern: \[\[([^=\]]+)(=[^\]]+)?\]\]
+        with: \1_o
+      - pattern: \[([^=\]\[]+)(=[^\]]+)?\]
+        with: \1_d
+      - pattern: ^\((.+)\)$
+        with: \1_g
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: ^\s*<script
+- name: sveltekit-hooks
+  run: abatlas-extract glob
+  layer: shell
+  rationale: src/hooks.server.ts が init / handle / handleError / handleFetch を export
+    する (handle はセッションの読み書きとログインの確認を行う)。src/hooks.ts は transport (PublicConfig の写し替え)
+    だけで、データに触れないので入口にしない。hooks.client、src/params は無い。src/routes/+error.svelte は $app/state
+    の page.status と page.error を出すだけで、データに触れないので入口にしない
+  params:
+    files:
+    - src/hooks.server.ts
+    - src/hooks.server.js
+    segments:
+      strip_prefix: src
+      drop_last: false
+      prefix:
+      - (shell)
+    id:
+      replace:
+      - pattern: _
+        with: __
+      - pattern: ^\(shell\)$
+        with: shell_s
+      - pattern: \.
+        with: '-'
+      - pattern: '[^A-Za-z0-9_-]'
+        with: ''
+    line_match: export\s+(const|async\s+function|function)\s+handle\b
+    contains:
+      handle: export\s+(const|async\s+function|function)\s+handle\b
+      handle_fetch: export\s+(const|async\s+function|function)\s+handleFetch\b
+      init: export\s+(const|async\s+function|function)\s+init\b
+entries:
+- id: conversation.id_d
+  path: /conversation/[id]
+  layer: page
+  source:
+    file: src/routes/conversation/[id]/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: '[id]'
+  attributes:
+    file_segments:
+    - conversation
+    - '[id]'
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: layout_l
+  path: /(layout)
+  layer: layout
+  source:
+    file: src/routes/+layout.svelte
+    line: 1
+  extractor: sveltekit-layouts
+  status: candidate
+  name: (layout)
+  attributes:
+    file_segments: []
+  within:
+  - shell_s.hooks-server
+- id: layout_l.settings
+  path: /(layout)/settings
+  layer: layout
+  source:
+    file: src/routes/settings/+layout.svelte
+    line: 1
+  extractor: sveltekit-layouts
+  status: candidate
+  name: settings
+  attributes:
+    file_segments:
+    - settings
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: layout_l.settings.nav_g
+  path: /(layout)/settings/(nav)
+  layer: layout
+  source:
+    file: src/routes/settings/(nav)/+layout.svelte
+    line: 1
+  extractor: sveltekit-layouts
+  status: approved
+  name: (nav)
+  attributes:
+    file_segments:
+    - settings
+    - (nav)
+  within:
+  - shell_s.hooks-server
+  - layout_l
+  - layout_l.settings
+- id: models
+  path: /models
+  layer: page
+  source:
+    file: src/routes/models/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: models
+  attributes:
+    file_segments:
+    - models
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: models.model_c
+  path: /models/[...model]
+  layer: page
+  source:
+    file: src/routes/models/[...model]/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: '[...model]'
+  attributes:
+    file_segments:
+    - models
+    - '[...model]'
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: privacy
+  path: /privacy
+  layer: page
+  source:
+    file: src/routes/privacy/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: privacy
+  attributes:
+    file_segments:
+    - privacy
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: r.id_d
+  path: /r/[id]
+  layer: page
+  source:
+    file: src/routes/r/[id]/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: '[id]'
+  attributes:
+    file_segments:
+    - r
+    - '[id]'
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: root_r
+  path: /(root)
+  layer: page
+  source:
+    file: src/routes/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: (root)
+  attributes:
+    file_segments: []
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: settings
+  path: /settings
+  layer: page
+  source:
+    file: src/routes/settings/(nav)/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: settings
+  attributes:
+    file_segments:
+    - settings
+    - (nav)
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+  - layout_l.settings
+  - layout_l.settings.nav_g
+- id: settings.application
+  path: /settings/application
+  layer: page
+  source:
+    file: src/routes/settings/(nav)/application/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: application
+  attributes:
+    file_segments:
+    - settings
+    - (nav)
+    - application
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+  - layout_l.settings
+  - layout_l.settings.nav_g
+- id: settings.model_c
+  path: /settings/[...model]
+  layer: page
+  source:
+    file: src/routes/settings/(nav)/[...model]/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: '[...model]'
+  attributes:
+    file_segments:
+    - settings
+    - (nav)
+    - '[...model]'
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+  - layout_l.settings
+  - layout_l.settings.nav_g
+- id: shell_s.hooks-server
+  path: /(shell)/hooks.server
+  layer: shell
+  source:
+    file: src/hooks.server.ts
+    line: 13
+  extractor: sveltekit-hooks
+  status: approved
+  name: hooks.server
+  attributes:
+    file_segments:
+    - hooks.server
+    handle: true
+    handle_fetch: true
+    init: true
+- id: slack.connect
+  path: /slack/connect
+  layer: page
+  source:
+    file: src/routes/slack/connect/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: approved
+  name: connect
+  attributes:
+    file_segments:
+    - slack
+    - connect
+    form: true
+  within:
+  - shell_s.hooks-server
+  - layout_l
+- id: slack.installed
+  path: /slack/installed
+  layer: page
+  source:
+    file: src/routes/slack/installed/+page.svelte
+    line: 1
+  extractor: sveltekit-pages
+  status: candidate
+  name: installed
+  attributes:
+    file_segments:
+    - slack
+    - installed
+    form: false
+  within:
+  - shell_s.hooks-server
+  - layout_l
+enumerated_at: '2026-11-18T02:08:03+00:00'

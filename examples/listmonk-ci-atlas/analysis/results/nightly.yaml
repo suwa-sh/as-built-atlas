@@ -1,0 +1,748 @@
+format_version: 1
+entry:
+  id: nightly
+  path: /nightly
+  name: nightly
+  layer: workflow
+  source: { file: .github/workflows/nightly.yml, line: 2 }
+target:
+  repo: github.com/knadh/listmonk
+  name: listmonk の CI
+  clone_path: ../listmonk
+  scope: .
+  commit: e735e0b23421192a4c1b18b6221f4708b872fcd5
+analyzer:
+  profile: { id: batch-github-actions, version: "0.1.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T22:22:09Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T22:21:33Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "毎日 UTC 2 時 (と手動) に動く nightly ビルドの workflow。check の job で、前の nightly のリリースが指すコミットがいまの HEAD と同じなら止める。変わっていれば、前の nightly のリリースとタグを消し、make dist の後に GoReleaser を --snapshot (公開しない) で動かしてバイナリの tar.gz とコンテナイメージを作り、run の docker push と docker buildx imagetools create で Docker Hub (listmonk/listmonk) と ghcr.io (knadh/listmonk) にイメージと manifest (nightly) を公開し、gh release create で GitHub に nightly のプレリリースを作って tar.gz を添付する"
+  evidence:
+    - { file: .github/workflows/nightly.yml, line: 4 }
+    - { file: .github/workflows/nightly.yml, line: 31 }
+    - { file: .github/workflows/nightly.yml, line: 41 }
+    - { file: .github/workflows/nightly.yml, line: 86 }
+    - { file: .github/workflows/nightly.yml, line: 95 }
+    - { file: .github/workflows/nightly.yml, line: 103 }
+    - { file: .github/workflows/nightly.yml, line: 111 }
+    - { file: .github/workflows/nightly.yml, line: 123 }
+    - { file: .github/workflows/nightly.yml, line: 145 }
+callstack:
+  - id: workflow
+    layer: workflow
+    kind: workflow
+    name: "nightly"
+    source: { file: .github/workflows/nightly.yml, line: 2 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "workflow の name は nightly。job は check と nightly の 2 つで、nightly は needs: check で check の後に動く。inputs、concurrency は無い"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 1 }
+        - { file: .github/workflows/nightly.yml, line: 12 }
+        - { file: .github/workflows/nightly.yml, line: 39 }
+        - { file: .github/workflows/nightly.yml, line: 40 }
+    parameters:
+      - name: "on"
+        value: "schedule.cron: 0 2 * * *; workflow_dispatch"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 2 }
+          - { file: .github/workflows/nightly.yml, line: 4 }
+          - { file: .github/workflows/nightly.yml, line: 5 }
+      - name: "permissions"
+        value: "contents: write; packages: write"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 7 }
+          - { file: .github/workflows/nightly.yml, line: 8 }
+          - { file: .github/workflows/nightly.yml, line: 9 }
+  - id: job-check
+    layer: job
+    kind: job
+    name: "check"
+    source: { file: .github/workflows/nightly.yml, line: 12 }
+    caller: workflow
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 12 }
+      note: "needs も if も無い。nightly の job が needs: check でこの job を待つ"
+    summary:
+      status: interpretation
+      value: "ubuntu-latest で、checkout (fetch-depth 0) の後、前の nightly のリリースからの変更があるかを確かめ、結果を job の出力 skip として nightly の job に渡す。checkout は環境を用意するだけなので、フレームにしない"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 13 }
+        - { file: .github/workflows/nightly.yml, line: 15 }
+        - { file: .github/workflows/nightly.yml, line: 18 }
+        - { file: .github/workflows/nightly.yml, line: 22 }
+    parameters:
+      - name: "runs-on"
+        value: "ubuntu-latest"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 13 }
+      - name: "outputs.skip"
+        value: "${{ steps.check_changes.outputs.skip }}"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 15 }
+  - id: step-check-changes
+    layer: step
+    kind: script
+    name: "Check for changes since last nightly release"
+    source: { file: .github/workflows/nightly.yml, line: 22 }
+    caller: job-check
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 22 }
+    summary:
+      status: interpretation
+      value: "gh release view で nightly のリリースが指すコミット (targetCommitish) を読み、git rev-parse HEAD のいまのコミットと比べて、step の出力 skip に true か false を書く"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 27 }
+        - { file: .github/workflows/nightly.yml, line: 28 }
+        - { file: .github/workflows/nightly.yml, line: 31 }
+        - { file: .github/workflows/nightly.yml, line: 33 }
+        - { file: .github/workflows/nightly.yml, line: 36 }
+    parameters:
+      - name: "secrets.GITHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 25 }
+        note: "env GH_TOKEN として渡し、gh の認証に使う"
+    rules:
+      - kind: decision
+        value: "前の nightly のリリースがあり、それが指すコミットがいまの HEAD と同じなら skip=true にして nightly のビルドと公開を止める。リリースが無いか、コミットが違えば skip=false にして進める"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 27 }
+          - { file: .github/workflows/nightly.yml, line: 31 }
+          - { file: .github/workflows/nightly.yml, line: 33 }
+          - { file: .github/workflows/nightly.yml, line: 36 }
+          - { file: .github/workflows/nightly.yml, line: 41 }
+  - id: gh-release-view
+    layer: external
+    kind: command
+    name: "gh release view"
+    source: { file: .github/workflows/nightly.yml, line: 27 }
+    caller: step-check-changes
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 27 }
+      note: "2>/dev/null || echo \"\" で、失敗しても (nightly のリリースが無いときなど) 空の文字列にして先へ進む"
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: api.github.com, path: "/repos/{owner}/{repo}/releases" } }
+        detail: "nightly のリリースを読み、targetCommitish を取り出す"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 25 }
+          - { file: .github/workflows/nightly.yml, line: 27 }
+        note: "gh は checkout したリポジトリの remote を相手にし、GitHub の API でリリースを読むと読める"
+  - id: job-nightly
+    layer: job
+    kind: job
+    name: "nightly"
+    source: { file: .github/workflows/nightly.yml, line: 39 }
+    caller: workflow
+    call:
+      status: fact
+      when: conditional
+      condition: "needs.check.outputs.skip != 'true'"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 40 }
+        - { file: .github/workflows/nightly.yml, line: 41 }
+      note: "needs: check。check の job が、前の nightly のリリースからコミットが変わっていないと判定したときは動かない"
+    summary:
+      status: interpretation
+      value: "ubuntu-latest で、checkout (fetch-depth 0)、QEMU、Docker Buildx、Go 1.27.3、Bun 1.3.14、Python 3.x を用意し、Docker Hub と ghcr.io に docker/login-action でログインしてから、前の nightly のリリースの削除、日付の決定、make dist、GoReleaser (snapshot)、イメージの push、manifest の作成と確認、GitHub のリリースの作成を順に行う。checkout・setup・ログインは環境を用意するだけなので、フレームにしない"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 42 }
+        - { file: .github/workflows/nightly.yml, line: 45 }
+        - { file: .github/workflows/nightly.yml, line: 50 }
+        - { file: .github/workflows/nightly.yml, line: 53 }
+        - { file: .github/workflows/nightly.yml, line: 58 }
+        - { file: .github/workflows/nightly.yml, line: 63 }
+        - { file: .github/workflows/nightly.yml, line: 68 }
+        - { file: .github/workflows/nightly.yml, line: 71 }
+        - { file: .github/workflows/nightly.yml, line: 77 }
+        - { file: .github/workflows/nightly.yml, line: 83 }
+        - { file: .github/workflows/nightly.yml, line: 141 }
+    parameters:
+      - name: "runs-on"
+        value: "ubuntu-latest"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 42 }
+      - name: "secrets.DOCKERHUB_USERNAME"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 73 }
+        note: "Docker Hub へのログイン (docker/login-action) に使う秘密。値はリポジトリに無い"
+      - name: "secrets.DOCKERHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 74 }
+        note: "Docker Hub へのログイン (docker/login-action) に使う秘密"
+      - name: "secrets.GITHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 81 }
+        note: "ghcr.io へのログイン (docker/login-action、registry: ghcr.io、username は github.actor) に使う"
+  - id: step-delete-nightly-release
+    layer: step
+    kind: script
+    name: "Delete existing nightly release"
+    source: { file: .github/workflows/nightly.yml, line: 83 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 83 }
+    summary:
+      status: fact
+      value: "run で gh release delete nightly --yes --cleanup-tag を実行する。失敗しても (|| true) 先へ進む"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 86 }
+    parameters:
+      - name: "secrets.GITHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 85 }
+        note: "env GH_TOKEN として渡し、gh の認証に使う"
+  - id: gh-release-delete
+    layer: external
+    kind: command
+    name: "gh release delete"
+    source: { file: .github/workflows/nightly.yml, line: 86 }
+    caller: step-delete-nightly-release
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 86 }
+      note: "2>/dev/null || true で、失敗しても (nightly のリリースが無いときなど) step は成功として先へ進む"
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: api.github.com, path: "/repos/{owner}/{repo}/releases" } }
+        detail: "nightly のリリースの削除"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 85 }
+          - { file: .github/workflows/nightly.yml, line: 86 }
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: api.github.com, path: "/repos/{owner}/{repo}/git/refs" } }
+        detail: "nightly のタグの削除 (--cleanup-tag)"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 86 }
+        note: "--cleanup-tag は、リリースと一緒に git のタグも消す gh の選択肢。GitHub の API の git refs でタグを消すと読める (gh の中は読めない)"
+  - id: step-set-nightly-date
+    layer: step
+    kind: script
+    name: "Set nightly date"
+    source: { file: .github/workflows/nightly.yml, line: 88 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 88 }
+    summary:
+      status: fact
+      value: "date -u +%Y-%m-%d で UTC の日付を取り、step の出力 date に書く"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 91 }
+        - { file: .github/workflows/nightly.yml, line: 92 }
+    rules:
+      - kind: calculation
+        value: "nightly の版の文字列は、nightly- に実行した日の UTC の日付 (YYYY-MM-DD) を付けたもの"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 91 }
+          - { file: .github/workflows/nightly.yml, line: 97 }
+          - { file: .github/workflows/nightly.yml, line: 106 }
+  - id: step-prepare-dependencies
+    layer: step
+    kind: script
+    name: "Prepare dependencies"
+    source: { file: .github/workflows/nightly.yml, line: 94 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 94 }
+    summary:
+      status: fact
+      value: "run で make dist を実行する。env で LISTMONK_VERSION に nightly-<日付> を渡す"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 95 }
+        - { file: .github/workflows/nightly.yml, line: 97 }
+    parameters:
+      - name: "LISTMONK_VERSION"
+        value: "nightly-${{ steps.tag.outputs.date }}"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 97 }
+  - id: make-dist
+    layer: program
+    kind: make_target
+    name: "dist"
+    source: { file: Makefile, line: 97 }
+    caller: step-prepare-dependencies
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 95 }
+    summary:
+      status: interpretation
+      value: "stuffbin の取得 (go install github.com/knadh/stuffbin/...)、Go のバイナリのビルド (build)、管理画面のビルド (build-frontend) を前提として行い、最後に make pack-bin で静的な資産をバイナリに詰める。出力 (./listmonk、static/admin/dist) は実行の間だけある作業用のファイル。GoReleaser は .goreleaser-nightly.yml の builds の節で自前にビルドし直し (--clean は先に出力の置き場を消す)、hooks で build-frontend と pack-bin を呼ぶため、この target で作った ./listmonk 自体は公開物にならないと読める"
+      evidence:
+        - { file: Makefile, line: 47 }
+        - { file: Makefile, line: 48 }
+        - { file: Makefile, line: 97 }
+        - { file: Makefile, line: 98 }
+        - { file: .github/workflows/nightly.yml, line: 103 }
+        - { file: .goreleaser-nightly.yml, line: 16 }
+        - { file: .goreleaser-nightly.yml, line: 18 }
+        - { file: .goreleaser-nightly.yml, line: 43 }
+  - id: make-build-bin
+    layer: program
+    kind: make_target
+    name: "$(BIN)"
+    source: { file: Makefile, line: 55 }
+    caller: make-dist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 45 }
+        - { file: Makefile, line: 97 }
+      note: "dist の前提 build が $(BIN) (listmonk) を指す。$(BIN) は FORCE に依存するので、毎回ビルドする"
+    summary:
+      status: fact
+      value: "CGO_ENABLED=0 で go build し、./listmonk を作る。ldflags で main.buildString と main.versionString を埋め込む"
+      evidence:
+        - { file: Makefile, line: 56 }
+    rules:
+      - kind: calculation
+        value: "版の文字列は LISTMONK_VERSION、無ければ git describe --tags --abbrev=0 の最後のタグ、無ければ VERSION ファイル、無ければ v0.0.0 の順で決め、ビルドの文字列に版とコミットの短い hash とビルド日時を入れる"
+        status: interpretation
+        evidence:
+          - { file: Makefile, line: 2 }
+          - { file: Makefile, line: 5 }
+          - { file: Makefile, line: 7 }
+          - { file: Makefile, line: 8 }
+          - { file: Makefile, line: 56 }
+          - { file: .github/workflows/nightly.yml, line: 97 }
+        note: "この入口では step が LISTMONK_VERSION (nightly-<UTC の日付>) を与えるので、版はその値になる"
+  - id: go-build
+    layer: external
+    kind: command
+    name: "go build"
+    source: { file: Makefile, line: 56 }
+    caller: make-build-bin
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 56 }
+  - id: make-build-frontend
+    layer: program
+    kind: make_target
+    name: "build-frontend"
+    source: { file: Makefile, line: 87 }
+    caller: make-dist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 97 }
+      note: "build-frontend は $(FRONTEND_DIST) (static/admin/dist) を作る target の別名。static/admin/dist は .gitignore にあり、checkout 直後には無いので、毎回作る"
+    summary:
+      status: interpretation
+      value: "管理画面の依存を bun install --frozen-lockfile で入れ (依存の取得)、アイコンの SVG sprite を用意してから、static/admin で bun run build を実行して static/admin/dist を作る"
+      evidence:
+        - { file: Makefile, line: 70 }
+        - { file: Makefile, line: 71 }
+        - { file: Makefile, line: 82 }
+        - { file: Makefile, line: 83 }
+        - { file: Makefile, line: 87 }
+  - id: build-icons
+    layer: program
+    kind: script
+    name: "scripts/build-icons.py"
+    source: { file: scripts/build-icons.py, line: 84 }
+    caller: make-build-frontend
+    call:
+      status: interpretation
+      when: conditional
+      condition: "make が static/admin/assets/static/icons.svg を static/admin/icons.txt か scripts/build-icons.py より古いと判定したとき"
+      evidence:
+        - { file: Makefile, line: 75 }
+        - { file: Makefile, line: 76 }
+        - { file: Makefile, line: 82 }
+      note: "icons.svg はリポジトリに入っている (static/admin/assets/static/icons.svg)。checkout 直後のファイルの時刻の前後で、作り直すかが決まるため、動くかは実行ごとに変わりうる"
+    summary:
+      status: interpretation
+      value: "Feather icons の zip を取得して展開し (scripts/.icons が無ければ)、icons.txt に並べたアイコンを 1 つの SVG sprite にまとめて static/admin/assets/static/icons.svg に書く。書いた sprite は commit しないので、実行の間だけある作業用のファイル"
+      evidence:
+        - { file: scripts/build-icons.py, line: 16 }
+        - { file: scripts/build-icons.py, line: 28 }
+        - { file: scripts/build-icons.py, line: 86 }
+        - { file: scripts/build-icons.py, line: 96 }
+        - { file: Makefile, line: 76 }
+  - id: feather-download
+    layer: external
+    kind: library
+    name: "urllib.request.urlretrieve"
+    source: { file: scripts/build-icons.py, line: 28 }
+    caller: build-icons
+    call:
+      status: fact
+      when: conditional
+      condition: "scripts/.icons/feather/icons が無いとき"
+      evidence:
+        - { file: scripts/build-icons.py, line: 16 }
+        - { file: scripts/build-icons.py, line: 28 }
+      note: "scripts/.icons/ は .gitignore にあるので、CI の checkout 直後には無く、build-icons.py が動けば必ず取得する。取得先は https://github.com/feathericons/feather/archive/refs/heads/master.zip (10 行)。依存の取得なので読み書きには書かない"
+  - id: pkg-build
+    layer: program
+    kind: package_script
+    name: "build"
+    source: { file: static/admin/package.json, line: 8 }
+    caller: make-build-frontend
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 83 }
+    summary:
+      status: fact
+      value: "bun ./build.mjs を実行する"
+      evidence:
+        - { file: static/admin/package.json, line: 8 }
+  - id: build-mjs
+    layer: program
+    kind: script
+    name: "static/admin/build.mjs"
+    source: { file: static/admin/build.mjs, line: 18 }
+    caller: pkg-build
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: static/admin/package.json, line: 8 }
+        - { file: static/admin/build.mjs, line: 85 }
+      note: "--watch は付かないので、1 回だけビルドする"
+    summary:
+      status: interpretation
+      value: "static/admin/dist を空にし、静的な資産と CSS を写し、Bun.build で JS を束ねて縮め、.js/.css/.svg を gzip にする。ALTCHA の JS を static/public/static/altcha.umd.js に写す。出力はどれも実行の間だけある作業用のファイル"
+      evidence:
+        - { file: static/admin/build.mjs, line: 20 }
+        - { file: static/admin/build.mjs, line: 26 }
+        - { file: static/admin/build.mjs, line: 35 }
+        - { file: static/admin/build.mjs, line: 43 }
+        - { file: static/admin/build.mjs, line: 66 }
+  - id: bun-build
+    layer: external
+    kind: library
+    name: "Bun.build"
+    source: { file: static/admin/build.mjs, line: 43 }
+    caller: build-mjs
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: static/admin/build.mjs, line: 43 }
+  - id: make-pack-bin
+    layer: program
+    kind: make_target
+    name: "pack-bin"
+    source: { file: Makefile, line: 103 }
+    caller: make-dist
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 98 }
+    summary:
+      status: fact
+      value: "stuffbin で、config.toml.sample、schema.sql、queries、permissions.json、static の下の資産、i18n を ./listmonk に詰める"
+      evidence:
+        - { file: Makefile, line: 31 }
+        - { file: Makefile, line: 104 }
+  - id: stuffbin
+    layer: external
+    kind: command
+    name: "stuffbin"
+    source: { file: Makefile, line: 104 }
+    caller: make-pack-bin
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: Makefile, line: 104 }
+  - id: goreleaser-action
+    layer: external
+    kind: action
+    name: "goreleaser/goreleaser-action"
+    source: { file: .github/workflows/nightly.yml, line: 100 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 99 }
+        - { file: .github/workflows/nightly.yml, line: 100 }
+    summary:
+      status: interpretation
+      value: "goreleaser release --snapshot --parallelism 1 --clean を .goreleaser-nightly.yml に従って実行する。before の hook で make build-frontend、各ビルドの後の hook で make pack-bin を呼び (外部の道具からの呼び出しなので、ここでは辿らない)、linux/windows/darwin/freebsd/openbsd/netbsd の amd64/arm64/arm (arm は v6 と v7。windows の arm は除く) を作り、dist/ に listmonk_nightly_<os>_<arch>.tar.gz (arm は末尾に v6 / v7 を付ける) をまとめ、linux 向けの 4 種のコンテナイメージ (Docker Hub と ghcr.io の nightly-<arch> のタグ) を手元に作る。--snapshot なので何も公開せず、.goreleaser-nightly.yml の docker_manifests と release の節はこの入口では効かない。公開は後の step の docker push、docker buildx imagetools create、gh release create が行う"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 103 }
+        - { file: .goreleaser-nightly.yml, line: 16 }
+        - { file: .goreleaser-nightly.yml, line: 21 }
+        - { file: .goreleaser-nightly.yml, line: 28 }
+        - { file: .goreleaser-nightly.yml, line: 32 }
+        - { file: .goreleaser-nightly.yml, line: 35 }
+        - { file: .goreleaser-nightly.yml, line: 43 }
+        - { file: .goreleaser-nightly.yml, line: 46 }
+        - { file: .goreleaser-nightly.yml, line: 47 }
+        - { file: .goreleaser-nightly.yml, line: 52 }
+        - { file: .goreleaser-nightly.yml, line: 59 }
+        - { file: .goreleaser-nightly.yml, line: 60 }
+        - { file: .goreleaser-nightly.yml, line: 144 }
+        - { file: .goreleaser-nightly.yml, line: 161 }
+        - { file: .github/workflows/nightly.yml, line: 111 }
+      note: "--snapshot で公開しないのは GoReleaser の既定の動き (公式の文書の snapshots の節に「Artifacts won't be uploaded and will only be generated into the dist directory」とある)。イメージを手元に作ることは文書に書かれていないが、後の step が同じタグのイメージを docker push していることから、そう読む"
+    parameters:
+      - name: "version"
+        value: "latest"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 102 }
+      - name: "args"
+        value: "release --snapshot --parallelism 1 --clean --config .goreleaser-nightly.yml"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 103 }
+      - name: "secrets.GITHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 105 }
+        note: "env GITHUB_TOKEN として渡す。--snapshot なので、この入口では GitHub への公開には使われないと読める"
+      - name: "LISTMONK_VERSION"
+        value: "nightly-${{ steps.tag.outputs.date }}"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 106 }
+    rules:
+      - kind: calculation
+        value: "snapshot の版と、バイナリに埋め込む版の文字列 (main.versionString) は、LISTMONK_VERSION の値"
+        status: fact
+        evidence:
+          - { file: .goreleaser-nightly.yml, line: 4 }
+          - { file: .goreleaser-nightly.yml, line: 39 }
+          - { file: .github/workflows/nightly.yml, line: 106 }
+  - id: step-push-docker-images
+    layer: step
+    kind: script
+    name: "Push Docker images"
+    source: { file: .github/workflows/nightly.yml, line: 108 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 108 }
+    summary:
+      status: fact
+      value: "run で、Docker Hub と ghcr.io の nightly-amd64 / nightly-arm64v8 / nightly-armv6 / nightly-armv7 の 8 つのイメージを docker push する"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 111 }
+        - { file: .github/workflows/nightly.yml, line: 118 }
+  - id: docker-push
+    layer: external
+    kind: command
+    name: "docker push"
+    source: { file: .github/workflows/nightly.yml, line: 111 }
+    caller: step-push-docker-images
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 111 }
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: docker.io, path: listmonk/listmonk } }
+        detail: "コンテナイメージ (nightly-amd64 / nightly-arm64v8 / nightly-armv6 / nightly-armv7) の push"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 111 }
+          - { file: .github/workflows/nightly.yml, line: 112 }
+          - { file: .github/workflows/nightly.yml, line: 113 }
+          - { file: .github/workflows/nightly.yml, line: 114 }
+        note: "イメージ名にレジストリの名前が無いので Docker Hub (docker.io) と読む"
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: ghcr.io, path: knadh/listmonk } }
+        detail: "コンテナイメージ (nightly-amd64 / nightly-arm64v8 / nightly-armv6 / nightly-armv7) の push"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 115 }
+          - { file: .github/workflows/nightly.yml, line: 116 }
+          - { file: .github/workflows/nightly.yml, line: 117 }
+          - { file: .github/workflows/nightly.yml, line: 118 }
+  - id: step-create-docker-manifests
+    layer: step
+    kind: script
+    name: "Create and push Docker manifests"
+    source: { file: .github/workflows/nightly.yml, line: 120 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 120 }
+    summary:
+      status: fact
+      value: "run で docker buildx imagetools create を 2 回実行し、Docker Hub と ghcr.io のそれぞれに、4 種のイメージをまとめた nightly のタグの manifest を作る"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 123 }
+        - { file: .github/workflows/nightly.yml, line: 130 }
+  - id: docker-imagetools-create
+    layer: external
+    kind: command
+    name: "docker buildx imagetools create"
+    source: { file: .github/workflows/nightly.yml, line: 123 }
+    caller: step-create-docker-manifests
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 123 }
+        - { file: .github/workflows/nightly.yml, line: 130 }
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: docker.io, path: listmonk/listmonk } }
+        detail: "manifest (nightly) の作成と push"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 123 }
+          - { file: .github/workflows/nightly.yml, line: 127 }
+        note: "イメージ名にレジストリの名前が無いので Docker Hub (docker.io) と読む"
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: ghcr.io, path: knadh/listmonk } }
+        detail: "manifest (nightly) の作成と push"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 130 }
+          - { file: .github/workflows/nightly.yml, line: 134 }
+  - id: step-verify-docker-manifests
+    layer: step
+    kind: script
+    name: "Verify Docker manifests"
+    source: { file: .github/workflows/nightly.yml, line: 136 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 136 }
+    summary:
+      status: interpretation
+      value: "run で docker buildx imagetools inspect を実行し、Docker Hub と ghcr.io の nightly の manifest を読んで表示する。manifest が無ければコマンドが失敗し、後の GitHub のリリースの作成まで進まないと読める"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 138 }
+        - { file: .github/workflows/nightly.yml, line: 139 }
+  - id: docker-imagetools-inspect
+    layer: external
+    kind: command
+    name: "docker buildx imagetools inspect"
+    source: { file: .github/workflows/nightly.yml, line: 138 }
+    caller: step-verify-docker-manifests
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 138 }
+        - { file: .github/workflows/nightly.yml, line: 139 }
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: docker.io, path: listmonk/listmonk } }
+        detail: "manifest (nightly) を読む (確かめるだけ)"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 138 }
+        note: "イメージ名にレジストリの名前が無いので Docker Hub (docker.io) と読む"
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: ghcr.io, path: knadh/listmonk } }
+        detail: "manifest (nightly) を読む (確かめるだけ)"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 139 }
+  - id: step-create-github-release
+    layer: step
+    kind: script
+    name: "Create GitHub Release"
+    source: { file: .github/workflows/nightly.yml, line: 141 }
+    caller: job-nightly
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 141 }
+    summary:
+      status: fact
+      value: "run で gh release create nightly を、題名 Nightly release、警告と短いコミットの hash を書いた本文、--prerelease、--target にいまの HEAD のコミットを付けて実行し、dist/*.tar.gz を添付する"
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 145 }
+        - { file: .github/workflows/nightly.yml, line: 146 }
+        - { file: .github/workflows/nightly.yml, line: 153 }
+        - { file: .github/workflows/nightly.yml, line: 154 }
+        - { file: .github/workflows/nightly.yml, line: 155 }
+        - { file: .github/workflows/nightly.yml, line: 156 }
+    parameters:
+      - name: "secrets.GITHUB_TOKEN"
+        status: fact
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 143 }
+        note: "env GH_TOKEN として渡し、gh の認証に使う"
+  - id: gh-release-create
+    layer: external
+    kind: command
+    name: "gh release create"
+    source: { file: .github/workflows/nightly.yml, line: 145 }
+    caller: step-create-github-release
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/nightly.yml, line: 145 }
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: api.github.com, path: "/repos/{owner}/{repo}/releases" } }
+        detail: "nightly のリリース (プレリリース、いまの HEAD のコミットに nightly のタグを付ける) の作成と、dist/*.tar.gz の添付"
+        evidence:
+          - { file: .github/workflows/nightly.yml, line: 143 }
+          - { file: .github/workflows/nightly.yml, line: 145 }
+          - { file: .github/workflows/nightly.yml, line: 154 }
+          - { file: .github/workflows/nightly.yml, line: 155 }
+          - { file: .github/workflows/nightly.yml, line: 156 }
+        note: "gh は checkout したリポジトリの remote を相手にし、GitHub の API でリリースを作ると読める。--target に指したコミットが、次の実行の check の job で比べる targetCommitish になる"
+notes: "迷った点: (1) GoReleaser は --snapshot で公開しないので、公開の読み書きは goreleaser-action ではなく、run の中の docker push、docker buildx imagetools create、gh release create の external のフレームに書いた。.goreleaser-nightly.yml の docker_manifests と release の節は効かないと summary に書いた。(2) make の側のフレームは release と同じ id と綴りにし、根拠を .goreleaser-nightly.yml と nightly.yml に付け替えた。make-build-bin の rules の文は、入口をまたいで 1 つにまとまるよう release と同じにし、この入口で LISTMONK_VERSION が与えられることは note に書いた。(3) LISTMONK_VERSION は workflow が決まった形 (nightly-<日付>) で与える値で、処理の流れや読み書きの相手を変えないので settings に書かず、step と goreleaser-action の parameters と、Set nightly date の rules (calculation) に書いた。(4) nightly の job の condition は、context.md の「condition に、条件の式を書く」に従って式をそのまま書き、意味は note に書いた。(5) gh の 2>/dev/null || echo \"\" と || true は、continue-on-error と同じ扱い (always のまま、note に失敗しても進むことを書く) にした。(6) Verify Docker manifests (docker buildx imagetools inspect) は、表示するだけとも読めるが、レジストリの API を呼ぶので、外への呼び出しとしてフレームにした。(7) gh release delete --cleanup-tag のタグの削除は、決まりの表に無いので path を /repos/{owner}/{repo}/git/refs とし、別の読み書きにした。(8) links は無い。この workflow が作る nightly のタグは v で始まらないので release の workflow を起動せず、GITHUB_TOKEN による操作はほかの workflow を起動しない"

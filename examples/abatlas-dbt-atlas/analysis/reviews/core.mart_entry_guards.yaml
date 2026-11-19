@@ -1,0 +1,28 @@
+format_version: 1
+entry_id: core.mart_entry_guards
+reviewed_at: "2026-11-17T22:35:25Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の概要の「入口のパスとフレームの名前・層を付け」を支える行が根拠に無い (挙げた mart_entry_guards.sql の 1 / 2 / 13 行は、コメントと stg_guards の from で、path / frame_name / layer の select や stg_entries / stg_frames の結合は示さない)"
+    evidence: { file: models/core/mart_entry_guards.sql, line: 14 }
+    suggestion: "列を選ぶ 8 / 9 行と、結合の 14 / 15 行を根拠に足す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/mart_entry_guards/summary
+    claim: "フレームの概要の「stg_guards を stg_entries と stg_frames に結合して」と「stg_entry_within を包む入口ごとに数え」を支える行が根拠に一部しか無い (結合の 14 / 15 行と、数える 4 / 5 行が無い)"
+    evidence: { file: models/core/mart_entry_guards.sql, line: 15 }
+    suggestion: "mart_entry_guards.sql の 4 / 5 / 14 / 15 行を根拠に足す"
+    resolved: true
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/mart_entry_guards/rules/0
+    claim: "ルールの「包む入口 (within_entry_id) ごとに」数えることを決める group by の行が根拠に無い (4 行は count(distinct entry_id)、10 行は coalesce だけ)"
+    evidence: { file: models/core/mart_entry_guards.sql, line: 5 }
+    suggestion: "group by within_entry_id の 5 行を根拠に足す"
+    resolved: true
+notes: "読み書き 5 件の段と列は、すべてコードと合っていた (stg_guards の entry_id / frame_id / idx は guard_key の式で読み、結合と並べ替えに使うので read と filter、stg_frames の seq は order by だけなので filter、作る表の 9 列は select の 8 から 12 行と一致)。ref('stg_*') を schema staging の view とし、dbt_project.yml の 218 / 219、generate_schema_name.sql の 6、profiles.yml の 6 を根拠に interpretation とした書き方、作る表を schema mart の table とし 221 / 222 を io とフレームの summary の両方の根拠に入れた書き方は analysis-conventions.md のとおり。staging の model に alias は無い。macro の呼び出しも hook も無いので、入口のフレーム 1 つで辿り漏れは無い。inner join で対応の無い行が落ちることと guard_key の組み立てを rules に書かなかった判断は、context.md の「業務の意味を持つ絞り込み」に当たらないとみて指摘にしなかった。schema.yml の mart_entry_guards に列のテストは無く、範囲に tests/ も unit_tests も無いので、tests の漏れは無い。ルールの status が fact なのは、count(distinct) と coalesce をそのまま言い換えたものなので妥当とみた。"

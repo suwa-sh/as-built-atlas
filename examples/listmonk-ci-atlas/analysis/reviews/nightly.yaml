@@ -1,0 +1,14 @@
+format_version: 1
+entry_id: nightly
+reviewed_at: "2026-11-17T22:21:33Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: callstack/goreleaser-action/summary
+    claim: "summary は tar.gz の名前を listmonk_nightly_<os>_<arch>.tar.gz と書くが、根拠の .goreleaser-nightly.yml の name_template は arm のときに v<版> を付ける (例 listmonk_nightly_linux_armv7) ので、名前の形が一部だけ合わない。"
+    evidence: { file: .goreleaser-nightly.yml, line: 47 }
+    suggestion: "名前の形を listmonk_nightly_<os>_<arch>[v<arm の版>].tar.gz のように書くか、name_template の文字のまま写す。"
+    resolved: true
+notes: "指摘にしなかったこと: (1) 根拠の行は、全フレームで開いて確かめ、主張を支えていた (nightly.yml、Makefile、.goreleaser-nightly.yml、scripts/build-icons.py、static/admin/build.mjs、static/admin/package.json)。(2) make の側のフレーム (make-dist、make-build-bin、make-build-frontend、build-icons、feather-download、pkg-build、build-mjs、bun-build、make-pack-bin、stuffbin) の id・name・when・rules の文は release の結果と揃っている。build-icons の conditional は、icons.svg がリポジトリにあり .gitignore に無いことを確かめ、analysis-conventions.md の決まりに合う。(3) docker.io の io が interpretation で、ghcr.io の io が fact なのは、イメージ名にレジストリが書いてあるか無いかの違いで、妥当。(4) LISTMONK_VERSION を settings に書かず parameters と rules に書いた扱いは、処理の流れや相手を変えない値として analysis-conventions.md の settings の決まりに沿う。(5) step-check-changes と step-create-github-release の git rev-parse HEAD は、手元のリポジトリを読むだけで外とのやり取りが無いので、external のフレームが無くても漏れに数えなかった (release の結果にも無い)。(6) gh release delete --cleanup-tag のタグの削除を /repos/{owner}/{repo}/git/refs にしたのは、綴りの表に無い資源だが、表の /repos/{owner}/{repo}/... の形に沿う。ほかの入口で同じ操作が出たら、この綴りに揃えるよう analysis-conventions.md の表に足すとよい。(7) links が無いことは、GITHUB_TOKEN による操作がほかの workflow を起動しないことと、nightly のタグが v で始まらないことから妥当。"

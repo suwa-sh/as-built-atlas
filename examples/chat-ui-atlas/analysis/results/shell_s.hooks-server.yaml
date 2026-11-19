@@ -1,0 +1,2435 @@
+format_version: 1
+entry:
+  id: shell_s.hooks-server
+  path: /(shell)/hooks.server
+  name: hooks.server
+  layer: shell
+  source: { file: src/hooks.server.ts, line: 13 }
+target:
+  repo: github.com/huggingface/chat-ui
+  name: chat-ui
+  clone_path: ../chat-ui
+  scope: .
+  commit: 62d3bfb703365915ee87862fbd8f459310b4cfc4
+analyzer:
+  profile: { id: ui-sveltekit, version: "0.1.0" }
+  skill_version: "0.4.1"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-18T01:57:31Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T01:54:52Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "すべての要求を包むフック。4 つの hook を export し、どれも静的なビルドの間は何もせずに通すだけで、動くときは $lib/server/hooks の関数に任せる。handle (要求ごと) は、DB の config の更新を確かめ、/slack/view/ の下は HuggingChat のセッションを作らずに安全の見出しだけを付けて通す。それ以外は、壊れた URL を 400 で拒み、/admin の下は管理の秘密の Bearer を確かめ、cookie のセッション・信頼するメールのヘッダー・API の Bearer の token のどれかで利用者を決める (sessions、users、tokens を読み、OAuth の token の期限が近ければ OIDC の提供者で更新する)。ログインが有効でログインしていなければ、決まった URL を除いて OIDC のログインへ移し、form の POST は origin を確かめ、POST とログインの URL ではセッションの期限を 2 週間に延ばし、ログインしていない書き込みを 401 で拒み、Slack が管理する会話の書き換えを 403 で拒む。通した後の応答に、iframe と API の CORS の見出しを付ける。handleFetch はサーバー側の fetch のたびに、localhost への要求に cookie を付け直す。handleError は予期しないエラーを、id を付けて記録する。init は要求ごとではなく、サーバーの起動のときに 1 回だけ動き、起動の設定を確かめてから、移行の確認、会話の統計の集計、中断した生成の一覧の読み込み、止まった生成の後始末などの定期の処理を始める"
+  evidence:
+    - { file: src/hooks.server.ts, line: 8 }
+    - { file: src/hooks.server.ts, line: 9 }
+    - { file: src/hooks.server.ts, line: 13 }
+    - { file: src/hooks.server.ts, line: 14 }
+    - { file: src/hooks.server.ts, line: 21 }
+    - { file: src/hooks.server.ts, line: 26 }
+    - { file: src/hooks.server.ts, line: 31 }
+    - { file: src/lib/server/hooks/handle.ts, line: 39 }
+    - { file: src/lib/server/hooks/handle.ts, line: 44 }
+    - { file: src/lib/server/hooks/handle.ts, line: 91 }
+    - { file: src/lib/server/hooks/handle.ts, line: 101 }
+    - { file: src/lib/server/hooks/handle.ts, line: 107 }
+    - { file: src/lib/server/auth.ts, line: 156 }
+    - { file: src/lib/server/hooks/handle.ts, line: 137 }
+    - { file: src/lib/server/hooks/handle.ts, line: 192 }
+    - { file: src/lib/server/hooks/handle.ts, line: 206 }
+    - { file: src/lib/server/hooks/handle.ts, line: 220 }
+    - { file: src/lib/server/hooks/handle.ts, line: 232 }
+    - { file: src/lib/server/hooks/handle.ts, line: 274 }
+    - { file: src/lib/server/hooks/handle.ts, line: 288 }
+    - { file: src/lib/server/hooks/fetch.ts, line: 11 }
+    - { file: src/lib/server/hooks/error.ts, line: 19 }
+    - { file: src/lib/server/hooks/init.ts, line: 37 }
+    - { file: src/lib/server/hooks/init.ts, line: 48 }
+    - { file: src/lib/server/hooks/init.ts, line: 49 }
+    - { file: src/lib/server/hooks/init.ts, line: 55 }
+    - { file: src/lib/server/hooks/init.ts, line: 58 }
+notes: "(1) src/hooks.server.ts の 4 つの export (init、handle、handleError、handleFetch) は、building でなければ $lib/server/hooks の関数に任せるだけなので、段にせず、任せる先の 4 つの関数を入口のフレームの子にした (層は、conventions の src/lib/server/** = query)。call の根拠は export の行と、任せる行。(2) building (静的なビルドの間) の分岐は、要求を受けて動くときはいつも false なので、handleRequest は always にした。init は context.md のとおり conditional (起動のとき 1 回)。(3) 同じ関数を 1 回だけ書く順は、コードに書いてある順 (src/hooks.server.ts の init、handle、handleError、handleFetch) の深さ優先にした (はじめは context.md の hook の並びで辿っていたが、レビューの指摘で直した)。そのため acquireLock、releaseLock、isDBLocked、refreshLock は checkAndRunMigrations の下に書き、findUser と refreshConversationStats では summary で触れるだけにした。(4) handleRequest の /slack/view/ の下は、成功として先に返す経路なので、その後ろの呼び出し (authenticateRequest、triggerOauthFlow、sessions の更新、isSlackConversationMutation) を conditional にした。init の、HuggingChat の配備で鍵が無ければ起動を止める確認は、止めるかどうかが設定で決まるので、その後ろの init の子をすべて conditional にした。(5) config.checkForUpdates は、conventions の「config.X を読むだけの小さな補助」ではなく、要求ごとに semaphores と config のコレクションを読むので、段にした。この 2 つの読み込みは ENABLE_CONFIG_MANAGER によらず起きる (値を使うのは ENABLE_CONFIG_MANAGER のときだけ) ので、ENABLE_CONFIG_MANAGER は settings に書いていない。(6) /admin の下の Bearer の確認は、利用者のログインや役割ではなく共有の秘密の確認なので guards の other にした。Slack が管理する会話の書き換えを 403 で止める確認は、権限の確認として guards の permission にし、判定している isSlackConversationMutation の段に書いた (止めるのは handleRequest)。(7) OIDC の提供者の host は、.env の OPENID_PROVIDER_URL の既定 (https://huggingface.co) から interpretation にした。discovery の path は OIDC の決まり (/.well-known/openid-configuration)。token の更新の path は discovery の文書で決まるので unknown (not_traceable_in_repo) にした。ログインへ移す先 (OIDC の提供者のログインの URL) は、ほかの入口ではないが、links の navigate に式 authorizationUrl のまま書き、値が discovery の文書で決まるので unknown (not_traceable_in_repo) にした (entry_id は無し)。(8) 移行の一覧 (src/lib/migrations/routines/index.ts:15) は、コードに直接書いた空の並びなので、繰り返しの中の migrationResults の更新と、各移行の up を、固定の値で閉じている呼び出しとして段にしなかった (checkAndRunMigrations の summary の note に書いた)。refreshLock は、時間で決まる (移行が 10 秒より早く終われば呼ばれない) ので、閉じているとはせず conditional で残した。(9) init の範囲: データに届くまで辿ったのは、checkAndRunMigrations、refreshConversationStats、AbortedGenerations、GenerationReaper (markGenerationInterrupted と interruptAgentRuns まで)。ParkedCallSweeper、AnsweredAskSweeper、QueuedInputSweeper、MlServicePoller、startSlackBot は、定期の処理を始める仕掛けまで読んで、summary を unknown (not_analyzed) にした (どれも起動のときに始める常駐の処理で、合わせて 3,000 行を超え、要求を包むフックの本筋ではないため。続きは、定期の処理を別の入口に分けて分析するのがよい)。GenerationReaper の、終了のときの finalizeActiveRunsOnExit は、レビューの指摘で段にし、終端にならないよう、その下に markGenerationInterrupted を I/O を持つ段までもう一度書いた。initExitHandler、MetricsServer、loadMcpServersOnStartup、getShareThumbnailPng、displayToken は、データの読み書きに至らない (MetricsServer は HTTP サーバーを開くだけ) ので、段にせず init の summary で触れた。(10) external のフレームは、conventions のとおり、メソッドを呼ぶ行ごとに 1 つにし、同じ関数の中で同じコレクションの同じメソッドを何度も呼ぶとき (authenticateRequest の sessions.findOne と users.findOne、findUser の sessions.findOne、handleFetchRequest の fetch) だけ、最初の行にまとめた。(11) 書いていない設定: COOKIE_NAME (cookie の名前を与えるだけ)、PUBLIC_GOOGLE_ANALYTICS_ID (HTML に埋める値を与えるだけ)、OPENAI_API_KEY と HF_TOKEN (環境変数に写すだけ)、MCP_SERVERS (メモリーに読むだけで、この入口では使わない)。(12) 作業定義に analysis.tests が無いので、テストとの対応は分析していない。(13) レビューの指摘 6 件 (medium 2、low 4) は、すべて直した: ログインへ移す先を unknown にし、getOIDCAuthorizationUrl と openid-client の authorizationUrl を段にし、lock の関数を移行の下に移し、finalizeActiveRunsOnExit を段にし、統計の aggregate の sessionId を filter にも入れ、設定だけで分かれる起動の確認を rules から消した (settings だけに残した)"
+callstack:
+  # ---------------------------------------------------------------- 入口
+  - id: hook
+    layer: shell
+    kind: hooks
+    name: "hooks.server (src/hooks.server.ts)"
+    source: { file: src/hooks.server.ts, line: 13 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "init、handle、handleError、handleFetch の 4 つを export する。どれも、静的なビルドの間 (building) は、handle が %gaId% を空にして通し、handleFetch がそのまま fetch し、handleError がエラーを投げ直し、init が何もしない。それ以外は、$lib/server/hooks の initServer、handleRequest、handleServerError、handleFetchRequest に任せる"
+      evidence:
+        - { file: src/hooks.server.ts, line: 8 }
+        - { file: src/hooks.server.ts, line: 9 }
+        - { file: src/hooks.server.ts, line: 10 }
+        - { file: src/hooks.server.ts, line: 14 }
+        - { file: src/hooks.server.ts, line: 17 }
+        - { file: src/hooks.server.ts, line: 18 }
+        - { file: src/hooks.server.ts, line: 21 }
+        - { file: src/hooks.server.ts, line: 25 }
+        - { file: src/hooks.server.ts, line: 26 }
+        - { file: src/hooks.server.ts, line: 30 }
+        - { file: src/hooks.server.ts, line: 31 }
+
+  # ================================================================ handle
+  - id: q_handle_request
+    layer: query
+    kind: function
+    name: "handle → handleRequest (src/lib/server/hooks/handle.ts)"
+    source: { file: src/lib/server/hooks/handle.ts, line: 31 }
+    caller: hook
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/hooks.server.ts, line: 4 }
+        - { file: src/hooks.server.ts, line: 13 }
+        - { file: src/hooks.server.ts, line: 21 }
+      note: "building (静的なビルドの間) のときは呼ばない。サーバーが要求を受けて動くときは building がいつも false なので、always にした"
+    summary:
+      status: interpretation
+      value: "要求ごとに、要求の id を付けた文脈の中で動く。config の更新を確かめ (ConfigManager.checkForUpdates)、/slack/view/ の下なら HuggingChat のセッションを作らずに通し、応答に保存させない見出しと厳しい CSP を付けて返す。それ以外は、壊れた URL を 400 で拒み、/admin の下では管理の秘密 (ADMIN_API_SECRET か PARQUET_EXPORT_SECRET) が無ければ 500、Bearer が違えば 401。authenticateRequest で利用者とセッションを決めて locals に置き、ログインが有効でログインしていなければ、除外の URL でない限り triggerOauthFlow で OIDC のログインへ移す (移す前にセッションの cookie を付け直す)。locals.isAdmin を、利用者の isAdmin か、CLI で管理者になったセッションかで決める。form の形式の POST は origin が自分か PUBLIC_ORIGIN でなければ 403。POST とログインの URL では、セッションの cookie を付け直し、sessions の期限を 2 週間先にする。ログインが有効でログインしていない書き込みの要求は、ログイン・/admin・/settings の下を除いて 401。isSlackConversationMutation が Slack が管理する会話の書き換えと判定すれば 403。通した後、HTML の %gaId% を Google Analytics の id (/slack/ の下は空) にし、長すぎる Link の見出しを消し、iframe の CSP と、ログインの URL の Cache-Control と、/api/ の下の CORS の見出しを付ける"
+      evidence:
+        - { file: src/lib/server/hooks/handle.ts, line: 36 }
+        - { file: src/lib/server/hooks/handle.ts, line: 39 }
+        - { file: src/lib/server/hooks/handle.ts, line: 44 }
+        - { file: src/lib/server/hooks/handle.ts, line: 45 }
+        - { file: src/lib/server/hooks/handle.ts, line: 51 }
+        - { file: src/lib/server/hooks/handle.ts, line: 57 }
+        - { file: src/lib/server/hooks/handle.ts, line: 89 }
+        - { file: src/lib/server/hooks/handle.ts, line: 91 }
+        - { file: src/lib/server/hooks/handle.ts, line: 94 }
+        - { file: src/lib/server/hooks/handle.ts, line: 95 }
+        - { file: src/lib/server/hooks/handle.ts, line: 98 }
+        - { file: src/lib/server/hooks/handle.ts, line: 102 }
+        - { file: src/lib/server/hooks/handle.ts, line: 107 }
+        - { file: src/lib/server/hooks/handle.ts, line: 114 }
+        - { file: src/lib/server/hooks/handle.ts, line: 136 }
+        - { file: src/lib/server/hooks/handle.ts, line: 137 }
+        - { file: src/lib/server/hooks/handle.ts, line: 153 }
+        - { file: src/lib/server/hooks/handle.ts, line: 158 }
+        - { file: src/lib/server/hooks/handle.ts, line: 166 }
+        - { file: src/lib/server/hooks/handle.ts, line: 167 }
+        - { file: src/lib/server/hooks/handle.ts, line: 188 }
+        - { file: src/lib/server/hooks/handle.ts, line: 193 }
+        - { file: src/lib/server/hooks/handle.ts, line: 204 }
+        - { file: src/lib/server/hooks/handle.ts, line: 206 }
+        - { file: src/lib/server/hooks/handle.ts, line: 212 }
+        - { file: src/lib/server/hooks/handle.ts, line: 220 }
+        - { file: src/lib/server/hooks/handle.ts, line: 225 }
+        - { file: src/lib/server/hooks/handle.ts, line: 232 }
+        - { file: src/lib/server/hooks/handle.ts, line: 250 }
+        - { file: src/lib/server/hooks/handle.ts, line: 269 }
+        - { file: src/lib/server/hooks/handle.ts, line: 277 }
+        - { file: src/lib/server/hooks/handle.ts, line: 285 }
+        - { file: src/lib/server/hooks/handle.ts, line: 307 }
+    parameters:
+      - name: event.url.pathname
+        value: "要求の URL のパス。/slack/view/、/admin、/api/、/login などの下かで、確認と見出しを切り替える"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 44 }
+          - { file: src/lib/server/hooks/handle.ts, line: 106 }
+      - name: event.route.id
+        value: "当たった route の id。/admin の下かを見る。isSlackConversationMutation にも渡す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 94 }
+          - { file: src/lib/server/hooks/handle.ts, line: 227 }
+      - name: event.request.method
+        value: "HTTP のメソッド。POST の origin の確認、セッションの延長、書き込みの 401 を切り替える"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 178 }
+          - { file: src/lib/server/hooks/handle.ts, line: 199 }
+          - { file: src/lib/server/hooks/handle.ts, line: 218 }
+      - name: event.request.headers
+        value: "Authorization (管理の Bearer、API の Bearer の token)、origin、content-type、accept"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 101 }
+          - { file: src/lib/server/hooks/handle.ts, line: 170 }
+          - { file: src/lib/server/hooks/handle.ts, line: 180 }
+          - { file: src/lib/server/hooks/handle.ts, line: 74 }
+      - name: event.params.id
+        value: "会話の id。isSlackConversationMutation に渡す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 228 }
+    guards:
+      - kind: other
+        value: "event.request.headers.get(\"Authorization\") === `Bearer ${ADMIN_SECRET}`"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 94 }
+          - { file: src/lib/server/hooks/handle.ts, line: 101 }
+          - { file: src/lib/server/hooks/handle.ts, line: 102 }
+        note: "/admin の下の route だけ。管理の API の秘密を Bearer で確かめ、違えば 401。コードは否定の形 (!==) で書いているので、肯定の形で写した。利用者のログインや役割ではなく、共有の秘密の確認なので other にした"
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 123 }
+          - { file: src/lib/server/hooks/handle.ts, line: 125 }
+          - { file: src/lib/server/hooks/handle.ts, line: 137 }
+          - { file: src/lib/server/hooks/handle.ts, line: 153 }
+        note: "HuggingChat のログイン。ログインが有効で利用者が無ければ、除外の URL (rules に書いた) でない限り、OIDC のログインへ移して先へ進まない"
+      - kind: other
+        value: "parsedOrigin && validOrigins.includes(parsedOrigin.host)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 178 }
+          - { file: src/lib/server/hooks/handle.ts, line: 179 }
+          - { file: src/lib/server/hooks/handle.ts, line: 182 }
+          - { file: src/lib/server/hooks/handle.ts, line: 186 }
+          - { file: src/lib/server/hooks/handle.ts, line: 191 }
+          - { file: src/lib/server/hooks/handle.ts, line: 192 }
+        note: "ほかのサイトからの送信を拒む確認 (CSRF)。form の形式 (multipart/form-data、x-www-form-urlencoded、text/plain) の POST だけ。origin が無いか、要求の host とも PUBLIC_ORIGIN の host とも違えば 403。コードは否定の形 (! と ||) で書いているので、肯定の形で写した"
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 212 }
+          - { file: src/lib/server/hooks/handle.ts, line: 214 }
+          - { file: src/lib/server/hooks/handle.ts, line: 218 }
+          - { file: src/lib/server/hooks/handle.ts, line: 220 }
+        note: "HuggingChat のログイン。ログインが有効でログインしていなければ、GET・OPTIONS・HEAD 以外の要求を、/login・/admin・/settings の下を除いて 401 で拒む"
+    links:
+      - kind: navigate
+        target: "authorizationUrl"
+        status: unknown
+        reason: not_traceable_in_repo
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 137 }
+          - { file: src/lib/server/hooks/handle.ts, line: 153 }
+          - { file: src/lib/server/auth.ts, line: 352 }
+          - { file: src/lib/server/auth.ts, line: 610 }
+        note: "ログインしていないとき、OIDC の提供者のログインの URL へ移す (triggerOauthFlow が組み立てる)。行き先は、OIDC の提供者の discovery の文書の authorization_endpoint で決まり、リポジトリから読めない。ほかの入口ではないので entry_id は無い"
+    rules:
+      - kind: validation
+        value: "パスの百分率の符号化が壊れている URL (パスをたどる攻撃の形) は、ほかの処理の前に 400 で拒む"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 88 }
+          - { file: src/lib/server/hooks/handle.ts, line: 89 }
+          - { file: src/lib/server/hooks/handle.ts, line: 91 }
+      - kind: decision
+        value: "/slack/view/ の下は、Slack のログインと会話ごとの許可を自分で持つので、HuggingChat のセッションを作らずに通し、保存させない・参照元を送らない・iframe に入れさせない見出しと CSP を付けて返す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 44 }
+          - { file: src/lib/server/hooks/handle.ts, line: 45 }
+          - { file: src/lib/server/hooks/handle.ts, line: 51 }
+          - { file: src/lib/server/hooks/handle.ts, line: 54 }
+          - { file: src/lib/server/hooks/handle.ts, line: 57 }
+      - kind: decision
+        value: "ログインしていなくても OIDC のログインへ移さない URL は、Slack のアプリを足す 4 つの URL と /.well-known/ の下と、AUTOMATIC_LOGIN が true ならログインと死活の確認の下だけ、そうでなければさらに / と、共有の会話 (/r/)、/conversation/、/models/、/api の下"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 117 }
+          - { file: src/lib/server/hooks/handle.ts, line: 126 }
+          - { file: src/lib/server/hooks/handle.ts, line: 127 }
+          - { file: src/lib/server/hooks/handle.ts, line: 132 }
+          - { file: src/lib/server/hooks/handle.ts, line: 133 }
+          - { file: src/lib/server/hooks/handle.ts, line: 142 }
+          - { file: src/lib/server/hooks/handle.ts, line: 147 }
+          - { file: src/lib/server/hooks/handle.ts, line: 150 }
+      - kind: decision
+        value: "利用者が isAdmin か、CLI の管理の token で管理者になったセッションなら、要求を管理者のものとする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 166 }
+          - { file: src/lib/server/hooks/handle.ts, line: 167 }
+          - { file: src/lib/server/adminToken.ts, line: 15 }
+          - { file: src/lib/server/adminToken.ts, line: 17 }
+      - kind: calculation
+        value: "POST の要求とログインの URL では、セッションの cookie と sessions の期限 (expiresAt) を、いまから 2 週間先にする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 198 }
+          - { file: src/lib/server/hooks/handle.ts, line: 204 }
+          - { file: src/lib/server/hooks/handle.ts, line: 208 }
+          - { file: src/lib/server/auth.ts, line: 117 }
+      - kind: decision
+        value: "/api/ の下の応答は、開発中か、origin が無い (サーバー側の要求) か localhost なら、どの origin にも許し、origin が PUBLIC_ORIGIN と同じならその origin に許す CORS の見出しを付ける"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 288 }
+          - { file: src/lib/server/hooks/handle.ts, line: 294 }
+          - { file: src/lib/server/hooks/handle.ts, line: 297 }
+          - { file: src/lib/server/hooks/handle.ts, line: 298 }
+          - { file: src/lib/server/hooks/handle.ts, line: 299 }
+          - { file: src/lib/server/hooks/handle.ts, line: 302 }
+          - { file: src/lib/server/hooks/handle.ts, line: 307 }
+    settings:
+      - name: ADMIN_API_SECRET
+        kind: env
+        effect: "無ければ (PARQUET_EXPORT_SECRET も無ければ)、/admin の下の要求をすべて 500 で拒む。あれば、Authorization の Bearer がこの値と同じ要求だけを通す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 95 }
+          - { file: src/lib/server/hooks/handle.ts, line: 97 }
+          - { file: src/lib/server/hooks/handle.ts, line: 98 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)。値は秘密だが、有る無しで /admin の下が動くかが変わる"
+      - name: PARQUET_EXPORT_SECRET
+        kind: env
+        effect: "ADMIN_API_SECRET が無いときに、その代わりの管理の秘密になる。どちらも無ければ /admin の下を 500 で拒む"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 95 }
+          - { file: src/lib/server/hooks/handle.ts, line: 97 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+      - name: OPENID_CLIENT_ID
+        kind: env
+        effect: "空なら (OPENID_CONFIG の CLIENT_ID も空なら) ログインを無効とし、ログインしていなくても OIDC のログインへ移さず、書き込みの要求も 401 にしない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 45 }
+          - { file: src/lib/server/auth.ts, line: 57 }
+          - { file: src/lib/server/auth.ts, line: 59 }
+          - { file: src/lib/server/hooks/handle.ts, line: 124 }
+          - { file: src/lib/server/hooks/handle.ts, line: 213 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)。OPENID_CONFIG (JSON5) に CLIENT_ID があれば、そちらが先 (auth.ts:43-57)"
+      - name: AUTOMATIC_LOGIN
+        kind: env
+        effect: "true なら、ログインしていない要求を、ログインと死活の確認の下を除いてすべて OIDC のログインへ移す。そうでなければ、/ や共有の会話、/api の下などは、ログインせずに通す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 129 }
+          - { file: src/lib/server/hooks/handle.ts, line: 139 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+      - name: ADMIN_CLI_LOGIN
+        kind: env
+        effect: "true でなければ、CLI の管理の token で管理者になったセッションを管理者として扱わない (利用者の isAdmin だけで決める)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/adminToken.ts, line: 13 }
+          - { file: src/lib/server/adminToken.ts, line: 16 }
+          - { file: src/lib/server/hooks/handle.ts, line: 167 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+      - name: PUBLIC_ORIGIN
+        kind: env
+        effect: "あれば、form の POST の origin の確認で、その host も自分の origin として認め、/api/ の下で、その origin からの要求に CORS を許す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 188 }
+          - { file: src/lib/server/hooks/handle.ts, line: 294 }
+          - { file: src/lib/server/hooks/handle.ts, line: 302 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+      - name: ALLOW_IFRAME
+        kind: env
+        effect: "true でなければ、応答に frame-ancestors https://huggingface.co の CSP を足し、huggingface.co の外の iframe に入れさせない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 274 }
+          - { file: src/lib/server/hooks/handle.ts, line: 277 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: sessions } }
+        fields:
+          - { name: sessionId, use: [filter] }
+          - { name: updatedAt, use: [write] }
+          - { name: expiresAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 206 }
+          - { file: src/lib/server/hooks/handle.ts, line: 207 }
+          - { file: src/lib/server/hooks/handle.ts, line: 208 }
+          - { file: src/lib/server/database.ts, line: 170 }
+        note: "POST の要求か、ログインの URL のときだけ。セッションの期限を 2 週間先にする"
+
+  - id: q_config_check_for_updates
+    layer: query
+    kind: function
+    name: "ConfigManager.checkForUpdates (src/lib/server/config.ts)"
+    source: { file: src/lib/server/config.ts, line: 52 }
+    caller: q_handle_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/hooks/handle.ts, line: 17 }
+        - { file: src/lib/server/hooks/handle.ts, line: 38 }
+        - { file: src/lib/server/hooks/handle.ts, line: 39 }
+    summary:
+      status: interpretation
+      value: "DB の config が古くなったかを確かめ、古ければ読み直す。最後に読んでから、semaphores の CONFIG_UPDATE の行が更新されていれば古いとし (まだ読んでいなければいつも古い)、config のコレクションをまるごと読んで、キーと値の対をメモリーに置く (ENABLE_CONFIG_MANAGER が true のときだけ、config.X が環境変数より先にこの値を返す)"
+      evidence:
+        - { file: src/lib/server/config.ts, line: 53 }
+        - { file: src/lib/server/config.ts, line: 54 }
+        - { file: src/lib/server/config.ts, line: 59 }
+        - { file: src/lib/server/config.ts, line: 62 }
+        - { file: src/lib/server/config.ts, line: 70 }
+        - { file: src/lib/server/config.ts, line: 71 }
+        - { file: src/lib/server/config.ts, line: 79 }
+        - { file: src/lib/server/config.ts, line: 83 }
+        - { file: src/lib/server/config.ts, line: 86 }
+      note: "config と semaphores のコレクションは、ENABLE_CONFIG_MANAGER によらず、ビルドとテストのとき以外はいつも用意される (config.ts:28-37)。そのため、この 2 つの読み込みは、設定によらず要求ごとに起きる"
+    rules:
+      - kind: decision
+        value: "semaphores の CONFIG_UPDATE の行の updatedAt が、最後に config を読んだ時刻より新しければ、config を読み直す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/config.ts, line: 62 }
+          - { file: src/lib/server/config.ts, line: 63 }
+          - { file: src/lib/server/config.ts, line: 64 }
+          - { file: src/lib/server/config.ts, line: 66 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: semaphores } }
+        fields:
+          - { name: key, use: [filter] }
+          - { name: updatedAt, use: [filter] }
+        evidence:
+          - { file: src/lib/server/config.ts, line: 62 }
+          - { file: src/lib/server/config.ts, line: 63 }
+          - { file: src/lib/server/config.ts, line: 64 }
+          - { file: src/lib/server/config.ts, line: 37 }
+          - { file: src/lib/server/database.ts, line: 187 }
+        note: "countDocuments で、CONFIG_UPDATE の行が最後の読み込みより後に更新されたかを数える。config を一度読んだ後の要求ごと"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: config } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/config.ts, line: 70 }
+          - { file: src/lib/server/config.ts, line: 36 }
+          - { file: src/lib/server/database.ts, line: 189 }
+          - { file: src/lib/server/database.ts, line: 246 }
+        note: "古いときだけ。条件無しで、すべての行 (key と value) を読む"
+
+  - id: ext_mongo_semaphores_count_config
+    layer: external
+    kind: library
+    name: "MongoDB driver countDocuments (semaphores)"
+    source: { file: src/lib/server/config.ts, line: 62 }
+    caller: q_config_check_for_updates
+    call:
+      status: fact
+      when: conditional
+      evidence:
+        - { file: src/lib/server/config.ts, line: 59 }
+        - { file: src/lib/server/config.ts, line: 62 }
+      condition: "config をすでに一度読み込んでいるとき"
+
+  - id: ext_mongo_config_find
+    layer: external
+    kind: library
+    name: "MongoDB driver find (config)"
+    source: { file: src/lib/server/config.ts, line: 70 }
+    caller: q_config_check_for_updates
+    call:
+      status: fact
+      when: conditional
+      condition: "config がまだ読まれていないか、最後の読み込みより後に更新されたとき"
+      evidence:
+        - { file: src/lib/server/config.ts, line: 53 }
+        - { file: src/lib/server/config.ts, line: 54 }
+        - { file: src/lib/server/config.ts, line: 70 }
+
+  # ---------------------------------------------------------------- 利用者とセッションを決める
+  - id: q_authenticate_request
+    layer: query
+    kind: function
+    name: "authenticateRequest (src/lib/server/auth.ts)"
+    source: { file: src/lib/server/auth.ts, line: 449 }
+    caller: q_handle_request
+    call:
+      status: fact
+      when: conditional
+      condition: "URL が /slack/view/ の下でないとき (/admin の下では、管理の秘密が設定され、Bearer が合うときだけ)"
+      evidence:
+        - { file: src/lib/server/hooks/handle.ts, line: 6 }
+        - { file: src/lib/server/hooks/handle.ts, line: 44 }
+        - { file: src/lib/server/hooks/handle.ts, line: 97 }
+        - { file: src/lib/server/hooks/handle.ts, line: 107 }
+      note: "/slack/view/ の下は、成功として先に返す経路なので、その後ろの呼び出しは conditional にした。/admin の下で管理の秘密が無ければ 500 で止まり、止まるかどうかが設定で決まるので、条件に書いた"
+    summary:
+      status: interpretation
+      value: "要求の利用者とセッションを、次の順に決める。TRUSTED_EMAIL_HEADER の見出しにメールがあれば、DB を読まずにメールから利用者とセッションを作る。cookie にセッションの token があれば、その sha256 をセッションの id にして findUser で利用者を読み、セッションが無効なら新しいセッションの id を作る。API の要求で Authorization の Bearer があれば、token の sha256 で tokens のキャッシュを引き、無ければ Hugging Face の whoami-v2 で token を確かめて users を読み、キャッシュに足す。どれでもなければ新しいセッションの id を作る (新しい id が sessions に既にあれば、衝突として止める)"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 455 }
+        - { file: src/lib/server/auth.ts, line: 458 }
+        - { file: src/lib/server/auth.ts, line: 465 }
+        - { file: src/lib/server/auth.ts, line: 483 }
+        - { file: src/lib/server/auth.ts, line: 485 }
+        - { file: src/lib/server/auth.ts, line: 487 }
+        - { file: src/lib/server/auth.ts, line: 489 }
+        - { file: src/lib/server/auth.ts, line: 493 }
+        - { file: src/lib/server/auth.ts, line: 507 }
+        - { file: src/lib/server/auth.ts, line: 514 }
+        - { file: src/lib/server/auth.ts, line: 529 }
+        - { file: src/lib/server/auth.ts, line: 544 }
+        - { file: src/lib/server/auth.ts, line: 549 }
+        - { file: src/lib/server/auth.ts, line: 567 }
+        - { file: src/lib/server/auth.ts, line: 570 }
+        - { file: src/lib/server/auth.ts, line: 571 }
+    parameters:
+      - name: cookie
+        value: "COOKIE_NAME の名前の cookie (セッションの token)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 455 }
+      - name: headers
+        value: "TRUSTED_EMAIL_HEADER の名前の見出し (メール) と、Authorization (Bearer の token)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 459 }
+          - { file: src/lib/server/auth.ts, line: 508 }
+      - name: isApi
+        value: "URL が /api/ の下か。Bearer の token を見るのは、API の要求だけ"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 106 }
+          - { file: src/lib/server/auth.ts, line: 507 }
+    rules:
+      - kind: calculation
+        value: "セッションの id は、cookie の token (または Bearer の token、メール) の sha256 にする。cookie には元の token だけを置く"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 466 }
+          - { file: src/lib/server/auth.ts, line: 484 }
+          - { file: src/lib/server/auth.ts, line: 485 }
+          - { file: src/lib/server/auth.ts, line: 511 }
+      - kind: decision
+        value: "cookie のセッションが無効と分かったら、新しいセッションの id に切り替える (利用者は無し)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 489 }
+          - { file: src/lib/server/auth.ts, line: 490 }
+          - { file: src/lib/server/auth.ts, line: 491 }
+      - kind: validation
+        value: "API の Bearer の token は、Hugging Face の whoami-v2 で確かめられ、種類が個人の access token (access_token) のときだけ認める (OAuth とアプリの token は、利用者が許した範囲に限られるので、セッションを開かない)。対応する利用者が users に無ければ止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 533 }
+          - { file: src/lib/server/auth.ts, line: 538 }
+          - { file: src/lib/server/auth.ts, line: 539 }
+          - { file: src/lib/server/auth.ts, line: 545 }
+      - kind: decision
+        value: "Bearer の token の sha256 が tokens のキャッシュにあれば、whoami-v2 を呼ばずに、キャッシュの利用者を使う"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 514 }
+          - { file: src/lib/server/auth.ts, line: 515 }
+          - { file: src/lib/server/auth.ts, line: 516 }
+      - kind: validation
+        value: "新しく作ったセッションの id が sessions に既にあれば、衝突として止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 493 }
+          - { file: src/lib/server/auth.ts, line: 494 }
+          - { file: src/lib/server/auth.ts, line: 570 }
+          - { file: src/lib/server/auth.ts, line: 571 }
+    settings:
+      - name: TRUSTED_EMAIL_HEADER
+        kind: env
+        effect: "あれば、その名前の見出しにメールがある要求を、DB を読まずに、そのメールの利用者として扱う (cookie と Bearer を見ない)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 458 }
+          - { file: src/lib/server/auth.ts, line: 459 }
+          - { file: src/lib/server/auth.ts, line: 465 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: sessions } }
+        fields:
+          - { name: sessionId, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 493 }
+          - { file: src/lib/server/auth.ts, line: 570 }
+          - { file: src/lib/server/database.ts, line: 170 }
+        note: "新しく作ったセッションの id の衝突の確認。cookie のセッションが無効だったときと、cookie も Bearer も無いとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: tokens } }
+        fields:
+          - { name: tokenHash, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 514 }
+          - { file: src/lib/server/database.ts, line: 188 }
+        note: "cookie が無い API の要求で、Bearer の token があるとき"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: users } }
+        fields:
+          - { name: hfUserId, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 516 }
+          - { file: src/lib/server/auth.ts, line: 544 }
+          - { file: src/lib/server/database.ts, line: 169 }
+        note: "Bearer の token の持ち主 (キャッシュの userId か、whoami-v2 の id) の利用者"
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: huggingface.co, path: /api/whoami-v2 } }
+        fields:
+          - { name: Authorization, use: [write] }
+          - { name: id, use: [read] }
+          - { name: auth.type, use: [read] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 529 }
+          - { file: src/lib/server/auth.ts, line: 530 }
+          - { file: src/lib/server/auth.ts, line: 537 }
+          - { file: src/lib/server/auth.ts, line: 431 }
+          - { file: src/lib/server/auth.ts, line: 432 }
+        note: "Bearer の token がキャッシュに無いとき。token を Authorization の見出しで送り、持ち主の id と token の種類を受け取る"
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: tokens } }
+        fields:
+          - { name: tokenHash, use: [write] }
+          - { name: userId, use: [write] }
+          - { name: createdAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 549 }
+          - { file: src/lib/server/auth.ts, line: 550 }
+          - { file: src/lib/server/auth.ts, line: 551 }
+          - { file: src/lib/server/auth.ts, line: 552 }
+          - { file: src/lib/server/auth.ts, line: 553 }
+        note: "whoami-v2 で確かめ、利用者が見つかったとき、token の sha256 と持ち主の対応を足す"
+
+  - id: ext_mongo_sessions_find_one_auth
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (sessions)"
+    source: { file: src/lib/server/auth.ts, line: 493 }
+    caller: q_authenticate_request
+    call:
+      status: fact
+      when: conditional
+      condition: "新しいセッションの id を作ったとき (cookie のセッションが無効だったか、cookie も Bearer も無いとき)"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 489 }
+        - { file: src/lib/server/auth.ts, line: 493 }
+        - { file: src/lib/server/auth.ts, line: 570 }
+      note: "同じ関数の中の 2 つの呼び出し (493 と 570) を、最初の行の 1 つにまとめた"
+
+  - id: q_find_user
+    layer: query
+    kind: function
+    name: "findUser (src/lib/server/auth.ts)"
+    source: { file: src/lib/server/auth.ts, line: 121 }
+    caller: q_authenticate_request
+    call:
+      status: fact
+      when: conditional
+      condition: "cookie にセッションの token があるとき (信頼するメールの見出しで利用者が決まらなかったとき)"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 465 }
+        - { file: src/lib/server/auth.ts, line: 483 }
+        - { file: src/lib/server/auth.ts, line: 487 }
+    summary:
+      status: interpretation
+      value: "sessions からセッションを読み、無ければ利用者無しを返す。COUPLE_SESSION_WITH_COOKIE_NAME の cookie の sha256 がセッションの記録と違うか、OAuth の token を戻せなければ、セッションを無効とする。OAuth の token に refresh token があり、期限まで 5 分を切っていれば、lock (acquireLock) を取れた要求だけが refreshOAuthToken で更新し、sessions の oauth を書き換え、lock を放す (releaseLock)。lock を取れず期限も過ぎていれば、ほかの要求の更新を 200 ミリ秒ごとに最大 20 回待ち (isDBLocked)、sessions を読み直す。acquireLock、releaseLock、isDBLocked も呼ぶ。経路はフレーム q_acquire_lock、q_release_lock、q_is_db_locked と同じ。refresh token が無く期限が過ぎていれば無効とする。最後に、セッションの利用者を users から読む"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 130 }
+        - { file: src/lib/server/auth.ts, line: 132 }
+        - { file: src/lib/server/auth.ts, line: 136 }
+        - { file: src/lib/server/auth.ts, line: 140 }
+        - { file: src/lib/server/auth.ts, line: 141 }
+        - { file: src/lib/server/auth.ts, line: 146 }
+        - { file: src/lib/server/auth.ts, line: 148 }
+        - { file: src/lib/server/auth.ts, line: 152 }
+        - { file: src/lib/server/auth.ts, line: 156 }
+        - { file: src/lib/server/auth.ts, line: 175 }
+        - { file: src/lib/server/auth.ts, line: 190 }
+        - { file: src/lib/server/auth.ts, line: 192 }
+        - { file: src/lib/server/auth.ts, line: 196 }
+        - { file: src/lib/server/auth.ts, line: 198 }
+        - { file: src/lib/server/auth.ts, line: 201 }
+        - { file: src/lib/server/auth.ts, line: 203 }
+        - { file: src/lib/server/auth.ts, line: 217 }
+        - { file: src/lib/server/auth.ts, line: 218 }
+        - { file: src/lib/server/auth.ts, line: 224 }
+    rules:
+      - kind: validation
+        value: "セッションを別の cookie に結び付ける設定のとき、その cookie の sha256 がセッションの記録 (coupledCookieHash) と違えば、セッションを無効とする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 136 }
+          - { file: src/lib/server/auth.ts, line: 137 }
+          - { file: src/lib/server/auth.ts, line: 446 }
+      - kind: validation
+        value: "保存した OAuth の token を戻せなければ、入り直させるためにセッションを無効とする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 140 }
+          - { file: src/lib/server/auth.ts, line: 141 }
+          - { file: src/lib/server/auth.ts, line: 142 }
+      - kind: decision
+        value: "OAuth の token は、期限まで 5 分を切ったら refresh token で更新する。同じセッションの更新は lock で 1 つの要求だけが行い、ほかの要求は期限が過ぎていれば更新を待つ (最大 20 回、200 ミリ秒ごと)。更新に失敗するか、待っても更新されなければ、セッションを無効とする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 146 }
+          - { file: src/lib/server/auth.ts, line: 148 }
+          - { file: src/lib/server/auth.ts, line: 149 }
+          - { file: src/lib/server/auth.ts, line: 152 }
+          - { file: src/lib/server/auth.ts, line: 162 }
+          - { file: src/lib/server/auth.ts, line: 192 }
+          - { file: src/lib/server/auth.ts, line: 198 }
+          - { file: src/lib/server/auth.ts, line: 204 }
+          - { file: src/lib/server/auth.ts, line: 206 }
+      - kind: validation
+        value: "refresh token の無い OAuth の token は、期限が過ぎたらセッションを無効とする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 217 }
+          - { file: src/lib/server/auth.ts, line: 218 }
+          - { file: src/lib/server/auth.ts, line: 219 }
+    settings:
+      - name: COUPLE_SESSION_WITH_COOKIE_NAME
+        kind: env
+        effect: "あれば、その名前の cookie の sha256 がセッションの記録と違う要求のセッションを無効とする (無ければ確かめない)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 436 }
+          - { file: src/lib/server/auth.ts, line: 440 }
+          - { file: src/lib/server/auth.ts, line: 487 }
+          - { file: src/lib/server/auth.ts, line: 136 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)。読むのは補助の関数 getCoupledCookieHash (段にしていない) で、結果で動きが変わるのはこの段"
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: sessions } }
+        fields:
+          - { name: sessionId, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 130 }
+          - { file: src/lib/server/auth.ts, line: 203 }
+          - { file: src/lib/server/database.ts, line: 170 }
+        note: "初めの読み込みと、ほかの要求の token の更新を待った後の読み直し (203)"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: sessions } }
+        fields:
+          - { name: sessionId, use: [filter] }
+          - { name: oauth, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 175 }
+          - { file: src/lib/server/auth.ts, line: 176 }
+          - { file: src/lib/server/auth.ts, line: 179 }
+          - { file: src/lib/server/auth.ts, line: 180 }
+        note: "OAuth の token を更新できたとき、暗号にした新しい token を書く"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: users } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 224 }
+          - { file: src/lib/server/database.ts, line: 169 }
+        note: "セッションの userId の利用者"
+
+  - id: ext_mongo_sessions_find_one_find_user
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (sessions)"
+    source: { file: src/lib/server/auth.ts, line: 130 }
+    caller: q_find_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 130 }
+        - { file: src/lib/server/auth.ts, line: 203 }
+      note: "同じ関数の中の 2 つの呼び出し (130 と、更新を待った後の 203) を、最初の行の 1 つにまとめた"
+
+  - id: q_refresh_oauth_token
+    layer: query
+    kind: function
+    name: "refreshOAuthToken (src/lib/server/auth.ts)"
+    source: { file: src/lib/server/auth.ts, line: 385 }
+    caller: q_find_user
+    call:
+      status: fact
+      when: conditional
+      condition: "token の更新の lock を取れたとき"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 153 }
+        - { file: src/lib/server/auth.ts, line: 156 }
+    summary:
+      status: interpretation
+      value: "getOIDCClient で OIDC の client を得て、refresh token で新しい token の組を受け取って返す"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 390 }
+        - { file: src/lib/server/auth.ts, line: 391 }
+        - { file: src/lib/server/auth.ts, line: 392 }
+    io:
+      - op: call
+        status: unknown
+        reason: not_traceable_in_repo
+        resource: { kind: external_api, levels: { host: huggingface.co } }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 391 }
+          - { file: src/lib/server/auth.ts, line: 47 }
+          - { file: .env, line: 320 }
+        note: "openid-client の refresh は、提供者の discovery の文書が示す token の送り先 (token_endpoint) を呼ぶ。host は OPENID_PROVIDER_URL の既定 (.env の https://huggingface.co) と見たが、path は discovery の文書で決まり、リポジトリに書いていない"
+
+  - id: q_get_oidc_client
+    layer: query
+    kind: function
+    name: "getOIDCClient (src/lib/server/auth.ts)"
+    source: { file: src/lib/server/auth.ts, line: 285 }
+    caller: q_refresh_oauth_token
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 390 }
+    summary:
+      status: interpretation
+      value: "OIDC の提供者の情報 (issuer) を、メモリーに無いか 10 分より古ければ discovery で取り直し、OPENID の設定 (client id と secret、送り先、時刻の許容、署名の方式) で client を作って返す。client id が __CIMD__ なら、自分の /.well-known/oauth-cimd の URL を client id にする"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 286 }
+        - { file: src/lib/server/auth.ts, line: 289 }
+        - { file: src/lib/server/auth.ts, line: 294 }
+        - { file: src/lib/server/auth.ts, line: 295 }
+        - { file: src/lib/server/auth.ts, line: 301 }
+        - { file: src/lib/server/auth.ts, line: 313 }
+        - { file: src/lib/server/auth.ts, line: 315 }
+        - { file: src/lib/server/auth.ts, line: 327 }
+    rules:
+      - kind: decision
+        value: "OIDC の提供者の discovery の結果は、10 分のあいだメモリーで使い回す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 286 }
+          - { file: src/lib/server/auth.ts, line: 289 }
+          - { file: src/lib/server/auth.ts, line: 294 }
+    settings:
+      - name: OPENID_PROVIDER_URL
+        kind: env
+        effect: "OIDC の提供者 (discovery、token の更新、ログインの送り先) を決める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 47 }
+          - { file: src/lib/server/auth.ts, line: 295 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)。OPENID_CONFIG (JSON5) に PROVIDER_URL があれば、そちらが先 (auth.ts:43-57)"
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: huggingface.co, path: /.well-known/openid-configuration } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 295 }
+          - { file: src/lib/server/auth.ts, line: 47 }
+          - { file: .env, line: 320 }
+        note: "openid-client の Issuer.discover。host は OPENID_PROVIDER_URL の既定 (.env の https://huggingface.co)、path は OIDC の discovery の決まりの送り先で、リポジトリには書いていない。issuer がメモリーに無いか、10 分より古いときだけ"
+
+  - id: ext_oidc_issuer_discover
+    layer: external
+    kind: library
+    name: "openid-client Issuer.discover"
+    source: { file: src/lib/server/auth.ts, line: 295 }
+    caller: q_get_oidc_client
+    call:
+      status: fact
+      when: conditional
+      condition: "issuer がメモリーに無いか、取ってから 10 分以上たったとき"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 286 }
+        - { file: src/lib/server/auth.ts, line: 294 }
+        - { file: src/lib/server/auth.ts, line: 295 }
+
+  - id: ext_oidc_client_refresh
+    layer: external
+    kind: library
+    name: "openid-client Client.refresh"
+    source: { file: src/lib/server/auth.ts, line: 391 }
+    caller: q_refresh_oauth_token
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 391 }
+
+  - id: ext_mongo_sessions_update_one_find_user
+    layer: external
+    kind: library
+    name: "MongoDB driver updateOne (sessions)"
+    source: { file: src/lib/server/auth.ts, line: 175 }
+    caller: q_find_user
+    call:
+      status: fact
+      when: conditional
+      condition: "lock を取り、OAuth の token を更新できたとき"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 153 }
+        - { file: src/lib/server/auth.ts, line: 162 }
+        - { file: src/lib/server/auth.ts, line: 170 }
+        - { file: src/lib/server/auth.ts, line: 175 }
+
+  - id: ext_mongo_users_find_one_find_user
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (users)"
+    source: { file: src/lib/server/auth.ts, line: 224 }
+    caller: q_find_user
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 224 }
+      note: "手前に、セッションが無いか無効なら利用者無しで返す経路があるが、打ち切りなので always にした"
+
+  - id: ext_mongo_tokens_find_one
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (tokens)"
+    source: { file: src/lib/server/auth.ts, line: 514 }
+    caller: q_authenticate_request
+    call:
+      status: fact
+      when: conditional
+      condition: "cookie が無い API の要求で、Authorization に Bearer の token があるとき"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 483 }
+        - { file: src/lib/server/auth.ts, line: 507 }
+        - { file: src/lib/server/auth.ts, line: 509 }
+        - { file: src/lib/server/auth.ts, line: 514 }
+
+  - id: ext_mongo_users_find_one_auth
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (users)"
+    source: { file: src/lib/server/auth.ts, line: 516 }
+    caller: q_authenticate_request
+    call:
+      status: fact
+      when: conditional
+      condition: "Bearer の token の持ち主が、キャッシュか whoami-v2 で分かったとき"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 515 }
+        - { file: src/lib/server/auth.ts, line: 516 }
+        - { file: src/lib/server/auth.ts, line: 544 }
+      note: "同じ関数の中の 2 つの呼び出し (キャッシュから引いた 516 と、whoami-v2 の後の 544) を、最初の行の 1 つにまとめた"
+
+  - id: ext_fetch_whoami
+    layer: external
+    kind: library
+    name: "fetch (huggingface.co/api/whoami-v2)"
+    source: { file: src/lib/server/auth.ts, line: 529 }
+    caller: q_authenticate_request
+    call:
+      status: fact
+      when: conditional
+      condition: "Bearer の token の sha256 が tokens のキャッシュに無いとき"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 515 }
+        - { file: src/lib/server/auth.ts, line: 529 }
+
+  - id: ext_mongo_tokens_insert_one
+    layer: external
+    kind: library
+    name: "MongoDB driver insertOne (tokens)"
+    source: { file: src/lib/server/auth.ts, line: 549 }
+    caller: q_authenticate_request
+    call:
+      status: fact
+      when: conditional
+      condition: "whoami-v2 で個人の access token と確かめ、その利用者が users にあったとき"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 539 }
+        - { file: src/lib/server/auth.ts, line: 545 }
+        - { file: src/lib/server/auth.ts, line: 549 }
+
+  # ---------------------------------------------------------------- ログインへ移す
+  - id: q_trigger_oauth_flow
+    layer: query
+    kind: function
+    name: "triggerOauthFlow (src/lib/server/auth.ts)"
+    source: { file: src/lib/server/auth.ts, line: 577 }
+    caller: q_handle_request
+    call:
+      status: fact
+      when: conditional
+      condition: "ログインが有効な設定で、ログインしておらず、ログインを求める URL のとき (URL が /slack/view/ の下でないとき)"
+      evidence:
+        - { file: src/lib/server/hooks/handle.ts, line: 9 }
+        - { file: src/lib/server/hooks/handle.ts, line: 123 }
+        - { file: src/lib/server/hooks/handle.ts, line: 124 }
+        - { file: src/lib/server/hooks/handle.ts, line: 125 }
+        - { file: src/lib/server/hooks/handle.ts, line: 137 }
+        - { file: src/lib/server/hooks/handle.ts, line: 153 }
+    summary:
+      status: interpretation
+      value: "ログインの戻り先 (/login/callback) を決め (callback の指定が許した URL の一覧にあれば、それに替える)、ログインの後に戻る画面 (next の指定か、いまの画面) を、自分の中のパスだけに絞る。getOIDCAuthorizationUrl で、セッションの id で署名した 1 時間の state と PKCE の code_challenge を付けたログインの URL を作り (code_verifier は cookie に置く)、その URL へ 302 で移す"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 580 }
+        - { file: src/lib/server/auth.ts, line: 584 }
+        - { file: src/lib/server/auth.ts, line: 586 }
+        - { file: src/lib/server/auth.ts, line: 594 }
+        - { file: src/lib/server/auth.ts, line: 600 }
+        - { file: src/lib/server/auth.ts, line: 605 }
+        - { file: src/lib/server/auth.ts, line: 334 }
+        - { file: src/lib/server/auth.ts, line: 335 }
+        - { file: src/lib/server/auth.ts, line: 341 }
+        - { file: src/lib/server/auth.ts, line: 344 }
+        - { file: src/lib/server/auth.ts, line: 352 }
+        - { file: src/lib/server/auth.ts, line: 610 }
+    rules:
+      - kind: validation
+        value: "ログインの後に戻る先は、/ で始まり // で始まらない、自分の中のパスだけを認める (ほかのサイトへ移させない)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 71 }
+          - { file: src/lib/server/auth.ts, line: 75 }
+          - { file: src/lib/server/auth.ts, line: 78 }
+          - { file: src/lib/server/auth.ts, line: 594 }
+          - { file: src/lib/server/auth.ts, line: 596 }
+      - kind: decision
+        value: "戻る先は、next の指定があればそれ、ログインの URL の外ならいまの画面、どちらでもなければ / にする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 595 }
+          - { file: src/lib/server/auth.ts, line: 598 }
+          - { file: src/lib/server/auth.ts, line: 600 }
+          - { file: src/lib/server/auth.ts, line: 602 }
+      - kind: calculation
+        value: "ログインの state は、1 時間の期限と戻り先と戻る画面を、セッションの id と合わせた sha256 で署名したもの"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 266 }
+          - { file: src/lib/server/auth.ts, line: 278 }
+          - { file: src/lib/server/auth.ts, line: 335 }
+          - { file: src/lib/server/auth.ts, line: 356 }
+    settings:
+      - name: ALTERNATIVE_REDIRECT_URLS
+        kind: env
+        effect: "URL の callback の指定がこの一覧にあれば、ログインの戻り先を /login/callback からそれに替える"
+        status: fact
+        evidence:
+          - { file: src/lib/server/auth.ts, line: 584 }
+          - { file: src/lib/server/auth.ts, line: 586 }
+          - { file: src/lib/server/auth.ts, line: 587 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+
+  - id: q_get_oidc_authorization_url
+    layer: query
+    kind: function
+    name: "getOIDCAuthorizationUrl (src/lib/server/auth.ts)"
+    source: { file: src/lib/server/auth.ts, line: 330 }
+    caller: q_trigger_oauth_flow
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 605 }
+    summary:
+      status: interpretation
+      value: "getOIDCClient で OIDC の client を得て (経路はフレーム q_get_oidc_client と同じ)、セッションの id で署名した state を作り、PKCE の code_verifier を作って 1 時間の cookie に置き、code_challenge (S256)、scope、state、resource を付けたログインの URL を client に作らせて返す"
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 334 }
+        - { file: src/lib/server/auth.ts, line: 335 }
+        - { file: src/lib/server/auth.ts, line: 341 }
+        - { file: src/lib/server/auth.ts, line: 342 }
+        - { file: src/lib/server/auth.ts, line: 344 }
+        - { file: src/lib/server/auth.ts, line: 349 }
+        - { file: src/lib/server/auth.ts, line: 352 }
+        - { file: src/lib/server/auth.ts, line: 353 }
+        - { file: src/lib/server/auth.ts, line: 355 }
+        - { file: src/lib/server/auth.ts, line: 356 }
+        - { file: src/lib/server/auth.ts, line: 357 }
+
+  - id: ext_oidc_client_authorization_url
+    layer: external
+    kind: library
+    name: "openid-client Client.authorizationUrl"
+    source: { file: src/lib/server/auth.ts, line: 352 }
+    caller: q_get_oidc_authorization_url
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 352 }
+      note: "URL を組み立てるだけで、提供者は呼ばない (送り先は discovery の結果の authorization_endpoint)"
+
+  - id: ext_kit_redirect_oauth
+    layer: external
+    kind: library
+    name: "@sveltejs/kit redirect"
+    source: { file: src/lib/server/auth.ts, line: 610 }
+    caller: q_trigger_oauth_flow
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/auth.ts, line: 15 }
+        - { file: src/lib/server/auth.ts, line: 610 }
+
+  - id: ext_mongo_sessions_update_one_handle
+    layer: external
+    kind: library
+    name: "MongoDB driver updateOne (sessions)"
+    source: { file: src/lib/server/hooks/handle.ts, line: 206 }
+    caller: q_handle_request
+    call:
+      status: fact
+      when: conditional
+      condition: "POST の要求か、ログインの URL のとき (URL が /slack/view/ の下でなく、ログインへ移されなかったとき)"
+      evidence:
+        - { file: src/lib/server/hooks/handle.ts, line: 198 }
+        - { file: src/lib/server/hooks/handle.ts, line: 199 }
+        - { file: src/lib/server/hooks/handle.ts, line: 200 }
+        - { file: src/lib/server/hooks/handle.ts, line: 206 }
+
+  # ---------------------------------------------------------------- Slack が管理する会話
+  - id: q_is_slack_conversation_mutation
+    layer: query
+    kind: function
+    name: "isSlackConversationMutation (src/lib/server/slack/readOnly.ts)"
+    source: { file: src/lib/server/slack/readOnly.ts, line: 30 }
+    caller: q_handle_request
+    call:
+      status: fact
+      when: conditional
+      condition: "URL が /slack/view/ の下でなく、ログインへ移されなかったとき"
+      evidence:
+        - { file: src/lib/server/hooks/handle.ts, line: 18 }
+        - { file: src/lib/server/hooks/handle.ts, line: 44 }
+        - { file: src/lib/server/hooks/handle.ts, line: 225 }
+      note: "手前の /slack/view/ の経路が成功として先に返し、ログインへ移すかどうかが設定で決まるので、conditional にした"
+    summary:
+      status: interpretation
+      value: "GET・HEAD・OPTIONS 以外で、route が会話 (/conversation/[id]、/api/conversations/[id]、/api/v2/conversations/[id] とその下) を指し、共有と、Slack からのレビューの送信と再開の route でなければ、要求の利用者 (かセッション) の会話を conversations から読む。会話が Slack の管理 (managedBy があるか、セッションの id が slack-user: で始まる) なら、会話そのものの DELETE は retireSlackConversations で Slack のスレッドを止めて通し、それ以外の書き換えは true を返して止めさせる"
+      evidence:
+        - { file: src/lib/server/slack/readOnly.ts, line: 36 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 38 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 39 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 40 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 41 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 11 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 42 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 43 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 17 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 18 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 46 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 47 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 48 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 51 }
+    parameters:
+      - name: locals
+        value: "この段の手前で handleRequest が用意した利用者とセッションの id。authCondition で会話の持ち主の条件にする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/handle.ts, line: 229 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 43 }
+    guards:
+      - kind: permission
+        value: "!isSlackManaged(conv)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/readOnly.ts, line: 17 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 18 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 46 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 51 }
+          - { file: src/lib/server/hooks/handle.ts, line: 232 }
+        note: "Slack の信頼する実行の側だけが生成を呼び、ブラウザと API からは見るだけにする。Slack が管理する会話の書き換えなら true を返し、handleRequest が 403 で止める。コードは止める側の形 (isSlackManaged(conv) なら true) で書いているので、通す側の形で写した"
+    rules:
+      - kind: decision
+        value: "会話の共有 (/conversation/[id]/share) と、Slack からのレビューの送信と再開の route (サーバー側で続きを動かす) は、Slack が管理する会話でも書き換えを止めない"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/readOnly.ts, line: 11 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 12 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 14 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 40 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 41 }
+      - kind: decision
+        value: "Slack が管理する会話そのものを DELETE するときは、止めずに、その会話の Slack のスレッドを消した印にして見張りをやめ、動いている生成を止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/slack/readOnly.ts, line: 47 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 48 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 49 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: conversations } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: userId, use: [filter] }
+          - { name: sessionId, use: [filter, read] }
+          - { name: managedBy, use: [read] }
+        evidence:
+          - { file: src/lib/server/slack/readOnly.ts, line: 42 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 43 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 44 }
+          - { file: src/lib/server/auth.ts, line: 234 }
+          - { file: src/lib/server/auth.ts, line: 236 }
+          - { file: src/lib/server/database.ts, line: 167 }
+        note: "条件は、会話の _id と、ログインしていれば userId、していなければ sessionId (userId が無いこと)。projection で managedBy と sessionId だけを読む"
+
+  - id: ext_mongo_conversations_find_one_readonly
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (conversations)"
+    source: { file: src/lib/server/slack/readOnly.ts, line: 42 }
+    caller: q_is_slack_conversation_mutation
+    call:
+      status: fact
+      when: conditional
+      condition: "書き換えのメソッドで、会話の id が正しく、route が会話を指し、共有とレビューの route でないとき"
+      evidence:
+        - { file: src/lib/server/slack/readOnly.ts, line: 36 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 39 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 40 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 41 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 42 }
+
+  - id: q_retire_slack_conversations
+    layer: query
+    kind: function
+    name: "retireSlackConversations (src/lib/server/slack/readOnly.ts)"
+    source: { file: src/lib/server/slack/readOnly.ts, line: 20 }
+    caller: q_is_slack_conversation_mutation
+    call:
+      status: fact
+      when: conditional
+      condition: "Slack が管理する会話そのものを DELETE するとき"
+      evidence:
+        - { file: src/lib/server/slack/readOnly.ts, line: 46 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 47 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 48 }
+    summary:
+      status: interpretation
+      value: "会話の Slack のスレッドを slack.threads で消した印にして見張りをやめ、会話ごとに、このサーバーで動いている生成を止める (メモリーの AbortRegistry)"
+      evidence:
+        - { file: src/lib/server/slack/readOnly.ts, line: 21 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 23 }
+        - { file: src/lib/server/slack/readOnly.ts, line: 25 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: slack.threads } }
+        fields:
+          - { name: conversationId, use: [filter] }
+          - { name: deletedAt, use: [write] }
+          - { name: watching, use: [write], set_to: "false" }
+        evidence:
+          - { file: src/lib/server/slack/readOnly.ts, line: 21 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 22 }
+          - { file: src/lib/server/slack/readOnly.ts, line: 23 }
+          - { file: src/lib/server/database.ts, line: 162 }
+
+  - id: ext_mongo_slack_threads_update_many
+    layer: external
+    kind: library
+    name: "MongoDB driver updateMany (slack.threads)"
+    source: { file: src/lib/server/slack/readOnly.ts, line: 21 }
+    caller: q_retire_slack_conversations
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/slack/readOnly.ts, line: 21 }
+
+  # ================================================================ handleFetch
+  - id: q_handle_fetch_request
+    layer: query
+    kind: function
+    name: "handleFetch → handleFetchRequest (src/lib/server/hooks/fetch.ts)"
+    source: { file: src/lib/server/hooks/fetch.ts, line: 6 }
+    caller: hook
+    call:
+      status: fact
+      when: conditional
+      condition: "サーバー側で fetch を呼ぶとき"
+      evidence:
+        - { file: src/hooks.server.ts, line: 6 }
+        - { file: src/hooks.server.ts, line: 29 }
+        - { file: src/hooks.server.ts, line: 31 }
+      note: "building (静的なビルドの間) は、そのまま fetch して、この関数を呼ばない"
+    summary:
+      status: interpretation
+      value: "送り先が localhost で、元の要求に cookie があれば、その cookie を付けた要求に作り直して fetch する。そうでなければ、そのまま fetch する"
+      evidence:
+        - { file: src/lib/server/hooks/fetch.ts, line: 11 }
+        - { file: src/lib/server/hooks/fetch.ts, line: 12 }
+        - { file: src/lib/server/hooks/fetch.ts, line: 15 }
+        - { file: src/lib/server/hooks/fetch.ts, line: 17 }
+        - { file: src/lib/server/hooks/fetch.ts, line: 21 }
+    rules:
+      - kind: decision
+        value: "サーバー側の fetch の送り先が localhost のときだけ、ブラウザから来た要求の cookie を引き継いで送る"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/fetch.ts, line: 11 }
+          - { file: src/lib/server/hooks/fetch.ts, line: 12 }
+          - { file: src/lib/server/hooks/fetch.ts, line: 15 }
+
+  - id: ext_kit_fetch
+    layer: external
+    kind: library
+    name: "SvelteKit fetch (handleFetch の input.fetch)"
+    source: { file: src/lib/server/hooks/fetch.ts, line: 17 }
+    caller: q_handle_fetch_request
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/hooks/fetch.ts, line: 17 }
+        - { file: src/lib/server/hooks/fetch.ts, line: 21 }
+      note: "同じ関数の中の 2 つの呼び出し (cookie を付け直した 17 と、そのままの 21) を、最初の行の 1 つにまとめた。送り先は fetch を呼ぶ側 (load など) が決めるので、ここでは I/O に書かない"
+
+  # ================================================================ handleError
+  - id: q_handle_server_error
+    layer: query
+    kind: function
+    name: "handleError → handleServerError (src/lib/server/hooks/error.ts)"
+    source: { file: src/lib/server/hooks/error.ts, line: 6 }
+    caller: hook
+    call:
+      status: fact
+      when: on_failure
+      condition: "要求の処理で、予期しないエラーが起きたとき"
+      evidence:
+        - { file: src/hooks.server.ts, line: 5 }
+        - { file: src/hooks.server.ts, line: 24 }
+        - { file: src/hooks.server.ts, line: 26 }
+      note: "building (静的なビルドの間) は、エラーを投げ直して、この関数を呼ばない"
+    summary:
+      status: interpretation
+      value: "当たる route が無ければ (404)、見つからないという文言を返す。それ以外は、エラーの id を作り、パス、メソッド、文言、エラー、状態、スタックを記録し、利用者には決まった文言とエラーの id だけを返す"
+      evidence:
+        - { file: src/lib/server/hooks/error.ts, line: 13 }
+        - { file: src/lib/server/hooks/error.ts, line: 15 }
+        - { file: src/lib/server/hooks/error.ts, line: 19 }
+        - { file: src/lib/server/hooks/error.ts, line: 21 }
+        - { file: src/lib/server/hooks/error.ts, line: 33 }
+        - { file: src/lib/server/hooks/error.ts, line: 34 }
+    rules:
+      - kind: decision
+        value: "当たる route が無い要求のエラーは、記録せずに、パスが見つからないという文言だけを返す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/error.ts, line: 13 }
+          - { file: src/lib/server/hooks/error.ts, line: 15 }
+      - kind: decision
+        value: "エラーの記録には、OAuth の token と接続のリンクの ticket を含みうる locals と URL のクエリを入れず、パスだけを入れる。利用者には中身を見せず、記録と突き合わせるエラーの id を返す"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/error.ts, line: 22 }
+          - { file: src/lib/server/hooks/error.ts, line: 23 }
+          - { file: src/lib/server/hooks/error.ts, line: 27 }
+          - { file: src/lib/server/hooks/error.ts, line: 33 }
+          - { file: src/lib/server/hooks/error.ts, line: 34 }
+
+  # ================================================================ init
+  - id: q_init_server
+    layer: query
+    kind: function
+    name: "init → initServer (src/lib/server/hooks/init.ts)"
+    source: { file: src/lib/server/hooks/init.ts, line: 20 }
+    caller: hook
+    call:
+      status: fact
+      when: conditional
+      condition: "サーバーの起動のとき 1 回"
+      evidence:
+        - { file: src/hooks.server.ts, line: 3 }
+        - { file: src/hooks.server.ts, line: 8 }
+        - { file: src/hooks.server.ts, line: 10 }
+      note: "building (静的なビルドの間) は呼ばない"
+    summary:
+      status: interpretation
+      value: "要求ごとではなく、サーバーの起動のときに 1 回だけ動く。config の読み込みを待ち、OPENAI_API_KEY か HF_TOKEN を HF_TOKEN の環境変数に写す。HuggingChat の配備で SESSION_OAUTH_ENCRYPTION_KEY が無ければ、起動を止める。終了の合図の処理を仕掛け (initExitHandler)、METRICS_ENABLED なら計測の HTTP サーバーを開く。移行の確認 (checkAndRunMigrations)、会話の統計の集計 (refreshConversationStats) を始め、MCP_SERVERS の MCP の一覧をメモリーに読み (loadMcpServersOnStartup)、中断した生成の一覧の読み込み (AbortedGenerations)、止まった生成の後始末 (GenerationReaper)、待たせた呼び出し (ParkedCallSweeper) と答えの来た質問 (AnsweredAskSweeper) の定期の処理を始める。ML Assistant のビルドなら、ためた入力の処理 (QueuedInputSweeper) と、ML のサービスの見回り (MlServicePoller) も始める。共有の縮小画像を 1 度描いて温め (getShareThumbnailPng)、SLACK_ML_ENABLED なら Slack の bot を始め (startSlackBot)、CLI の管理の token を記録に出す"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 22 }
+        - { file: src/lib/server/hooks/init.ts, line: 25 }
+        - { file: src/lib/server/hooks/init.ts, line: 27 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 38 }
+        - { file: src/lib/server/hooks/init.ts, line: 42 }
+        - { file: src/lib/server/hooks/init.ts, line: 44 }
+        - { file: src/lib/server/hooks/init.ts, line: 45 }
+        - { file: src/lib/server/hooks/init.ts, line: 48 }
+        - { file: src/lib/server/hooks/init.ts, line: 49 }
+        - { file: src/lib/server/hooks/init.ts, line: 52 }
+        - { file: src/lib/server/mcp/registry.ts, line: 54 }
+        - { file: src/lib/server/hooks/init.ts, line: 55 }
+        - { file: src/lib/server/hooks/init.ts, line: 58 }
+        - { file: src/lib/server/hooks/init.ts, line: 59 }
+        - { file: src/lib/server/hooks/init.ts, line: 60 }
+        - { file: src/lib/server/hooks/init.ts, line: 61 }
+        - { file: src/lib/server/hooks/init.ts, line: 62 }
+        - { file: src/lib/server/hooks/init.ts, line: 69 }
+        - { file: src/lib/server/hooks/init.ts, line: 75 }
+        - { file: src/lib/server/hooks/init.ts, line: 77 }
+        - { file: src/lib/server/hooks/init.ts, line: 80 }
+      note: "initExitHandler (終了の合図で、登録した後始末を動かすだけ)、MetricsServer (計測の HTTP サーバー。データの読み書きなし)、loadMcpServersOnStartup (MCP_SERVERS をメモリーに読むだけ)、getShareThumbnailPng (メモリーで描くだけ)、adminTokenManager.displayToken (記録に出すだけ) は、データの読み書きに至らないので段にしていない"
+    settings:
+      - name: SESSION_OAUTH_ENCRYPTION_KEY
+        kind: env
+        effect: "HuggingChat の配備で無ければ、起動を止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/sessionOauth.ts, line: 8 }
+          - { file: src/lib/server/sessionOauth.ts, line: 13 }
+          - { file: src/lib/server/hooks/init.ts, line: 37 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)。値は秘密だが、有る無しで起動するかが変わる"
+      - name: PUBLIC_APP_ASSETS
+        kind: env
+        effect: "huggingchat なら HuggingChat の配備とし、SESSION_OAUTH_ENCRYPTION_KEY が無ければ起動を止める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/config.ts, line: 48 }
+          - { file: src/lib/server/config.ts, line: 49 }
+          - { file: src/lib/server/hooks/init.ts, line: 37 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+      - name: METRICS_ENABLED
+        kind: env
+        effect: "true なら、計測 (Prometheus の形) の HTTP サーバーを METRICS_PORT で開く"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/init.ts, line: 44 }
+          - { file: src/lib/server/hooks/init.ts, line: 45 }
+          - { file: src/lib/server/metrics.ts, line: 121 }
+          - { file: src/lib/server/metrics.ts, line: 146 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+      - name: ML_ASSISTANT_MODE
+        kind: env
+        effect: "ビルドのときに true なら、ためた入力の処理 (QueuedInputSweeper) を始め、ML のサービスの見回り (MlServicePoller) も始められるようにする"
+        status: fact
+        evidence:
+          - { file: vite.config.ts, line: 29 }
+          - { file: src/lib/utils/mlAssistantFlag.ts, line: 13 }
+          - { file: src/lib/server/hooks/init.ts, line: 61 }
+          - { file: src/lib/server/mlRegistry/enabled.ts, line: 7 }
+        note: "config を通さない。ビルドのときの環境変数を、vite の define でコードに埋め込む (動いているサーバーでは変えられない)"
+      - name: ML_ASSISTANT_SERVICE_POLLER
+        kind: env
+        effect: "ML Assistant のビルドで false でなければ、ML のサービスの見回り (MlServicePoller) を始める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/mlRegistry/enabled.ts, line: 7 }
+          - { file: src/lib/server/hooks/init.ts, line: 62 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)。読むのは補助の関数 mlServicePollerEnabled (段にしていない)"
+      - name: SLACK_ML_ENABLED
+        kind: env
+        effect: "true なら、Slack の bot を始める"
+        status: fact
+        evidence:
+          - { file: src/lib/server/hooks/init.ts, line: 75 }
+          - { file: src/lib/server/hooks/init.ts, line: 77 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+
+  # ---------------------------------------------------------------- 移行
+  - id: q_check_and_run_migrations
+    layer: query
+    kind: function
+    name: "checkAndRunMigrations (src/lib/migrations/migrations.ts)"
+    source: { file: src/lib/migrations/migrations.ts, line: 8 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、起動の設定の確認 (HuggingChat なら SESSION_OAUTH_ENCRYPTION_KEY が要る) を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 4 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 48 }
+      note: "起動を止めるかどうかが設定で決まるので、その後ろの呼び出しは conditional にした (init の下の段はすべて同じ)"
+    summary:
+      status: interpretation
+      value: "適用済みの移行の記録を migrationResults から読み、DB に接続し、移行の lock を取る (acquireLock)。取れなければ、ほかのサーバーが移行を終えるまで 1 秒ごとに lock を確かめて待つ (isDBLocked)。取れたら、10 秒ごとに lock を延ばし (refreshLock)、移行の一覧を順に適用し、終われば延長を止めて lock を放す (releaseLock)"
+      evidence:
+        - { file: src/lib/migrations/migrations.ts, line: 15 }
+        - { file: src/lib/migrations/migrations.ts, line: 19 }
+        - { file: src/lib/migrations/migrations.ts, line: 25 }
+        - { file: src/lib/migrations/migrations.ts, line: 27 }
+        - { file: src/lib/migrations/migrations.ts, line: 29 }
+        - { file: src/lib/migrations/migrations.ts, line: 37 }
+        - { file: src/lib/migrations/migrations.ts, line: 45 }
+        - { file: src/lib/migrations/migrations.ts, line: 46 }
+        - { file: src/lib/migrations/migrations.ts, line: 50 }
+        - { file: src/lib/migrations/migrations.ts, line: 117 }
+        - { file: src/lib/migrations/migrations.ts, line: 118 }
+      note: "移行の一覧 (migrations) は、コードに直接書いた空の並び (src/lib/migrations/routines/index.ts:15) で、繰り返し (migrations.ts:50) は一度も回らない。そのため、繰り返しの中の migrationResults の updateOne (migrations.ts:78、102) と、各移行の up (migrations.ts:94) は、固定の値で閉じている呼び出しとして、段にしていない (routines の下の 01〜10 のファイルは、一覧に入っていない)"
+    rules:
+      - kind: decision
+        value: "移行は 1 つのサーバーだけが lock を取って行い、ほかのサーバーは lock が放されるまで待ってから起動を続ける"
+        status: fact
+        evidence:
+          - { file: src/lib/migrations/migrations.ts, line: 27 }
+          - { file: src/lib/migrations/migrations.ts, line: 29 }
+          - { file: src/lib/migrations/migrations.ts, line: 37 }
+          - { file: src/lib/migrations/migrations.ts, line: 40 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: migrationResults } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/migrations/migrations.ts, line: 15 }
+          - { file: src/lib/migrations/migrations.ts, line: 19 }
+          - { file: src/lib/server/database.ts, line: 190 }
+        note: "条件無しで、すべての記録を読む"
+
+  - id: ext_mongo_migration_results_find
+    layer: external
+    kind: library
+    name: "MongoDB driver find (migrationResults)"
+    source: { file: src/lib/migrations/migrations.ts, line: 19 }
+    caller: q_check_and_run_migrations
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/migrations/migrations.ts, line: 19 }
+
+  - id: q_acquire_lock
+    layer: query
+    kind: function
+    name: "acquireLock (src/lib/migrations/lock.ts)"
+    source: { file: src/lib/migrations/lock.ts, line: 8 }
+    caller: q_check_and_run_migrations
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/migrations/migrations.ts, line: 3 }
+        - { file: src/lib/migrations/migrations.ts, line: 27 }
+    summary:
+      status: interpretation
+      value: "キーの lock の行を semaphores に足し、足せればその id を返す。同じキーの行が既にあれば (一意の索引に反して) 足せず、false を返す。行は 3 分後に消える印 (deleteAt) を持つ。refreshConversationStats と findUser も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 12 }
+        - { file: src/lib/migrations/lock.ts, line: 17 }
+        - { file: src/lib/migrations/lock.ts, line: 20 }
+        - { file: src/lib/migrations/lock.ts, line: 22 }
+        - { file: src/lib/migrations/lock.ts, line: 23 }
+    rules:
+      - kind: decision
+        value: "同じキーの lock は 1 つだけ取れ、取った lock は 3 分で切れる"
+        status: interpretation
+        evidence:
+          - { file: src/lib/migrations/lock.ts, line: 17 }
+          - { file: src/lib/migrations/lock.ts, line: 22 }
+        note: "一意の索引そのものは database.ts の索引の定義にあり、ここでは例外の注記 (lock.ts:22) から読み取った"
+    io:
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: semaphores } }
+        fields:
+          - { name: _id, use: [write] }
+          - { name: key, use: [write] }
+          - { name: createdAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+          - { name: deleteAt, use: [write] }
+        evidence:
+          - { file: src/lib/migrations/lock.ts, line: 12 }
+          - { file: src/lib/migrations/lock.ts, line: 13 }
+          - { file: src/lib/migrations/lock.ts, line: 14 }
+          - { file: src/lib/migrations/lock.ts, line: 15 }
+          - { file: src/lib/migrations/lock.ts, line: 16 }
+          - { file: src/lib/migrations/lock.ts, line: 17 }
+          - { file: src/lib/server/database.ts, line: 187 }
+
+  - id: ext_mongo_semaphores_insert_one
+    layer: external
+    kind: library
+    name: "MongoDB driver insertOne (semaphores)"
+    source: { file: src/lib/migrations/lock.ts, line: 12 }
+    caller: q_acquire_lock
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 12 }
+
+  - id: q_release_lock
+    layer: query
+    kind: function
+    name: "releaseLock (src/lib/migrations/lock.ts)"
+    source: { file: src/lib/migrations/lock.ts, line: 27 }
+    caller: q_check_and_run_migrations
+    call:
+      status: fact
+      when: conditional
+      condition: "移行の lock を取れたとき (移行の一覧を終えた後)"
+      evidence:
+        - { file: src/lib/migrations/migrations.ts, line: 29 }
+        - { file: src/lib/migrations/migrations.ts, line: 40 }
+        - { file: src/lib/migrations/migrations.ts, line: 118 }
+      note: "lock を取れなければ、待った後に成功として先に返すので、conditional にした"
+    summary:
+      status: interpretation
+      value: "lock の id とキーの行を semaphores から消して、lock を放す。findUser も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 28 }
+        - { file: src/lib/migrations/lock.ts, line: 29 }
+        - { file: src/lib/migrations/lock.ts, line: 30 }
+    io:
+      - op: delete
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: semaphores } }
+        fields:
+          - { name: "*", use: [write] }
+          - { name: _id, use: [filter] }
+          - { name: key, use: [filter] }
+        evidence:
+          - { file: src/lib/migrations/lock.ts, line: 28 }
+          - { file: src/lib/migrations/lock.ts, line: 29 }
+          - { file: src/lib/migrations/lock.ts, line: 30 }
+          - { file: src/lib/server/database.ts, line: 187 }
+
+  - id: ext_mongo_semaphores_delete_one
+    layer: external
+    kind: library
+    name: "MongoDB driver deleteOne (semaphores)"
+    source: { file: src/lib/migrations/lock.ts, line: 28 }
+    caller: q_release_lock
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 28 }
+
+  - id: q_is_db_locked
+    layer: query
+    kind: function
+    name: "isDBLocked (src/lib/migrations/lock.ts)"
+    source: { file: src/lib/migrations/lock.ts, line: 34 }
+    caller: q_check_and_run_migrations
+    call:
+      status: fact
+      when: conditional
+      condition: "移行の lock を取れなかったとき (ほかのサーバーが移行を終えるまで、1 秒ごとに繰り返す)"
+      evidence:
+        - { file: src/lib/migrations/migrations.ts, line: 29 }
+        - { file: src/lib/migrations/migrations.ts, line: 37 }
+    summary:
+      status: interpretation
+      value: "キーの lock の行が semaphores にあるかを数えて返す。findUser も同じ関数を呼ぶ"
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 35 }
+        - { file: src/lib/migrations/lock.ts, line: 38 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: semaphores } }
+        fields:
+          - { name: key, use: [filter] }
+        evidence:
+          - { file: src/lib/migrations/lock.ts, line: 35 }
+          - { file: src/lib/migrations/lock.ts, line: 36 }
+          - { file: src/lib/server/database.ts, line: 187 }
+        note: "countDocuments で行の数だけを読む"
+
+  - id: ext_mongo_semaphores_count_lock
+    layer: external
+    kind: library
+    name: "MongoDB driver countDocuments (semaphores)"
+    source: { file: src/lib/migrations/lock.ts, line: 35 }
+    caller: q_is_db_locked
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 35 }
+
+  - id: q_refresh_lock
+    layer: query
+    kind: function
+    name: "refreshLock (src/lib/migrations/lock.ts)"
+    source: { file: src/lib/migrations/lock.ts, line: 41 }
+    caller: q_check_and_run_migrations
+    call:
+      status: fact
+      when: conditional
+      condition: "移行の lock を取れたとき、10 秒ごと (移行が終わって延長を止めるまで)"
+      evidence:
+        - { file: src/lib/migrations/migrations.ts, line: 3 }
+        - { file: src/lib/migrations/migrations.ts, line: 45 }
+        - { file: src/lib/migrations/migrations.ts, line: 46 }
+        - { file: src/lib/migrations/migrations.ts, line: 117 }
+      note: "移行の一覧が空なので、延長の時計は 10 秒たつ前に止まり、ここからは実際には呼ばれないように見える (時間で決まるので、固定の値で閉じているとはしなかった)。refreshConversationStats も同じ関数を呼ぶ"
+    summary:
+      status: interpretation
+      value: "lock の id とキーの行の updatedAt と、消える時刻 (deleteAt) を 3 分先に延ばし、行があれば true を返す"
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 42 }
+        - { file: src/lib/migrations/lock.ts, line: 49 }
+        - { file: src/lib/migrations/lock.ts, line: 50 }
+        - { file: src/lib/migrations/lock.ts, line: 55 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: semaphores } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: key, use: [filter] }
+          - { name: updatedAt, use: [write] }
+          - { name: deleteAt, use: [write] }
+        evidence:
+          - { file: src/lib/migrations/lock.ts, line: 42 }
+          - { file: src/lib/migrations/lock.ts, line: 44 }
+          - { file: src/lib/migrations/lock.ts, line: 45 }
+          - { file: src/lib/migrations/lock.ts, line: 49 }
+          - { file: src/lib/migrations/lock.ts, line: 50 }
+          - { file: src/lib/server/database.ts, line: 187 }
+
+  - id: ext_mongo_semaphores_update_one
+    layer: external
+    kind: library
+    name: "MongoDB driver updateOne (semaphores)"
+    source: { file: src/lib/migrations/lock.ts, line: 42 }
+    caller: q_refresh_lock
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/migrations/lock.ts, line: 42 }
+
+  # ---------------------------------------------------------------- 会話の統計
+  - id: q_refresh_conversation_stats
+    layer: query
+    kind: function
+    name: "refreshConversationStats (src/lib/jobs/refresh-conversation-stats.ts)"
+    source: { file: src/lib/jobs/refresh-conversation-stats.ts, line: 283 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、起動の設定の確認 (HuggingChat なら SESSION_OAUTH_ENCRYPTION_KEY が要る) を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 5 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 49 }
+    summary:
+      status: interpretation
+      value: "統計の lock を取り (acquireLock。経路はフレーム q_acquire_lock と同じ)、取れていれば 10 秒ごとに延ばす (refreshLock。経路はフレーム q_refresh_lock と同じ)。最後に集計した時刻を conversations.stats から読み、1 日より前なら、日・週・月の幅ごとに、会話の更新と作成、メッセージの作成の 3 種の統計を集計する。その後も 24 時間ごとに同じ確かめをする。集計は、semaphores の索引が作られていなければ飛ばし、種類ごとの最後の集計の時刻を conversations.stats から読み、それより後の conversations を aggregate で、利用者、セッション、利用者かセッション、全体の別に数え、conversations.stats に $merge で書き出す"
+      evidence:
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 276 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 270 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 280 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 9 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 16 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 287 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 20 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 21 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 24 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 27 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 291 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 295 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 38 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 39 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 44 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 63 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 110 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 248 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 257 }
+      note: "集計を始めるかどうかは lock の有無を見ていない (computeAllStats は hasLock を確かめずに呼ばれる。refresh-conversation-stats.ts:286-288)。lock は延ばすだけに見える"
+    rules:
+      - kind: decision
+        value: "会話の統計は、最後の集計から 1 日より後なら集計し直し、24 時間ごとに確かめる"
+        status: fact
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 15 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 16 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 287 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 295 }
+      - kind: calculation
+        value: "日・週・月の幅ごとに、会話の更新の時刻、会話の作成の時刻、メッセージの作成の時刻で、利用者の数、セッションの数、利用者かセッションの数、件数を数える"
+        status: fact
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 20 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 21 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 24 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 27 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 110 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 120 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 208 }
+      - kind: decision
+        value: "集計は、前回の集計の時刻より後のデータだけを対象にし、同じ日時・種類・幅・項目・数え方の行を置き換える"
+        status: fact
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 51 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 63 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 250 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 251 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: conversations.stats } }
+        fields:
+          - { name: date.at, use: [filter] }
+          - { name: date.field, use: [filter] }
+          - { name: date.span, use: [filter] }
+          - { name: type, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 9 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 44 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 45 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 46 }
+          - { file: src/lib/server/database.ts, line: 61 }
+          - { file: src/lib/server/database.ts, line: 200 }
+        note: "最後の集計の 1 行 (date.at の新しい順)。全体 (9) と、種類ごと (44)"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: semaphores } }
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 38 }
+          - { file: src/lib/server/database.ts, line: 187 }
+        note: "listIndexes で、行ではなく索引の一覧を読む (索引が 2 つ以下なら、まだ作られていないとして集計を飛ばす)。列は触らないので fields は書かない"
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: conversations } }
+        fields:
+          - { name: updatedAt, use: [filter, read] }
+          - { name: createdAt, use: [filter, read] }
+          - { name: messages.createdAt, use: [filter, read] }
+          - { name: sessionId, use: [filter, read] }
+          - { name: userId, use: [filter, read] }
+          - { name: _id, use: [read] }
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 257 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 147 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 58 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 63 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 87 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 98 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 114 }
+          - { file: src/lib/server/database.ts, line: 167 }
+        note: "aggregate。日時の項目は、集計の種類で updatedAt、createdAt、messages.createdAt のどれか 1 つ"
+      - op: create
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: conversations.stats } }
+        fields:
+          - { name: date.at, use: [write] }
+          - { name: date.field, use: [write] }
+          - { name: date.span, use: [write] }
+          - { name: distinct, use: [write] }
+          - { name: count, use: [write] }
+          - { name: type, use: [write] }
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 248 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 249 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 252 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 244 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 133 }
+          - { file: src/lib/server/database.ts, line: 61 }
+        note: "aggregate の $merge で、合う行が無ければ足す"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: conversations.stats } }
+        fields:
+          - { name: date.at, use: [filter, write] }
+          - { name: date.field, use: [filter, write] }
+          - { name: date.span, use: [filter, write] }
+          - { name: distinct, use: [filter, write] }
+          - { name: type, use: [filter, write] }
+          - { name: count, use: [write] }
+        evidence:
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 248 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 250 }
+          - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 251 }
+          - { file: src/lib/server/database.ts, line: 61 }
+        note: "aggregate の $merge で、日時・種類・幅・項目・数え方が合う行があれば置き換える"
+
+  - id: ext_mongo_stats_find_one_last
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (conversations.stats)"
+    source: { file: src/lib/jobs/refresh-conversation-stats.ts, line: 9 }
+    caller: q_refresh_conversation_stats
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 14 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 287 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 9 }
+      note: "lock の処理の後に、起動のときと 24 時間ごとに呼ぶ"
+
+  - id: ext_mongo_semaphores_list_indexes
+    layer: external
+    kind: library
+    name: "MongoDB driver listIndexes (semaphores)"
+    source: { file: src/lib/jobs/refresh-conversation-stats.ts, line: 38 }
+    caller: q_refresh_conversation_stats
+    call:
+      status: fact
+      when: conditional
+      condition: "最後の集計から 1 日より後のとき (集計の種類ごと)"
+      evidence:
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 287 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 288 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 38 }
+
+  - id: ext_mongo_stats_find_one_kind
+    layer: external
+    kind: library
+    name: "MongoDB driver findOne (conversations.stats)"
+    source: { file: src/lib/jobs/refresh-conversation-stats.ts, line: 44 }
+    caller: q_refresh_conversation_stats
+    call:
+      status: fact
+      when: conditional
+      condition: "最後の集計から 1 日より後で、semaphores の索引が作られているとき (集計の種類ごと)"
+      evidence:
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 287 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 39 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 44 }
+
+  - id: ext_mongo_conversations_aggregate
+    layer: external
+    kind: library
+    name: "MongoDB driver aggregate (conversations)"
+    source: { file: src/lib/jobs/refresh-conversation-stats.ts, line: 257 }
+    caller: q_refresh_conversation_stats
+    call:
+      status: fact
+      when: conditional
+      condition: "最後の集計から 1 日より後で、semaphores の索引が作られているとき (集計の種類ごと)"
+      evidence:
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 287 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 39 }
+        - { file: src/lib/jobs/refresh-conversation-stats.ts, line: 257 }
+
+  # ---------------------------------------------------------------- 中断した生成の一覧
+  - id: q_aborted_generations
+    layer: query
+    kind: function
+    name: "AbortedGenerations (src/lib/server/abortedGenerations.ts)"
+    source: { file: src/lib/server/abortedGenerations.ts, line: 20 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、起動の設定の確認 (HuggingChat なら SESSION_OAUTH_ENCRYPTION_KEY が要る) を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 7 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 55 }
+    summary:
+      status: interpretation
+      value: "1 つだけの物を作り、作るときと 500 ミリ秒ごとに、中断を求められた生成の一覧を abortedGenerations から読んで、会話の id と中断の時刻の対をメモリーに置く (生成の途中で、中断を早く見つけるため)"
+      evidence:
+        - { file: src/lib/server/abortedGenerations.ts, line: 14 }
+        - { file: src/lib/server/abortedGenerations.ts, line: 17 }
+        - { file: src/lib/server/abortedGenerations.ts, line: 21 }
+        - { file: src/lib/server/abortedGenerations.ts, line: 34 }
+        - { file: src/lib/server/abortedGenerations.ts, line: 36 }
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: abortedGenerations } }
+        fields:
+          - { name: "*", use: [read] }
+          - { name: createdAt, use: [filter] }
+        evidence:
+          - { file: src/lib/server/abortedGenerations.ts, line: 34 }
+          - { file: src/lib/server/database.ts, line: 172 }
+        note: "条件無しで、すべての行を createdAt の順に読む。500 ミリ秒ごと"
+
+  - id: ext_mongo_aborted_generations_find
+    layer: external
+    kind: library
+    name: "MongoDB driver find (abortedGenerations)"
+    source: { file: src/lib/server/abortedGenerations.ts, line: 34 }
+    caller: q_aborted_generations
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/abortedGenerations.ts, line: 14 }
+        - { file: src/lib/server/abortedGenerations.ts, line: 17 }
+        - { file: src/lib/server/abortedGenerations.ts, line: 34 }
+
+  # ---------------------------------------------------------------- 止まった生成の後始末
+  - id: q_generation_reaper
+    layer: query
+    kind: function
+    name: "GenerationReaper (src/lib/server/generation/reaper.ts)"
+    source: { file: src/lib/server/generation/reaper.ts, line: 73 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、起動の設定の確認 (HuggingChat なら SESSION_OAUTH_ENCRYPTION_KEY が要る) を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 8 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 58 }
+    summary:
+      status: interpretation
+      value: "1 つだけの物を作り、作るときと決まった間隔 (既定 60 秒) ごとに、実行中のまま心拍が決まった時間 (既定 90 秒) より古い生成を generations から最大 200 件読み、それぞれを markGenerationInterrupted で中断にする。終了の合図では、このサーバーの実行中の生成をすぐ後始末する (finalizeActiveRunsOnExit)"
+      evidence:
+        - { file: src/lib/server/generation/reaper.ts, line: 58 }
+        - { file: src/lib/server/generation/reaper.ts, line: 62 }
+        - { file: src/lib/server/generation/reaper.ts, line: 68 }
+        - { file: src/lib/server/generation/reaper.ts, line: 15 }
+        - { file: src/lib/server/generation/reaper.ts, line: 27 }
+        - { file: src/lib/server/generation/reaper.ts, line: 34 }
+        - { file: src/lib/server/generation/reaper.ts, line: 35 }
+        - { file: src/lib/server/generation/reaper.ts, line: 37 }
+        - { file: src/lib/server/generation/reaper.ts, line: 44 }
+        - { file: src/lib/server/generation/reaper.ts, line: 66 }
+    rules:
+      - kind: decision
+        value: "実行中のまま、心拍が決まった時間より古い生成は、それを動かしていたサーバーが落ちたものとして中断にする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/generation/reaper.ts, line: 30 }
+          - { file: src/lib/server/generation/reaper.ts, line: 34 }
+          - { file: src/lib/server/generation/reaper.ts, line: 36 }
+          - { file: src/lib/server/generation/reaper.ts, line: 44 }
+    settings:
+      - name: GENERATION_REAP_AFTER_MS
+        kind: env
+        effect: "心拍がこの時間 (ミリ秒。既定 90000) より古い実行中の生成を、落ちたものとして中断にする"
+        status: fact
+        evidence:
+          - { file: src/lib/server/generation/reaper.ts, line: 22 }
+          - { file: src/lib/server/generation/reaper.ts, line: 27 }
+          - { file: src/lib/server/generation/reaper.ts, line: 34 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+      - name: GENERATION_REAP_INTERVAL_MS
+        kind: env
+        effect: "止まった生成を探す間隔 (ミリ秒。既定 60000)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/generation/reaper.ts, line: 10 }
+          - { file: src/lib/server/generation/reaper.ts, line: 15 }
+          - { file: src/lib/server/generation/reaper.ts, line: 62 }
+        note: "config を通す (ENABLE_CONFIG_MANAGER のときは DB の値が先)"
+    io:
+      - op: read
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: generations } }
+        fields:
+          - { name: status, use: [filter] }
+          - { name: lastHeartbeatAt, use: [filter] }
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: src/lib/server/generation/reaper.ts, line: 35 }
+          - { file: src/lib/server/generation/reaper.ts, line: 36 }
+          - { file: src/lib/server/database.ts, line: 173 }
+
+  - id: ext_mongo_generations_find
+    layer: external
+    kind: library
+    name: "MongoDB driver find (generations)"
+    source: { file: src/lib/server/generation/reaper.ts, line: 35 }
+    caller: q_generation_reaper
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/generation/reaper.ts, line: 62 }
+        - { file: src/lib/server/generation/reaper.ts, line: 68 }
+        - { file: src/lib/server/generation/reaper.ts, line: 35 }
+
+  - id: q_mark_generation_interrupted
+    layer: query
+    kind: function
+    name: "markGenerationInterrupted (src/lib/server/generation/finalize.ts)"
+    source: { file: src/lib/server/generation/finalize.ts, line: 27 }
+    caller: q_generation_reaper
+    call:
+      status: fact
+      when: conditional
+      condition: "止まった生成が見つかったとき (生成ごと)"
+      evidence:
+        - { file: src/lib/server/generation/reaper.ts, line: 5 }
+        - { file: src/lib/server/generation/reaper.ts, line: 39 }
+        - { file: src/lib/server/generation/reaper.ts, line: 44 }
+    summary:
+      status: interpretation
+      value: "生成を、まだ実行中のときだけ中断 (interrupted) にし、取れなければ (ほかで終わっていれば) 何もしない。取れたら、会話の該当のメッセージに中断の印を付け、その生成の待ちの質問 (止める種類) を取り消しで閉じ、その生成の下で動いていた子のエージェントの実行を中断にする (interruptAgentRuns)"
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 32 }
+        - { file: src/lib/server/generation/finalize.ts, line: 33 }
+        - { file: src/lib/server/generation/finalize.ts, line: 38 }
+        - { file: src/lib/server/generation/finalize.ts, line: 39 }
+        - { file: src/lib/server/generation/finalize.ts, line: 45 }
+        - { file: src/lib/server/generation/finalize.ts, line: 52 }
+        - { file: src/lib/server/generation/finalize.ts, line: 64 }
+        - { file: src/lib/server/generation/finalize.ts, line: 74 }
+    rules:
+      - kind: decision
+        value: "生成の状態を先に、実行中のときだけ書き換え、書き換えられた呼び出し元だけがメッセージに中断の印を付ける (終わった答えを中断と見せないため)"
+        status: fact
+        evidence:
+          - { file: src/lib/server/generation/finalize.ts, line: 23 }
+          - { file: src/lib/server/generation/finalize.ts, line: 33 }
+          - { file: src/lib/server/generation/finalize.ts, line: 38 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: generations } }
+        fields:
+          - { name: generationId, use: [filter] }
+          - { name: status, use: [filter, write], set_to: "interrupted" }
+          - { name: endedAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/generation/finalize.ts, line: 32 }
+          - { file: src/lib/server/generation/finalize.ts, line: 33 }
+          - { file: src/lib/server/generation/finalize.ts, line: 34 }
+          - { file: src/lib/server/database.ts, line: 173 }
+        note: "条件は status が running"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: conversations } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: messages.id, use: [filter] }
+          - { name: messages.interrupted, use: [filter, write], set_to: "true" }
+          - { name: messages.updatedAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/generation/finalize.ts, line: 39 }
+          - { file: src/lib/server/generation/finalize.ts, line: 41 }
+          - { file: src/lib/server/generation/finalize.ts, line: 42 }
+          - { file: src/lib/server/generation/finalize.ts, line: 43 }
+          - { file: src/lib/server/generation/finalize.ts, line: 45 }
+          - { file: src/lib/server/database.ts, line: 167 }
+        note: "生成を中断にできたときだけ"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: mcpElicitations } }
+        fields:
+          - { name: generationId, use: [filter] }
+          - { name: conversationId, use: [filter] }
+          - { name: status, use: [filter, write], set_to: "resolved" }
+          - { name: pending, use: [filter] }
+          - { name: action, use: [write], set_to: "cancel" }
+          - { name: resolution, use: [write], set_to: "aborted" }
+          - { name: resolvedAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/generation/finalize.ts, line: 53 }
+          - { file: src/lib/server/generation/finalize.ts, line: 55 }
+          - { file: src/lib/server/generation/finalize.ts, line: 56 }
+          - { file: src/lib/server/generation/finalize.ts, line: 57 }
+          - { file: src/lib/server/generation/finalize.ts, line: 58 }
+          - { file: src/lib/server/generation/finalize.ts, line: 62 }
+          - { file: src/lib/server/generation/finalize.ts, line: 63 }
+          - { file: src/lib/server/generation/finalize.ts, line: 64 }
+          - { file: src/lib/server/database.ts, line: 176 }
+        note: "生成を中断にできたときだけ。条件は status が pending で、pending の項目が無いもの (止める種類の質問)"
+
+  - id: ext_mongo_generations_update_one
+    layer: external
+    kind: library
+    name: "MongoDB driver updateOne (generations)"
+    source: { file: src/lib/server/generation/finalize.ts, line: 32 }
+    caller: q_mark_generation_interrupted
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 32 }
+
+  - id: ext_mongo_conversations_update_one_finalize
+    layer: external
+    kind: library
+    name: "MongoDB driver updateOne (conversations)"
+    source: { file: src/lib/server/generation/finalize.ts, line: 39 }
+    caller: q_mark_generation_interrupted
+    call:
+      status: fact
+      when: conditional
+      condition: "生成を中断にできたとき"
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 38 }
+        - { file: src/lib/server/generation/finalize.ts, line: 39 }
+
+  - id: ext_mongo_mcp_elicitations_update_many
+    layer: external
+    kind: library
+    name: "MongoDB driver updateMany (mcpElicitations)"
+    source: { file: src/lib/server/generation/finalize.ts, line: 53 }
+    caller: q_mark_generation_interrupted
+    call:
+      status: fact
+      when: conditional
+      condition: "生成を中断にできたとき"
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 38 }
+        - { file: src/lib/server/generation/finalize.ts, line: 53 }
+
+  - id: q_interrupt_agent_runs
+    layer: query
+    kind: function
+    name: "interruptAgentRuns (src/lib/server/mlRegistry/agentRuns.ts)"
+    source: { file: src/lib/server/mlRegistry/agentRuns.ts, line: 152 }
+    caller: q_mark_generation_interrupted
+    call:
+      status: fact
+      when: conditional
+      condition: "生成を中断にできたとき"
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 4 }
+        - { file: src/lib/server/generation/finalize.ts, line: 38 }
+        - { file: src/lib/server/generation/finalize.ts, line: 74 }
+    summary:
+      status: interpretation
+      value: "その会話の、その生成を親とする実行中の子のエージェントの実行を、中断にして終わりの時刻を書く"
+      evidence:
+        - { file: src/lib/server/mlRegistry/agentRuns.ts, line: 156 }
+        - { file: src/lib/server/mlRegistry/agentRuns.ts, line: 157 }
+        - { file: src/lib/server/mlRegistry/agentRuns.ts, line: 158 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: mlAgentRuns } }
+        fields:
+          - { name: conversationId, use: [filter] }
+          - { name: parent.generationId, use: [filter] }
+          - { name: status, use: [filter, write], set_to: "interrupted" }
+          - { name: endedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/mlRegistry/agentRuns.ts, line: 156 }
+          - { file: src/lib/server/mlRegistry/agentRuns.ts, line: 157 }
+          - { file: src/lib/server/mlRegistry/agentRuns.ts, line: 158 }
+          - { file: src/lib/server/database.ts, line: 184 }
+        note: "条件は status が running"
+
+  - id: ext_mongo_ml_agent_runs_update_many
+    layer: external
+    kind: library
+    name: "MongoDB driver updateMany (mlAgentRuns)"
+    source: { file: src/lib/server/mlRegistry/agentRuns.ts, line: 156 }
+    caller: q_interrupt_agent_runs
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: src/lib/server/mlRegistry/agentRuns.ts, line: 156 }
+
+  - id: q_finalize_active_runs_on_exit
+    layer: query
+    kind: function
+    name: "finalizeActiveRunsOnExit (src/lib/server/generation/finalize.ts)"
+    source: { file: src/lib/server/generation/finalize.ts, line: 79 }
+    caller: q_generation_reaper
+    call:
+      status: fact
+      when: conditional
+      condition: "サーバーの終了の合図 (SIGINT か SIGTERM) を受けたとき"
+      evidence:
+        - { file: src/lib/server/generation/reaper.ts, line: 5 }
+        - { file: src/lib/server/generation/reaper.ts, line: 66 }
+        - { file: src/lib/server/exitHandler.ts, line: 36 }
+        - { file: src/lib/server/exitHandler.ts, line: 55 }
+    summary:
+      status: interpretation
+      value: "このサーバーのメモリーにある実行中の生成ごとに、markGenerationInterrupted で中断にする (1 回の後始末を待たずに)。経路はフレーム q_mark_generation_interrupted と同じ"
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 80 }
+        - { file: src/lib/server/generation/finalize.ts, line: 81 }
+        - { file: src/lib/server/generation/finalize.ts, line: 85 }
+
+  - id: q_mark_generation_interrupted_exit
+    layer: query
+    kind: function
+    name: "markGenerationInterrupted (src/lib/server/generation/finalize.ts)"
+    source: { file: src/lib/server/generation/finalize.ts, line: 27 }
+    caller: q_finalize_active_runs_on_exit
+    call:
+      status: fact
+      when: conditional
+      condition: "このサーバーに実行中の生成があるとき (生成ごと)"
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 81 }
+        - { file: src/lib/server/generation/finalize.ts, line: 85 }
+    summary:
+      status: interpretation
+      value: "フレーム q_mark_generation_interrupted と同じ処理。呼び元 (finalizeActiveRunsOnExit) が終端にならないように、データの読み書きだけをもう一度書いた。interruptAgentRuns も呼ぶ。経路はフレーム q_interrupt_agent_runs と同じ"
+      evidence:
+        - { file: src/lib/server/generation/finalize.ts, line: 32 }
+        - { file: src/lib/server/generation/finalize.ts, line: 39 }
+        - { file: src/lib/server/generation/finalize.ts, line: 53 }
+        - { file: src/lib/server/generation/finalize.ts, line: 74 }
+    io:
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: generations } }
+        fields:
+          - { name: generationId, use: [filter] }
+          - { name: status, use: [filter, write], set_to: "interrupted" }
+          - { name: endedAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/generation/finalize.ts, line: 32 }
+          - { file: src/lib/server/generation/finalize.ts, line: 33 }
+          - { file: src/lib/server/generation/finalize.ts, line: 34 }
+          - { file: src/lib/server/database.ts, line: 173 }
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: conversations } }
+        fields:
+          - { name: _id, use: [filter] }
+          - { name: messages.id, use: [filter] }
+          - { name: messages.interrupted, use: [filter, write], set_to: "true" }
+          - { name: messages.updatedAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/generation/finalize.ts, line: 39 }
+          - { file: src/lib/server/generation/finalize.ts, line: 41 }
+          - { file: src/lib/server/generation/finalize.ts, line: 42 }
+          - { file: src/lib/server/generation/finalize.ts, line: 43 }
+          - { file: src/lib/server/generation/finalize.ts, line: 45 }
+          - { file: src/lib/server/database.ts, line: 167 }
+        note: "生成を中断にできたときだけ"
+      - op: update
+        status: fact
+        resource: { kind: rdb, levels: { dbms: mongodb, table: mcpElicitations } }
+        fields:
+          - { name: generationId, use: [filter] }
+          - { name: conversationId, use: [filter] }
+          - { name: status, use: [filter, write], set_to: "resolved" }
+          - { name: pending, use: [filter] }
+          - { name: action, use: [write], set_to: "cancel" }
+          - { name: resolution, use: [write], set_to: "aborted" }
+          - { name: resolvedAt, use: [write] }
+          - { name: updatedAt, use: [write] }
+        evidence:
+          - { file: src/lib/server/generation/finalize.ts, line: 53 }
+          - { file: src/lib/server/generation/finalize.ts, line: 55 }
+          - { file: src/lib/server/generation/finalize.ts, line: 56 }
+          - { file: src/lib/server/generation/finalize.ts, line: 57 }
+          - { file: src/lib/server/generation/finalize.ts, line: 58 }
+          - { file: src/lib/server/generation/finalize.ts, line: 62 }
+          - { file: src/lib/server/generation/finalize.ts, line: 63 }
+          - { file: src/lib/server/generation/finalize.ts, line: 64 }
+          - { file: src/lib/server/database.ts, line: 176 }
+        note: "生成を中断にできたときだけ"
+
+  # ---------------------------------------------------------------- 辿らなかった定期の処理
+  - id: q_parked_call_sweeper
+    layer: query
+    kind: function
+    name: "ParkedCallSweeper (src/lib/server/generation/parkedSweeper.ts)"
+    source: { file: src/lib/server/generation/parkedSweeper.ts, line: 640 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、起動の設定の確認 (HuggingChat なら SESSION_OAUTH_ENCRYPTION_KEY が要る) を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 9 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 59 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      evidence:
+        - { file: src/lib/server/generation/parkedSweeper.ts, line: 632 }
+        - { file: src/lib/server/generation/parkedSweeper.ts, line: 634 }
+        - { file: src/lib/server/generation/parkedSweeper.ts, line: 611 }
+      note: "読んだのは、1 つだけの物を作り、決まった間隔で sweepParkedCalls (parkedSweeper.ts:611) を呼ぶ仕掛け (parkedSweeper.ts:632-640) まで。sweepParkedCalls から先 (待たせた呼び出しの見回り。646 行のファイル) は辿っていない。止めた理由は、起動のときに始める定期の処理で、要求を包むフックの本筋ではなく、ファイルが大きいため。続きを分析するなら、定期の処理を別の入口に分けるのがよい"
+
+  - id: q_answered_ask_sweeper
+    layer: query
+    kind: function
+    name: "AnsweredAskSweeper (src/lib/server/generation/askResume.ts)"
+    source: { file: src/lib/server/generation/askResume.ts, line: 678 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、起動の設定の確認 (HuggingChat なら SESSION_OAUTH_ENCRYPTION_KEY が要る) を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 10 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 60 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      evidence:
+        - { file: src/lib/server/generation/askResume.ts, line: 670 }
+        - { file: src/lib/server/generation/askResume.ts, line: 672 }
+        - { file: src/lib/server/generation/askResume.ts, line: 597 }
+      note: "読んだのは、1 つだけの物を作り、決まった間隔で sweepAnsweredAsks (askResume.ts:597) を呼ぶ仕掛け (askResume.ts:670-678) まで。sweepAnsweredAsks から先 (答えの来た質問で生成を続ける処理。684 行のファイル) は辿っていない。止めた理由は ParkedCallSweeper と同じ"
+
+  - id: q_queued_input_sweeper
+    layer: query
+    kind: function
+    name: "QueuedInputSweeper (src/lib/server/queuedInputs/drain.ts)"
+    source: { file: src/lib/server/queuedInputs/drain.ts, line: 232 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、ML Assistant のビルドで、起動の設定の確認を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 11 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 61 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      evidence:
+        - { file: src/lib/server/queuedInputs/drain.ts, line: 224 }
+        - { file: src/lib/server/queuedInputs/drain.ts, line: 226 }
+        - { file: src/lib/server/queuedInputs/drain.ts, line: 192 }
+      note: "読んだのは、1 つだけの物を作り、決まった間隔で sweepQueuedInputs (drain.ts:192) を呼ぶ仕掛け (drain.ts:224-232) まで。sweepQueuedInputs から先 (ためた入力を流す処理) は辿っていない。止めた理由は ParkedCallSweeper と同じ"
+
+  - id: q_ml_service_poller
+    layer: query
+    kind: function
+    name: "MlServicePoller (src/lib/server/mlRegistry/poller.ts)"
+    source: { file: src/lib/server/mlRegistry/poller.ts, line: 364 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、ML Assistant のビルドで、ML のサービスの見回りを止める設定でなく、起動の設定の確認を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 13 }
+        - { file: src/lib/server/hooks/init.ts, line: 14 }
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 62 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      evidence:
+        - { file: src/lib/server/mlRegistry/poller.ts, line: 348 }
+        - { file: src/lib/server/mlRegistry/poller.ts, line: 354 }
+        - { file: src/lib/server/mlRegistry/poller.ts, line: 279 }
+      note: "読んだのは、1 つだけの物を作り、決まった間隔で pollDueServices (poller.ts:279) を呼ぶ仕掛け (poller.ts:348-364) まで。pollDueServices から先 (ML のサービスの状態を見回る処理。370 行のファイル) は辿っていない。止めた理由は ParkedCallSweeper と同じ"
+
+  - id: q_start_slack_bot
+    layer: query
+    kind: function
+    name: "startSlackBot (src/lib/server/slack/bot.ts)"
+    source: { file: src/lib/server/slack/bot.ts, line: 1975 }
+    caller: q_init_server
+    call:
+      status: fact
+      when: conditional
+      condition: "起動のとき、SLACK_ML_ENABLED が true で、起動の設定の確認を通ったとき"
+      evidence:
+        - { file: src/lib/server/hooks/init.ts, line: 37 }
+        - { file: src/lib/server/hooks/init.ts, line: 75 }
+        - { file: src/lib/server/hooks/init.ts, line: 76 }
+        - { file: src/lib/server/hooks/init.ts, line: 77 }
+    summary:
+      status: unknown
+      reason: not_analyzed
+      evidence:
+        - { file: src/lib/server/slack/bot.ts, line: 1975 }
+      note: "読んだのは、init が SLACK_ML_ENABLED のときに動的 import で startSlackBot を呼ぶところ (init.ts:75-77) と、定義の行まで。startSlackBot から先 (Slack の bot。2078 行のファイルで、定期の処理を 2 つ以上持つ) は辿っていない。止めた理由は、起動のときに始める常駐の処理で、要求を包むフックの本筋ではなく、ファイルがとても大きいため。続きを分析するなら、Slack の bot を別の入口に分けるのがよい"

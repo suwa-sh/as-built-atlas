@@ -1,0 +1,76 @@
+format_version: 1
+entry:
+  id: staging.stg_io
+  path: /staging/stg_io
+  name: stg_io
+  layer: model
+  source: { file: models/staging/stg_io.sql, line: 1 }
+target:
+  repo: github.com/suwa-sh/as-built-atlas
+  scope: dbt-template
+  commit: 3bf40cb
+analyzer:
+  profile: { id: transform-dbt, version: "0.1.0" }
+  skill_version: "0.4.0"
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-17T22:32:26Z"
+  tests: true
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T22:31:54Z"
+    findings_open: 0
+notes: |
+  - seed の io は、範囲 (dbt-template) に CSV が無い (abatlas build が合成する)。dbt_project.yml の seeds の設定 (+schema: seed と io の column_types) を根拠に、seed の表 seed.io を読むと解釈した
+  - schema は dbt_project.yml の +schema を、project の generate_schema_name (custom_schema_name をそのまま使う) で作った名前にした。generate_schema_name は model から呼ばれる macro ではなく dbt が暗黙に呼ぶので、フレームにしなかった
+  - dbms は profiles.yml の type: duckdb から書いた。database は env_var('ABATLAS_DUCKDB') で決まるファイルの場所なので書かず、どの入口でも同じに効く接続の設定として settings にも書かなかった
+  - schema.yml の stg_io にはテストが無く、範囲に tests/ も無いので、tests は書かなかった
+summary:
+  status: interpretation
+  value: "seed の io (分析結果の読み書きを 1 件 1 行にした表) を select * でそのまま写す staging の view。列の付け替えも絞り込みも無い"
+  evidence:
+    - { file: models/staging/stg_io.sql, line: 1 }
+    - { file: dbt_project.yml, line: 74 }
+    - { file: dbt_project.yml, line: 218 }
+callstack:
+  - id: stg_io
+    layer: model
+    kind: model
+    name: stg_io
+    source: { file: models/staging/stg_io.sql, line: 1 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "ref('io') で seed の表 io を全列読み、そのまま staging.stg_io の view にする"
+      evidence:
+        - { file: models/staging/stg_io.sql, line: 1 }
+        - { file: dbt_project.yml, line: 218 }
+        - { file: dbt_project.yml, line: 219 }
+    io:
+      - op: read
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: seed, table: io }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: models/staging/stg_io.sql, line: 1 }
+          - { file: dbt_project.yml, line: 18 }
+          - { file: dbt_project.yml, line: 74 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+        note: "ref('io') の相手は seed (dbt_project.yml の seeds に io の列の型がある)。CSV は範囲の外で build が合成するため、seed の設定から schema を決めた"
+      - op: create
+        status: interpretation
+        resource:
+          kind: rdb
+          levels: { dbms: duckdb, schema: staging, table: stg_io }
+        fields:
+          - { name: "*", use: [write] }
+        evidence:
+          - { file: models/staging/stg_io.sql, line: 1 }
+          - { file: dbt_project.yml, line: 218 }
+          - { file: dbt_project.yml, line: 219 }
+          - { file: macros/generate_schema_name.sql, line: 6 }
+          - { file: profiles.yml, line: 6 }
+        note: "models/staging の +materialized: view で view を作る。schema は +schema: staging を generate_schema_name がそのまま使う"

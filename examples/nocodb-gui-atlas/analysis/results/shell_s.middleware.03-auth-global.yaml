@@ -1,0 +1,470 @@
+format_version: 1
+entry:
+  id: shell_s.middleware.03-auth-global
+  path: /(shell)/middleware/03.auth.global
+  name: "03.auth.global"
+  layer: shell
+  source: { file: middleware/03.auth.global.ts, line: 99 }
+target:
+  repo: github.com/nocodb/nocodb
+  scope: packages/nc-gui
+  commit: 657eb609d038355d4c489ba70b9fcf1d96295e07
+analyzer:
+  profile: { id: ui-nuxt, version: "0.1.0" }
+  skill_version: "0.4.1"
+  model: claude-opus-5-5
+  analyzed_at: "2026-11-18T01:34:19Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-18T01:33:01Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "画面を移るたびに動く global の route middleware (ファイル名の順で、01.redirect.global と 02.security.global の後、04.payment.global の前に動く 3 つ目)。ログインの状態を確かめ、必要なら画面を移す。まず URL の ui-redirect を見て移り先を作る。ログインしておらず Google などのログインが有効で、URL に認可の code があれば、code をバックエンドでトークンに換えてログインし、ページを読み直す。URL に short-token があれば、長く使えるトークンに換えてログインし、ページを読み直す (2 段階の認証が要るときは、どちらも /signin へ移す)。公開の page (meta の public) と共有の base (URL の typeOrId が base) は、ここで通す。ログインが要る page でログインしていなければ、最初の利用者なら /signup へ、そうでなければ refresh token でトークンを作り直し、それでもログインしていなければ、戻り先を付けて /signin へ移す。ログインが要らない page (signin など) にログイン済みで来たら、元の画面か / へ戻す。ログイン済みでログインが要る page では、meta の allowedRoles の役割が無ければ / へ戻し、別の base へ移るときは役割を読み直して、guest なら / へ戻す"
+  evidence:
+    - { file: middleware/03.auth.global.ts, line: 99 }
+    - { file: middleware/01.redirect.global.ts, line: 1 }
+    - { file: middleware/04.payment.global.ts, line: 1 }
+    - { file: middleware/03.auth.global.ts, line: 107 }
+    - { file: middleware/03.auth.global.ts, line: 110 }
+    - { file: middleware/03.auth.global.ts, line: 243 }
+    - { file: middleware/03.auth.global.ts, line: 272 }
+    - { file: middleware/03.auth.global.ts, line: 116 }
+    - { file: middleware/03.auth.global.ts, line: 314 }
+    - { file: middleware/03.auth.global.ts, line: 363 }
+    - { file: middleware/03.auth.global.ts, line: 283 }
+    - { file: middleware/03.auth.global.ts, line: 120 }
+    - { file: middleware/03.auth.global.ts, line: 123 }
+    - { file: middleware/03.auth.global.ts, line: 136 }
+    - { file: middleware/03.auth.global.ts, line: 154 }
+    - { file: middleware/03.auth.global.ts, line: 178 }
+    - { file: middleware/03.auth.global.ts, line: 183 }
+    - { file: middleware/03.auth.global.ts, line: 197 }
+    - { file: middleware/03.auth.global.ts, line: 203 }
+    - { file: middleware/03.auth.global.ts, line: 210 }
+notes: "(1) checkForRedirect、tryGoogleAuth、tryShortTokenAuth、toTwoFactorChallenge、isSafeContinuePath などは、同じファイルの中の外に出していない補助の関数なので、フレームにせず、入口のフレームの処理として扱った (その中の API の呼び出しは、入口のフレームの下の external フレームにした)。(2) トークンの交換 (genTokenByCode、long-lived-token) と作り直し (token/refresh) は、SDK の関数 (api.<モジュール>.<関数>) ではなく、SDK の Api が持つ axios の instance に URL の文字列を渡して呼んでいる。conventions の sdk:<モジュール>.<関数> の書き方が当たらないので、プロファイルのとおり path を <HTTP メソッド> <URL の形> で書いた。baseURL は実行時の設定 ncBackendUrl か、本番では / (lib/constants.ts 46 行目、composables/useApi/index.ts 11 行目) なので、接頭辞を足さず、コードの URL のまま書いた。kind は library にした。(3) useGlobal().signOut は、この入口の木の中のどの呼び出しも skipApiCall に固定の値 true を渡し (165 行目、281 行目、composables/useGlobal/actions.ts 127 行目)、redirectToSignin を渡さない。そのため auth.signout の API と、/signin への移動は閉じている。残りはブラウザの中の状態を消すだけで読み書きが無いので、conventions の決まりで、フレームにしなかった。stageTwoFactorChallenge は、この版では何もしない関数 (actions.ts 253 行目) なので、フレームにしなかった。(4) checkForRedirect の navigateTo(url) の戻り値は、107 行目で捨てられている。Nuxt の route middleware の中の navigateTo は、移動せずに行き先を返す作りと読めるので、ui-redirect の移動は、ここでは効かない疑いがある (Nuxt のソースは scope に無く、node_modules も入っていないので確かめていない)。links には書いたまま、note に書いた。(5) トークンの作り直しが成功すると、134 行目の分岐の中で終わり、else の中の allowedRoles と guest の確認は、その移動では行われない (197 行目、210 行目は else の中)。(6) /sso は、pages の下に当たる page が無い (有償版の page と見える) ので、entry_id を書かなかった。(7) nuxt.config.ts は有償版の設定 (ee/) を extends する作りで、useGlobal と useRoles は有償版では上書きされうる。(8) localStorage (continueAfterSignIn、nc-auth-last-method、複数のタブでの作り直しの錠)、sessionStorage、cookie (nc_token) の読み書きは、プロファイルの決まりで I/O に書かなかった。(9) 全部の API の呼び出しに掛かる応答の差し込み (トークンの更新) は、conventions の決まりで辿らなかった。(10) 綴りは、既にある結果 index.typeOrId_d.form.viewId_d に合わせた (host (backend)、sdk:<モジュール>.<関数>、useGlobal.signIn の形の name、/ の entry_id は index.index)。(11) レビューの指摘 4 件 (medium 1、low 3) はすべて直した。作り直しの失敗で状態を消すルールは、middleware の 162 行目の分岐がこの版では通らないため、refresh_token のフレームへ移した。(12) else の枝 (195 行目) は、ログインしていない利用者が requiresAuth が false の page に来たときも通るが、そうした page に baseId の段も allowedRoles も見当たらないので、load_roles の条件と guards は「ログイン済みで」のままにした。"
+callstack:
+  - id: middleware
+    layer: shell
+    kind: middleware
+    name: "03.auth.global"
+    source: { file: middleware/03.auth.global.ts, line: 99 }
+    caller: null
+    parameters:
+      - name: to
+        value: "移り先の route。meta の public、requiresAuth、allowedRoles と、params の typeOrId、baseId、query、fullPath を読む"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 120 }
+          - { file: middleware/03.auth.global.ts, line: 123 }
+          - { file: middleware/03.auth.global.ts, line: 127 }
+          - { file: middleware/03.auth.global.ts, line: 134 }
+          - { file: middleware/03.auth.global.ts, line: 197 }
+          - { file: middleware/03.auth.global.ts, line: 203 }
+      - name: from
+        value: "移る前の route。meta の requiresAuth、path、params の baseId を読む"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 190 }
+          - { file: middleware/03.auth.global.ts, line: 193 }
+          - { file: middleware/03.auth.global.ts, line: 203 }
+      - name: window.location.search
+        value: "ブラウザの URL のクエリ。ui-redirect、認可の code と state と scope、short-token、continueAfterSso を読む"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 369 }
+          - { file: middleware/03.auth.global.ts, line: 223 }
+          - { file: middleware/03.auth.global.ts, line: 292 }
+          - { file: middleware/03.auth.global.ts, line: 303 }
+    guards:
+      - kind: authentication
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 134 }
+          - { file: middleware/03.auth.global.ts, line: 170 }
+          - { file: middleware/03.auth.global.ts, line: 178 }
+        note: "ログインが要る page (meta の requiresAuth が true か、書いていない) で、トークンの作り直しの後もログインしていなければ、/signin へ移す"
+      - kind: role
+        value: "to.meta.allowedRoles"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 197 }
+          - { file: middleware/03.auth.global.ts, line: 199 }
+        note: "page の meta の allowedRoles のどの役割も持っていなければ、誤りの文を出して / へ戻す"
+      - kind: role
+        value: "state.user.value.roles?.guest"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 203 }
+          - { file: middleware/03.auth.global.ts, line: 210 }
+          - { file: middleware/03.auth.global.ts, line: 213 }
+        note: "別の base へ移るとき、役割を読み直して、guest の役割を持つ利用者 (user の id が読めているとき) なら、誤りの文を出して / へ戻す。求める役割ではなく、断る役割"
+    settings:
+      - name: "appInfo.googleAuthEnabled"
+        kind: remote
+        effect: "有効なとき、ログインしていなければ、URL の認可の code をトークンに換えてログインすることを試す。無効なら、その交換をしない"
+        status: fact
+        evidence: [{ file: middleware/03.auth.global.ts, line: 110 }]
+        note: "バックエンドが返すアプリの情報 (appInfo) の値。バックエンドが何から決めるかは scope の外"
+    rules:
+      - kind: decision
+        value: "移り先の page が公開 (meta の public) なら、ログインと役割の確認をせずに通す"
+        status: fact
+        evidence: [{ file: middleware/03.auth.global.ts, line: 120 }]
+      - kind: decision
+        value: "URL の typeOrId が base (共有の base) なら、確認をせずに通す"
+        status: fact
+        evidence: [{ file: middleware/03.auth.global.ts, line: 123 }]
+      - kind: decision
+        value: "ログインが要る page でログインしておらず、まだ利用者が 1 人もいない (appInfo の firstUser) ときは、トークンの作り直しをせずに /signup へ移す"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 136 }
+          - { file: middleware/03.auth.global.ts, line: 146 }
+      - kind: decision
+        value: "/signup や /signin へ移すとき、移り先が / 以外の画面か、/ でも支払いや base の選択などの意味を持つクエリ (upgrade、pricing、afterPayment、afterManage、afterUpgrade、pickAppBase、pickAgentBase、kind、mcp) を持つときだけ、戻り先 (continueAfterSignIn) を付ける"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 126 }
+          - { file: middleware/03.auth.global.ts, line: 130 }
+          - { file: middleware/03.auth.global.ts, line: 137 }
+          - { file: middleware/03.auth.global.ts, line: 171 }
+      - kind: decision
+        value: "ログインが要らない page (signin など) にログイン済みで来たとき、元の画面もログインが要らない page なら / へ、そうでなければ元の画面へ戻す"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 183 }
+          - { file: middleware/03.auth.global.ts, line: 190 }
+          - { file: middleware/03.auth.global.ts, line: 193 }
+      - kind: decision
+        value: "別の base へ移るとき (移り先の baseId が、元の画面の baseId と違うとき) だけ、役割を読み直して guest の確認をする"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 203 }
+          - { file: middleware/03.auth.global.ts, line: 204 }
+      - kind: decision
+        value: "認可の code の交換の相手 (google、github、oidc) を、URL の state の値で選ぶ。既定は google"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 235 }
+          - { file: middleware/03.auth.global.ts, line: 236 }
+          - { file: middleware/03.auth.global.ts, line: 238 }
+      - kind: decision
+        value: "トークンの交換の応答が 2 段階の認証を求める (twoFactorRequired と twoFactorToken がある) ときは、ログインせずに (このタブがログイン済みなら、その状態を先に消して) /signin へ移し、確認の番号を入れさせる"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 246 }
+          - { file: middleware/03.auth.global.ts, line: 324 }
+          - { file: middleware/03.auth.global.ts, line: 281 }
+          - { file: middleware/03.auth.global.ts, line: 283 }
+      - kind: decision
+        value: "short-token の交換が、ワークスペースの数の上限 (ERR_MAX_WORKSPACE_LIMIT_REACHED) で失敗したら、誤りを状態に置いて /sso へ移す"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 340 }
+          - { file: middleware/03.auth.global.ts, line: 342 }
+          - { file: middleware/03.auth.global.ts, line: 347 }
+      - kind: validation
+        value: "ログインの後の戻り先は、同じ配信元の相対の path (/ で始まり、// や /\\ で始まらない) だけを URL に戻す"
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 45 }
+          - { file: middleware/03.auth.global.ts, line: 46 }
+          - { file: middleware/03.auth.global.ts, line: 49 }
+          - { file: middleware/03.auth.global.ts, line: 268 }
+          - { file: middleware/03.auth.global.ts, line: 358 }
+    links:
+      - kind: navigate
+        target: "url"
+        status: unknown
+        reason: dynamic_dispatch
+        evidence: [{ file: middleware/03.auth.global.ts, line: 378 }]
+        note: "URL のクエリ ui-redirect の値へ移る (372 行目)。行き先は実行時の値。checkForRedirect の戻り値は 107 行目で捨てられ、route middleware の中の navigateTo は移動せずに行き先を返す作りと読めるので、この移動は効かない疑いがある (Nuxt のソースは scope の外で確かめていない)"
+      - kind: navigate
+        target: "/signin"
+        entry_id: signin
+        status: fact
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 178 }
+          - { file: middleware/03.auth.global.ts, line: 283 }
+        note: "ログインしていないとき (戻り先を continueAfterSignIn に付ける) と、2 段階の認証の確認の番号を入れさせるとき"
+      - kind: navigate
+        target: "/sso"
+        status: fact
+        evidence: [{ file: middleware/03.auth.global.ts, line: 347 }]
+        note: "short-token の交換がワークスペースの数の上限で失敗したとき。pages の下に当たる page が無い (有償版の page と見える) ので、entry_id を書かない"
+      - kind: navigate
+        target: "/signup"
+        entry_id: signup.token_o
+        status: interpretation
+        evidence: [{ file: middleware/03.auth.global.ts, line: 146 }]
+        note: "最初の利用者のとき。/signup は pages/signup/[[token]].vue (省ける段) に当たる"
+      - kind: navigate
+        target: "/"
+        entry_id: index.index
+        status: interpretation
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 191 }
+          - { file: middleware/03.auth.global.ts, line: 199 }
+          - { file: middleware/03.auth.global.ts, line: 213 }
+        note: "ログインが要らない page から来たとき、allowedRoles の役割が無いとき、guest のとき。/ には入れ子の親 index と子 index.index が描かれる。葉の page を entry_id にした"
+      - kind: navigate
+        target: "from.path"
+        status: unknown
+        reason: dynamic_dispatch
+        evidence: [{ file: middleware/03.auth.global.ts, line: 193 }]
+        note: "ログイン済みで、ログインが要らない page に来たとき、元の画面へ戻す。行き先は実行時の値"
+    summary:
+      status: interpretation
+      value: "ログインの状態 (useGlobal) と役割 (useRoles) を用意し、URL のクエリでトークンの交換を試してから、移り先の page の meta でログインと役割を確かめて、画面を移すかを決める。交換に成功したら、戻り先を URL に戻してページを読み直す。交換が失敗したときと、役割が足りず戻すときは、誤りの文 (message.error) を出す。2 段階の認証の前に、このタブがログイン済みなら、ブラウザの中のログインの状態を消す (useGlobal.signOut)"
+      evidence:
+        - { file: middleware/03.auth.global.ts, line: 100 }
+        - { file: middleware/03.auth.global.ts, line: 105 }
+        - { file: middleware/03.auth.global.ts, line: 111 }
+        - { file: middleware/03.auth.global.ts, line: 116 }
+        - { file: middleware/03.auth.global.ts, line: 134 }
+        - { file: middleware/03.auth.global.ts, line: 197 }
+        - { file: middleware/03.auth.global.ts, line: 267 }
+        - { file: middleware/03.auth.global.ts, line: 272 }
+        - { file: middleware/03.auth.global.ts, line: 257 }
+        - { file: middleware/03.auth.global.ts, line: 349 }
+        - { file: middleware/03.auth.global.ts, line: 281 }
+      note: "作り直しの失敗の後の signOut (162 行目、165 行目) は、応答を持つ誤りのときだけ動くが、この版の useGlobal.refreshToken は、サーバーに断られたときは投げずに null を返し、投げるのは応答の無い失敗だけ (composables/useGlobal/actions.ts 136 行目、138 行目) なので、この版では通らない。断られたときに状態を消すのは refreshToken の中 (フレーム refresh_token)。固定の値で閉じている呼び出し: useGlobal().signOut は、どの呼び出しも skipApiCall に固定の値 true を渡す (165 行目、281 行目、composables/useGlobal/actions.ts 127 行目) ので、auth.signout の API (actions.ts 25 行目、27 行目) は呼ばれない。redirectToSignin も渡さないので、signinUrl への移動 (45 行目) も起きない。残りは状態を消すだけなので、signOut はフレームにしなかった。ログインの状態の印 (lastUsedAuthMethod、commitPendingAuthMethod) と戻り先 (continueAfterSignIn) は、ブラウザの中の保存に書く"
+  - id: sdk_gen_token_by_code
+    layer: external
+    kind: library
+    name: "api.instance.post /auth/{authProvider}/genTokenByCode"
+    source: { file: middleware/03.auth.global.ts, line: 243 }
+    caller: middleware
+    call:
+      status: fact
+      when: conditional
+      condition: "ログインしておらず、Google などのログインが有効で、ブラウザの URL に認可の code と state か scope があるとき"
+      evidence:
+        - { file: middleware/03.auth.global.ts, line: 110 }
+        - { file: middleware/03.auth.global.ts, line: 111 }
+        - { file: middleware/03.auth.global.ts, line: 223 }
+        - { file: middleware/03.auth.global.ts, line: 243 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /auth/{authProvider}/genTokenByCode" } }
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 243 }
+          - { file: middleware/03.auth.global.ts, line: 226 }
+          - { file: middleware/03.auth.global.ts, line: 246 }
+          - { file: middleware/03.auth.global.ts, line: 248 }
+          - { file: lib/constants.ts, line: 46 }
+          - { file: composables/useApi/index.ts, line: 11 }
+        fields:
+          - { name: code, use: [write] }
+          - { name: state, use: [write] }
+          - { name: scope, use: [write] }
+          - { name: token, use: [read] }
+          - { name: extra, use: [read] }
+          - { name: twoFactorRequired, use: [read] }
+          - { name: twoFactorToken, use: [read] }
+        note: "OAuth や OIDC の認可の code を、ログインのトークンに換える。authProvider は google、github、oidc のどれか。URL のクエリ (code、state、scope) を、そのまま URL の後ろに付けて送る"
+  - id: sign_in
+    layer: component
+    kind: composable
+    name: useGlobal.signIn
+    source: { file: composables/useGlobal/actions.ts, line: 75 }
+    caller: middleware
+    call:
+      status: fact
+      when: conditional
+      condition: "認可の code の交換が成功し、2 段階の認証を求められなかったとき"
+      evidence:
+        - { file: middleware/03.auth.global.ts, line: 246 }
+        - { file: middleware/03.auth.global.ts, line: 253 }
+      note: "short-token の交換の成功 (337 行目) と、トークンの作り直しの成功 (composables/useGlobal/actions.ts 115 行目) でも、同じ関数を呼ぶ。経路はこのフレームと同じ"
+    summary:
+      status: interpretation
+      value: "新しいトークンを状態に置き、トークンの中身から利用者 (id、email、名前、役割) を組み立てる。トークンがあり、アプリの情報に既定のワークスペースの id が無ければ、アプリの情報を読み直す"
+      evidence:
+        - { file: composables/useGlobal/actions.ts, line: 77 }
+        - { file: composables/useGlobal/actions.ts, line: 80 }
+        - { file: composables/useGlobal/actions.ts, line: 92 }
+      note: "トークンは、状態の置き場の先で、ブラウザの中の保存と cookie (nc_token) に写される (composables/useGlobal/index.ts 69 行目)。I/O には書かない"
+  - id: load_app_info
+    layer: component
+    kind: composable
+    name: useGlobal.loadAppInfo
+    source: { file: composables/useGlobal/actions.ts, line: 60 }
+    caller: sign_in
+    call:
+      status: fact
+      when: conditional
+      condition: "新しいトークンがあり、いまのアプリの情報に既定のワークスペースの id が無いとき"
+      evidence: [{ file: composables/useGlobal/actions.ts, line: 92 }]
+      note: "最初の利用者が登録した後に、既定のワークスペースができるため (91 行目の注記)"
+    summary:
+      status: interpretation
+      value: "アプリの情報をバックエンドから読み、状態に置く。読み込み中・済み・失敗の印も置く"
+      evidence:
+        - { file: composables/useGlobal/actions.ts, line: 62 }
+        - { file: composables/useGlobal/actions.ts, line: 64 }
+        - { file: composables/useGlobal/actions.ts, line: 67 }
+  - id: sdk_utils_app_info
+    layer: external
+    kind: sdk
+    name: "$api.utils.appInfo"
+    source: { file: composables/useGlobal/actions.ts, line: 64 }
+    caller: load_app_info
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: composables/useGlobal/actions.ts, line: 64 }]
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "sdk:utils.appInfo" } }
+        evidence: [{ file: composables/useGlobal/actions.ts, line: 64 }]
+        fields:
+          - { name: "*", use: [read] }
+        note: "アプリの情報 (ログインの方式の有無、最初の利用者か、既定のワークスペースなど) をまるごと読む。SDK のソース (packages/nocodb-sdk) は範囲の外"
+  - id: sdk_long_lived_token
+    layer: external
+    kind: library
+    name: "api.instance.post /auth/long-lived-token"
+    source: { file: middleware/03.auth.global.ts, line: 314 }
+    caller: middleware
+    call:
+      status: fact
+      when: conditional
+      condition: "ブラウザの URL に short-token があるとき (ログインの状態によらない)"
+      evidence:
+        - { file: middleware/03.auth.global.ts, line: 116 }
+        - { file: middleware/03.auth.global.ts, line: 292 }
+        - { file: middleware/03.auth.global.ts, line: 314 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /auth/long-lived-token" } }
+        evidence:
+          - { file: middleware/03.auth.global.ts, line: 314 }
+          - { file: middleware/03.auth.global.ts, line: 319 }
+          - { file: middleware/03.auth.global.ts, line: 324 }
+          - { file: middleware/03.auth.global.ts, line: 330 }
+          - { file: middleware/03.auth.global.ts, line: 340 }
+          - { file: middleware/03.auth.global.ts, line: 344 }
+        fields:
+          - { name: xc-short-token, use: [write] }
+          - { name: token, use: [read] }
+          - { name: extra, use: [read] }
+          - { name: twoFactorRequired, use: [read] }
+          - { name: twoFactorToken, use: [read] }
+          - { name: error, use: [read] }
+          - { name: message, use: [read] }
+        note: "SSO の後に URL で渡された短い間だけ使えるトークンを、見出し xc-short-token に付けて送り、長く使えるトークンに換える。失敗の応答の error と message も読む"
+  - id: refresh_token
+    layer: component
+    kind: composable
+    name: useGlobal.refreshToken
+    source: { file: composables/useGlobal/actions.ts, line: 96 }
+    caller: middleware
+    call:
+      status: fact
+      when: conditional
+      condition: "ログインが要る page でログインしておらず、最初の利用者でないとき"
+      evidence:
+        - { file: middleware/03.auth.global.ts, line: 134 }
+        - { file: middleware/03.auth.global.ts, line: 136 }
+        - { file: middleware/03.auth.global.ts, line: 154 }
+        - { file: composables/useGlobal/actions.ts, line: 142 }
+    rules:
+      - kind: decision
+        value: "作り直しがサーバーに断られた (応答がある) ときだけ、token と user が残っていれば、ログインの状態を消す。応答の無い失敗 (通信の切れ) では消さずに、呼び出し元へ投げ直す"
+        status: fact
+        evidence:
+          - { file: composables/useGlobal/actions.ts, line: 124 }
+          - { file: composables/useGlobal/actions.ts, line: 126 }
+          - { file: composables/useGlobal/actions.ts, line: 136 }
+          - { file: composables/useGlobal/actions.ts, line: 138 }
+    summary:
+      status: interpretation
+      value: "refresh token (cookie で送る) で、ログインのトークンを作り直す。作れたら useGlobal.signIn で状態に置く (経路はフレーム sign_in と同じ)。サーバーに断られたら、状態に token と user が残っているときだけ、ログインの状態を消して誤りの文を出し、null を返す。応答が無い失敗は、呼び出し元へ投げ直す。複数のタブで同時に作り直さないよう、useSharedExecutionFn で包み、ブラウザの中の保存の錠を取ったタブだけが作り直し、ほかのタブは結果を待つ"
+      evidence:
+        - { file: composables/useGlobal/actions.ts, line: 111 }
+        - { file: composables/useGlobal/actions.ts, line: 115 }
+        - { file: composables/useGlobal/actions.ts, line: 126 }
+        - { file: composables/useGlobal/actions.ts, line: 136 }
+        - { file: composables/useGlobal/actions.ts, line: 142 }
+        - { file: composables/useSharedExecutionFn.ts, line: 102 }
+        - { file: composables/useSharedExecutionFn.ts, line: 137 }
+      note: "呼び出し元は引数 {} を渡すが、useSharedExecutionFn の包みは引数を受けずに fn() を呼ぶ (composables/useSharedExecutionFn.ts 99 行目、137 行目) ので、既定の値 (axiosInstance は $api の instance、skipSignOut は false) で動く。断られたときの signOut は skipApiCall: true で、API を呼ばない (127 行目)"
+  - id: sdk_token_refresh
+    layer: external
+    kind: library
+    name: "axiosInstance.post /auth/token/refresh"
+    source: { file: composables/useGlobal/actions.ts, line: 111 }
+    caller: refresh_token
+    call:
+      status: interpretation
+      when: conditional
+      condition: "このタブが、複数のタブで共有する錠を取れたとき (取れなければ、ほかのタブの結果を待つ)"
+      evidence:
+        - { file: composables/useGlobal/actions.ts, line: 111 }
+        - { file: composables/useSharedExecutionFn.ts, line: 102 }
+        - { file: composables/useSharedExecutionFn.ts, line: 137 }
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "POST /auth/token/refresh" } }
+        evidence:
+          - { file: composables/useGlobal/actions.ts, line: 107 }
+          - { file: composables/useGlobal/actions.ts, line: 111 }
+          - { file: composables/useGlobal/actions.ts, line: 114 }
+        fields:
+          - { name: token, use: [read] }
+        note: "refresh token を cookie で送り (withCredentials)、新しいログインのトークンを受け取る。axiosInstance は $api の axios の instance"
+  - id: load_roles
+    layer: component
+    kind: composable
+    name: useRoles.loadRoles
+    source: { file: composables/useRoles/index.ts, line: 86 }
+    caller: middleware
+    call:
+      status: fact
+      when: conditional
+      condition: "ログイン済みでログインが要る page へ移り、allowedRoles の確認を通り、移り先の baseId が元の画面の baseId と違うとき"
+      evidence:
+        - { file: middleware/03.auth.global.ts, line: 105 }
+        - { file: middleware/03.auth.global.ts, line: 203 }
+        - { file: middleware/03.auth.global.ts, line: 204 }
+    summary:
+      status: interpretation
+      value: "いまの利用者の情報と役割 (全体、ワークスペース、base の役割) をバックエンドから読み、状態の利用者に重ねる"
+      evidence:
+        - { file: composables/useRoles/index.ts, line: 148 }
+        - { file: composables/useRoles/index.ts, line: 151 }
+      note: "固定の値で閉じている呼び出し: 呼び出し元は引数を渡さない (middleware/03.auth.global.ts 204 行目。この入口の木の中のほかの呼び出しも無い) ので、options は既定の {} で baseId も無い。共有の base (97 行目)、共有の ERD (117 行目)、base の id 付き (137 行目) の auth.me は呼ばれない。辿らなかった"
+  - id: sdk_auth_me
+    layer: external
+    kind: sdk
+    name: api.auth.me
+    source: { file: composables/useRoles/index.ts, line: 148 }
+    caller: load_roles
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: composables/useRoles/index.ts, line: 148 }]
+      note: "引数が無いので、else の枝 (147 行目) を必ず通る"
+    io:
+      - op: call
+        status: fact
+        resource: { kind: external_api, levels: { host: "(backend)", path: "sdk:auth.me" } }
+        evidence:
+          - { file: composables/useRoles/index.ts, line: 148 }
+          - { file: composables/useRoles/index.ts, line: 153 }
+          - { file: composables/useRoles/index.ts, line: 161 }
+          - { file: composables/useRoles/index.ts, line: 32 }
+        fields:
+          - { name: roles, use: [read] }
+          - { name: base_roles, use: [read] }
+          - { name: workspace_roles, use: [read] }
+          - { name: display_name, use: [read] }
+          - { name: meta, use: [read] }
+          - { name: is_new_user, use: [read] }
+        note: "いまの利用者の情報と役割を読む。api は useApi が作る nocodb-sdk の Api。SDK のソース (packages/nocodb-sdk) は範囲の外"

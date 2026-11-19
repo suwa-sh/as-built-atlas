@@ -1,0 +1,186 @@
+format_version: 1
+entry:
+  id: issues
+  path: /issues
+  name: issues
+  layer: workflow
+  source: { file: .github/workflows/issues.yml, line: 2 }
+target:
+  repo: github.com/knadh/listmonk
+  name: listmonk の CI
+  clone_path: ../listmonk
+  scope: .
+  commit: e735e0b23421192a4c1b18b6221f4708b872fcd5
+analyzer:
+  profile: { id: batch-github-actions, version: "0.1.0" }
+  skill_version: "0.4.0"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-17T22:18:10Z"
+  reviewed:
+    by: "claude-opus-5-5 (fresh context)"
+    at: "2026-11-17T22:17:41Z"
+    findings_open: 0
+summary:
+  status: interpretation
+  value: "毎日 01:30 (UTC) と手動の起動で動く、古い issue と PR を片付ける workflow (name: close-stale-issues-and-prs)。外部の action actions/stale で、150 日間 活動の無い issue と PR に stale のラベルとメッセージを付け、その後も活動が無ければ閉じる。担当者のいるものは対象外"
+  evidence:
+    - { file: .github/workflows/issues.yml, line: 1 }
+    - { file: .github/workflows/issues.yml, line: 4 }
+    - { file: .github/workflows/issues.yml, line: 11 }
+    - { file: .github/workflows/issues.yml, line: 13 }
+    - { file: .github/workflows/issues.yml, line: 17 }
+callstack:
+  - id: workflow
+    layer: workflow
+    kind: workflow
+    name: "issues"
+    source: { file: .github/workflows/issues.yml, line: 2 }
+    caller: null
+    summary:
+      status: interpretation
+      value: "workflow の name は close-stale-issues-and-prs。job は stale の 1 つだけ。inputs、permissions、concurrency は無い (permissions が無いので、GITHUB_TOKEN の権限はリポジトリの既定の設定による)"
+      evidence:
+        - { file: .github/workflows/issues.yml, line: 1 }
+        - { file: .github/workflows/issues.yml, line: 8 }
+    parameters:
+      - name: "on"
+        value: "schedule.cron: 30 1 * * *, workflow_dispatch"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 3 }
+          - { file: .github/workflows/issues.yml, line: 4 }
+          - { file: .github/workflows/issues.yml, line: 5 }
+        note: "cron は UTC の毎日 01:30。workflow_dispatch に inputs は無い"
+  - id: job-stale
+    layer: job
+    kind: job
+    name: "stale"
+    source: { file: .github/workflows/issues.yml, line: 8 }
+    caller: workflow
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/issues.yml, line: 8 }
+      note: "needs も if も無い。workflow の唯一の job"
+    summary:
+      status: interpretation
+      value: "ubuntu-latest で、actions/stale の step 1 つだけを動かす。checkout などの環境の用意は無い"
+      evidence:
+        - { file: .github/workflows/issues.yml, line: 9 }
+        - { file: .github/workflows/issues.yml, line: 10 }
+        - { file: .github/workflows/issues.yml, line: 11 }
+    parameters:
+      - name: "runs-on"
+        value: "ubuntu-latest"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 9 }
+  - id: stale-action
+    layer: external
+    kind: action
+    name: "actions/stale"
+    source: { file: .github/workflows/issues.yml, line: 11 }
+    caller: job-stale
+    call:
+      status: fact
+      when: always
+      evidence:
+        - { file: .github/workflows/issues.yml, line: 11 }
+    summary:
+      status: interpretation
+      value: "リポジトリの開いている issue と PR を GitHub の API で取り出し、活動の無い日数を数えて、stale のラベルとメッセージを付け、その後も活動が無いものを閉じる。stale を付けた後に活動があれば、ラベルを外す"
+      evidence:
+        - { file: .github/workflows/issues.yml, line: 11 }
+        - { file: .github/workflows/issues.yml, line: 13 }
+        - { file: .github/workflows/issues.yml, line: 14 }
+        - { file: .github/workflows/issues.yml, line: 15 }
+        - { file: .github/workflows/issues.yml, line: 19 }
+        - { file: .github/workflows/issues.yml, line: 20 }
+      note: "使う版は actions/stale@v9。action の中は読めないので、with の値と actions/stale の公開された役割から読む。閉じることと、活動があればラベルを外すことは、with に書いていない actions/stale の既定の動き (days-before-close、remove-stale-when-updated)"
+    parameters:
+      - name: "days-before-stale"
+        value: "150"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 13 }
+      - name: "stale-issue-label"
+        value: "stale"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 14 }
+      - name: "stale-pr-label"
+        value: "stale"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 15 }
+      - name: "debug-only"
+        value: "false"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 16 }
+        note: "true なら書き込まずに試すだけになる。リポジトリに固定された値なので settings に書かない"
+      - name: "exempt-all-assignees"
+        value: "true"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 17 }
+      - name: "operations-per-run"
+        value: "1000"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 18 }
+        note: "1 回の実行で行う GitHub の API の操作の上限。対象が多いときは、残りを次の実行に回すと読める"
+      - name: "stale-issue-message"
+        value: "This issue has been marked 'stale' after 5 months of inactivity. If there is no further activity, it will be closed in 7 days."
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 19 }
+      - name: "stale-pr-message"
+        value: "This PR has been marked 'stale' after 5 months of inactivity. If there is no further activity, it will be closed in 7 days."
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 20 }
+    rules:
+      - kind: decision
+        value: "最後の活動から 150 日たった issue と PR に stale のラベルを付け、メッセージを書く"
+        status: fact
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 13 }
+          - { file: .github/workflows/issues.yml, line: 14 }
+          - { file: .github/workflows/issues.yml, line: 15 }
+          - { file: .github/workflows/issues.yml, line: 19 }
+          - { file: .github/workflows/issues.yml, line: 20 }
+      - kind: decision
+        value: "stale を付けてから 7 日、活動が無ければ閉じる"
+        status: interpretation
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 19 }
+          - { file: .github/workflows/issues.yml, line: 20 }
+        note: "days-before-close は with に無く、actions/stale の既定 (7 日) で動くと読む。メッセージの文 (closed in 7 days) とも合う"
+      - kind: decision
+        value: "担当者 (assignee) のいる issue と PR は、stale にも閉じる対象にもしない"
+        status: interpretation
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 17 }
+        note: "コードにあるのは exempt-all-assignees: true の値だけで、その意味 (担当者のいるものを対象から外す) は actions/stale の公開された役割による読み取り"
+    io:
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: api.github.com, path: "/repos/{owner}/{repo}/issues" } }
+        detail: "開いている issue と PR の取り出し、stale のラベルの付け外し、メッセージのコメントの書き込み、issue を閉じる"
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 11 }
+          - { file: .github/workflows/issues.yml, line: 14 }
+          - { file: .github/workflows/issues.yml, line: 19 }
+        note: "actions/stale の公開された役割からの読み取り。トークンは with に無く、actions/stale の既定 (repo-token は github.token) を使うと読む。送る項目は action の中で決まり、コードから読めないので fields は書かない"
+      - op: call
+        status: interpretation
+        resource: { kind: external_api, levels: { host: api.github.com, path: "/repos/{owner}/{repo}/pulls" } }
+        detail: "stale のまま活動の無い PR を閉じる"
+        evidence:
+          - { file: .github/workflows/issues.yml, line: 11 }
+          - { file: .github/workflows/issues.yml, line: 15 }
+          - { file: .github/workflows/issues.yml, line: 20 }
+        note: "actions/stale の公開された役割からの読み取り。PR のラベルとコメントは、GitHub の API では issue の資源として扱われるので、上の /issues の読み書きに含めた"
+notes: "迷った点: (1) actions/stale の with のうち、業務の判定を表す値 (days-before-stale、ラベル、exempt-all-assignees) は analysis-conventions.md のとおり rules (decision) に書き、すべての with を parameters にも書いた。operations-per-run は 1 回の実行の量の上限で、業務の判定ではないので parameters だけにした。debug-only はリポジトリに固定された値なので settings に書かなかった。(2) 閉じるまでの日数 (7 日) と、活動があればラベルを外すことは、with に無い actions/stale の既定の動きなので、unknown にせず interpretation にした。(3) GitHub の API は、資源の形で /issues と /pulls の 2 件に分けた (綴りは analysis-conventions.md の表のとおり)。(4) トークンは workflow に書かれておらず (action の既定の github.token)、secrets.X の名前が無いので parameters に書かず、io の note に書いた"

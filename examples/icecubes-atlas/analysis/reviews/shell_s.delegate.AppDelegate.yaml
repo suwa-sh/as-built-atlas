@@ -1,0 +1,35 @@
+format_version: 1
+entry_id: shell_s.delegate.AppDelegate
+reviewed_at: "2026-11-18T00:37:28Z"
+reviewer: "claude-opus-5-5 (fresh context)"
+machine_check: ok
+findings:
+  - kind: missing_item
+    severity: medium
+    where: callstack/reload_notifications_count/io/1/fields
+    claim: "App Group の UserDefaults の push_notifications_count_{token.createdAt} へ書く set に fields が無い。同じ結果の中で、値をまるごと書く Keychain のキー (notifications_private_key、notifications_auth_key) には name: \"*\" を書いているので、書き方がそろっていない"
+    evidence: { file: Packages/Env/Sources/Env/UserPreferences.swift, line: 476 }
+    suggestion: "値は数 1 つで中の項目が無いので、{ name: \"*\", use: [write] } を足し、Keychain の鍵の書き方とそろえる"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/reload_notifications_count/io/0/fields
+    claim: "同じキー push_notifications_count_{token.createdAt} を読む get に fields が無い (Keychain の鍵の get には name: \"*\" を書いている)"
+    evidence: { file: Packages/Env/Sources/Env/UserPreferences.swift, line: 489 }
+    suggestion: "{ name: \"*\", use: [read] } を足す"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/accounts_manager/io/0/fields
+    claim: "App Group の UserDefaults の latestCurrentAccountKey を読む get に fields が無い (値は文字列 1 つで、Keychain の鍵の get と同じ形の読み)"
+    evidence: { file: Packages/AppAccount/Sources/AppAccount/AppAccountsManager.swift, line: 10 }
+    suggestion: "{ name: \"*\", use: [read] } を足す (AppAccountsManager.swift の 37 行目で読む)"
+    resolved: true
+  - kind: classification_mismatch
+    severity: low
+    where: callstack/notification_did_receive/call
+    claim: "条件「アプリのプロセスが動いていて、利用者が通知を押したとき」は狭すぎる。delegate を入れるのは PushNotificationsService の init で、App の @State の初期化 (IceCubesApp.swift の 29 行目) か didFinishLaunching (同 96 行目) から、起動が終わる前に動く。subscriptions も didFinishLaunching の setAccounts で埋まるので、動いていないアプリを通知を押して起動したときにも、この callback が呼ばれて通知を読みに行く見込みがある"
+    evidence: { file: Packages/Env/Sources/Env/PushNotificationsService.swift, line: 138 }
+    suggestion: "when は conditional のまま、condition を「利用者が通知を押したとき (通知を押してアプリが起動したときも含む)」にする"
+    resolved: true
+notes: "(1) 機械チェックは OK (プロファイルは作業定義の profile.dir から読めている)。(2) 根拠の行は、IceCubesApp.swift、PushNotificationsService.swift、AppAccountsManager.swift、AppAccount.swift、MastodonClient.swift、Push.swift、Notifications.swift、Telemetry.swift、UserPreferences.swift、App.swift、entitlements と xcconfig を開いて確かめ、上の指摘のほかは、すべて主張を支えていた。(3) 固定の値で閉じた枝 (updateSubscriptions の forceCreate: false) は、値を IceCubesApp.swift の 112 行目がコードに直接書いて渡し、木の中で呼ぶのはこの 1 か所で、forceCreate: true で呼ぶのは別の入口 (AddAccountsView.swift の 315 行目) であることを確かめた。辿らないのは妥当。(4) 綴り (latestCurrentAccountKey、Keychain の namespace と key_pattern、settings の DEBUG と targetEnvironment(simulator)) は、system_s.widget.LatestPostsWidget の結果とそろっている。ウィジェットの結果の latestCurrentAccountKey の get にも fields が無いので、直すなら両方そろえるとよい。(5) notes (6) は、TelemetryDeck の host を「ui-android の書き方に合わせて (telemetrydeck)」にしたとするが、ui-android の context.md には、計測の SDK の host の決まりは無い。ui-ios の context.md にも host の決まりが無いので、指摘にはしなかった。綴りを決めるなら analysis-conventions.md に書くとよい。"
