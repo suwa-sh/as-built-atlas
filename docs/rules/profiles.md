@@ -8,7 +8,7 @@
 
 | 決まり | 理由 | 守っているもの |
 |---|---|---|
-| 形式の定義、ETL、コアの集計表、画面は、プロファイルに依らない。対象の種類ごとの違いは、プロファイルに閉じる | プロファイルを足しても、コアを直さない | `tests/test_examples_umami.py` (2 本目のプロファイル) |
+| 形式の定義、ETL、コアの集計表、画面は、プロファイルに依らない。対象の種類ごとの違いは、プロファイルに閉じる | プロファイルを足しても、コアを直さない | `tests/test_examples_profiles.py` (どのプロファイルの見本も、同じコアで集計が通る) |
 | ツールが読むことは `profile.yaml`、エージェントが読むことは `context.md` に書く | 読み手を分ける | `abatlas validate profile` |
 | 分析者によって書き方が割れた所は、`context.md` に、決まりと理由を書く | 突き合わせが、書き方の違いで食い違わない | — |
 | 決定論で決まること (抽出器で取れる入口、包む関係) は、`profile.yaml` の宣言からツールが決める。エージェントに決めさせない | 同じ入力から、同じ結果を出す | `tests/test_file_glob.py` |
@@ -28,7 +28,8 @@
 
 - 分析リポジトリの `.abatlas/profiles/<id>/` は、配布物のコピーです。`upgrade` で置き換わります。**ここを直す手順を、文書や skill に書きません。**
 - 利用者が直すときは、`analysis/profiles/<id>/` に写して、作業定義の `profile.dir` を書き換えます ([ADR 0006](../adr/0006-profile-dir-single-source.md))。
-- このリポジトリの `profiles/` を直したら、見本で確かめます。バッチのプロファイルは生成し直し (skill `dev-sample-regen`)、画面のプロファイルは `tests/test_examples_umami.py` で確かめます。
+- このリポジトリの `profiles/` を直したら、そのプロファイルの見本で確かめます ([examples.md](examples.md))。`batch-kestra` は生成し直し (skill `dev-sample-regen`)、ほかは `tests/test_examples_profiles.py` で確かめます (`ui-nextjs` は `tests/test_examples_umami.py` も)。
+- プロファイルを足すときは、見本も足します。プロファイルの版を上げたら、その見本を分析し直します (テストは、今の版で分析した結果だけを通す)。
 
 ## プロファイルを足すとき
 

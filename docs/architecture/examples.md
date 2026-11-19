@@ -2,7 +2,28 @@
 
 [← architecture の地図へ](README.md)
 
-`examples/` に、見本が 2 つあります。イメージには入れません (リポジトリからコピーして使います)。
+`examples/` に、見本を、プロファイルごとに 1 つ持ちます (経緯は ADR 0017)。イメージには入れません (リポジトリからコピーして使います)。
+
+| プロファイル | 見本 | 対象 | 対象のライセンス | 入口の一覧 | 分析結果 |
+|---|---|---|---|---|---|
+| `batch-kestra` | `kotori-books-atlas` | ことり書店 (架空。同梱) | — | 34 | 34 (正解) |
+| `ui-nextjs` | `umami-atlas` | umami | MIT | 83 | 83 |
+| `api` | `abatlas-api-atlas` | as-built-atlas 自身の API と MCP | MIT | 15 | 3 |
+| `cli` | `relay-gate-atlas` | RelayGate の、設定を検査するコマンド | MIT | 4 | 3 |
+| `transform-dbt` | `abatlas-dbt-atlas` | as-built-atlas 自身の集計 (dbt) | MIT | 39 | 3 |
+| `batch-github-actions` | `listmonk-ci-atlas` | listmonk のワークフロー | AGPL-3.0 | 6 | 3 |
+| `ui-vue-router` | `kestra-ui-atlas` | Kestra の画面 | Apache-2.0 | 62 | 7 |
+| `ui-nuxt` | `nocodb-gui-atlas` | NocoDB の画面 | Sustainable Use License 1.0 | 69 | 3 |
+| `ui-sveltekit` | `chat-ui-atlas` | chat-ui | Apache-2.0 | 15 | 3 |
+| `ui-android` | `nowinandroid-atlas` | Now in Android | Apache-2.0 | 13 | 3 |
+| `ui-ios` | `icecubes-atlas` | Ice Cubes | AGPL-3.0 | 102 | 3 |
+
+- ことり書店のほかは、公開されているソフトを AI が分析した**実例**です。正解ではありません (人が 1 件ずつ確かめてはいません)。
+- 対象のコードは入れません。結果が持つのは、パスと行番号、要約、データの名前です。使う人が、見本の隣に対象を clone します (手順は、見本ごとの `README.md`)。
+- umami とことり書店は、全部の入口を分析しています。ほかの見本は、プロファイルの書き方が分かる数 (承認した 3 件から 7 件) だけを分析しています。承認していない入口は、候補のまま一覧に残っています (表の「入口の一覧」と「分析結果」の差)。
+- どの見本にも当てはまる検査 (プロファイルと見本の 1 対 1、形式、プロファイルとの整合、一覧と結果とレビューの対応、手元の情報が残っていないこと、init → build で集計が通ること) は、`tests/test_examples_profiles.py` が行います。
+
+下の 2 つは、中身まで確かめるテストを持つ見本です。
 
 | | kotori-books-atlas (バッチの見本) | umami-atlas (画面の見本) |
 |---|---|---|

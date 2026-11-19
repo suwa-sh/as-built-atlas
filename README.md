@@ -98,6 +98,7 @@ claude mcp add --transport http abatlas http://localhost:8765/mcp
 | `examples/kotori-books-atlas/` | その分析リポジトリ。作業定義、承認済みの入口の一覧、入口ごとの分析結果 (34 件) |
 | `examples/generator/kotori_books.py` | 上の 2 つを**同じ仕様から**生成するスクリプト。分析結果は、根拠の行まで正しい「正解」になる |
 | `examples/umami-atlas/` | 画面を持つシステムの見本。公開ソフト [umami](https://github.com/umami-software/umami) (Next.js) を AI が分析した実例。対象のコードは同梱しない ([手順](examples/umami-atlas/README.md)) |
+| `examples/*-atlas/` (ほかの 9 つ) | プロファイルごとの見本。API、コマンドラインの道具、dbt、GitHub Actions、画面 (Vue Router、Nuxt、SvelteKit、Android、iOS) を、公開されているソフトで分析した実例 ([一覧](docs/architecture/examples.md)) |
 
 ### 自分のエージェントの精度を測る
 

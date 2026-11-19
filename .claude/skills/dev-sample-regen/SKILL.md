@@ -16,7 +16,7 @@ description: as-built-atlas の公開サンプル (examples/ のことり書店)
 | 生成スクリプト (`examples/generator/kotori_books.py`) | 要る | 図に出るなら要る |
 | 画面の見た目 | — | 要る |
 
-umami の見本 (`examples/umami-atlas/`) は、生成ではない。手で直さず、手元の分析リポジトリで分析し直した資産を写す (`docs/rules/examples.md`)。
+ことり書店のほかの見本 (`examples/umami-atlas/` など、プロファイルごとに 1 つ) は、生成ではない。手で直さず、手元の分析リポジトリで分析し直した資産を、`examples/generator/import_atlas.py` で写す (`docs/rules/examples.md`)。写した後は、`uv run pytest -q tests/test_examples_profiles.py` で確かめる。
 
 ## 1. 生成し直す
 

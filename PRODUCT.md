@@ -45,7 +45,7 @@ web
 
 ## Evidence on Hand
 
-- 実データ: `examples/umami-atlas/` (公開ソフト umami の画面 60 + 枠 6、うち分析済み 10 件)、`examples/kotori-books-atlas/` (架空の題材)
+- 実データ: `examples/umami-atlas/` (公開ソフト umami の画面。入口 83 件すべてを分析済み)、`examples/kotori-books-atlas/` (架空の題材)。ほかのプロファイルの見本は `docs/architecture/examples.md`
 - 今の画面: `abatlas/webapp/`
 - 無いもの: ロゴ、ブランドの色や書体の決まり、利用者の声、利用の計測値。作らない
 

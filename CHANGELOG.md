@@ -12,6 +12,7 @@
 
 ### 足したもの
 
+- 見本を、プロファイルごとに 1 つ (`examples/*-atlas/`)。API、コマンドラインの道具、dbt、GitHub Actions、画面 (Vue Router、Nuxt、SvelteKit、Android、iOS) の 9 つを足した。公開されているソフトを分析した実例で、対象のコードは入れていない。一覧は [docs/architecture/examples.md](docs/architecture/examples.md)
 - プロファイルの層に、任意の項目 `split_from` (その層の入口が、どの層のフレームを別の入口に分けたものか)。`ui-nextjs`、`ui-vue-router`、`ui-nuxt`、`ui-sveltekit` の `part` が、`component` を挙げる
 
 ### 直したもの
