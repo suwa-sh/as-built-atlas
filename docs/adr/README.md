@@ -24,3 +24,4 @@
 | [0015](0015-unreachable-branches-by-reason.md) | 届かないように見える呼び出しの書き方を、届かない理由で 1 つに決める | 採用 |
 | [0016](0016-split-candidates-by-declared-layers.md) | 別の入口に分ける候補は、プロファイルが決めた層の処理だけを出す | 採用 |
 | [0017](0017-one-example-per-profile.md) | 見本を、プロファイルごとに 1 つ持つ | 採用 |
+| [0018](0018-five-readings-settled.md) | 届かない呼び出しと、もう一度書くかの決まりで、読み方が割れた 5 点を決める | 採用 |
