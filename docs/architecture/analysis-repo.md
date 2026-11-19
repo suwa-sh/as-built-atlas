@@ -90,7 +90,7 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 | 集計する | `docker compose run --rm abatlas build .` |
 | 前の分析結果と比べる | `docker compose run --rm abatlas diff . --from <git の版>` (下の「分析結果の差分」) |
 | 画面・API・MCP を起動する | `docker compose up -d api` (画面は <http://localhost:8765>、MCP は <http://localhost:8765/mcp>) |
-| 配布物を更新する | `docker compose pull && docker compose run --rm abatlas upgrade . && docker compose up -d --force-recreate api` |
+| 配布物を更新する | `docker compose pull && docker compose run --rm abatlas upgrade . && docker compose run --rm abatlas build . && docker compose up -d --force-recreate api` (版ごとに、ほかにやることは `CHANGELOG.md` の「更新の手順」) |
 | 前の形式のファイルを、いまの形式に移す | `docker compose run --rm abatlas migrate . --dry-run` で、書き換わるファイルを見てから、`docker compose run --rm abatlas migrate .` |
 
 検査と列挙は、プロファイルを、作業定義の `profile.dir` から自動で読みます (集計と同じファイル)。`--profile <profile.yaml>` で渡すこともできますが、集計が読むものと違うときは警告が出ます ([profiles.md](profiles.md) の「ツールが読むプロファイル」)。
