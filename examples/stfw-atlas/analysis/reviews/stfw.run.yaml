@@ -1,0 +1,52 @@
+format_version: 1
+entry_id: stfw.run
+reviewed_at: '2026-11-20T18:24:50Z'
+reviewer: GPT-6 (fresh context)
+machine_check: ok
+findings:
+- kind: missing_frame
+  severity: high
+  where: callstack/run
+  claim: 複製やマージが失敗したとき、新規の実行ディレクトリを削除する cleanupRun の経路と削除 I/O が抜けている。
+  evidence:
+    file: internal/usecase/runscenario/runscenario.go
+    line: 174
+  suggestion: cleanupRun を on_failure で追加し、ジャーナルを閉じた後に新規実行ディレクトリの削除を試みることを書く。
+  resolved: true
+- kind: missing_frame
+  severity: high
+  where: callstack/tree
+  claim: LoadScenarioTree が呼ぶ scanDir と NewScenarioTree がなく、再帰的な読み取りと命名規約を検証する経路が抜けている。
+  evidence:
+    file: internal/repository/scenariotree.go
+    line: 38
+  suggestion: ディレクトリの列挙と木の構築を別のフレームにし、命名検証の呼び出しまでたどる。
+  resolved: true
+- kind: missing_frame
+  severity: high
+  where: callstack/run
+  claim: Violations.HasError による中断判定、エラー時の Violations.Count、依存確認対象を決める ProcessTypes
+    の呼び出しが抜けている。
+  evidence:
+    file: internal/usecase/runscenario/runscenario.go
+    line: 59
+  suggestion: 中断条件、エラーと警告の集計、依存確認対象タイプの抽出を対応するフレームで示す。
+  resolved: true
+- kind: missing_frame
+  severity: high
+  where: callstack/apply_event
+  claim: Apply が種類ごとに呼ぶ四つのイベント処理がなく、どのノードとステップの状態遷移を許すか追跡できない。
+  evidence:
+    file: internal/domain/run/run.go
+    line: 52
+  suggestion: 四つのイベント処理をたどり、状態と形式を判定する関数を記録する。
+  resolved: true
+- kind: missing_frame
+  severity: high
+  where: callstack/run_report
+  claim: WriteRunReport が呼ぶ Replay と buildRunReportView がなく、ジャーナルからの復元と実行中ページの判定が抜けている。
+  evidence:
+    file: internal/repository/report.go
+    line: 99
+  suggestion: リプレイ時の Apply の経路を参照し、復元したノードからページ内容を決める処理も記録する。
+  resolved: true
