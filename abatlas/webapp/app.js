@@ -80,7 +80,7 @@ function route() {
   if (!model.catalog.length) return;
   window.scrollTo(0, 0);
   let mm;
-  if (path === "#/overview") return pageOverview();
+  if (path === "#/overview") return pageOverview(query);
   if (path === "#/entries" || path === "#/entries/") return pageEntries("/");
   if ((mm = /^#\/entries(\/.*)$/.exec(path))) return pageEntries(decPath(mm[1]));
   if ((mm = /^#\/entry(\/.*)$/.exec(path))) return pageEntry(decPath(mm[1]));

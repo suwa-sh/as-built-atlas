@@ -2,10 +2,11 @@
 // 線は層のつながりの表 (view: layers) から引く。図は mart のページと同じ部品 (views/layer-flow.js)。入口ごとの通り道は、入口ごとの経路 (views/route.js) が描く
 
 import { el } from "../lib/dom.js";
-import { rows, tree, countOf } from "../lib/api.js";
+import { rows, rowsAll, tree, countOf } from "../lib/api.js";
 import { model, levelLabelsText, hierarchyNotes, progressOf, physLink } from "../model/catalog.js";
 import { loading } from "../ui/card.js";
 import { layerFlow } from "../views/layer-flow.js";
+import { sectionExplorer, supportsSection } from "../views/section-explorer.js";
 import { term } from "../model/vocab.js";
 
 const $main = document.getElementById("main");
@@ -15,16 +16,21 @@ const tableCount = (subject) => {
   return m ? countOf(m, {}).catch(() => null) : Promise.resolve(null);
 };
 
-export async function pageOverview() {
-  $main.replaceChildren(loading());
+export async function pageOverview(query) {
+  const hash = location.hash;
+  const pending = loading();
+  $main.replaceChildren(pending);
   const prof = model.meta.profile || {};
   const layers = (Array.isArray(prof.layers) ? prof.layers : []).filter((t) => t && t.id);
   const lm = model.layerMart;
+  const canShow3D = Boolean(lm) || supportsSection();
+  const section = canShow3D && query.get("view") === "3d";
   const [prog, entries, kinds, frm, flow] = await Promise.all([
     progressOf(), model.entryMart ? countOf(model.entryMart, {}).catch(() => null) : null,
     model.dataMart ? tree(model.dataMart, model.dataMart.keys.col, "/").catch(() => []) : [],
-    tableCount("frame"), lm ? rows(lm, {}).catch(() => null) : null,
+    tableCount("frame"), lm ? (section ? rowsAll : rows)(lm, {}).catch(() => null) : null,
   ]);
+  if (!pending.isConnected || location.hash !== hash) return;
   const parts = [el("div", { class: "head" },
     el("div", null, el("h1", null, term("architecture")), el("p", { class: "sub" }, `${term("layer")} と、その間の ${term("call")}、${term("data_access")}`, prof.id ? ` · ${term("profile")}: ${prof.id}` : "")),
     el("div", { class: "kpis" }, layers.length ? el("div", null, el("b", null, layers.length), term("layer")) : null,
@@ -38,7 +44,14 @@ export async function pageOverview() {
   if (prog && prog.done < prog.total) parts.push(el("p", { class: "caveat" }, `線と数は、${prog.doneLabel} の ${term("entry")} ${prog.done} 件から集めたもの。`, el("b", null, `残りの ${prog.total - prog.done} 件`), `の ${term("call")} と ${term("data_access")} は、まだ入っていない`));
 
   // 図: mart のページと同じ部品 (views/layer-flow.js) で描く
-  if (flow && lm) {
+  if (canShow3D) {
+    parts.push(el("nav", { class: "section-switch", "aria-label": "表示方法" },
+      el("a", { href: "#/overview", "aria-current": section ? null : "page" }, "全体図"),
+      el("a", { href: "#/overview?view=3d", "aria-current": section ? "page" : null }, "3D")));
+  }
+  if (section) {
+    parts.push(sectionExplorer(layers, query.get("entry"), flow, query.get("focusTier")));
+  } else if (flow && lm) {
     parts.push(el("div", { class: "card-head" }, el("h2", null, term("layer_deps")), el("span", { class: "hint" }, `線の数字は、コードに書かれている ${term("call")} と ${term("data_access")} の数 (${term("call_sites")})。箱に触れると、つながる線だけ残る`), physLink(lm, {})));
     parts.push(layerFlow(lm, flow, { list: false }));
   } else {

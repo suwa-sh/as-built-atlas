@@ -392,6 +392,35 @@ def test_every_scoped_view_declares_path_for_hierarchy_pages(repo: Path):
             assert "path" in k, m["name"]
 
 
+def test_section_picker_groups_analyzed_paths_with_profile_layers(repo: Path):
+    """断面図の候補は処理を持つ入口だけ。処理が複数あっても 1 候補で、その層をプロファイルの面に置ける。"""
+    c = client(repo)
+    tree = next(m for m in c.get("/marts").json()
+                if m["declaration"].get("subject") == "entry" and m["declaration"]["view"] == "tree")
+    keys = tree["declaration"]["keys"]
+    root = f"/marts/{tree['name']}"
+    choices = c.get(f"{root}/groups", params={"by": keys["group"], "order": "key", "limit": 1}).json()
+    assert choices["total"] == 1
+    path = choices["groups"][0]["key"]
+    assert path == "/daily/housekeeping"
+    frames = c.get(f"{root}/rows", params={keys["group"]: path}).json()["rows"]
+    assert len(frames) > 1
+    layers = {layer["id"] for layer in c.get("/meta").json()["profile"]["layers"]}
+    assert {f[keys["tag"]] for f in frames} <= layers
+
+
+def test_3d_scene_distinguishes_boundary_layer_and_external_target(repo: Path):
+    c = client(repo)
+    meta = c.get("/meta").json()
+    layers = {layer["id"]: layer for layer in meta["profile"]["layers"]}
+    assert layers["external"]["role"] == "boundary" and layers["external"]["tier"] == "job"
+    assert meta["resource_kinds"]["external_api"]["label"] == meta["terms"]["external"]
+    mart = next(m for m in c.get("/marts").json() if m["declaration"]["view"] == "layers")
+    keys = mart["declaration"]["keys"]
+    edges = {(r[keys["from"]], r[keys["to"]]) for r in c.get(f"/marts/{mart['name']}/rows").json()["rows"]}
+    assert {("shell", "external"), ("external", "/rdb"), ("program", "/external_api")} <= edges
+
+
 def test_route_can_be_traced_from_sequence_to_tree(repo: Path):
     """経路の画面の前提: sequence の keys.node が tree の keys.id と対応し、読み書きを起こした処理から入口まで親を遡れる。根拠と定義場所は file:line。"""
     c = client(repo)
@@ -413,6 +442,150 @@ def test_route_can_be_traced_from_sequence_to_tree(repo: Path):
         cur = frames[cur][tk["parent"]] or None
     assert chain == ["psycopg", "run_sh", "flow"], "読み書きした処理から、入口の処理 (親の無い処理) まで遡れる"
     assert all(re.fullmatch(r".+:\d+", f[tk["source"]]) and f[tk["tag"]] for f in frames.values())
+
+
+def test_radial_layout_keeps_tiers_resources_and_boundaries_distinct():
+    """同心円は所属を表す。二つの external と、以前の結果にだけある層も別の面に置ける。"""
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node が無い")
+    source = (WEBAPP_DIR / "views/radial-layout.js").read_text(encoding="utf-8")
+    source += (WEBAPP_DIR / "views/call-mesh.js").read_text(encoding="utf-8")
+    checks = """
+import assert from "node:assert/strict";
+const layers = [{id: "page", tier: "frontend"}, {id: "part", tier: "frontend"},
+                {id: "query", tier: "backend"}, {id: "external", tier: "backend"}];
+const kinds = [["rdb", "RDB"], ["queue", "Queue"], ["external_api", "external API"]];
+const layout = (known) => radialLayout(layers, kinds, known, {unknown: "?", store: "datastore", external: "external"});
+const {discs, nodes} = layout([]);
+const app = discs.filter((d) => d.type === "app");
+assert.deepEqual(app.map((d) => d.tier), ["frontend", "backend"]);
+assert.ok(app[0].rx > app[1].rx);
+assert.ok(discs.every((d, i) => i === 0 || discs[i - 1].h - discs[i - 1].thickness > d.h));
+assert.equal(app[0].thickness, app[1].thickness);
+for (const d of discs) {
+  assert.ok(d.thickness > 0);
+  for (const f of d.faces) {
+    const face = nodes.get(f.id);
+    for (const [x, h, z] of visibleWallParts(f, 0.7).flatMap((piece) => piece.points)) {
+      assert.ok(Math.abs(Math.hypot(x - d.x, z - d.z) - d.rx) < 1e-8);
+      assert.ok(h === face.bottom || h === face.h);
+    }
+  }
+}
+assert.deepEqual(app.map((d) => d.faces.map((f) => f.id)), [["page", "part"], ["query", "external"]]);
+// 1 層で筒を一周する場合も、視点側と背面を分け、投影した面同士の打ち消しを防ぐ。
+const only = radialLayout([{id:"one", tier:"app"}], [], [], {}).nodes.get("one");
+for (const yaw of [-Math.PI, 0, 1.4]) {
+  const pieces = visibleWallParts(only, yaw);
+  assert.ok(pieces.some((p) => p.front) && pieces.some((p) => !p.front));
+  for (const p of pieces) for (const [x, h, z] of p.points) {
+    const depth = x * Math.sin(yaw) + z * Math.cos(yaw);
+    assert.ok(p.front ? depth >= -1e-8 : depth <= 1e-8);
+  }
+}
+const store = discs.find((d) => d.type === "store"), remote = discs.find((d) => d.type === "remote");
+assert.ok(store.h < app[0].h - app[0].thickness);
+assert.deepEqual(discs.map((d) => d.tier), ["frontend", "backend", "datastore", "external"]);
+assert.ok(discs.every((d) => d.x === 0 && d.z === 0));
+assert.ok(remote.h < store.h - store.thickness && remote.rx > app[0].rx && store.rx < app[1].rx);
+const legacy = layout(["legacy"]).discs;
+assert.deepEqual(legacy.map((d) => d.type), ["app", "app", "app", "store", "remote"]);
+assert.equal(legacy.at(-1).rx, Math.max(...legacy.map((d) => d.rx)));
+const noExternal = radialLayout(layers, [["rdb", "RDB"]], [], {}).discs;
+assert.deepEqual(noExternal.map((d) => d.type), ["app", "app", "store"]);
+const noStore = radialLayout(layers, [["external_api", "API"]], [], {}).discs;
+assert.deepEqual(noStore.map((d) => d.type), ["app", "app", "remote"]);
+assert.equal(nodes.get("external").tier, "backend");
+assert.equal(nodes.get("/external_api").tier, "external");
+assert.equal(layout(["legacy"]).nodes.get("legacy").tier, "?");
+assert.deepEqual(store.faces.map((f) => f.id), ["/rdb", "/queue"]);
+const resource = "/rdb/shared/table";
+function entry(path) {
+  const frames = new Map([
+    ["1", {id: "1", parent: null, name: "page", layer: "page"}],
+    ["2", {id: "2", parent: "1", name: "lookup", layer: "query"}],
+  ]);
+  const targets = new Map([[resource, {path: resource, origins: new Map([["2", true]])}]]);
+  return {path, section: {frames, targets}};
+}
+const mesh = callMesh([entry("/a"), entry("/b")]);
+assert.equal(mesh.dots.size, 5);
+assert.equal(mesh.edges.length, 4);
+const root = JSON.stringify(["/a", "1"]), child = JSON.stringify(["/a", "2"]);
+assert.ok(mesh.dots.get(root).root && !mesh.dots.get(child).root);
+assert.ok(mesh.edges.some((e) => e.from === root && e.to === child));
+assert.ok(mesh.edges.some((e) => e.from === child && e.to === resource && e.unknown));
+assert.equal(traceSelection(mesh, [resource]).lines.size, 4);
+assert.equal(traceSelection(mesh, [child]).lines.size, 2);
+for (const {id, area} of mesh.dots.values()) {
+  const face = nodes.get(area), point = pointOnFace(face, id);
+  assert.deepEqual(point, pointOnFace(face, id));
+  const dx = (point[0] - face.x) / face.rx, dz = (point[2] - face.z) / face.rz;
+  const r = Math.hypot(dx, dz), a = Math.atan2(dz, dx);
+  const delta = (a - face.start + 2 * Math.PI) % (2 * Math.PI);
+  assert.ok(delta < face.end - face.start);
+  assert.ok(Math.abs(r - 1) < 1e-10 && point[1] > face.bottom && point[1] < face.h);
+}
+const tree = entry("/a");
+tree.section.frames.set("3", {id:"3", parent:"2", name:"nested", layer:"query"});
+tree.section.frames.set("4", {id:"4", parent:"3", name:"boundary", layer:"external"});
+tree.section.frames.set("5", {id:"5", parent:"4", name:"returnQuery", layer:"query"});
+const expanded = callMesh([tree, entry("/b")]);
+const detail = radialLayout(layers, kinds, ["legacy"], {unknown:"?"}, "backend");
+assert.deepEqual([...detail.nodes.keys()], ["query", "external"]);
+assert.ok(detail.discs.every((d) => d.type === "layer" && d.tier === "backend" && d.faces.length === 1));
+assert.ok(detail.discs[0].rx > detail.discs[1].rx && detail.discs[0].h - detail.discs[0].thickness > detail.discs[1].h);
+const custom = [{id:"assigned",tier:"unknown"}, {id:"unassigned"}];
+const customOverview = radialLayout(custom, [], ["legacy"], {unknown:"unknown"});
+assert.deepEqual(customOverview.discs.map(d => d.declared), [true, false]);
+assert.deepEqual([...radialLayout(custom, [], ["legacy"], {unknown:"unknown"}, "unknown").nodes.keys()], ["assigned"]);
+const scoped = layerMesh(expanded, detail.nodes);
+const panels = pathPanels(detail.nodes, scoped.dots);
+assert.deepEqual(panels.paths, ["/a", "/b"]);
+const queryPanels = panels.byLayer.get("query"), externalPanels = panels.byLayer.get("external");
+assert.deepEqual([...externalPanels.keys()], ["/a"]);
+assert.equal(queryPanels.get("/a").start, externalPanels.get("/a").start);
+assert.ok(queryPanels.get("/a").end < queryPanels.get("/b").start);
+for (const dot of scoped.dots.values()) {
+  const face = panels.byLayer.get(dot.area).get(dot.entry);
+  const [x, h, z] = pointOnFace(face, dot.id);
+  assert.ok(Math.abs(Math.hypot(x,z) - face.rx) < 1e-8 && h > face.bottom && h < face.h);
+  const delta = (Math.atan2(z,x) - face.start + 2*Math.PI) % (2*Math.PI);
+  assert.ok(delta <= face.end - face.start);
+}
+assert.equal(pathPanels(detail.nodes, new Map()).byLayer.get("query").size, 0);
+assert.equal(scoped.dots.size, 5);
+assert.deepEqual(scoped.edges.map((e) => [scoped.dots.get(e.from).area, scoped.dots.get(e.to).area]), [
+  ["query","query"], ["query","external"], ["external","query"]]);
+const front = radialLayout(layers, kinds, [], {}, "frontend");
+assert.ok(front.nodes.has("part"));
+assert.equal(layerMesh(expanded, front.nodes).edges.length, 0);
+assert.equal(layerMesh(expanded, new Map()).dots.size, 0);
+assert.deepEqual(callerChain(expanded, JSON.stringify(["/a", "4"])).map((p) => p.name), ["page","lookup","nested","boundary"]);
+// 複数の RDB の点をまとめて選ぶ。同じ入口にある兄弟の枝と RDB に触れない入口は薄いまま。
+const other = entry("/c"), table2 = "/rdb/shared/orders";
+other.section.targets.clear();
+tree.section.targets.set(table2, {path: table2, origins: new Map([["4", false]])});
+const mixed = callMesh([tree, entry("/b"), other]);
+const rdb = traceSelection(mixed, [resource, table2]);
+assert.equal(rdb.lines.size, 7);
+assert.equal(rdb.keep.size, 8);
+assert.ok(rdb.keep.has(JSON.stringify(["/a","1"])) && rdb.keep.has(JSON.stringify(["/b","1"])));
+assert.ok(!rdb.keep.has(JSON.stringify(["/c","1"])) && !rdb.keep.has(JSON.stringify(["/a","5"])));
+assert.ok([...rdb.lines].some((e) => e.unknown));
+assert.equal(traceSelection(mixed, []).keep.size, 0);
+// 選んだ処理の直接の読み書きは残し、その資源を共有する別入口には遡らない。
+const one = traceSelection(mixed, [child]);
+assert.ok(one.keep.has(resource) && !one.keep.has(JSON.stringify(["/b","2"])));
+const satellite = nodes.get("/external_api"), endpoint = pointOnFace(satellite, "/external_api/service.example/orders");
+assert.ok(Math.abs(Math.hypot(endpoint[0] - remote.x, endpoint[2] - remote.z) - remote.rx) < 1e-8);
+assert.ok(endpoint[1] > satellite.bottom && endpoint[1] < satellite.h);
+"""
+    subprocess.run([node, "--input-type=module"], input=source + checks, text=True, check=True)
 
 
 def test_webapp_modules_parse_as_es_modules():

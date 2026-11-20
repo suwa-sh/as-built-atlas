@@ -13,7 +13,7 @@ import { term } from "../model/vocab.js";
 
 const cache = new Map(); // 入口のパス → その入口の駅と読み書き (同じ入口を選び直しても読み直さない)
 export function clearRouteCache() { cache.clear(); }
-function loadEntry(path) {
+export function loadEntry(path) {
   if (!cache.has(path)) {
     const t = model.treeMart, s = model.seqMart;
     cache.set(path, Promise.all([
