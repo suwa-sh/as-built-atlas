@@ -81,7 +81,7 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
   const info = el("div", { class: "tier-info", role: "status" });
   const yaw = el("input", { type: "range", min: -180, max: 180, value: state.yaw, "aria-label": "左右の回転" });
   const cameras = VIEWS.map((v) => el("button", { type: "button", class: "chip", onclick: () => {
-    Object.assign(state, { yaw: v.yaw, pitch: v.pitch, zoom: 1, panX: 0, panY: 0 }); draw();
+    Object.assign(state, { yaw: v.yaw, pitch: v.pitch, zoom: 1, panX: 0, panY: 0 }); updateCamera();
   } }, v.name));
   const picker = el("select", { "aria-label": "面を選ぶ" }, el("option", { value: "" }, "すべて"));
   const groups = new Map();
@@ -102,7 +102,8 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
   const pointLabel = el("label", null, "点", pointPicker);
   function select(id, point = "", path = "") {
     selection = resolve({ area: id, point, path });
-    draw();
+    drawDiagram();
+    updateSelectionControls();
   }
   pointPicker.addEventListener("change", () => select(selection.area?.id || "", pointPicker.value, selection.path));
   picker.addEventListener("change", () => {
@@ -111,11 +112,11 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
   });
   function zoomBy(factor) {
     state.zoom = clamp(state.zoom * factor, 0.65, 3.5);
-    draw();
+    updateCamera();
   }
   const panMode = el("button", { type: "button", class: "chip canvas-icon", title: "移動モード", "aria-label": "移動モード", "aria-pressed": "false", onclick: () => {
     state.panMode = !state.panMode;
-    draw();
+    updateCameraControls();
   } }, svg("svg", { viewBox: "0 0 24 24", width: 19, height: 19, fill: "none", stroke: "currentColor",
     "stroke-width": 1.65, "stroke-linejoin": "round", "stroke-linecap": "round", "aria-hidden": "true" },
     svg("path", { d: "M8 14V6a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-6a1.5 1.5 0 0 1 3 0v7-4a1.5 1.5 0 0 1 3 0v6c0 5-2.5 8-7 8-3 0-4.5-1.4-6.2-3.7l-3.3-4.6a1.5 1.5 0 0 1 2.3-1.9L8 14Z" })));
@@ -126,9 +127,13 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
   const halfWidth = radius + 110;
   let pending = 0;
   function schedule() {
-    if (!pending) pending = requestAnimationFrame(() => { pending = 0; if (diagram.isConnected) draw(); });
+    if (!pending) pending = requestAnimationFrame(() => { pending = 0; if (diagram.isConnected) updateCamera(); });
   }
-  function draw() {
+  function updateCamera() {
+    drawDiagram();
+    updateCameraControls();
+  }
+  function drawDiagram() {
     const focused = diagram.contains(document.activeElement) ? document.activeElement.dataset : {};
     const y = state.yaw * Math.PI / 180, p = state.pitch * Math.PI / 180;
     const cosY = Math.cos(y), sinY = Math.sin(y), cosP = Math.cos(p), sinP = Math.sin(p);
@@ -262,7 +267,9 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
     diagram.replaceChildren(surfaces, wires, titles, names, points);
     if (focused.node || focused.openTier) [...titles.children, ...names.children].find((g) =>
       focused.node ? g.dataset.node === focused.node : g.dataset.openTier === focused.openTier)?.focus({ preventScroll: true });
-    picker.value = selection.area && selection.path ? JSON.stringify([selection.area.id, selection.path]) : selection.area?.id || "";
+  }
+
+  function updateCameraControls() {
     yaw.value = Math.round(state.yaw);
     cameras.forEach((btn, i) => {
       const v = VIEWS[i], on = state.yaw === v.yaw && state.pitch === v.pitch;
@@ -273,6 +280,10 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
     diagram.classList.toggle("pan-mode", Boolean(state.panMode));
     plus.disabled = state.zoom >= 3.5;
     minus.disabled = state.zoom <= 0.65;
+  }
+
+  function updateSelectionControls() {
+    picker.value = selection.area && selection.path ? JSON.stringify([selection.area.id, selection.path]) : selection.area?.id || "";
     reset.hidden = !selection.trace;
     for (const button of pathKey?.querySelectorAll("button") || []) {
       button.setAttribute("aria-pressed", String(!selection.area && selection.path === button.dataset.path));
@@ -314,10 +325,9 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
       const dots = selection.members;
       info.append(el("p", null, el("strong", null, selection.path), ` · ${new Set(dots.map((dot) => dot.area)).size} 段 · ${dots.length} 点`));
     }
-
   }
 
-  yaw.addEventListener("input", () => { state.yaw = Number(yaw.value); draw(); });
+  yaw.addEventListener("input", () => { state.yaw = Number(yaw.value); updateCamera(); });
   diagram.addEventListener("wheel", (ev) => {
     ev.preventDefault();
     const delta = ev.deltaY * (ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 320 : 1);
@@ -371,7 +381,8 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
       else select(id, "", path);
     }
   });
-  draw();
+  updateCamera();
+  updateSelectionControls();
   const faceControls = el("div", { class: "toolbar tier-face-controls" }, el("label", null, "面", picker), pointLabel, reset);
   const cameraTools = el("div", { class: "toolbar tier-camera-tools", role: "group", "aria-label": "図の操作" },
     el("div", { class: "chips", role: "group", "aria-label": "視点" }, cameras),
