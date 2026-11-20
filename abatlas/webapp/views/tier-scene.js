@@ -2,7 +2,7 @@
 import { el, svg } from "../lib/dom.js";
 import { model, lineOf } from "../model/catalog.js";
 import { term } from "../model/vocab.js";
-import { callMesh, callerChain, layerMesh, pointOnFace, traceSelection } from "./call-mesh.js";
+import { callMesh, callerChain, layerMesh, pointOnFace, resolveTierSelection } from "./call-mesh.js";
 
 import { pathPanels, radialLayout, visibleWallParts } from "./radial-layout.js";
 
@@ -40,7 +40,7 @@ export function tierScene(layers, entries, camera, onTierChange, filterHost) {
     if (tier) lastTier = tier;
     const layout = tier ? radialLayout(layers, kinds, camera.knownIds, labels, tier) : overview;
     const mesh = tier ? layerMesh(fullMesh, layout.nodes) : fullMesh;
-    const state = tier ? (camera.detail ||= { yaw: 0, pitch: 12, zoom: 1, panX: 0, panY: 0, selected: "", point: "" }) : camera;
+    const state = tier ? (camera.detail ||= { yaw: 0, pitch: 12, zoom: 1, panX: 0, panY: 0 }) : camera;
     const navigation = el("div", { class: "tier-navigation" }, tier ? [
       el("button", { type: "button", class: "link", onclick: () => openTier("") }, "← 全体図に戻る"),
       el("strong", null, tier),
@@ -58,36 +58,24 @@ export function tierScene(layers, entries, camera, onTierChange, filterHost) {
 function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, openTier) {
   const interLayer = tier ? mesh.edges.filter((e) => mesh.dots.get(e.from).area !== mesh.dots.get(e.to).area).length : 0;
   const panels = tier && entries ? pathPanels(nodes, mesh.dots) : null;
-  const byArea = new Map([...nodes.keys()].map((id) => [id, []]));
+  const linkedAreas = new Set();
   const points = svg("g", { class: "stack-points" });
   for (const dot of mesh.dots.values()) {
-    byArea.get(dot.area).push(dot);
+    linkedAreas.add(dot.area);
     dot.line = dot.entry ? lineOf(dot.entry) : "";
     dot.point = pointOnFace(panels ? panels.byLayer.get(dot.area).get(dot.entry) : nodes.get(dot.area), dot.id);
     dot.element = svg("circle", { "data-point": dot.id, r: dot.root ? 3.8 : 2.4,
       class: "stack-dot" + (dot.root ? " root" : "") + " " + dot.line }, svg("title", {}, [dot.name, dot.source, dot.entry].filter(Boolean).join("\n")));
     points.append(dot.element);
   }
-  if (!nodes.has(state.selected)) state.selected = "";
-  if (!mesh.dots.has(state.point)) state.point = "";
-  if (!panels?.paths.includes(state.path) || (state.selected && !panels.byLayer.get(state.selected).has(state.path))) state.path = "";
-  function members() {
-    const dots = byArea.get(state.selected) || (state.path ? [...mesh.dots.values()] : []);
-    return state.path ? dots.filter((dot) => dot.entry === state.path) : dots;
+  const selectionContext = { nodes, mesh, fullMesh, panels };
+  function resolve(choice) {
+    const result = resolveTierSelection(selectionContext, choice);
+    // 描画を作り直すときは、新しいグラフで選択を復元する。
+    state.selection = { area: result.area?.id, path: result.path, point: result.point?.id };
+    return result;
   }
-  function selectedTrace() {
-    if (!state.selected && !state.path) return null;
-    const ids = state.point ? [state.point] : members().map((dot) => dot.id);
-    const trace = traceSelection(fullMesh, ids);
-    const areas = new Set(), visitedPanels = new Set();
-    for (const id of trace.keep) {
-      const dot = fullMesh.dots.get(id);
-      areas.add(dot.area);
-      if (panels) visitedPanels.add(panels.byLayer.get(dot.area)?.get(dot.entry));
-    }
-    return { ...trace, areas, visitedPanels };
-  }
-  let traced = selectedTrace();
+  let selection = resolve(state.selection);
   const diagram = svg("svg", { class: tier ? "tier-svg tier-detail" : "tier-svg", role: "group", tabindex: 0, "aria-label": tier ? `${tier} の ${term("layer")} 図` : `${term("tier")} の同心円図` });
   if (tier) diagram.style.setProperty("--layer-count", discs.length);
   const info = el("div", { class: "tier-info", role: "status" });
@@ -110,16 +98,13 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
   const pointPicker = el("select", { "aria-label": "点を選ぶ" });
   const pathKey = panels?.paths.length ? el("ol", { class: "path-key", "aria-label": term("entry") + " の " + term("api_path") },
     panels.paths.map((path, i) => el("li", { class: lineOf(path) }, el("button", { type: "button", "data-path": path,
-      onclick: () => select("", "", !state.selected && state.path === path ? "" : path) }, el("b", null, String(i + 1)), path)))) : null;
+      onclick: () => select("", "", !selection.area && selection.path === path ? "" : path) }, el("b", null, String(i + 1)), path)))) : null;
   const pointLabel = el("label", null, "点", pointPicker);
   function select(id, point = "", path = "") {
-    state.path = path;
-    state.selected = id;
-    state.point = point;
-    traced = selectedTrace();
+    selection = resolve({ area: id, point, path });
     draw();
   }
-  pointPicker.addEventListener("change", () => select(state.selected, pointPicker.value, state.path));
+  pointPicker.addEventListener("change", () => select(selection.area?.id || "", pointPicker.value, selection.path));
   picker.addEventListener("change", () => {
     const option = picker.selectedOptions[0];
     select(option.dataset.area || "", "", option.dataset.path || "");
@@ -160,11 +145,9 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
       for (const ring of d.rings) back.append(svg("polyline", { class: "tier-ring", points: polygon(ring) }));
       const faces = panels ? panels.byLayer.get(d.faces[0].id).values() : d.faces;
       for (const face of faces) {
-        const pickedPath = state.path || mesh.dots.get(state.point)?.entry;
-        const chosen = face.path && pickedPath ? face.path === pickedPath && (!state.selected || face.id === state.selected)
-          : face.id === state.selected;
-        const onPath = face.path ? traced?.visitedPanels.has(face) : traced?.areas.has(face.id);
-        const highlight = chosen ? " chosen" : onPath ? " on-path" : traced && face.path ? " muted" : "";
+        const chosen = selection.chosenFaces.has(face);
+        const onPath = selection.visitedFaces.has(face);
+        const highlight = chosen ? " chosen" : onPath ? " on-path" : selection.trace && face.path ? " muted" : "";
         const attrs = { class: "layer-wall" + highlight + (face.path ? " path-panel " + lineOf(face.path) : ""),
           "data-face": face.id, "data-path": face.path };
         const title = face.path ? face.label + " · " + face.path : describe(face);
@@ -173,7 +156,7 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
         } else for (const part of visibleWallParts(face, y)) {
           (part.front ? front : back).append(svg("polygon", { ...attrs, points: polygon(part.points) }, svg("title", {}, title)));
         }
-        if (face.path && (panels.paths.length <= 8 || (chosen && (state.path || state.point)))) {
+        if (face.path && (panels.paths.length <= 8 || (chosen && (selection.path || selection.point)))) {
           const point = project(face.point);
           names.append(svg("text", { class: "path-number", x: point.x, y: point.y - 2,
             "text-anchor": "middle", "aria-hidden": "true" }, String(face.number)));
@@ -190,19 +173,18 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
 
     // 同じ線幅・濃さの辺は一本の SVG path にまとめる。線の両端は必ず実在する点。
     const arrows = [];
-    const paths = new Map(), adjacent = new Set([state.selected]);
+    const paths = new Map();
     for (const dot of mesh.dots.values()) {
       dot.screen = project(dot.point);
     }
     for (const edge of mesh.edges) {
       const src = mesh.dots.get(edge.from), dst = mesh.dots.get(edge.to);
-      const active = !traced || traced.lines.has(edge);
-      if (active) { adjacent.add(src.area); adjacent.add(dst.area); }
-      const cls = "tier-wire " + src.line + (active ? traced ? " strong" : "" : " dim") + (edge.unknown ? " uncertain" : "");
+      const active = !selection.trace || selection.trace.lines.has(edge);
+      const cls = "tier-wire " + src.line + (active ? selection.trace ? " strong" : "" : " dim") + (edge.unknown ? " uncertain" : "");
       if (!paths.has(cls)) paths.set(cls, []);
       const a = src.screen, b = dst.screen;
       paths.get(cls).push(`M${a.x.toFixed(2)},${a.y.toFixed(2)}L${b.x.toFixed(2)},${b.y.toFixed(2)}`);
-      if (active && (tier || traced)) {
+      if (active && (tier || selection.trace)) {
         const length = Math.hypot(b.x - a.x, b.y - a.y);
         if (length > (tier ? 0 : 18)) {
           const tip = Math.min(5, length * 0.28), wing = tip * 0.6;
@@ -217,8 +199,8 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
     }
     if (arrows.length) wires.append(svg("path", { class: "tier-call-arrows", d: arrows.join("") }));
     for (const dot of mesh.dots.values()) {
-      const on = dot.id === state.point;
-      const visible = traced ? traced.keep.has(dot.id) : true;
+      const on = dot.id === selection.point?.id;
+      const visible = selection.trace ? selection.trace.keep.has(dot.id) : true;
       dot.element.setAttribute("cx", dot.screen.x);
       dot.element.setAttribute("cy", dot.screen.y);
       dot.element.classList.toggle("dim", !visible);
@@ -238,7 +220,7 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
       const x = -radius - 12, ty = Math.max(anchor.y, previous + (tier ? 26 : 20));
       const label = tier ? d.faces[0].label : d.tier;
       const selectable = tier || d.declared;
-      const action = tier ? { "data-node": d.faces[0].id, "aria-pressed": String(state.selected === d.faces[0].id) }
+      const action = tier ? { "data-node": d.faces[0].id, "aria-pressed": String(selection.area?.id === d.faces[0].id) }
         : { "data-open-tier": d.tier, "aria-label": d.tier + " を開く" };
       titles.append(svg("path", { class: "tier-guide", d: `M ${x + 4} ${ty} L ${anchor.x - 10} ${ty} L ${anchor.x} ${anchor.y}` }),
         svg("text", { class: "tier-title", x, y: ty + 4, "text-anchor": "end", ...(selectable ? { ...action, role: "button", tabindex: 0 } : {}) }, label));
@@ -246,7 +228,7 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
       previous = ty;
     }
     for (const n of tier ? [] : nodes.values()) {
-      const pt = project(n.point), on = state.selected === n.id;
+      const pt = project(n.point), on = selection.area?.id === n.id;
       const width = Array.from(n.label).reduce((w, ch) => w + (ch.codePointAt(0) < 128 ? 8 : 14), 16);
       // 真上では点と名前を別の半径に置く。斜めでは投影後の文字幅を使って衝突を避ける。
       const inset = 16 * sinP ** 4 / n.rx;
@@ -258,7 +240,7 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
         .sort((a, b) => Math.abs(a - wanted) - Math.abs(b - wanted))[0];
       labelBoxes.push({ x: left, right, y: labelY });
       if (Math.abs(labelY - wanted) > 4) names.append(svg("path", { class: "tier-guide", d: `M ${pt.x} ${pt.y} L ${x} ${labelY}` }));
-      const g = svg("g", { class: `tier-node${!byArea.get(n.id).length ? " unlinked" : ""}${on ? " on" : ""}${state.selected && !adjacent.has(n.id) ? " dim" : ""}`,
+      const g = svg("g", { class: `tier-node${!linkedAreas.has(n.id) ? " unlinked" : ""}${on ? " on" : ""}${selection.area && !on && !selection.visitedFaces.has(n) ? " dim" : ""}`,
         transform: `translate(${x} ${labelY})`, role: "button", tabindex: 0, "data-node": n.id, "aria-label": describe(n), "aria-pressed": String(on) },
         svg("title", {}, describe(n)), svg("rect", { x: -width / 2, y: -12, width, height: 24, rx: 4 }),
         svg("text", { x: 0, y: 4, "text-anchor": "middle" }, n.label));
@@ -280,7 +262,7 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
     diagram.replaceChildren(surfaces, wires, titles, names, points);
     if (focused.node || focused.openTier) [...titles.children, ...names.children].find((g) =>
       focused.node ? g.dataset.node === focused.node : g.dataset.openTier === focused.openTier)?.focus({ preventScroll: true });
-    picker.value = state.selected && state.path ? JSON.stringify([state.selected, state.path]) : state.selected;
+    picker.value = selection.area && selection.path ? JSON.stringify([selection.area.id, selection.path]) : selection.area?.id || "";
     yaw.value = Math.round(state.yaw);
     cameras.forEach((btn, i) => {
       const v = VIEWS[i], on = state.yaw === v.yaw && state.pitch === v.pitch;
@@ -291,21 +273,21 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
     diagram.classList.toggle("pan-mode", Boolean(state.panMode));
     plus.disabled = state.zoom >= 3.5;
     minus.disabled = state.zoom <= 0.65;
-    reset.hidden = !traced;
+    reset.hidden = !selection.trace;
     for (const button of pathKey?.querySelectorAll("button") || []) {
-      button.setAttribute("aria-pressed", String(!state.selected && state.path === button.dataset.path));
+      button.setAttribute("aria-pressed", String(!selection.area && selection.path === button.dataset.path));
     }
-    const chosen = mesh.dots.get(state.point), area = nodes.get(state.selected);
-    const selectionKey = JSON.stringify([state.selected, state.path]);
+    const { point: chosen, area } = selection;
+    const selectionKey = JSON.stringify([selection.area?.id, selection.path]);
     if (pointPicker.dataset.area !== selectionKey) {
-      const available = state.selected ? members() : [];
+      const available = selection.area ? selection.members : [];
       pointPicker.replaceChildren(el("option", { value: "" }, "すべて"), ...available.map((dot) =>
         el("option", { value: dot.id }, dot.entry ? `${dot.name} · ${dot.entry} · ${dot.source || dot.id}` : dot.name)));
       pointPicker.dataset.area = selectionKey;
       pointLabel.hidden = !available.length;
     }
-    pointPicker.value = state.point;
-    const key = JSON.stringify([state.selected, state.path, state.point]);
+    pointPicker.value = selection.point?.id || "";
+    const key = JSON.stringify([selection.area?.id, selection.path, selection.point?.id]);
     if (info.dataset.selection === key) return;
     info.dataset.selection = key;
     info.replaceChildren(entries ? el("span", { class: "count" }, tier ? `${mesh.dots.size} 点 · ${term("layer")} 間 ${interLayer} 本 · 同じ ${term("layer")} 内 ${mesh.edges.length - interLayer} 本` : `${mesh.dots.size} 点 · ${mesh.edges.length} 本`)
@@ -322,15 +304,15 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
           chain.map((dot, i) => [i ? " → " : "", el("span", null, dot.area, " / ", dot.name)])));
       }
     } else if (area) {
-      info.append(el("p", null, el("strong", null, describe(area), state.path ? " · " + state.path : ""), entries ? ` · この面に ${members().length} 点 · 強調中の線 ${tier ? mesh.edges.filter((e) => traced.lines.has(e)).length : traced.lines.size} 本` : ""));
+      info.append(el("p", null, el("strong", null, describe(area), selection.path ? " · " + selection.path : ""), entries ? ` · この面に ${selection.members.length} 点 · 強調中の線 ${selection.visibleLineCount} 本` : ""));
       if (entries) {
-        const roots = new Set([...traced.keep].map((id) => fullMesh.dots.get(id)).filter((dot) => dot.root).map((dot) => dot.entry));
+        const { roots } = selection;
         if (roots.size) info.append(el("details", null, el("summary", null, `この面に至る ${term("entry")} ${roots.size} 件`),
           el("ul", null, [...roots].sort().map((path) => el("li", null, path)))));
       }
-    } else if (state.path) {
-      const dots = members();
-      info.append(el("p", null, el("strong", null, state.path), ` · ${new Set(dots.map((dot) => dot.area)).size} 段 · ${dots.length} 点`));
+    } else if (selection.path) {
+      const dots = selection.members;
+      info.append(el("p", null, el("strong", null, selection.path), ` · ${new Set(dots.map((dot) => dot.area)).size} 段 · ${dots.length} 点`));
     }
 
   }
@@ -348,7 +330,7 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
       ev.preventDefault(); openTier(drill.dataset.openTier); return;
     }
     const id = ev.target.closest("[data-node]")?.dataset.node;
-    if (id && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); select(id === state.selected && !state.path ? "" : id); }
+    if (id && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); select(id === selection.area?.id && !selection.path ? "" : id); }
   });
   let drag = null, suppressClick = false;
   diagram.addEventListener("pointerdown", (ev) => {
@@ -380,12 +362,12 @@ function scene({ nodes, discs, radius }, mesh, fullMesh, entries, state, tier, o
     const drill = ev.target.closest("[data-open-tier]");
     if (drill) { openTier(drill.dataset.openTier); return; }
     const dot = mesh.dots.get(ev.target.closest("[data-point]")?.dataset.point);
-    if (dot) { select(dot.area, dot.id === state.point ? "" : dot.id, panels ? dot.entry : ""); return; }
+    if (dot) { select(dot.area, dot.id === selection.point?.id ? "" : dot.id, panels ? dot.entry : ""); return; }
     const hit = ev.target.closest("[data-node],[data-face]");
     const id = hit?.dataset.node || hit?.dataset.face;
     if (id) {
       const path = hit.dataset.path || "";
-      if (id === state.selected && path === state.path) select("");
+      if (id === selection.area?.id && path === selection.path) select("");
       else select(id, "", path);
     }
   });

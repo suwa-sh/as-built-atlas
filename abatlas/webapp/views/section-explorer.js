@@ -19,7 +19,7 @@ export function sectionExplorer(layers, initial, flow, initialTier) {
   const knownIds = new Set();
   const k = model.layerMart?.keys;
   if (k) for (const r of flow?.rows || []) for (const col of [k.from, k.to]) if (r[col]) knownIds.add(String(r[col]));
-  const camera = { yaw: 0, pitch: 12, zoom: 1, panX: 0, panY: 0, selected: "", point: "", knownIds, drillTier: initialTier || "" };
+  const camera = { yaw: 0, pitch: 12, zoom: 1, panX: 0, panY: 0, knownIds, drillTier: initialTier || "" };
   function updateLocation(entry, tier) {
     const query = new URLSearchParams({ view: "3d" });
     if (entry) query.set("entry", entry);

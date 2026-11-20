@@ -581,6 +581,26 @@ assert.equal(traceSelection(mixed, []).keep.size, 0);
 // 選んだ処理の直接の読み書きは残し、その資源を共有する別入口には遡らない。
 const one = traceSelection(mixed, [child]);
 assert.ok(one.keep.has(resource) && !one.keep.has(JSON.stringify(["/b","2"])));
+// 図の点と「段全体」の点一覧では、一覧の範囲だけが違い、面・点・線の強調は一致する。
+const detailView = { nodes: detail.nodes, mesh: scoped, fullMesh: expanded, panels };
+const fromDot = resolveTierSelection(detailView, {area: "query", point: child, path: "/a"});
+const fromPicker = resolveTierSelection(detailView, {area: "query", point: child});
+assert.deepEqual(fromDot.chosenFaces, new Set([queryPanels.get("/a")]));
+assert.deepEqual(fromPicker.chosenFaces, fromDot.chosenFaces);
+assert.deepEqual(fromPicker.trace, fromDot.trace);
+assert.deepEqual(fromPicker.visitedFaces, fromDot.visitedFaces);
+assert.ok(!fromPicker.visitedFaces.has(queryPanels.get("/b")));
+assert.ok(fromPicker.members.length > fromDot.members.length);
+const wholePath = resolveTierSelection(detailView, {path: "/a"});
+assert.deepEqual(wholePath.chosenFaces, new Set([queryPanels.get("/a"), externalPanels.get("/a")]));
+assert.equal(resolveTierSelection(detailView, {path: "/removed"}).trace, null);
+const allView = {nodes, mesh: mixed, fullMesh: mixed, panels: null};
+const rdbSelection = resolveTierSelection(allView, {area: "/rdb"});
+assert.deepEqual(rdbSelection.trace, rdb);
+assert.deepEqual(rdbSelection.roots, new Set(["/a","/b"]));
+assert.deepEqual(rdbSelection.chosenFaces, new Set([nodes.get("/rdb")]));
+assert.equal(rdbSelection.visibleLineCount, 7);
+assert.deepEqual(resolveTierSelection(allView, {area: "part"}).trace.keep, new Set());
 const satellite = nodes.get("/external_api"), endpoint = pointOnFace(satellite, "/external_api/service.example/orders");
 assert.ok(Math.abs(Math.hypot(endpoint[0] - remote.x, endpoint[2] - remote.z) - remote.rx) < 1e-8);
 assert.ok(endpoint[1] > satellite.bottom && endpoint[1] < satellite.h);

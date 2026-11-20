@@ -69,3 +69,32 @@ export function callerChain(mesh, id) {
   }
   return path.reverse();
 }
+
+// 選択欄の範囲と、図で強調する実体を一度決める。段全体の一覧から点を選んでも、
+// 強調する面はその点の入口に限る。祖先は詳細図の外も含む全体のグラフで求める。
+export function resolveTierSelection({ nodes, mesh, fullMesh, panels }, choice = {}) {
+  const area = nodes.get(choice.area);
+  const paths = area ? panels?.byLayer.get(area.id) : null;
+  const validPath = area ? paths?.has(choice.path) : panels?.paths.includes(choice.path);
+  const path = validPath ? choice.path : "";
+  const members = area || path ? [...mesh.dots.values()].filter((dot) =>
+    (!area || dot.area === area.id) && (!path || dot.entry === path)) : [];
+  const point = choice.point ? members.find((dot) => dot.id === choice.point) : undefined;
+  const trace = area || path ? traceSelection(fullMesh, point ? [point.id] : members.map((dot) => dot.id)) : null;
+  const chosenFaces = new Set(), visitedFaces = new Set(), roots = new Set();
+  if (panels) {
+    const selectedPath = point?.entry || path;
+    for (const dot of members) {
+      if (!selectedPath || dot.entry === selectedPath) chosenFaces.add(panels.byLayer.get(dot.area).get(dot.entry));
+    }
+  } else if (area) chosenFaces.add(area);
+
+  for (const id of trace?.keep || []) {
+    const dot = fullMesh.dots.get(id);
+    const face = panels ? panels.byLayer.get(dot.area)?.get(dot.entry) : nodes.get(dot.area);
+    if (face) visitedFaces.add(face);
+    if (dot.root) roots.add(dot.entry);
+  }
+  const visibleLineCount = trace ? mesh.edges.filter((edge) => trace.lines.has(edge)).length : 0;
+  return { area, path, point, members, trace, chosenFaces, visitedFaces, roots, visibleLineCount };
+}
