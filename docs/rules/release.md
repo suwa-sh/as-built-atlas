@@ -42,3 +42,32 @@ flowchart LR
 | 4 | `release` が終わったら、`docker pull` でイメージを取り、見本の分析リポジトリで `upgrade` と `build` を試す |
 
 `release` は、タグを push したときだけ動きます。main への push では、イメージは出ません。
+
+## GitHub Pages の紹介ページ
+
+紹介ページの配布元は `site/` です。HTML、CSS、JavaScript、公開見本の静止画と動画をそのまま配信します。手元ではリポジトリのルートで次のコマンドを実行し、ブラウザで `http://127.0.0.1:8000/` を開きます。
+
+```bash
+uv run python - <<'PY'
+import uvicorn
+from starlette.staticfiles import StaticFiles
+
+uvicorn.run(StaticFiles(directory="site", html=True), port=8000)
+PY
+```
+
+初回はリポジトリの Settings → Pages → Source で GitHub Actions を選びます。`main` に紹介ページか `.github/workflows/pages.yml` の変更を push すると、ワークフローが `site/` を公開します。初回設定後の再実行には、Actions の「GitHub Pages」から `main` を指定して手動実行もできます。
+
+## OSS を周知するときの確認項目
+
+初めて知った人が、検索で見つけ、共有されたリンクを開き、同梱の見本を試せるかを確かめます。
+
+| 場面 | 用意するもの | 確かめ方 |
+|---|---|---|
+| GitHub で見つける | About の一行説明、公開した LP の Website、用途を表す Topics。候補は `impact-analysis`、`code-analysis`、`software-architecture`、`dependency-analysis`、`model-context-protocol`、`python` | リポジトリのトップで用途が伝わり、Website から LP に移れる |
+| LP を共有する | ロゴ・製品名・「その変更、どこに影響しますか？」と実画面の一部を載せた横長画像。HTML の `og:title`、`og:description`、`og:type`、`og:url`、`og:image`、`og:image:alt`、大画像用の `twitter:card` | `og:url` と canonical を公開 URL に合わせる。`og:image` の HTTPS 絶対 URL をログインせずに開き、LP の URL を共有したときの文字・画像を確認する。[Open Graph 仕様](https://ogp.me/) |
+| GitHub リポジトリを共有する | 同じ画像を GitHub の Settings → Social preview に登録し、README 冒頭でも使う。共用画像の目安は 1280 × 640 px、1 MB 未満 | リポジトリ URL を共有して、LP の URL とそれぞれのカードを確認する。[GitHub の画像仕様と登録手順](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/customizing-your-repositorys-social-media-preview) |
+| README から試す | 実画面、Docker と Git の前提、「10 分で試す」へのリンク。バッジ候補は CI、公開版、GHCR、MIT。日英 README を相互リンクする | 両言語から同じ公開済み配布物に着き、クイックスタートで見本を開ける。バッジから実際のテスト結果、配布物、ライセンスに着く |
+| 版を選んで導入する | Git の版タグは `vX.Y.Z`、GHCR の固定タグは `X.Y.Z`。タグで動くワークフローの配布先は GHCR。GitHub Release を案内する場合は、既存タグに変更点と更新手順を紐付ける | GHCR からログインなしで取得できる。GitHub Release は公開ページを別途開き、タグ、CHANGELOG、更新手順が同じ版を指すことを確認する |
+| 問い合わせ、改善を続ける | README に質問・不具合の Issues と参加方法、SECURITY.md に脆弱性の非公開報告先。依存更新、Actions の更新、main の保護設定を見直す | 公開の質問先と非公開の報告先にそれぞれ到達できる。依存更新の PR でテストが動く |
+| 利用者に知らせる | Zenn ではエンジニア向けに CRUD 表から根拠行までを追う例を、note では保守責任者向けに調査結果の共有と判断の限界を扱う | 下書きの表・件数・画像を見本に照合する。両記事に公開リポジトリの URL を入れ、note では単独行に置いてカードを確認する。クイックスタートまでたどれたら、媒体ごとに公開時期を決める |

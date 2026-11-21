@@ -1,5 +1,7 @@
 # as-built-atlas
 
+[![as-built-atlas の紹介ページを開く。その変更、どこに影響しますか？](site/assets/social-preview.png)](https://suwa-sh.github.io/as-built-atlas/)
+
 > 入口から辿って、人とエージェントが同じ竣工図 (as-built) を見る。
 
 既存システムの「どの入口が、何を呼び、どこを読み書きするか」を、根拠付きのデータにする道具です。
