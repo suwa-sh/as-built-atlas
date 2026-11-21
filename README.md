@@ -2,7 +2,7 @@
 
 [日本語](README.ja.md) · English
 
-[![Explore the project: Where will this change have an impact? (Japanese landing page)](site/assets/social-preview.png)](https://suwa-sh.github.io/as-built-atlas/)
+[![Explore the project: Where will this change have an impact?](site/assets/social-preview-en.png)](https://suwa-sh.github.io/as-built-atlas/en/)
 
 **Trace a change from an entry point to the code and data it touches.** as-built-atlas maps what an existing system actually does. A coding agent follows each entry point (a batch job, screen, or API operation) and records what it calls, reads, and writes, with file and line references. Maintainers explore the results in a web app. Agents query the same data through the Model Context Protocol (MCP).
 

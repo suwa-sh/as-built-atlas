@@ -19,7 +19,7 @@ def scroll_to_height(element, fraction):
 
 
 def check_motion(browser, url, preference):
-    page = browser.new_page(reduced_motion=preference)
+    page = browser.new_page(locale="ja-JP", reduced_motion=preference)
     requested_paths = []
     page.on("request", lambda req: requested_paths.append(req.url))
     page.goto(url)
@@ -119,7 +119,7 @@ def check_motion(browser, url, preference):
 
 
 def check_reveal_timing(browser, url, viewport):
-    page = browser.new_page(viewport=viewport, reduced_motion="no-preference")
+    page = browser.new_page(locale="ja-JP", viewport=viewport, reduced_motion="no-preference")
     page.goto(url)
     first_panel = page.locator("#structure")
     assert first_panel.evaluate("el => !el.classList.contains('in-view') && !el.getAnimations().length")
@@ -175,7 +175,7 @@ def check_reveal_timing(browser, url, viewport):
 
 
 def check_video_fallback(browser, url):
-    page = browser.new_page(has_touch=True, reduced_motion="no-preference")
+    page = browser.new_page(locale="ja-JP", has_touch=True, reduced_motion="no-preference")
     page.route("**/architecture-3d.mp4", lambda route: route.abort())
     page.goto(url)
     page.locator(".hero-media").scroll_into_view_if_needed()
@@ -185,7 +185,7 @@ def check_video_fallback(browser, url):
     assert still.locator("img").evaluate("async el => { await el.decode(); return el.naturalWidth > 0 }")
     page.close()
 
-    page = browser.new_page(java_script_enabled=False)
+    page = browser.new_page(locale="ja-JP", java_script_enabled=False)
     page.goto(url)
     expect(page.get_by_role("link", name="ことり書店の3D図を原寸で開く")).to_be_visible()
     expect(page.locator(".hero-rotation")).to_be_hidden()
@@ -194,7 +194,7 @@ def check_video_fallback(browser, url):
 
 
 def check_touch_rotation(browser, url):
-    page = browser.new_page(has_touch=True, viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    page = browser.new_page(locale="ja-JP", has_touch=True, viewport={"width": 390, "height": 844}, reduced_motion="reduce")
     page.goto(url)
     expect(page.locator(".hero-touch-hint")).to_be_visible()
     rotation = page.get_by_role("button", name="3D図の回転を再生")
@@ -205,7 +205,7 @@ def check_touch_rotation(browser, url):
 
 
 def check_late_script(browser, url):
-    page = browser.new_page(reduced_motion="no-preference")
+    page = browser.new_page(locale="ja-JP", reduced_motion="no-preference")
     held = []
     page.route("**/experience.js", lambda route: held.append(route))
     page.goto(url, wait_until="commit")

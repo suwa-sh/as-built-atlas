@@ -56,6 +56,8 @@ uvicorn.run(StaticFiles(directory="site", html=True), port=8000)
 PY
 ```
 
+紹介ページは日本語と英語（`en/`）で配信します。ルートではブラウザの優先言語から対応する言語を選び、該当しない場合は英語を表示します。ヘッダーで選んだ言語は次回も優先します。各言語のクイックスタートとプロファイルへのリンクは、同じ言語の README の見出しを指します。
+
 初回はリポジトリの Settings → Pages → Source で GitHub Actions を選びます。`main` に紹介ページか `.github/workflows/pages.yml` の変更を push すると、ワークフローが `site/` を公開します。初回設定後の再実行には、Actions の「GitHub Pages」から `main` を指定して手動実行もできます。
 
 ## OSS を周知するときの確認項目

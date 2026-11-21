@@ -2,7 +2,7 @@
 
 日本語 · [English](README.md)
 
-[![as-built-atlas の紹介ページを開く。その変更、どこに影響しますか？](site/assets/social-preview.png)](https://suwa-sh.github.io/as-built-atlas/)
+[![as-built-atlas の紹介ページを開く。その変更、どこに影響しますか？](site/assets/social-preview.png)](https://suwa-sh.github.io/as-built-atlas/?lang=ja)
 
 > 入口から辿って、人とエージェントが同じ竣工図 (as-built) を見る。
 

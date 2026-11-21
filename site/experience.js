@@ -3,6 +3,23 @@ const controls = document.querySelector(".step-controls");
 const buttons = Array.from(controls.querySelectorAll("button"));
 const panels = buttons.map(button => document.getElementById(button.dataset.panel));
 
+const languageLink = document.querySelector(".language-link");
+const languageURL = new URL(languageLink.href);
+
+function updateLanguageLink() {
+  languageURL.hash = location.hash;
+  languageLink.href = languageURL.href;
+}
+
+updateLanguageLink();
+window.addEventListener("hashchange", updateLanguageLink);
+
+function selectStep(index) {
+  showStep(index);
+  history.replaceState(history.state, "", "#" + panels[index].id);
+  updateLanguageLink();
+}
+
 function showStep(index) {
   buttons.forEach((button, i) => {
     const selected = i === index;
@@ -21,7 +38,7 @@ buttons.forEach((button, index) => {
   panel.setAttribute("role", "tabpanel");
   panel.setAttribute("aria-labelledby", button.id);
   panel.tabIndex = 0;
-  button.addEventListener("click", () => showStep(index));
+  button.addEventListener("click", () => selectStep(index));
   button.addEventListener("keydown", event => {
     const target = {
       ArrowLeft: (index + buttons.length - 1) % buttons.length,
@@ -31,7 +48,7 @@ buttons.forEach((button, index) => {
     }[event.key];
     if (target === undefined) return;
     event.preventDefault();
-    showStep(target);
+    selectStep(target);
     buttons[target].focus();
   });
 });
@@ -65,7 +82,7 @@ function enableHeroRotation() {
     }
   }
   function updateAction() {
-    const action = video.paused ? "3D図の回転を再生" : "3D図の回転を一時停止";
+    const action = video.paused ? toggle.dataset.play : toggle.dataset.pause;
     toggle.setAttribute("aria-label", action);
     toggle.title = action;
   }
