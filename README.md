@@ -10,6 +10,8 @@ Use it when you need to investigate a change and want to check the evidence behi
 
 **Project status:** Early development (0.x). Formats and commands may change between versions. The [changelog](CHANGELOG.md) lists changes that require action when upgrading.
 
+<a name="目次"></a>
+
 ## Contents
 
 - [How it works](#how-it-works)
@@ -18,6 +20,8 @@ Use it when you need to investigate a change and want to check the evidence behi
 - [Analyze your own system](#analyze-your-own-system)
 - [Supported profiles](#supported-profiles)
 - [Sample analyses](#sample-analyses)
+
+<a name="仕組み"></a>
 
 ## How it works
 
@@ -33,6 +37,8 @@ flowchart LR
 ```
 
 Agents discover entry points and interpret code. A maintainer decides which entries to analyze. Tools handle the repeatable work of enumerating candidates, validating results, and building tables. Starting from the same saved analysis, people and agents get the same aggregates. Coverage and accuracy depend on the original analysis.
+
+<a name="何が見えるか"></a>
 
 ## Explore the analysis
 
@@ -108,6 +114,8 @@ docker compose up -d api
 claude mcp add --transport http abatlas http://localhost:8765/mcp
 ```
 
+<a name="自分のシステムを分析する"></a>
+
 ## Analyze your own system
 
 Create one analysis repository per target system.
@@ -169,6 +177,8 @@ A profile defines what counts as an entry point and which layers to trace. The r
 
 You can adapt a profile to your system, for example by removing unused layers or identifying a large component shared by many screens as a separate entry. See the [profile guide](docs/architecture/profiles.md).
 
+<a name="見本"></a>
+
 ## Sample analyses
 
 The [examples directory](examples/) contains one analysis repository per profile.
@@ -180,6 +190,8 @@ The [examples directory](examples/) contains one analysis repository per profile
 | Nine other `*-atlas/` examples | API, CLI, dbt, GitHub Actions, Vue Router, Nuxt, SvelteKit, Android, and iOS | AI-generated analyses of 3 to 7 entries per sample |
 
 Only Kotori Books includes the target source code. Each sample has its own README with setup instructions. The [sample catalog](docs/architecture/examples.md) lists targets and licenses.
+
+<a name="見本で自分のエージェントの精度を測る"></a>
 
 ### Evaluate an agent against the sample
 
@@ -195,6 +207,8 @@ After the [quickstart](#10-minute-quickstart), you can compare your agent's anal
 
 The evaluator reports precision and recall per entry for frames (steps in the call path), data access, and parameters. The [evaluation guide](docs/architecture/examples.md) explains how matches are counted.
 
+<a name="5-つの約束"></a>
+
 ## Design principles
 
 | Principle | How it works |
@@ -204,6 +218,8 @@ The evaluator reports precision and recall per entry for frames (steps in the ca
 | Give people and agents the same data | The web app and MCP query the same API. |
 | Keep repeatable work deterministic | Tools enumerate, validate, aggregate, and compare. Agents discover entry points and interpret code. |
 | Extend through profiles | Additional target types use the same workflow with a new profile. |
+
+<a name="構成"></a>
 
 ## Repository layout
 
@@ -220,6 +236,8 @@ flowchart TB
   I -->|Installs or upgrades| O
   T["Target checkout"] -->|Read-only mount| I
 ```
+
+<a name="文書"></a>
 
 ## Documentation
 
@@ -240,6 +258,8 @@ The following guides are in Japanese.
 | [UI design guide](DESIGN.md) | Web app design conventions |
 
 Product-specific agent configuration (such as `.claude/` and `.codex/`) is generated from `AGENTS.md`, `docs/`, and `.agents/`. To update the adapters, edit `.agents/harness.yaml` and regenerate them.
+
+<a name="ライセンス"></a>
 
 ## License
 
