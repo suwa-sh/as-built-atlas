@@ -60,6 +60,8 @@ PY
 
 初回はリポジトリの Settings → Pages → Source で GitHub Actions を選びます。`main` に紹介ページか `.github/workflows/pages.yml` の変更を push すると、ワークフローが `site/` を公開します。初回設定後の再実行には、Actions の「GitHub Pages」から `main` を指定して手動実行もできます。
 
+公開 LP は言語の確定後に Google タグ マネージャーのコンテナ `GTM-PNWG3TNJ` を読み込みます。GA4 の測定先とトリガーはコンテナで管理します。手元でのプレビューは計測対象外です。
+
 ## OSS を周知するときの確認項目
 
 初めて知った人が、検索で見つけ、共有されたリンクを開き、同梱の見本を試せるかを確かめます。
