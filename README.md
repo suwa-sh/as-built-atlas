@@ -8,8 +8,6 @@
 
 Use it when you need to investigate a change and want to check the evidence behind an agent's answer. Each result follows a schema that distinguishes facts, interpretations, and unknowns. An unknown includes the reason the agent could not resolve it.
 
-**Project status:** Early development (0.x). Formats and commands may change between versions. The [changelog](CHANGELOG.md) lists changes that require action when upgrading.
-
 <a name="目次"></a>
 
 ## Contents
