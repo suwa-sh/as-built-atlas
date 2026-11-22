@@ -173,7 +173,7 @@ A profile defines what counts as an entry point and which layers to trace. The r
 | `ui-android` | Android apps | Screen, Activity, or OS-triggered operation |
 | `ui-ios` | iOS apps | Screen, application shell, or OS-triggered entry |
 
-You can adapt a profile to your system, for example by removing unused layers or identifying a large component shared by many screens as a separate entry. See the [profile guide](docs/architecture/profiles.md).
+You can adapt a profile to your system, for example by removing unused layers or identifying a large component shared by many screens as a separate entry. See the [customization steps](docs/guide/customize-profile.md) and the [profile reference](docs/architecture/profiles.md).
 
 <a name="見本"></a>
 
@@ -193,17 +193,9 @@ Only Kotori Books includes the target source code. Each sample has its own READM
 
 ### Evaluate an agent against the sample
 
-After the [quickstart](#10-minute-quickstart), you can compare your agent's analysis of Kotori Books with the bundled ground truth. You need a coding agent such as Claude Code or Codex, and `python3` on the host. Start in the **copied** `kotori-books-atlas` directory.
+After the [quickstart](#10-minute-quickstart), you can have your own agent analyze a Kotori Books entry and compare the result with the bundled ground truth. The evaluator reports precision and recall per entry for frames (steps in the call path), data access, and parameters.
 
-| Step | Action |
-|---|---|
-| 1. Set the reference results aside | Run `mv analysis/results analysis/truth && mkdir analysis/results`. |
-| 2. Give the sample source its own Git history | Run `cd ../kotori-books && git init -q && git add -A && git commit -qm sample && cd -`. If Git has no identity configured, use `git -c user.name=you -c user.email=you@example.com commit -qm sample` for the commit. |
-| 3. Record the target commit | Set `target.commit` in both `analysis/work-definition.yaml` and `analysis/entry-list.yaml` to the output of `git -C ../kotori-books rev-parse HEAD`. |
-| 4. Analyze an entry | Ask your agent to run the `abatlas-analyze-entry` skill on an entry such as `daily.sales.settle_orders`. |
-| 5. Compare results | Run `docker compose run --rm abatlas evaluate analysis/results --truth analysis/truth`. |
-
-The evaluator reports precision and recall per entry for frames (steps in the call path), data access, and parameters. The [evaluation guide](docs/architecture/examples.md) explains how matches are counted.
+Follow the steps in the [evaluation guide](docs/guide/evaluate.md) (in Japanese).
 
 <a name="5-つの約束"></a>
 
