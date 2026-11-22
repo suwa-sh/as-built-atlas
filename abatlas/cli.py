@@ -281,6 +281,21 @@ def _run_dictionary(a):
     return 0
 
 
+def _run_impact(a):
+    from .impact import confirm, format_plan, plan
+    import json
+
+    report, context = plan(Path(a.repo), a.rev)
+    if a.command == "reuse":
+        confirm(report, context, a.entry, a.plan_id, a.reason, a.by)
+        print(f"再利用を確認: {a.entry}")
+    elif a.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(format_plan(report))
+    return 0
+
+
 def _run_diff(a):
     from .diff import diff_repo
 
@@ -414,6 +429,24 @@ def main(argv=None) -> int:
     dc.set_defaults(handler=_run_dictionary)
     dc.add_argument("repo")
     dc.add_argument("--dry-run", action="store_true", help="書かずに、数だけ出す")
+
+    for name, help_text in (
+        ("impact", "対象 Git の変更から理由付きの作業一覧を出す"),
+        ("reuse", "確認した入口の再利用を記録する"),
+    ):
+        task = sub.add_parser(name, help=help_text)
+        task.set_defaults(handler=_run_impact, command=name)
+        task.add_argument("repo")
+        task.add_argument(
+            "--from", dest="rev", required=True, help="前回の分析リポジトリのコミット"
+        )
+        if name == "impact":
+            task.add_argument("--json", action="store_true")
+        else:
+            task.add_argument("--entry", required=True)
+            task.add_argument("--plan-id", required=True)
+            task.add_argument("--reason", required=True)
+            task.add_argument("--by", required=True)
 
     df = sub.add_parser(
         "diff",

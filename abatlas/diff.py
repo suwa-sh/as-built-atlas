@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from . import ANALYSIS_DIR, analysis_dir
+from . import ANALYSIS_DIR, analysis_dir, result_file_name
 from .etl import build_rows
 from .schemas import load_yaml, schema_errors
 
@@ -60,8 +60,12 @@ def _keys(result: dict) -> dict[str, Counter]:
     }  # 個数も持つ (同じ読み書きが 1 か所増えた、を出すため)
 
 
-def _git(repo: Path, *args: str) -> str:
-    out = subprocess.run(["git", "-C", str(repo), *args], capture_output=True)  # nosec B603, B607 - Git CLI with separate revision and path arguments
+def _git(repo: Path, *args: str, input_text: str | None = None) -> str:
+    out = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        input=input_text.encode() if input_text is not None else None,
+        capture_output=True,
+    )  # nosec B603, B607 - Git CLI with separate revision and path arguments
     if out.returncode != 0:
         raise SystemExit(
             f"diff: git {' '.join(args)} が失敗した: {out.stderr.decode('utf-8', 'replace').strip()}"
@@ -69,7 +73,7 @@ def _git(repo: Path, *args: str) -> str:
     return out.stdout.decode("utf-8")
 
 
-def results_at(repo: Path, rev: str) -> dict[str, dict]:
+def results_at(repo: Path, rev: str, *, strict_names: bool = False) -> dict[str, dict]:
     """git の版 rev にある分析結果 (入口の id → 結果)。形式に合わないファイルは、読まずに止める。"""
     tree = _git(
         repo, "rev-parse", "--verify", "--end-of-options", f"{rev}^{{tree}}"
@@ -77,9 +81,9 @@ def results_at(repo: Path, rev: str) -> dict[str, dict]:
     base = f"{ANALYSIS_DIR}/results/"
     names = [
         n
-        for n in _git(
-            repo, "ls-tree", "-r", "--name-only", tree, "--", base
-        ).splitlines()
+        for n in _git(repo, "ls-tree", "-rz", "--name-only", tree, "--", base).split(
+            "\0"
+        )
         if n.endswith(".yaml")
     ]
     out = {}
@@ -90,7 +94,12 @@ def results_at(repo: Path, rev: str) -> dict[str, dict]:
         errs = schema_errors("analysis-result", doc)
         if errs:
             raise SystemExit(f"diff: {rev} の {n} が、いまの形式で読めない: {errs[0]}")
-        out[doc["entry"]["id"]] = doc
+        eid = doc["entry"]["id"]
+        if strict_names and n != base + result_file_name(eid):
+            raise SystemExit(
+                f"diff: {rev} の {n} は entry.id {eid} に対応するファイル名と違う"
+            )
+        out[eid] = doc
     return out
 
 

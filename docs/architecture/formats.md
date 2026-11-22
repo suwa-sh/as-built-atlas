@@ -150,7 +150,7 @@ flowchart LR
 | `reviewed` | `by`<br>`at`<br>`findings_open` | レビューの記録 | レビューの後 |
 | `run` | `cost_usd`<br>`duration_s`<br>`by` | 費用と時間。任意 | エージェントを呼び出した側 |
 
-**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致し (skill の版は、2 つ目の数字までを比べる。3 つ目だけの違いは、同じと見る)、テストとの対応の選択 (作業定義の `analysis.tests` と、結果の `analyzer.tests`) も同じ結果があるとき。判定は、運用側のランナーが行います (コアは項目を持つだけです)。
+**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致し (skill の版は、2 つ目の数字までを比べる。3 つ目だけの違いは、同じと見る)、テストとの対応の選択 (作業定義の `analysis.tests` と、結果の `analyzer.tests`) も同じ結果があるとき。対象コミットを進めたときは、根拠・条件を対象 Git と照合した再利用の確認記録も使えます。手順と記録の場所は[対象コードの差分](impact.md)にあります。
 
 | 決まり | 理由 |
 |---|---|

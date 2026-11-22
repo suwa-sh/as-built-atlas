@@ -244,6 +244,8 @@ flowchart TB
   T[対象の clone] -->|読み取り専用| I
 ```
 
+対象 Git の更新後は、[影響一覧と再利用の手順](docs/architecture/impact.md)に沿って、変更された入口を分析できます。
+
 ## 文書
 
 ### 使う人向け

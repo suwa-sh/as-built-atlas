@@ -5,14 +5,16 @@ select
   count(*) as entries,
   count(*) filter (where e.status = 'approved') as approved,
   count(*) filter (where e.status = 'approved' and r.entry_id is not null) as analyzed,
+  count(*) filter (where e.status = 'approved' and r.update_status in ('analyzed', 'reused')) as current_results,
+  count(*) filter (where e.status = 'approved' and r.update_status = 'reused') as reused_results,
   count(*) filter (where e.status = 'candidate') as candidate,
   count(*) filter (where e.status = 'rejected') as rejected,
   count(r.run_cost_usd) as runs_with_cost,
   sum(r.run_cost_usd) as cost_usd,
   sum(r.run_duration_s) as duration_s,
   -- 残り (承認済みで未分析) × 平均コスト。run の記録が無ければ null
-  (count(*) filter (where e.status = 'approved' and r.entry_id is null)) * avg(r.run_cost_usd) as estimated_remaining_cost_usd,
-  (count(*) filter (where e.status = 'approved' and r.entry_id is null)) * avg(r.run_duration_s) as estimated_remaining_duration_s
+  (count(*) filter (where e.status = 'approved' and (r.entry_id is null or r.update_status = 'stale'))) * avg(r.run_cost_usd) as estimated_remaining_cost_usd,
+  (count(*) filter (where e.status = 'approved' and (r.entry_id is null or r.update_status = 'stale'))) * avg(r.run_duration_s) as estimated_remaining_duration_s
 from {{ ref('stg_entries') }} e
 left join {{ ref('stg_results') }} r using (entry_id)
 group by e.level1

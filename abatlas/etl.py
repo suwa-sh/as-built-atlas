@@ -164,6 +164,8 @@ def _append_result(rows, r, eid, profile):
             "layer": r["entry"]["layer"],
             "target_repo": r["target"]["repo"],
             "target_commit": r["target"]["commit"],
+            "effective_commit": r["target"]["commit"],
+            "update_status": "analyzed",
             "target_scope": r["target"].get("scope", "."),
             "profile_id": an["profile"]["id"],
             "profile_version": an["profile"]["version"],
@@ -378,11 +380,11 @@ def _read_results(analysis_repo, entry_list, profile, scope_dir, problems):
     return results
 
 
-def _other_target_entries(analysis_repo, results):
+def _other_target_entries(analysis_repo, results, reused):
     wd_path = analysis_repo / "work-definition.yaml"
-    work_target = (
-        (load_yaml(wd_path) or {}).get("target") if wd_path.is_file() else None
-    )
+    work = load_yaml(wd_path) if wd_path.is_file() else {}
+    work_target = (work or {}).get("target")
+    contexts = {}
     other_target = []  # 作業定義と、対象 (リポジトリ、範囲、コミット) が違う結果。止めずに知らせる
     if isinstance(work_target, dict):
         for r in results:
@@ -392,7 +394,12 @@ def _other_target_entries(analysis_repo, results):
                 work_target.get("scope", "."),
                 work_target.get("commit"),
             ):
-                other_target.append(r["entry"]["id"])
+                from .reuse import verified_result
+
+                if verified_result(analysis_repo, work, r, contexts=contexts):
+                    reused[r["entry"]["id"]] = work_target["commit"]
+                else:
+                    other_target.append(r["entry"]["id"])
     return other_target
 
 
@@ -538,6 +545,8 @@ COLUMNS = {
         "layer",
         "target_repo",
         "target_commit",
+        "effective_commit",
+        "update_status",
         "target_scope",
         "profile_id",
         "profile_version",
@@ -732,7 +741,8 @@ def run_etl(
     dict_problems = dictionary_problems(dictionary) if dictionary is not None else []
     problems = _entry_list_problems(entry_list, profile)
     results = _read_results(analysis_repo, entry_list, profile, scope_dir, problems)
-    other_target = _other_target_entries(analysis_repo, results)
+    reused = {}
+    other_target = _other_target_entries(analysis_repo, results, reused)
     for name, group in sorted(
         file_name_collisions({e["id"] for e in entry_list.get("entries", [])}).items()
     ):
@@ -746,6 +756,14 @@ def run_etl(
             + "\n  ".join(problems[:20])
         )
     rows = build_rows(entry_list, results, profile, dictionary, target_files(scope_dir))
+    stale = set(other_target)
+    for row in rows["results"]:
+        eid = row["entry_id"]
+        if eid in reused:
+            row.update(effective_commit=reused[eid], update_status="reused")
+        elif eid in stale:
+            row.update(effective_commit="", update_status="stale")
     write_seeds(rows, out_dir)
     counts = _report_counts(rows, other_target, profile)
+    counts["reused_results"] = len(reused)
     return counts

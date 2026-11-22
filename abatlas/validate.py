@@ -403,10 +403,10 @@ def _check_leaf_frames(result, frames, layers, entry_ids, findings):
             )
 
 
-def _check_work_target(work, result, findings):
+def _check_work_target(work, result, findings, reused=False):
     wt, rt = work["target"], result["target"]
     for k in ("repo", "commit"):
-        if wt.get(k) != rt.get(k):
+        if wt.get(k) != rt.get(k) and not (k == "commit" and reused):
             findings.append(
                 f"target/{k}: 結果の '{rt.get(k)}' が作業定義の '{wt.get(k)}' と違う"
             )
@@ -671,6 +671,22 @@ def _entry_ids(path: Path) -> set[str] | None:
     return entry_ids_of(load_yaml(path)) if path.is_file() else None
 
 
+def _check_result_version(work_path, work, result, profile_path, findings):
+    reused = False
+    if not findings and work["target"]["commit"] != result["target"]["commit"]:
+        from .reuse import verified_result
+
+        reused = verified_result(work_path.parent, work, result, profile_path)
+        if reused:
+            import sys
+
+            print(
+                f"{result['entry']['id']}: 再利用を確認 ({work['target']['commit']})",
+                file=sys.stderr,
+            )
+    _check_work_target(work, result, findings, reused)
+
+
 def validate_result_file(
     path: Path, profile_path: Path | None = None, work_path: Path | None = None
 ) -> list[str]:
@@ -690,7 +706,7 @@ def validate_result_file(
         _entry_ids(work_path.parent / "entry-list.yaml") if work_path else None,
     )
     if work_path and has_target:
-        _check_work_target(work, result, findings)
+        _check_result_version(work_path, work, result, profile_path, findings)
     if scope_dir is None:
         findings.append(
             "scope: target.clone_path が無く、根拠の実在を検査していない (--work で作業定義を渡す)"

@@ -110,7 +110,7 @@ def run_extractor(
     return out
 
 
-def _validated_scope(entry_list, profile, entry_list_path):
+def _validated_scope(entry_list, profile, entry_list_path, scope_override=None):
     # within はこの後で作り直すので、前回の値は検査から外す (宣言を変えた後の列挙が、古い within で止まらないように)
     before = [
         {k: v for k, v in e.items() if k != "within"} if isinstance(e, dict) else e
@@ -122,7 +122,9 @@ def _validated_scope(entry_list, profile, entry_list_path):
     )
     if pre:
         raise SystemExit("entry-list が不正:\n  " + "\n  ".join(pre))
-    scope = _resolve_scope(entry_list["target"], entry_list_path.parent)
+    scope = scope_override or _resolve_scope(
+        entry_list["target"], entry_list_path.parent
+    )
     if scope is None or not scope.is_dir():
         raise SystemExit(f"target.clone_path/scope が見つからない: {scope}")
     return scope
@@ -207,11 +209,15 @@ def _apply_within_and_report_removals(entries, previous, found, profile):
 
 
 def enumerate_entries(
-    entry_list_path: Path, profile_path: Path | None = None, write: bool = True
+    entry_list_path: Path,
+    profile_path: Path | None = None,
+    write: bool = True,
+    *,
+    scope_override: Path | None = None,
 ) -> dict:
     entry_list = load_yaml(entry_list_path)
     profile = load_yaml(profile_path) if profile_path else None
-    scope = _validated_scope(entry_list, profile, entry_list_path)
+    scope = _validated_scope(entry_list, profile, entry_list_path, scope_override)
 
     previous = {e["id"]: e for e in entry_list.get("entries", [])}
     found = _collect_candidates(entry_list, scope, profile_path, entry_list_path)

@@ -14,7 +14,7 @@ with io_counts as (
 select
   e.entry_id, e.path, e.name, e.layer, e.status, e.level1, e.level2, e.depth,
   r.entry_id is not null as analyzed,
-  r.analyzed_at, r.target_commit, r.profile_version,
+  r.analyzed_at, r.target_commit, r.effective_commit, r.update_status, r.profile_version,
   -- 今のプロファイルの版と違う版で分析した結果 (分析の決まりが変わっていれば、範囲が今と違う)。未分析は false
   coalesce(r.profile_stale, false) as profile_stale,
   r.skill_version, r.reviewed_findings_open,

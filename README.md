@@ -237,6 +237,8 @@ flowchart TB
 
 <a name="文書"></a>
 
+Use [impact and reuse](docs/architecture/impact.md) to update an analysis after the target Git revision changes.
+
 ## Documentation
 
 The following guides are in Japanese.
