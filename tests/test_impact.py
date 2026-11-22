@@ -194,3 +194,26 @@ def test_unfinished_rule_change_is_still_pending_on_next_update(
         next(r for r in second["entries"] if r["entry_id"] == SNAP)["action"]
         == "reanalyze"
     )
+
+
+def test_unavailable_analysis_conditions_require_reanalysis(histories):
+    target, atlas, _ = histories
+    assets = atlas / "analysis"
+    work = assets / "work-definition.yaml"
+    previous = work.read_text()
+    work.write_text("format_version: 1\n")
+    result = assets / "results" / f"{SNAP}.yaml"
+    result.write_text(result.read_text() + "\n")
+    snapshot(atlas)
+    work.write_text(previous)
+    middle = snapshot(atlas)
+    shallow = atlas.parent / "shallow"
+    git(atlas.parent, "clone", "--depth=1", atlas.as_uri(), str(shallow))
+    (target / "next.txt").write_text("C")
+    version = snapshot(target)
+    for repo in (atlas, shallow):
+        set_version(repo / "analysis", version)
+        report, _ = plan(repo, middle)
+        actions = {r["entry_id"]: r["action"] for r in report["entries"]}
+        assert actions[SNAP] == "reanalyze"
+        assert actions[SALE] == ("reuse" if repo == atlas else "reanalyze")

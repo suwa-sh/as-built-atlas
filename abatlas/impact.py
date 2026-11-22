@@ -1,6 +1,7 @@
 """対象 Git の差分を、分析する入口と確認理由に変換する。"""
 
 from collections import defaultdict
+from pathlib import Path
 
 import yaml
 
@@ -163,6 +164,32 @@ def _planned_entry(ctx, eid, entry, before, result, changed_rules):
     return row
 
 
+def _saved_conditions(repo, rev, ctx, current_list):
+    # 過去版の形式・ファイルが読めない入口は、現在の形式で再分析する。
+    files = [f"analysis/{name}" for name in (WORK_FILE, ENTRIES_FILE)]
+    present = _git(repo, "ls-tree", "-z", "--name-only", rev, "--", *files).split("\0")
+    if not set(files).issubset(present):
+        return {}, True, None
+    try:
+        work, prior = (
+            yaml.safe_load(_git(repo, "show", f"{rev}:./{path}")) for path in files
+        )
+    except yaml.YAMLError:
+        return {}, True, None
+    if schema_errors("work-definition", work) or schema_errors("entry-list", prior):
+        return {}, True, None
+    changed = _rules_changed(
+        repo,
+        rev,
+        profile_dir(repo) / "profile.yaml",
+        work,
+        ctx.work,
+        prior,
+        current_list,
+    )
+    return {e["id"]: e for e in prior["entries"]}, changed, work["target"]
+
+
 def _analysis_conditions(repo, baseline, eid, revs, ctx, current_list, source_sha):
     """結果を保存した分析コミットまで戻って、後から変えた規約と承認を比べる。"""
     filename = result_file_name(eid)
@@ -170,34 +197,7 @@ def _analysis_conditions(repo, baseline, eid, revs, ctx, current_list, source_sh
         repo, "log", "-1", "--format=%H", baseline, "--", f"analysis/results/{filename}"
     ).strip()
     if rev not in revs:
-        files = _git(
-            repo,
-            "ls-tree",
-            "--name-only",
-            rev,
-            "--",
-            f"analysis/{WORK_FILE}",
-            f"analysis/{ENTRIES_FILE}",
-        ).splitlines()
-        if len(files) != 2:
-            revs[rev] = ({}, True, None)
-        else:
-            work = _at(repo, rev, WORK_FILE, "work-definition")
-            prior = _at(repo, rev, ENTRIES_FILE, "entry-list")
-            changed = _rules_changed(
-                repo,
-                rev,
-                profile_dir(repo) / "profile.yaml",
-                work,
-                ctx.work,
-                prior,
-                current_list,
-            )
-            revs[rev] = (
-                {e["id"]: e for e in prior["entries"]},
-                changed,
-                work["target"],
-            )
+        revs[rev] = _saved_conditions(repo, rev, ctx, current_list)
     entries, changed, target = revs[rev]
     if (
         not target
@@ -214,7 +214,16 @@ def _worklist(repo, baseline, ctx, old_work, before, changed_rules, current_list
         old_work["target"]["commit"]: ctx.history.changes(old_work["target"]["commit"])
     }
     rows = []
-    revisions = {}
+    # shallow 境界では、それ以前に保存された結果もここで作成されたように見える。
+    boundary_file = Path(
+        _git(
+            repo, "rev-parse", "--path-format=absolute", "--git-path", "shallow"
+        ).strip()
+    )
+    boundaries = (
+        boundary_file.read_text().splitlines() if boundary_file.is_file() else []
+    )
+    revisions = {rev: ({}, True, None) for rev in boundaries}
     for eid, entry in sorted(ctx.entries.items()):
         entry_before, entry_rules_changed = before, changed_rules
         result = results.get(eid)
