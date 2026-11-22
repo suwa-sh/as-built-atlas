@@ -58,3 +58,26 @@ flowchart LR
 | `dev-docs` | 文書を直したとき |
 
 開発用の skill は、分析リポジトリには配りません (配るのは `abatlas-*` と `mid-harness` だけです)。
+
+## このリポジトリの構成 (配布物になるもの)
+
+| パス | 役割 | 届く先 |
+|---|---|---|
+| `schema/*.schema.json`、`schema/vocab/*.yaml` | 形式の正本 (JSON Schema) と固定の語彙 (データの種類ごとの段と操作、不明の理由、画面に出す呼び名) | イメージ、`.abatlas/schema/` |
+| `abatlas/` | Python パッケージ。検査、列挙、抽出器、ETL、init / upgrade / migrate、build、API、MCP、webapp (静的ファイル) | イメージ |
+| `profiles/<id>/` | プロファイル。`profile.yaml`、`context.md`、`dbt-template/` | イメージ、`.abatlas/profiles/<id>/` (`dbt-template/` を除く) |
+| `dbt-template/` | コアの dbt プロジェクト。**ここで直接 dbt を動かさない** | イメージ |
+| `.agents/skills/abatlas-*` | 入口の発見・分析・レビューの skill | `.agents/skills/` |
+| `.agents/skills/mid-harness/` | 同梱する mid-harness skill (`scripts/vendor-mid-harness.sh` で取り込む。出自は `VENDOR.md`) | イメージ、`.agents/skills/` |
+| `Dockerfile` | 配布物のイメージ。`abatlas` がエントリポイント | ghcr.io (版のタグを push したときに出る) |
+| `tests/` | コアのテストと見本 (`fixtures/result-housekeeping.yaml` が分析結果の正しい例) | 見本だけ `.abatlas/tests/fixtures/` |
+| `examples/` | 公開サンプル ([examples.md](../reference/examples.md)) | イメージには入れない |
+
+主なテストの役割は次のとおりです。
+
+| テスト | 確かめること |
+|---|---|
+| `test_layout_api_mcp.py` | init → build → API → MCP の一周、プロファイルの読み先 |
+| `test_round*_findings.py` | 外部レビューで見つかった問題の回帰 |
+| `test_examples.py`、`test_examples_umami.py` | 公開サンプル |
+| `test_webapp.py`、`test_terms.py` | 画面のファイルの分け方、画面に出す呼び名 |

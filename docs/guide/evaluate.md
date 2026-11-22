@@ -82,5 +82,5 @@ git -c user.name=you -c user.email=you@example.com commit -qm sample
 
 | 知りたいこと | 文書 |
 |---|---|
-| 照合のキー、吸収する表記ゆれ、2 通りの数え方 | [公開サンプルと突き合わせ](../architecture/examples.md) の「突き合わせ」 |
+| 照合のキー、吸収する表記ゆれ、2 通りの数え方 | [公開サンプルと突き合わせ](../reference/examples.md) の「突き合わせ」 |
 | ことり書店の正解が正しい理由、正解に入れてある「不明」 | 同じ文書の「ことり書店」 |

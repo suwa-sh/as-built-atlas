@@ -150,6 +150,6 @@ docker compose run --rm abatlas diff . --from <前回の分析コミット>
 
 | 知りたいこと | 文書 |
 |---|---|
-| 作業の一覧の作り方、入口ごとに再利用を確定するコマンド `reuse`、結果の状態の読み方 | [対象コードの差分から、読み直す入口を選ぶ](../architecture/impact.md) |
-| 差分に出るもの、出ないもの | [分析リポジトリと配布物](../architecture/analysis-repo.md) の「分析結果の差分」 |
-| 分析し直すかどうかの条件 | [分析結果の形式](../architecture/formats.md) の「来歴」 |
+| 作業の一覧の作り方、入口ごとに再利用を確定するコマンド `reuse`、結果の状態の読み方 (「結果の状態と差分」) | [入口の照合、一括の承認、差分からの更新のコマンド](../reference/update-commands.md) |
+| 差分に出るもの、出ないもの | [コマンド](../reference/commands.md) の「分析結果の差分」 |
+| 分析し直すかどうかの条件 | [分析結果の形式](../reference/formats.md) の「来歴」 |

@@ -2,14 +2,14 @@
 
 [← rules の地図へ](README.md)
 
-対象: `schema/*.schema.json` (形式の定義) と `schema/vocab/*.yaml` (語彙)。仕組みの説明は [../architecture/formats.md](../architecture/formats.md) です。
+対象: `schema/*.schema.json` (形式の定義) と `schema/vocab/*.yaml` (語彙)。仕組みの説明は [../reference/formats.md](../reference/formats.md) です。
 
 ## 守ること
 
 | 決まり | 理由 | 守っているもの |
 |---|---|---|
 | 形式の正本は `schema/`。コードや文書に、形式を写して書かない | 正本を 1 つにする | — |
-| 形式を変えたら、同じ変更で 4 つを直す: 見本 (`tests/fixtures/`)、意味の検査 (`abatlas/validate.py`)、仕組みの説明 (`docs/architecture/formats.md`)、公開サンプル (生成し直す) | 形式と、それを使うものがずれない | `tests/test_examples.py` |
+| 形式を変えたら、同じ変更で 4 つを直す: 見本 (`tests/fixtures/`)、意味の検査 (`abatlas/validate.py`)、形式の説明 (`docs/reference/formats.md`)、公開サンプル (生成し直す) | 形式と、それを使うものがずれない | `tests/test_examples.py` |
 | 共有している定義 (`$defs`) に項目を足すと、参照するすべての形式に効く。足す前に、参照元を調べる | 例: 作業定義の `target` は、入口の一覧と分析結果も参照している | — |
 | 任意の項目は、空の値を許さない (`minLength: 1`)。「未記入」と「空」を区別する | 空の値が、黙って既定の動きに切り替わるのを防ぐ | 形式の検査 |
 | 語彙 (データの種類と操作、不明の理由、呼び名) は、`schema/vocab/` だけに書く | 検査、ETL、画面が、同じ語彙を読む | `tests/test_terms.py` |

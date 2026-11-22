@@ -2,7 +2,7 @@
 
 [← rules の地図へ](README.md)
 
-対象: `profiles/<id>/` (`profile.yaml`、`context.md`、`dbt-template/`、`extractors/`)。仕組みの説明は [../architecture/profiles.md](../architecture/profiles.md) です。
+対象: `profiles/<id>/` (`profile.yaml`、`context.md`、`dbt-template/`、`extractors/`)。仕組みの説明は [../reference/profiles.md](../reference/profiles.md) です。
 
 ## 守ること
 
@@ -33,10 +33,23 @@
 
 ## プロファイルを足すとき
 
-手順は [../architecture/profiles.md](../architecture/profiles.md) の「プロファイルを増やす手順」です。足したら、次も直します。
+手順は、下の「プロファイルを増やす手順」です。足したら、次も直します。
 
 | 直す場所 | 足すもの |
 |---|---|
-| `docs/architecture/profiles.md` | プロファイルの表に 1 行。バッチと違う所があれば、その節 |
+| `docs/reference/profiles.md` | 「中身」のプロファイルの表と、「プロファイルごとの決まり」の表に、1 行ずつ |
+| `docs/reference/profiles/<id>.md` | そのプロファイルの決まり。バッチと違う所があれば、その節 |
 | `README.md` | プロファイルの表に 1 行 |
 | `tests/` | そのプロファイルの検査と、見本があれば見本のテスト |
+
+## プロファイルを増やす手順
+
+2 本目の `ui-nextjs`、3 本目の `ui-vue-router`、4 本目の `cli`、5 本目の `api`、6 本目の `batch-github-actions`、7 本目の `transform-dbt`、8 本目の `ui-android`、9 本目の `ui-ios`、10 本目の `ui-nuxt`、11 本目の `ui-sveltekit` も、この手順で作りました。
+
+| 手順 | やること |
+|---|---|
+| 1 | 対象を読んで、層の連鎖と入口の単位を決める |
+| 2 | 入口を、コア同梱の抽出器で拾えるか確かめる。拾えない入口が多ければ、専用の抽出器をプロファイルの `extractors/` に置く。少なければ、エージェントが読んで足す前提で、`context.md` に、取れない入口の探し方を書く |
+| 3 | `profile.yaml` を書いて、`abatlas validate profile` に通す |
+| 4 | `context.md` に、分析の癖を書く |
+| 5 | 分析リポジトリを `init --profile <id>` して、列挙 → 承認 → 数件を分析し、集計表と画面で確かめる |

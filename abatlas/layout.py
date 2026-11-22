@@ -43,6 +43,7 @@ OSS_REFERENCE_ITEMS = [
     "tests/fixtures",
     "docs/architecture",
     "docs/guide",
+    "docs/reference",
     "README.md",
     "LICENSE",
 ]

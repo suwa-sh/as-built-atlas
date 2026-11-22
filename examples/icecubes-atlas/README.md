@@ -1,6 +1,6 @@
 # icecubes-atlas (iOS の画面を分析した見本)
 
-Mastodon のクライアント Ice Cubes (Swift、SwiftUI) を、as-built-atlas の `ui-ios` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/architecture/examples.md))。
+Mastodon のクライアント Ice Cubes (Swift、SwiftUI) を、as-built-atlas の `ui-ios` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/reference/examples.md))。
 
 | | |
 |---|---|

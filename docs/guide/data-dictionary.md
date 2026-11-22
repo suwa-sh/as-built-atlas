@@ -103,4 +103,4 @@ docker compose run --rm abatlas build .
 
 | 知りたいこと | 文書 |
 |---|---|
-| 辞書の項目、区分の語彙の場所 | [分析結果の形式](../architecture/formats.md) の「データの辞書」 |
+| 辞書の項目、区分の語彙の場所 | [分析結果の形式](../reference/formats.md) の「データの辞書」 |

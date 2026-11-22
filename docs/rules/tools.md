@@ -2,7 +2,7 @@
 
 [← rules の地図へ](README.md)
 
-対象: `abatlas/*.py` (検査、列挙、抽出器、ETL、集計、初期化と更新、API、MCP)。仕組みの説明は [../architecture/pipeline.md](../architecture/pipeline.md) と [../architecture/api.md](../architecture/api.md) です。
+対象: `abatlas/*.py` (検査、列挙、抽出器、ETL、集計、初期化と更新、API、MCP)。仕組みの説明は [../architecture/pipeline.md](../architecture/pipeline.md) と [../reference/api.md](../reference/api.md) です。
 
 ## 守ること
 

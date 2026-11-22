@@ -1,8 +1,8 @@
 # 集計表 API と MCP
 
-[← architecture の地図へ](README.md)
+[← 仕様の地図へ](README.md)
 
-`abatlas serve` は、1 つのプロセスで API、MCP、webapp を出します。3 つとも、DuckDB の中の宣言と集計表を読みます ([pipeline.md](pipeline.md) の「集計表の宣言」)。
+`abatlas serve` は、1 つのプロセスで API、MCP、webapp を出します。3 つとも、DuckDB の中の宣言と集計表を読みます ([marts.md](marts.md) の「集計表の宣言」)。
 
 ```mermaid
 flowchart LR
@@ -18,7 +18,7 @@ flowchart LR
 
 | エンドポイント | 返すもの |
 |---|---|
-| `GET /meta` | プロファイル、データの種類の語彙、用語集、分析対象 ([pipeline.md](pipeline.md) の「meta」) |
+| `GET /meta` | プロファイル、データの種類の語彙、用語集、分析対象 ([marts.md](marts.md) の「meta」) |
 | `GET /marts` | 集計表の一覧。名前、説明、宣言、列 |
 | `GET /marts/{name}` | 説明と件数 |
 | `GET /marts/{name}/rows` | 行 (下の「行を読む」) |
@@ -78,7 +78,7 @@ flowchart LR
 
 - 絞り込みは `rows` と同じです。`total` は件の数、`member_total` は、絞り込みの中の `member` の相異なる数です (画面の棒の長さの基準)。
 - `by` の値が無い行は、`key` が空の文字の 1 件にまとまります。その行を読むときは、`<列>__empty=1` で絞ります。
-- どの列でまとめるとよいかは、宣言の `rollup` に書いてあります ([pipeline.md](pipeline.md))。
+- どの列でまとめるとよいかは、宣言の `rollup` に書いてあります ([marts.md](marts.md) の「物ごとのまとめ」)。
 
 ## 畳んだ値を読む (`pivot`)
 

@@ -147,11 +147,11 @@ flowchart LR
 |---|---|
 | Discover | Start with `code-map .` to list files at the target commit. The `abatlas-discover-entries` skill configures extraction and adds entries with evidence. Specify which files define entries to catch omissions before approval. |
 | Enumerate | The agent runs `enumerate analysis/entry-list.yaml` to list candidates. The same commit and configuration produce the same list. |
-| Approve | Use `abatlas-run-analysis` to prepare the entry list and worklist. Answer open questions and approve the plan once. The agent then dispatches one analysis per entry. [Workflow](docs/architecture/impact.md) |
+| Approve | Use `abatlas-run-analysis` to prepare the entry list and worklist. Answer open questions and approve the plan once. The agent then dispatches one analysis per entry. [Workflow](docs/guide/first-analysis.md) |
 | Analyze | With `abatlas-analyze-entry`, the agent produces one YAML file per approved entry. The result goes through automated checks and a separate agent review. |
 | Serve | When every entry is analyzed and reviewed, the agent runs `build .` to build the tables. Run `docker compose up -d api` to serve the web app and MCP. |
 
-The [user guide](docs/guide/first-analysis.md) walks through each stage: what you do, which skills and commands run, and what you get. See the [analysis repository guide](docs/architecture/analysis-repo.md) for the directory layout and command reference.
+The [user guide](docs/guide/first-analysis.md) walks through each stage: what you do, which skills and commands run, and what you get. See the [analysis repository layout](docs/architecture/analysis-repo.md) and the [command reference](docs/reference/commands.md).
 
 <a name="対応している対象"></a>
 
@@ -173,7 +173,7 @@ A profile defines what counts as an entry point and which layers to trace. The r
 | `ui-android` | Android apps | Screen, Activity, or OS-triggered operation |
 | `ui-ios` | iOS apps | Screen, application shell, or OS-triggered entry |
 
-You can adapt a profile to your system, for example by removing unused layers or identifying a large component shared by many screens as a separate entry. See the [customization steps](docs/guide/customize-profile.md) and the [profile reference](docs/architecture/profiles.md).
+You can adapt a profile to your system, for example by removing unused layers or identifying a large component shared by many screens as a separate entry. See the [customization steps](docs/guide/customize-profile.md) and the [profile reference](docs/reference/profiles.md).
 
 <a name="見本"></a>
 
@@ -187,7 +187,7 @@ The [examples directory](examples/) contains one analysis repository per profile
 | [umami analysis](examples/umami-atlas/) | The Next.js interface of [umami](https://github.com/umami-software/umami) | AI-generated analyses for all 83 entries |
 | Nine other `*-atlas/` examples | API, CLI, dbt, GitHub Actions, Vue Router, Nuxt, SvelteKit, Android, and iOS | AI-generated analyses of 3 to 7 entries per sample |
 
-Only Kotori Books includes the target source code. Each sample has its own README with setup instructions. The [sample catalog](docs/architecture/examples.md) lists targets and licenses.
+Only Kotori Books includes the target source code. Each sample has its own README with setup instructions. The [sample catalog](docs/reference/examples.md) lists targets and licenses.
 
 <a name="見本で自分のエージェントの精度を測る"></a>
 
@@ -229,7 +229,7 @@ flowchart TB
 
 <a name="文書"></a>
 
-Use [impact and reuse](docs/architecture/impact.md) to update an analysis after the target Git revision changes.
+Follow the [update guide](docs/guide/update-analysis.md) to update an analysis after the target Git revision changes.
 
 ## Documentation
 
@@ -239,7 +239,8 @@ The following guides are in Japanese.
 |---|---|
 | [User guide](docs/guide/README.md) | What you do at each stage, which skills and commands run, and what you get |
 | [Changelog](CHANGELOG.md) | Changes and upgrade instructions by version |
-| [Architecture](docs/architecture/README.md) | Analysis repositories, formats, profiles, tables, API, web app, and samples |
+| [Reference](docs/reference/README.md) | Commands, work definition, result format, tables, API and MCP, profiles, and samples |
+| [Architecture](docs/architecture/README.md) | Overview and design principles, analysis repositories, data flow, and how the web app is assembled |
 | [Kotori Books](examples/kotori-books/README.md) | The sample system and the deliberately unresolved questions in its ground truth |
 
 | For contributors | Contents |

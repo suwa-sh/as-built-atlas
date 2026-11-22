@@ -5,7 +5,7 @@
  * 区分 (ナビ): 構成 / 入口 / データ / 外部接続 / 共有処理 / 分析の状態 / 集計表。区分は subject を持つ mart がある場合だけ出る。
  * 自己完結 (外部の script / style / font を読まない)。
  * 層 (上から): app.js (起動) > pages/ (画面) > views/ (表示の種類) > ui/ (汎用部品) > model/ (宣言の読み方) > lib/ (道具)。
- *   上の層は下の層 (と同じ層) だけを import できる。向きは tests/test_webapp.py が検査する。足し方は docs/architecture/README.md の webapp の節。
+ *   上の層は下の層 (と同じ層) だけを import できる。向きは tests/test_webapp.py が検査する。足し方は docs/rules/webapp.md の「足すとき」。
  */
 
 import { el } from "./lib/dom.js";

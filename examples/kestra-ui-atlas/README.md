@@ -1,6 +1,6 @@
 # kestra-ui-atlas (Vue Router の画面を分析した見本)
 
-ワークフロー基盤 Kestra の画面 (Vue 3、`ui/`) を、as-built-atlas の `ui-vue-router` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/architecture/examples.md))。
+ワークフロー基盤 Kestra の画面 (Vue 3、`ui/`) を、as-built-atlas の `ui-vue-router` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/reference/examples.md))。
 
 | | |
 |---|---|

@@ -31,7 +31,7 @@ docker compose up -d --force-recreate api        # 画面と MCP を起動し直
 
 ## 0.6.0
 
-入口一覧と作業一覧をまとめて承認できるようになりました。分析リポジトリで「今回の分析を進めて」と依頼すると、AI が採否と作業の案を作り、判断が必要な点をまとめて質問します。全体を一度承認すると、再利用が確定し、分析が必要な入口の作業が始まります。中断後は同じ承認から再開できます。[一括承認の手順](docs/architecture/impact.md)
+入口一覧と作業一覧をまとめて承認できるようになりました。分析リポジトリで「今回の分析を進めて」と依頼すると、AI が採否と作業の案を作り、判断が必要な点をまとめて質問します。全体を一度承認すると、再利用が確定し、分析が必要な入口の作業が始まります。中断後は同じ承認から再開できます。[一括承認の手順](docs/guide/first-analysis.md)
 
 ### 更新で気を付けること
 
@@ -39,7 +39,7 @@ docker compose up -d --force-recreate api        # 画面と MCP を起動し直
 
 ## 0.5.0
 
-対象 Git の更新後に `impact` で入口ごとの作業・理由・呼び出し経路を確認し、`reuse` で再利用を確定できます。[更新手順](docs/architecture/impact.md)に沿って進めてください。
+対象 Git の更新後に `impact` で入口ごとの作業・理由・呼び出し経路を確認し、`reuse` で再利用を確定できます。[更新手順](docs/guide/update-analysis.md)に沿って進めてください。
 
 ### 更新で気を付けること
 
@@ -89,7 +89,7 @@ docker compose up -d --force-recreate api        # 画面と MCP を起動し直
 - **見本を、プロファイルごとに 1 つ** (`examples/*-atlas/`)
   - 足したのは 9 つ: API、コマンドラインの道具、dbt、GitHub Actions、画面 (Vue Router、Nuxt、SvelteKit、Android、iOS)
   - 公開されているソフトを分析した実例。対象のコードは入れていない
-  - 一覧は [docs/architecture/examples.md](docs/architecture/examples.md)
+  - 一覧は [docs/reference/examples.md](docs/reference/examples.md)
 - **プロファイルの項目 `split_from`** (任意)
   - 入口の層に、「この層の入口は、どの層の処理を別の入口に分けたものか」を書く
   - `ui-nextjs`、`ui-vue-router`、`ui-nuxt`、`ui-sveltekit` の `part` が、`component` を挙げる

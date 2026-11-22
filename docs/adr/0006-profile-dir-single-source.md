@@ -29,4 +29,4 @@
 
 - 残る課題: 配布物のコピーと配布物の版が違うとき、集計は警告しない。
 - 残る課題: `profile.dir` の中の `dbt-template/` が外を指すリンクでも読む (分析リポジトリの持ち主は、もともと独自の集計の定義を置ける。安全の境界ではない)。
-- 最新の状態: [../architecture/profiles.md](../architecture/profiles.md) の「ツールが読むプロファイル」。
+- 最新の状態: [../reference/profiles.md](../reference/profiles.md) の「ツールが読むプロファイル」。

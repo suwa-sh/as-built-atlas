@@ -82,5 +82,5 @@ claude mcp add --transport http abatlas http://localhost:8765/mcp
 | 知りたいこと | 文書 |
 |---|---|
 | 画面のページごとの作り、読む量の上限 | [webapp](../architecture/webapp.md) |
-| API の絞り込みの書き方、MCP のつなぎ方 | [集計表 API と MCP](../architecture/api.md) |
-| 集計表の一覧 | [データの流れと集計表](../architecture/pipeline.md) の「コアの集計表」 |
+| API の絞り込みの書き方、MCP のつなぎ方 | [集計表 API と MCP](../reference/api.md) |
+| 集計表の一覧 | [集計表の一覧と宣言](../reference/marts.md) の「コアの集計表」 |

@@ -80,8 +80,8 @@ sequenceDiagram
 
 5. 分析リポジトリのルートで、コーディングエージェントを起動します。
 
-プロファイルの一覧は、[プロファイル](../architecture/profiles.md) の「中身」にあります。
-`analysis/work-definition.yaml` のほかの項目は、[分析リポジトリと配布物](../architecture/analysis-repo.md) の「作業定義に書くこと」にあります。
+プロファイルの一覧は、[プロファイル](../reference/profiles.md) の「中身」にあります。
+`analysis/work-definition.yaml` のほかの項目は、[作業定義に書くこと](../reference/work-definition.md)にあります。
 
 入口が多いときは、`analysis.models` に、分析のモデル (`analyze`) とレビューのモデル (`review`) を書いておきます。
 書かなかった役の担当は、使っているコーディングエージェントの既定のモデルで動きます。
@@ -201,7 +201,7 @@ sequenceDiagram
 | `analysis/reviews/` | レビューの指摘。入口 1 件が 1 ファイル |
 | `analysis/data/` | 集計の結果。git では管理しない。分析結果から作り直せる |
 
-分析結果の読み方は、[分析結果の形式](../architecture/formats.md) にあります。
+分析結果の読み方は、[分析結果の形式](../reference/formats.md) にあります。
 
 ## 5. 見る、聞く
 
@@ -241,7 +241,7 @@ sequenceDiagram
 | 人 | 画面のメニュー 8 つ | 全体の層のつながり、入口ごとの処理、データや外部サービスや共通処理を使う入口、分析の進み具合と不明な点 |
 | エージェント | MCP のツール (`describe_atlas`、`describe_mart`、`query_mart` など) | 画面と同じ集計表の行 |
 
-画面のページごとの説明は [webapp](../architecture/webapp.md) に、MCP のツールの一覧は [集計表 API と MCP](../architecture/api.md) にあります。
+画面のページごとの説明は [webapp](../architecture/webapp.md) に、MCP のツールの一覧は [集計表 API と MCP](../reference/api.md) にあります。
 
 ## うまく進まないとき
 

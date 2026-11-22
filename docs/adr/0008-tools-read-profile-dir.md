@@ -34,4 +34,4 @@
 
 - [0006](0006-profile-dir-single-source.md) の残る課題のうち、「コピーと配布物の版が違うとき、警告しない」は解消した。`dbt-template/` が外を指すリンクの件は、残る。
 - 手順書と skill から、`--profile` の指定を外した。
-- 最新の状態: [../architecture/profiles.md](../architecture/profiles.md) の「ツールが読むプロファイル」。
+- 最新の状態: [../reference/profiles.md](../reference/profiles.md) の「ツールが読むプロファイル」。

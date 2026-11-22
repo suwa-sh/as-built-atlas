@@ -2,11 +2,11 @@
 
 [← rules の地図へ](README.md)
 
-対象: `examples/`。仕組みの説明は [../architecture/examples.md](../architecture/examples.md) です。
+対象: `examples/`。仕組みの説明は [../reference/examples.md](../reference/examples.md) です。
 
 ## 見本は、プロファイルごとに 1 つ
 
-どのプロファイルにも、見本を 1 つ持ちます ([ADR 0017](../adr/0017-one-example-per-profile.md))。対象の一覧は、[../architecture/examples.md](../architecture/examples.md) にあります。
+どのプロファイルにも、見本を 1 つ持ちます ([ADR 0017](../adr/0017-one-example-per-profile.md))。対象の一覧は、[../reference/examples.md](../reference/examples.md) にあります。
 
 | 決まり | 理由 |
 |---|---|

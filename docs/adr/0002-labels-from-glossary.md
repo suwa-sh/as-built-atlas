@@ -27,4 +27,4 @@
 
 - プロファイルの `tiers[].invokes_next` は、コードの例 (波かっこを含む) を書く自由文なので、置き換えの対象にしない。
 - 用語集の無い集計表 (古い版の build) を開いたら、画面は作り直しを促して止まる。
-- 最新の状態: [../architecture/pipeline.md](../architecture/pipeline.md) の「画面に出す呼び名」。
+- 最新の状態: [../reference/marts.md](../reference/marts.md) の「画面に出す呼び名」。

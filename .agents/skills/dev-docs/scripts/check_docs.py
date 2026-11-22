@@ -20,7 +20,7 @@ MARKDOWN = MarkdownIt("commonmark").enable("table")
 RISKY_BOX = re.compile(r"\[(?!\()[^\]\"]*[(){}][^\]\"]*\]")
 RISKY_SLASH = re.compile(r"\[/|/\]")
 # 分析リポジトリに配る文書の置き場 (abatlas/layout.py の OSS_REFERENCE_ITEMS と合わせる)
-SHIPPED = ("docs/architecture", "docs/guide")
+SHIPPED = ("docs/architecture", "docs/guide", "docs/reference")
 
 
 def files_of(root: Path) -> list[Path]:

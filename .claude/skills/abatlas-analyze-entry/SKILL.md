@@ -165,7 +165,7 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
 
 ## 参照
 
-- 形式: `<oss>/schema/analysis-result.schema.json`、説明: `<oss>/docs/architecture/formats.md` (文書の地図は同じ場所の `README.md`)
+- 形式: `<oss>/schema/analysis-result.schema.json`、説明: `<oss>/docs/reference/formats.md` (仕様の地図は同じ場所の `README.md`)
 - skill_version: 0.4.5
   - 0.4.5: 全体承認の実行対象を入口ごとに受け取る
   - 版の 3 つ目の数字だけが違う結果は、再分析の対象にしない (判断の規則の小さな直しで、前の版の結果も誤りではない。冪等の判定は、版の 2 つ目の数字までを比べる)
