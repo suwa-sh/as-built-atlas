@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suwa-sh/as-built-atlas/schema/batch-approval.schema.json",
+  "title": "入口と作業を一度で確定した記録",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plan_id",
+    "by",
+    "target_commit",
+    "baseline",
+    "conditions_digest",
+    "draft",
+    "jobs",
+    "reuse",
+    "seal"
+  ],
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "by": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "target_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "baseline": {
+      "type": ["string", "null"]
+    },
+    "conditions_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "draft": {
+      "$ref": "batch-draft.schema.json"
+    },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entry_id", "action", "reason", "previous_result", "previous_review"],
+        "properties": {
+          "entry_id": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "action": {
+            "enum": ["analyze", "reanalyze", "retire"]
+          },
+          "reason": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "previous_result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous_review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "analyzed_commit": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checkpoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["route", "source", "files"],
+              "additionalProperties": false,
+              "properties": {
+                "route": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "source": {
+                  "$ref": "entry-candidate.schema.json#/$defs/source"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "reuse": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "reuse.schema.json"
+      }
+    },
+    "seal": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

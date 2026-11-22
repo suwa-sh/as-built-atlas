@@ -161,7 +161,7 @@ flowchart LR
 |---|---|---|---|
 | 1. 入口を見つける | エージェント | このリポジトリ向けの、入口の拾い方を書く。道具で取れない入口は、根拠を付けて足す | skill `abatlas-discover-entries` |
 | 2. 入口を列挙する | ツール | 入口の候補を出す。同じコミットと同じ設定なら、同じ結果になる | `enumerate` |
-| 3. 入口を承認する | 人 | 候補ごとに、分析するかどうかを決める | `analysis/entry-list.yaml` の `status` を `approved` か `rejected` にする |
+| 3. 入口を承認する | 人 | AI が調べても決まらない点に答え、入口一覧と作業一覧を一度で承認する | `abatlas-run-analysis` が案を示し、承認後に対象の入口から分析を始める。[手順](docs/architecture/impact.md) |
 | 4. 入口を分析する | エージェント | 入口 1 件を、YAML 1 ファイルにする。機械チェックに通し、別のエージェントがレビューする | skill `abatlas-analyze-entry` |
 | 5. 集計して配る | ツール | 集計表を作り、画面と MCP を起動する | `build`、`docker compose up -d api` |
 

@@ -46,6 +46,7 @@ OSS_REFERENCE_ITEMS = [
     "LICENSE",
 ]
 OSS_SKILLS = [
+    "abatlas-run-analysis",
     "abatlas-discover-entries",
     "abatlas-analyze-entry",
     "abatlas-review-entry",
@@ -63,6 +64,7 @@ OSS_REQUIRED = [
     ".agents/skills/mid-harness/scripts/gen_adapters.py",
     ".agents/skills/mid-harness/templates/tree/" + HOOK_SCRIPT,
     ".agents/skills/abatlas-analyze-entry/SKILL.md",
+    ".agents/skills/abatlas-run-analysis/SKILL.md",
     "tests/fixtures/result-housekeeping.yaml",
 ]
 

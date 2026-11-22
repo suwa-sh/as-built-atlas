@@ -19,6 +19,8 @@ SCHEMA_FILES = {
     "entry-list": "entry-list.schema.json",
     "profile": "profile.schema.json",
     "work-definition": "work-definition.schema.json",
+    "batch-draft": "batch-draft.schema.json",
+    "batch-approval": "batch-approval.schema.json",
     "reuse": "reuse.schema.json",
     "review": "review.schema.json",
     "data-dictionary": "data-dictionary.schema.json",

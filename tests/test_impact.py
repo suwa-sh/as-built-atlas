@@ -217,3 +217,210 @@ def test_unavailable_analysis_conditions_require_reanalysis(histories):
         actions = {r["entry_id"]: r["action"] for r in report["entries"]}
         assert actions[SNAP] == "reanalyze"
         assert actions[SALE] == ("reuse" if repo == atlas else "reanalyze")
+
+
+def test_whole_plan_approval(histories):
+    from abatlas.batch import approve, preview, queue
+
+    target, atlas, baseline = histories
+    assets = atlas / "analysis"
+    path = target / "jobs/settle_orders.py"
+    path.write_text(path.read_text() + "\n# Comment\n")
+    new = target / "flows/daily/retry.yaml"
+    new.write_text(
+        (target / "flows/daily/rotate_logs.yaml")
+        .read_text()
+        .replace("rotate_logs", "retry")
+    )
+    set_version(assets, snapshot(target))
+    ep = assets / "entry-list.yaml"
+    previous = ep.read_bytes()
+    draft = {
+        "assessment": "決済の注釈以外の呼び出しも確認",
+        "questions": [{"entries": ["daily.retry"], "question": "本番で使うか"}],
+    }
+    report, _, _ = preview(atlas, baseline, draft)
+    assert len(report["questions"]) == 1
+    with pytest.raises(SystemExit, match="未解決"):
+        approve(atlas, baseline, draft, report["plan_id"], "Maintainer")
+    assert ep.read_bytes() == previous
+    draft["questions"][0]["answer"] = "障害対応で使う"
+    draft["decisions"] = [
+        {"entries": ["daily.retry"], "action": "include", "reason": "本番手動起動"}
+    ]
+    with pytest.raises(SystemExit, match="計画 ID"):
+        approve(atlas, baseline, draft, report["plan_id"], "Maintainer")
+    report, _, _ = preview(atlas, baseline, draft)
+    assert report["questions"] == []
+    receipt = approve(atlas, baseline, draft, report["plan_id"], "Maintainer")
+    jobs = queue(atlas, receipt["plan_id"])
+    assert jobs == receipt["jobs"]
+    assert (
+        approve(atlas, baseline, draft, report["plan_id"], "Maintainer")["jobs"] == jobs
+    )
+    assert next(j for j in jobs if j["entry_id"] == CLOSE)["checkpoints"]
+    actual = {j["entry_id"]: j["action"] for j in jobs}
+    assert (
+        actual["daily.retry"] == "analyze"
+        and actual[SALE] == actual[CLOSE] == "reanalyze"
+    )
+    assert SNAP in receipt["reuse"] and SNAP not in actual
+    assert (
+        validate_result_file(
+            assets / "results" / f"{SNAP}.yaml",
+            work_path=assets / "work-definition.yaml",
+        )
+        == []
+    )
+    again, _ = plan(atlas, baseline)
+    assert (
+        next(r for r in again["entries"] if r["entry_id"] == SNAP)["action"] == "reused"
+    )
+    path.write_text("dirty")
+    with pytest.raises(SystemExit, match="照合"):
+        queue(atlas, receipt["plan_id"])
+
+
+def test_first_batch(histories):
+    from abatlas.batch import approve, preview, queue
+
+    _, atlas, _ = histories
+    assets = atlas / "analysis"
+    (assets / "results").rename(assets / "saved-results")
+    ep = assets / "entry-list.yaml"
+    doc = load_yaml(ep)
+    for entry in doc["entries"]:
+        entry["status"] = "candidate"
+    ep.write_text(yaml.safe_dump(doc, allow_unicode=True))
+    draft = {
+        "assessment": "定期起動を確認",
+        "decisions": [
+            {
+                "entries": [e["id"] for e in doc["entries"] if e["id"] != SNAP],
+                "action": "include",
+                "reason": "本番定期起動",
+            },
+            {"entries": [SNAP], "action": "exclude", "reason": "検証専用"},
+        ],
+    }
+    report, _, _ = preview(atlas, None, draft)
+    receipt = approve(atlas, None, draft, report["plan_id"], "Maintainer")
+    assert len(queue(atlas, receipt["plan_id"])) == 33
+    assert {e["id"] for e in load_yaml(ep)["entries"] if e["status"] == "rejected"} == {
+        SNAP
+    }
+
+    (assets / "results").mkdir()
+    shutil.copy(assets / "saved-results" / f"{SALE}.yaml", assets / "results")
+    conventions = atlas / ".agents/memory/desired-state/analysis-conventions.md"
+    conventions.parent.mkdir(parents=True)
+    conventions.write_text("今回から適用する規約")
+    with pytest.raises(SystemExit, match="照合"):
+        queue(atlas, receipt["plan_id"])
+    revised, _, _ = preview(atlas, None, draft)
+    assert (
+        next(r for r in revised["entries"] if r["entry_id"] == SALE)["action"]
+        == "reanalyze"
+    )
+
+
+def test_queue_requires_new_valid_result_and_review(histories):
+    from abatlas.batch import approve, preview, queue
+
+    _, atlas, base = histories
+    assets = atlas / "analysis"
+    draft = {
+        "assessment": "運用条件を再確認",
+        "decisions": [
+            {
+                "entries": [SNAP],
+                "action": "reanalyze",
+                "reason": "同じ版の手動起動条件を再確認",
+            }
+        ],
+    }
+    report, _, _ = preview(atlas, base, draft)
+    token = report["plan_id"]
+    approve(atlas, base, draft, token, "Maintainer")
+    rp = assets / "results" / f"{SNAP}.yaml"
+    stamp = "2026-11-22T09:00:00Z"
+    result = load_yaml(rp)
+    result["analyzer"]["reviewed"] = {"by": "reviewer", "at": stamp, "findings_open": 0}
+    rp.write_text(yaml.safe_dump(result, allow_unicode=True))
+    assert SNAP in {j["entry_id"] for j in queue(atlas, token)}
+    revised, _, _ = preview(atlas, base, {"assessment": "入力の更新後に計画を見直した"})
+    assert (
+        next(r for r in revised["entries"] if r["entry_id"] == SNAP)["action"]
+        == "reanalyze"
+    )
+    reviews = assets / "reviews"
+    reviews.mkdir()
+    review = {
+        "format_version": 1,
+        "entry_id": SNAP,
+        "reviewed_at": stamp,
+        "reviewer": "reviewer",
+        "machine_check": "ng",
+        "findings": [],
+    }
+    file = reviews / rp.name
+    file.write_text(yaml.safe_dump(review))
+    assert SNAP in {j["entry_id"] for j in queue(atlas, token)}
+    review["machine_check"] = "ok"
+    review["findings"] = [
+        {
+            "kind": "evidence_mismatch",
+            "severity": "high",
+            "where": "summary",
+            "claim": "根拠が違う",
+            "evidence": result["summary"]["evidence"][0],
+            "suggestion": "根拠を見直す",
+        }
+    ]
+    result["analyzer"]["reviewed"]["findings_open"] = 1
+    rp.write_text(yaml.safe_dump(result, allow_unicode=True))
+    file.write_text(yaml.safe_dump(review))
+    assert SNAP in {j["entry_id"] for j in queue(atlas, token)}
+    review["findings"][0]["resolved"] = True
+    result["analyzer"]["reviewed"]["findings_open"] = 0
+    rp.write_text(yaml.safe_dump(result, allow_unicode=True))
+    file.write_text(yaml.safe_dump(review))
+    assert SNAP not in {j["entry_id"] for j in queue(atlas, token)}
+    revised, _, _ = preview(atlas, base, {"assessment": "レビュー済みの仕事を照合した"})
+    assert (
+        next(r for r in revised["entries"] if r["entry_id"] == SNAP)["action"]
+        == "current"
+    )
+    for pending in (rp, file):
+        completed = pending.read_bytes()
+        pending.write_text("entry: [")
+        assert SNAP in {j["entry_id"] for j in queue(atlas, token)}
+        pending.write_bytes(completed)
+    ep = assets / "entry-list.yaml"
+    saved = load_yaml(ep)
+    saved["approval"]["jobs"] = []
+    ep.write_text(yaml.safe_dump(saved))
+    with pytest.raises(SystemExit, match="確定後"):
+        queue(atlas, token)
+
+
+def test_approve_preserves_concurrent_entry_list_edit(histories, monkeypatch):
+    from abatlas import batch
+
+    _, atlas, base = histories
+    file = atlas / "analysis/entry-list.yaml"
+    draft = {"assessment": "全入口を確認"}
+    report, _, _ = batch.preview(atlas, base, draft)
+    original = batch.save_record
+
+    def edited(path, record, **kwargs):
+        doc = load_yaml(file)
+        doc["entries"][0]["note"] = "承認中の別編集"
+        file.write_text(yaml.safe_dump(doc, allow_unicode=True))
+        original(path, record, **kwargs)
+
+    monkeypatch.setattr(batch, "save_record", edited)
+    with pytest.raises(SystemExit, match="作業中に入口一覧"):
+        batch.approve(atlas, base, draft, report["plan_id"], "Maintainer")
+    assert load_yaml(file)["entries"][0]["note"] == "承認中の別編集"
+    assert "approval" not in load_yaml(file)

@@ -296,6 +296,34 @@ def _run_impact(a):
     return 0
 
 
+def _run_batch(a):
+    import json
+    from .batch import approve, preview, queue
+    from .impact import LABEL
+
+    repo = Path(a.repo)
+    if a.cmd == "queue":
+        out = {"plan_id": a.plan_id, "jobs": queue(repo, a.plan_id)}
+    elif a.cmd == "approve":
+        receipt = approve(repo, a.rev, load_yaml(Path(a.draft)), a.plan_id, a.by)
+        out = {
+            "plan_id": receipt["plan_id"],
+            "jobs": receipt["jobs"],
+            "reused": len(receipt["reuse"]),
+        }
+    else:
+        out, _, _ = preview(repo, a.rev, load_yaml(Path(a.draft)))
+    if a.cmd == "propose" and not a.json:
+        print(f"計画 ID　{out['plan_id']}\n{out['assessment']}")
+        print("　".join(f"{LABEL[k]} {n} 件" for k, n in out["counts"].items()))
+        print(f"要確認 {len(out['questions'])} 件")
+        for q in out["questions"]:
+            print(f"  {q['question']} ({', '.join(q['entries'])})")
+    else:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    return 0
+
+
 def _run_diff(a):
     from .diff import diff_repo
 
@@ -342,6 +370,24 @@ def _run_evaluate(a):
     from .evaluate import main_cli
 
     return main_cli(a.results, a.truth, a.json)
+
+
+def _batch_parsers(sub):
+    proposal = sub.add_parser("propose", help="入口と作業の全体案を確認する")
+    approval = sub.add_parser("approve", help="今回の案を一度で承認する")
+    queue = sub.add_parser("queue", help="承認済みの未完了作業を表示する")
+    for task in (proposal, approval, queue):
+        task.set_defaults(handler=_run_batch)
+        task.add_argument("repo")
+    for task in (proposal, approval):
+        source = task.add_mutually_exclusive_group(required=True)
+        source.add_argument("--from", dest="rev", help="前回の分析リポジトリの版")
+        source.add_argument("--initial", action="store_true", help="初回の分析")
+        task.add_argument("--draft", required=True, help="AIの下書き YAML")
+    for task in (approval, queue):
+        task.add_argument("--plan-id", required=True)
+    approval.add_argument("--by", required=True, help="全体を承認した人")
+    proposal.add_argument("--json", action="store_true")
 
 
 def main(argv=None) -> int:
@@ -429,6 +475,8 @@ def main(argv=None) -> int:
     dc.set_defaults(handler=_run_dictionary)
     dc.add_argument("repo")
     dc.add_argument("--dry-run", action="store_true", help="書かずに、数だけ出す")
+
+    _batch_parsers(sub)
 
     for name, help_text in (
         ("impact", "対象 Git の変更から理由付きの作業一覧を出す"),

@@ -12,7 +12,7 @@ flowchart TB
   I["init<br>配布物と、エージェントの設定を置く"] --> D
   D["入口を見つける (エージェント)<br>抽出器とパラメータを entry-list.yaml に書く。<br>抽出器で取れない入口は、読んで足す"] --> E
   E["enumerate (ツール)<br>抽出器を実行し、入口の候補を出す"] --> H
-  H["承認 (人)<br>status を approved / rejected にする"] --> A
+  H["全体の承認 (人)<br>入口と今回の作業を確定"] --> A
   A["分析 (エージェント)<br>入口ごとに results/ に YAML を書く"] --> V
   V["validate result (ツール)<br>形式と意味を検査する"] --> RV
   RV["レビュー (別の文脈のエージェント)<br>reviews/ に指摘を書く"] --> B
@@ -28,7 +28,7 @@ flowchart TB
 | init | ツール | プロファイルの id | OSS 所有のファイル、作業定義のひな形、エージェントの設定 (6 製品分) |
 | 入口を見つける | エージェント (入口発見 skill) | 対象のコード | `entry-list.yaml` の `extractors`。抽出器で取れない入口は、根拠と理由を付けて、`listed` 抽出器の設定に書く |
 | enumerate | ツール | `extractors` | `entries` (`status: candidate`)。抽出器の出力は形式を検査する |
-| 承認 | 人 | `entries` | `entries[].status` = `approved` / `rejected` |
+| 全体の承認 | 人 | AI が準備した入口・作業案と要確認への回答 | `entry-list.yaml` の入口の状態と `approval`。取りまとめ役が入口ごとに実行する |
 | 分析 | エージェント (分析 skill) | 承認済みの入口、`.agents/memory` の癖 | `results/<file>` |
 | validate result | ツール | 分析結果 | 指摘。形式に加えて、層・呼び出し元・不明の理由・根拠の実在を見る |
 | レビュー | エージェント (レビュー skill) | 分析結果 | `reviews/<file>`。形式を検査する |

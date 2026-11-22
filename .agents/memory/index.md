@@ -16,6 +16,7 @@ okf_version: "0.2"
 ## 必要なときに読む
 
 - CI が失敗したとき: [CI のトラブルシューティング](../../docs/troubleshooting/README.md)
+- 一括承認後の再開を実物で検査するとき: [独立した見本と入口別のレビューで確かめる](troubleshooting/dev-verify.md)
 - 直しても画面が変わらない、テストは通るのに壊れている、イメージやコミットフックの検証に迷う、CI と手元の複雑度が異なるとき: [確かめるときの、はまり所](troubleshooting/dev-verify.md)
 - 呼び名の検査が落ちる、見本の差分が広がる、図が描けない、配布先でリンクが切れる、構文を読む抽出器が異常終了するとき: [直すときの、はまり所](troubleshooting/dev-editing.md)
 

@@ -47,6 +47,16 @@ def _skill_series(assets):
 class ReuseContext:
     def __init__(self, assets, work, entries, profile_path):
         self.assets = assets
+        self.approval = entries.get("approval", {})
+        if self.approval:
+            from .validate import approval_errors
+
+            problems = schema_errors(
+                "batch-approval", self.approval
+            ) or approval_errors(self.approval)
+            if problems:
+                raise SystemExit(problems[0])
+        self.jobs = {j["entry_id"]: j for j in self.approval.get("jobs", [])}
         self.work = work
         self.entries = {e["id"]: e for e in entries["entries"]}
         self.profile = load_yaml(profile_path)
@@ -108,6 +118,25 @@ class ReuseContext:
         changed = self.history.changes(result["target"]["commit"])
         return files.issubset(self.history.files()) and files.isdisjoint(changed)
 
+    def pending(self, result):
+        if self.approval.get("target_commit") != self.history.tip:
+            return None
+        eid = result["entry"]["id"]
+        job = self.jobs.get(eid)
+        if job and job["previous_result"] == digest(result):
+            return job
+        return None
+
+    def confirmed(self, result):
+        eid = result["entry"]["id"]
+        if self.pending(result):
+            return False
+        record = self.approval.get("reuse", {}).get(eid)
+        if record and self.verified(record, result):
+            return True
+        path = record_path(self.assets, eid)
+        return path.is_file() and self.verified(load_yaml(path), result)
+
     def verified(self, record, result):
         if schema_errors("reuse", record):
             return False
@@ -130,7 +159,7 @@ class ReuseContext:
         return self._checked_checkout and self.eligible_files(result)
 
 
-def save_record(path, record):
+def save_record(path, record, *, expected=None):
     path.parent.mkdir(exist_ok=True)
     with NamedTemporaryFile(
         mode="w", dir=path.parent, delete=False, encoding="utf-8"
@@ -138,6 +167,14 @@ def save_record(path, record):
         try:
             yaml.safe_dump(record, temp, allow_unicode=True, sort_keys=False)
             temp.flush()
+            if path.is_file():
+                os.fchmod(temp.fileno(), path.stat().st_mode & 0o777)
+            if expected is not None and (
+                not path.is_file() or digest(load_yaml(path)) != expected
+            ):
+                raise SystemExit(
+                    "batch: 作業中に入口一覧が変わりました。最新の案を確認してください"
+                )
             os.replace(temp.name, path)
         finally:
             Path(temp.name).unlink(missing_ok=True)
@@ -145,15 +182,18 @@ def save_record(path, record):
 
 def verified_result(assets, work, result, profile_path=None, contexts=None):
     path = record_path(assets, result["entry"]["id"])
-    if not path.is_file():
-        return False
     from .build import profile_dir
 
     if contexts is None:
         contexts = {}
+    if "entries" not in contexts:
+        ep = assets / "entry-list.yaml"
+        contexts["entries"] = load_yaml(ep) if ep.is_file() else {}
+    entries = contexts["entries"]
+    if not path.is_file() and not entries.get("approval", {}).get("reuse"):
+        return False
     if "context" not in contexts:
         pp = profile_path or profile_dir(assets.parent) / "profile.yaml"
-        entries = load_yaml(assets / "entry-list.yaml")
         target = entries["target"]
         if any(
             target.get(k, ".") != work["target"].get(k, ".")
@@ -161,4 +201,4 @@ def verified_result(assets, work, result, profile_path=None, contexts=None):
         ):
             return False
         contexts["context"] = ReuseContext(assets, work, entries, pp)
-    return contexts["context"].verified(load_yaml(path), result)
+    return contexts["context"].confirmed(result)

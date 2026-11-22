@@ -44,7 +44,8 @@ OSS 所有のパスは、`abatlas upgrade` が配布物の内容で置き換え�
 | パス | 内容 | git |
 |---|---|---|
 | `work-definition.yaml` | 作業定義。対象のリポジトリ・範囲・コミット、画面に出す名前、プロファイル | 管理する |
-| `entry-list.yaml` | 入口の一覧 (承認の状態、階層パス付き) | 管理する |
+| `entry-list.yaml` | 入口の一覧、全体承認、分析待ちの仕事と再利用の記録 | 管理する |
+| `batch-draft.yaml` | AI の判定理由と人に聞く質問。全体承認で使った内容は入口一覧にも残る | 管理する |
 | `results/<file>` | 分析結果。入口 1 件 = 1 ファイル | 管理する |
 | `reviews/<file>` | レビューの指摘 | 管理する |
 | `data-dictionary.yaml` | データの辞書。列ごとの区分 (個人情報など)。無くてもよい | 管理する |
@@ -86,6 +87,7 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 | 入口を列挙する | `docker compose run --rm abatlas enumerate analysis/entry-list.yaml` |
 | 対象のコードを、構文で探す | `docker compose run --rm abatlas code-search analysis/work-definition.yaml --language <言語> --files <glob> --pattern '<コードの形>'` |
 | 分析結果を検査する | `docker compose run --rm abatlas validate result analysis/results/<file> --work analysis/work-definition.yaml` |
+| 今回の分析を進める | `abatlas-run-analysis` で入口一覧と作業案を作り、一度の承認後に入口ごとに分析する。[全体承認の手順](impact.md) |
 | 分析結果に出てきた列を、データの辞書に足す | `docker compose run --rm abatlas dictionary .` (区分は決めない。案は skill `abatlas-classify-data` が書き、人が承認する) |
 | 集計する | `docker compose run --rm abatlas build .` |
 | 前の分析結果と比べる | `docker compose run --rm abatlas diff . --from <git の版>` (下の「分析結果の差分」) |

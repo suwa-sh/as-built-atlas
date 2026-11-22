@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 from . import analysis_dir, result_file_name
-from .build import profile_dir
+from .build import PROFILE_FILE, profile_dir
 from .diff import _git, results_at
 from .enumerate import enumerate_entries
 from .impact_evidence import checkpoints, linked_entries, references
@@ -138,6 +138,17 @@ def _decision(ctx, before, entry, old, current, rules_changed):
         return _row(entry, "approve", "入口を追加または再承認してから分析")
     if current is None:
         return _row(entry, "analyze", "承認済みで現在の結果が無い")
+    if pending := ctx.pending(current):
+        return _row(
+            entry,
+            "reanalyze",
+            pending["reason"],
+            **{
+                k: pending[k]
+                for k in ("files", "analyzed_commit", "checkpoints")
+                if k in pending
+            },
+        )
     if old != current:
         return _updated_result(ctx, entry, current)
     row = _existing(ctx, before, entry, old, rules_changed)
@@ -157,8 +168,7 @@ def _planned_entry(ctx, eid, entry, before, result, changed_rules):
     row = _decision(ctx, before, entry, result, current, changed_rules)
     if row["action"] == "reuse":
         row["binding"] = ctx.binding(current)
-        record = record_path(ctx.assets, eid)
-        if record.is_file() and ctx.verified(load_yaml(record), current):
+        if ctx.confirmed(current):
             row["action"] = "reused"
             row["reason"] = "今回の版で再利用を確認済み"
     return row
@@ -181,7 +191,7 @@ def _saved_conditions(repo, rev, ctx, current_list):
     changed = _rules_changed(
         repo,
         rev,
-        profile_dir(repo) / "profile.yaml",
+        profile_dir(repo) / PROFILE_FILE,
         work,
         ctx.work,
         prior,
@@ -247,13 +257,9 @@ def _worklist(repo, baseline, ctx, old_work, before, changed_rules, current_list
     return rows, changes
 
 
-def plan(repo, revision):
-    repo = repo.resolve()
+def plan_inputs(repo):
     assets = analysis_dir(repo)
-    baseline = commit(repo, revision)
     work = _valid("work-definition", load_yaml(assets / WORK_FILE))
-    old_work = _at(repo, baseline, WORK_FILE, "work-definition")
-    old_list = _at(repo, baseline, ENTRIES_FILE, "entry-list")
     path = assets / ENTRIES_FILE
     saved = _valid("entry-list", load_yaml(path))
     if saved["target"]["commit"] != work["target"]["commit"] or not _same_subject(
@@ -262,16 +268,30 @@ def plan(repo, revision):
         raise SystemExit(
             "impact: 入口一覧の target.repo/scope/commit を作業定義に合わせてください"
         )
-    if not _same_subject(old_work["target"], work["target"]):
-        raise SystemExit(
-            "impact: 前回と今回の repo/scope が違います。全件を分析してください"
-        )
-    pp = profile_dir(repo) / "profile.yaml"
+    pp = profile_dir(repo) / PROFILE_FILE
 
     history = TargetHistory(work["target"], assets)
     with history.snapshot() as scope:
         entries = enumerate_entries(path, pp, write=False, scope_override=scope)
-    ctx = ReuseContext(assets, work, entries, pp)
+    return work, saved, entries
+
+
+def plan(repo, revision):
+    repo = repo.resolve()
+    work, saved, entries = plan_inputs(repo)
+    return worklist(repo, revision, work, saved, entries)
+
+
+def worklist(repo, revision, work, saved, entries):
+    baseline = commit(repo, revision)
+    old_work = _at(repo, baseline, WORK_FILE, "work-definition")
+    old_list = _at(repo, baseline, ENTRIES_FILE, "entry-list")
+    if not _same_subject(old_work["target"], work["target"]):
+        raise SystemExit(
+            "impact: 前回と今回の repo/scope が違います。全件を分析してください"
+        )
+    pp = profile_dir(repo) / PROFILE_FILE
+    ctx = ReuseContext(analysis_dir(repo), work, entries, pp)
     before = {e["id"]: e for e in old_list["entries"]}
     changed_rules = _rules_changed(
         repo, baseline, pp, old_work, work, old_list, entries
@@ -281,7 +301,7 @@ def plan(repo, revision):
     )
     report = {
         "baseline": baseline,
-        "target_commit": history.tip,
+        "target_commit": ctx.history.tip,
         "changes": changes,
         "entries": rows,
         "enumerated": saved["entries"] == entries["entries"],
@@ -290,7 +310,7 @@ def plan(repo, revision):
     report["plan_id"] = digest(
         [
             baseline,
-            history.tip,
+            ctx.history.tip,
             ctx.conditions,
             changes,
             [

@@ -543,6 +543,32 @@ def validate_review(review: dict, result: dict | None = None) -> list[str]:
     return findings
 
 
+def approval_errors(approval):
+    from .reuse import digest
+
+    if digest({k: v for k, v in approval.items() if k != "seal"}) != approval["seal"]:
+        return [
+            "entry-list: approval の確定後に内容が変わりました。承認時の版を復元してください"
+        ]
+    findings = []
+    jobs = [j["entry_id"] for j in approval["jobs"]]
+    if len(set(jobs)) != len(jobs) or set(jobs).intersection(approval["reuse"]):
+        findings.append(
+            "entry-list: approval の実行作業と再利用に同じ入口を重ねないでください"
+        )
+    for eid, record in approval["reuse"].items():
+        if (
+            record["entry_id"] != eid
+            or record["effective_commit"] != approval["target_commit"]
+            or record["confirmed_by"] != approval["by"]
+            or record["baseline"] != approval["baseline"]
+        ):
+            findings.append(
+                f"entry-list: approval.reuse の {eid} は全体承認と一致しません"
+            )
+    return findings
+
+
 def validate_entry_list(entry_list: dict, profile: dict | None = None) -> list[str]:
     findings = [f"schema: {e}" for e in schema_errors("entry-list", entry_list)]
     if findings:
@@ -557,6 +583,8 @@ def validate_entry_list(entry_list: dict, profile: dict | None = None) -> list[s
         findings.append(
             f"entry-list: entries: id {group} は同じ結果ファイル名 '{name}' になる (`/` は `__` に置き換えるため)。抽出器の id の付け方を変える"
         )
+    if approval := entry_list.get("approval"):
+        findings.extend(approval_errors(approval))
     if not dup:
         findings.extend(within_problems(entry_list["entries"], profile))
     if profile:
@@ -690,7 +718,10 @@ def _check_result_version(work_path, work, result, profile_path, findings):
 def validate_result_file(
     path: Path, profile_path: Path | None = None, work_path: Path | None = None
 ) -> list[str]:
-    result = load_yaml(path)
+    return validate_result_at(load_yaml(path), path, profile_path, work_path)
+
+
+def validate_result_at(result, path, profile_path, work_path):
     profile = load_yaml(profile_path) if profile_path else None
     has_target = isinstance(result, dict) and isinstance(result.get("target"), dict)
     scope_dir = None
