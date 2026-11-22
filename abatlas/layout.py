@@ -42,6 +42,7 @@ OSS_REFERENCE_ITEMS = [
     "profiles",
     "tests/fixtures",
     "docs/architecture",
+    "docs/guide",
     "README.md",
     "LICENSE",
 ]
@@ -289,7 +290,7 @@ profile:
   id: {profile_id}
   dir: .abatlas/profiles/{profile_id}   # build / validate / enumerate が読むプロファイル。layer などを自分用に直すなら analysis/profiles/{profile_id} に写して、ここを書き換える (.abatlas/ は upgrade で置き換わる)
 # analysis:
-#   models:                            # 分析とレビューを任せるサブエージェントのモデル (任意)。書かないと、起動した側と同じモデルで動く (入口が多いと、費用がかさむ)
+#   models:                            # 分析とレビューを任せるサブエージェントのモデル (任意)。書かなかった役は、使っているコーディングエージェントの既定のモデルで動く (多くの製品では、起動した側と同じモデル。入口が多いと、費用がかさむ)
 #     analyze: <モデルの名前>
 #     review: <モデルの名前>
 #   tests: true                        # 処理の段を通るテストも分析する (範囲にテストのコードが入っているときだけ)

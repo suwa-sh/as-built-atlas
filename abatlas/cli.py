@@ -274,6 +274,10 @@ def _run_code_search(a):
     return 0
 
 
+# 分析リポジトリに配られる、使う人の手引きの入口 (layout.OSS_REFERENCE_ITEMS の docs/guide)
+GUIDE_PATH = ".abatlas/docs/guide/README.md"
+
+
 def _run_init(a):
     from .layout import init_repo
 
@@ -283,6 +287,7 @@ def _run_init(a):
         f"init: {a.repo} (profile {a.profile})。次: .env の ABATLAS_TARGET と analysis/work-definition.yaml を埋めて "
         "`docker compose run --rm abatlas validate work analysis/work-definition.yaml`"
     )
+    print(f"手引き (段階ごとに、人がやることと手に入るもの): {GUIDE_PATH}")
     return 0
 
 
@@ -291,6 +296,7 @@ def _run_upgrade(a):
 
     placed = upgrade_repo(Path(a.repo))
     print("upgrade: 置き換えた " + ", ".join(placed) + " / 製品別 adapter を再生成した")
+    print(f"手引き (場面ごとの手順): {GUIDE_PATH}")
     return 0
 
 

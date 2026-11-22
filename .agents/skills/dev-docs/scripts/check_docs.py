@@ -19,6 +19,8 @@ MARKDOWN = MarkdownIt("commonmark").enable("table")
 # 引用符で包まずに、箱の文字へ かっこ・波かっこ を入れている ([(…)] = 円柱 は除く)
 RISKY_BOX = re.compile(r"\[(?!\()[^\]\"]*[(){}][^\]\"]*\]")
 RISKY_SLASH = re.compile(r"\[/|/\]")
+# 分析リポジトリに配る文書の置き場 (abatlas/layout.py の OSS_REFERENCE_ITEMS と合わせる)
+SHIPPED = ("docs/architecture", "docs/guide")
 
 
 def files_of(root: Path) -> list[Path]:
@@ -35,15 +37,18 @@ def local_links(children):
 
 
 def link_problems(root, md, children):
-    shipped = root / "docs" / "architecture"
+    shipped = [root / path for path in SHIPPED]
     rel = md.relative_to(root)
+    is_shipped = any(md.is_relative_to(path) for path in shipped)
     for target in local_links(children):
         base = root if target.startswith("/") else md.parent
         dest = (base / target.lstrip("/")).resolve()
         if not dest.exists():
             yield f"{rel}: リンク切れ: {target}"
-        elif md.is_relative_to(shipped) and not dest.is_relative_to(shipped):
-            yield f"{rel}: 配布先で切れるリンク (docs/architecture/ の外): {target}。リンクにせず、文で指す"
+        elif is_shipped and target.startswith("/"):
+            yield f"{rel}: 配布先で切れるリンク (リポジトリのルートからの指定): {target}。このファイルからの相対で書く"
+        elif is_shipped and not any(dest.is_relative_to(path) for path in shipped):
+            yield f"{rel}: 配布先で切れるリンク ({'、'.join(SHIPPED)} の外): {target}。リンクにせず、文で指す"
 
 
 def diagram_problems(rel, content):

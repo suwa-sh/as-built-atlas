@@ -5,6 +5,7 @@
 | カテゴリ | 内容 |
 |---|---|
 | [brand.md](brand.md) | コンセプト (一言・価値提案・5 つのメッセージ)、名前の由来、声と見た目 |
+| [guide/](guide/README.md) | 使う人の手引き。人が何をすると何が手に入るか、その途中でどの skill とコマンドが動くか。初めて分析する手順 |
 | [architecture/](architecture/README.md) | 仕組みの説明 (いま動くものの期待状態)。全体像、登場人物、設計の考え方、残るものと作り直すもの、仕組みに入れていないもの。主題ごとの文書への地図: 分析リポジトリ、データの流れと集計表、API と MCP、webapp、分析結果の形式、プロファイル、公開サンプルと突き合わせ |
 | [../DESIGN.md](../DESIGN.md) | webapp の見た目の決まり |
 | [../examples/kotori-books/](../examples/kotori-books/README.md) | 公開サンプル (架空の書店のバッチ) の構成と、正解 YAML に入れてある「不明」の見どころ |
