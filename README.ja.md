@@ -150,20 +150,20 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 
 ```mermaid
 flowchart LR
-  S1[1. 入口を見つける<br>エージェント] --> S2[2. 入口を列挙する<br>ツール]
-  S2 --> S3[3. 入口を承認する<br>人]
-  S3 --> S4[4. 入口を分析する<br>エージェント]
-  S4 --> S5[5. 集計して配る<br>ツール]
+  S1[入口を見つける<br>エージェント] --> S2[入口を列挙する<br>ツール]
+  S2 --> S3[入口を承認する<br>人]
+  S3 --> S4[入口を分析する<br>エージェント]
+  S4 --> S5[集計して配る<br>ツール]
   S4 -. 入口の数だけ繰り返す .-> S4
 ```
 
-| 手順 | 誰が | やること | 使うもの |
-|---|---|---|---|
-| 1. 入口を見つける | エージェント | 固定コミットのコードマップを見て、入口の拾い方を書く。定義ファイルを指定すると、承認前に列挙漏れを検査できる | `code-map .`、skill `abatlas-discover-entries` |
-| 2. 入口を列挙する | ツール | 入口の候補を出す。同じコミットと同じ設定なら、同じ結果になる | `enumerate` |
-| 3. 入口を承認する | 人 | AI が調べても決まらない点に答え、入口一覧と作業一覧を一度で承認する | `abatlas-run-analysis` が案を示し、承認後に対象の入口から分析を始める。[手順](docs/guide/first-analysis.md) |
-| 4. 入口を分析する | エージェント | 入口 1 件を、YAML 1 ファイルにする。機械チェックに通し、別のエージェントがレビューする | skill `abatlas-analyze-entry` |
-| 5. 集計して配る | ツール | 集計表を作り、画面と MCP を起動する | `build` (分析とレビューが済むと、エージェントが実行する)、`docker compose up -d api` (人が実行する) |
+| 手順 | 誰が | やること | 使うもの | 手引きの段階 |
+|---|---|---|---|---|
+| 入口を見つける | エージェント | 固定コミットのコードマップを見て、入口の拾い方を書く。定義ファイルを指定すると、承認前に列挙漏れを検査できる | `code-map .`、skill `abatlas-discover-entries` | 2 入口を見つける |
+| 入口を列挙する | ツール | 入口の候補を出す。同じコミットと同じ設定なら、同じ結果になる | `enumerate` | 2 入口を見つける |
+| 入口を承認する | 人 | AI が調べても決まらない点に答え、入口一覧と作業一覧を一度で承認する | `abatlas-run-analysis` が案を示し、承認後に対象の入口から分析を始める。[手順](docs/guide/first-analysis.md) | 3 承認する |
+| 入口を分析する | エージェント | 入口 1 件を、YAML 1 ファイルにする。機械チェックに通し、別のエージェントがレビューする | skill `abatlas-analyze-entry` | 4 分析する |
+| 集計して配る | ツール | 集計表を作り、画面と MCP を起動する | `build` (分析とレビューが済むと、エージェントが実行する)、`docker compose up -d api` (人が実行する) | 4 分析する (集計)、5 見る、聞く (起動) |
 
 - 段階ごとに、人がやること、裏で動く skill とコマンド、手に入るものを分けた手順は、[手引きの「初めて分析する」](docs/guide/first-analysis.md) にあります。
 - 分析リポジトリの中身は [docs/architecture/analysis-repo.md](docs/architecture/analysis-repo.md) に、コマンドの一覧は [docs/reference/commands.md](docs/reference/commands.md) にあります。
@@ -225,13 +225,13 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph R[分析リポジトリ 対象ごとに 1 つ]
-    O[配布物のコピー<br>skill・hook・プロファイル・形式の定義<br>更新のコマンドで置き換わる]
     H[エージェントの設定<br>このリポジトリの持ち物]
+    O[配布物のコピー<br>skill・hook・プロファイル・形式の定義<br>更新のコマンドで置き換わる]
     A[analysis/<br>作業定義・入口の一覧・分析結果・独自の集計表]
   end
-  I[コンテナイメージ<br>ツール・集計の定義・API・MCP・画面] -->|読む・集計する| A
+  T[対象の clone] -->|読み取り専用| I[コンテナイメージ<br>ツール・集計の定義・API・MCP・画面]
   I -->|init / upgrade で置く| O
-  T[対象の clone] -->|読み取り専用| I
+  I -->|読む・集計する| A
 ```
 
 対象 Git の更新後は、[手引きの「対象のコードが進んだら更新する」](docs/guide/update-analysis.md)に沿って、変更された入口を分析できます。

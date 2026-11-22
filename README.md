@@ -218,13 +218,13 @@ An analysis repository depends on a single container image. The target source is
 ```mermaid
 flowchart TB
   subgraph R["Analysis repository for one target"]
-    O["Installed skills, hooks, profiles, and schemas"]
     H["Repository-owned agent configuration"]
+    O["Installed skills, hooks, profiles, and schemas"]
     A["analysis/ — work definition, entry list, results, custom tables"]
   end
-  I["Container image: CLI, table definitions, API, MCP, web app"] -->|Reads results and builds tables| A
+  T["Target checkout"] -->|Read-only mount| I["Container image: CLI, table definitions, API, MCP, web app"]
   I -->|Installs or upgrades| O
-  T["Target checkout"] -->|Read-only mount| I
+  I -->|Reads results and builds tables| A
 ```
 
 <a name="文書"></a>

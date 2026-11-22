@@ -15,6 +15,7 @@ as-built-atlas の正確な仕様です。
 | 分析結果の形式 (主張、処理の段、読み書き、根拠、来歴)、データの辞書 | [formats.md](formats.md) |
 | 集計表の一覧、集計表の宣言、meta、画面に出す呼び名 | [marts.md](marts.md) |
 | 集計表 API と MCP | [api.md](api.md) |
+| 画面が一度に読む量と、図や表を打ち切る上限 | 仕組みの説明の [webapp.md](../architecture/webapp.md) の「読む量の上限」 |
 | プロファイルの中身、ツールが読むプロファイル、抽出器の契約、入口を包む入口 | [profiles.md](profiles.md) |
 | プロファイルごとの、入口と層の決まり | [profiles.md](profiles.md) の「プロファイルごとの決まり」から選ぶ |
 | 公開サンプルの一覧とライセンス、分析結果の突き合わせ (`evaluate`) の数え方 | [examples.md](examples.md) |
