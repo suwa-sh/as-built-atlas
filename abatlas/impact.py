@@ -164,7 +164,7 @@ def _planned_entry(ctx, eid, entry, before, result, changed_rules):
 
 
 def _analysis_conditions(repo, baseline, eid, revs, ctx, current_list, source_sha):
-    """混在版の入口は、結果を保存した分析コミットまで戻って規約と承認を比べる。"""
+    """結果を保存した分析コミットまで戻って、後から変えた規約と承認を比べる。"""
     filename = result_file_name(eid)
     rev = _git(
         repo, "log", "-1", "--format=%H", baseline, "--", f"analysis/results/{filename}"
@@ -221,11 +221,10 @@ def _worklist(repo, baseline, ctx, old_work, before, changed_rules, current_list
         if result and _same_subject(ctx.work["target"], result["target"]):
             sha = result["target"]["commit"]
             changes[sha] = ctx.history.changes(sha)
-            if sha != old_work["target"]["commit"]:
-                entry_before, earlier_change = _analysis_conditions(
-                    repo, baseline, eid, revisions, ctx, current_list, sha
-                )
-                entry_rules_changed = changed_rules or earlier_change
+            entry_before, earlier_change = _analysis_conditions(
+                repo, baseline, eid, revisions, ctx, current_list, sha
+            )
+            entry_rules_changed = changed_rules or earlier_change
         row = _planned_entry(ctx, eid, entry, entry_before, result, entry_rules_changed)
         rows.append(row)
     for eid in sorted((before.keys() | results.keys()) - ctx.entries.keys()):

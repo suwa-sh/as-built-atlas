@@ -169,11 +169,15 @@ def test_reuse_record_requires_the_confirmation():
     assert schema_errors("reuse", record)
 
 
-def test_unfinished_rule_change_is_still_pending_on_next_update(histories):
+@pytest.mark.parametrize("advance_target", [True, False])
+def test_unfinished_rule_change_is_still_pending_on_next_update(
+    histories, advance_target
+):
     target, atlas, base = histories
     work = atlas / "analysis"
-    (target / "first.txt").write_text("B")
-    set_version(work, snapshot(target))
+    if advance_target:
+        (target / "first.txt").write_text("B")
+        set_version(work, snapshot(target))
     conventions = atlas / ".agents/memory/desired-state/analysis-conventions.md"
     conventions.parent.mkdir(parents=True)
     conventions.write_text("新しい分析規約")
