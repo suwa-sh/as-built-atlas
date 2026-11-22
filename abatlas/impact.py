@@ -13,6 +13,10 @@ from .impact_git import TargetHistory, commit
 from .reuse import CONVENTIONS, ReuseContext, digest, record_path, save_record
 from .schemas import load_yaml, schema_errors
 
+WORK_FILE = "work-definition.yaml"
+
+ENTRIES_FILE = "entry-list.yaml"
+
 LABEL = {
     "analyze": "追加分析",
     "reanalyze": "再分析",
@@ -159,18 +163,70 @@ def _planned_entry(ctx, eid, entry, before, result, changed_rules):
     return row
 
 
-def _worklist(repo, baseline, ctx, old_work, before, changed_rules):
+def _analysis_conditions(repo, baseline, eid, revs, ctx, current_list, source_sha):
+    """混在版の入口は、結果を保存した分析コミットまで戻って規約と承認を比べる。"""
+    filename = result_file_name(eid)
+    rev = _git(
+        repo, "log", "-1", "--format=%H", baseline, "--", f"analysis/results/{filename}"
+    ).strip()
+    if rev not in revs:
+        files = _git(
+            repo,
+            "ls-tree",
+            "--name-only",
+            rev,
+            "--",
+            f"analysis/{WORK_FILE}",
+            f"analysis/{ENTRIES_FILE}",
+        ).splitlines()
+        if len(files) != 2:
+            revs[rev] = ({}, True, None)
+        else:
+            work = _at(repo, rev, WORK_FILE, "work-definition")
+            prior = _at(repo, rev, ENTRIES_FILE, "entry-list")
+            changed = _rules_changed(
+                repo,
+                rev,
+                profile_dir(repo) / "profile.yaml",
+                work,
+                ctx.work,
+                prior,
+                current_list,
+            )
+            revs[rev] = (
+                {e["id"]: e for e in prior["entries"]},
+                changed,
+                work["target"],
+            )
+    entries, changed, target = revs[rev]
+    if (
+        not target
+        or target["commit"] != source_sha
+        or not _same_subject(target, ctx.work["target"])
+    ):
+        return {}, True
+    return entries, changed
+
+
+def _worklist(repo, baseline, ctx, old_work, before, changed_rules, current_list):
     results = results_at(repo, baseline, strict_names=True)
     changes = {
         old_work["target"]["commit"]: ctx.history.changes(old_work["target"]["commit"])
     }
     rows = []
+    revisions = {}
     for eid, entry in sorted(ctx.entries.items()):
+        entry_before, entry_rules_changed = before, changed_rules
         result = results.get(eid)
         if result and _same_subject(ctx.work["target"], result["target"]):
             sha = result["target"]["commit"]
             changes[sha] = ctx.history.changes(sha)
-        row = _planned_entry(ctx, eid, entry, before, result, changed_rules)
+            if sha != old_work["target"]["commit"]:
+                entry_before, earlier_change = _analysis_conditions(
+                    repo, baseline, eid, revisions, ctx, current_list, sha
+                )
+                entry_rules_changed = changed_rules or earlier_change
+        row = _planned_entry(ctx, eid, entry, entry_before, result, entry_rules_changed)
         rows.append(row)
     for eid in sorted((before.keys() | results.keys()) - ctx.entries.keys()):
         rows.append(
@@ -187,10 +243,10 @@ def plan(repo, revision):
     repo = repo.resolve()
     assets = analysis_dir(repo)
     baseline = commit(repo, revision)
-    work = _valid("work-definition", load_yaml(assets / "work-definition.yaml"))
-    old_work = _at(repo, baseline, "work-definition.yaml", "work-definition")
-    old_list = _at(repo, baseline, "entry-list.yaml", "entry-list")
-    path = assets / "entry-list.yaml"
+    work = _valid("work-definition", load_yaml(assets / WORK_FILE))
+    old_work = _at(repo, baseline, WORK_FILE, "work-definition")
+    old_list = _at(repo, baseline, ENTRIES_FILE, "entry-list")
+    path = assets / ENTRIES_FILE
     saved = _valid("entry-list", load_yaml(path))
     if saved["target"]["commit"] != work["target"]["commit"] or not _same_subject(
         saved["target"], work["target"]
@@ -212,7 +268,9 @@ def plan(repo, revision):
     changed_rules = _rules_changed(
         repo, baseline, pp, old_work, work, old_list, entries
     )
-    rows, changes = _worklist(repo, baseline, ctx, old_work, before, changed_rules)
+    rows, changes = _worklist(
+        repo, baseline, ctx, old_work, before, changed_rules, entries
+    )
     report = {
         "baseline": baseline,
         "target_commit": history.tip,

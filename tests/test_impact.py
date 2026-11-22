@@ -167,3 +167,26 @@ def test_reuse_record_requires_the_confirmation():
     assert not schema_errors("reuse", record)
     del record["reason"]
     assert schema_errors("reuse", record)
+
+
+def test_unfinished_rule_change_is_still_pending_on_next_update(histories):
+    target, atlas, base = histories
+    work = atlas / "analysis"
+    (target / "first.txt").write_text("B")
+    set_version(work, snapshot(target))
+    conventions = atlas / ".agents/memory/desired-state/analysis-conventions.md"
+    conventions.parent.mkdir(parents=True)
+    conventions.write_text("新しい分析規約")
+    first, _ = plan(atlas, base)
+    assert (
+        next(r for r in first["entries"] if r["entry_id"] == SNAP)["action"]
+        == "reanalyze"
+    )
+    middle = snapshot(atlas)  # 再分析を終えていない入口がある
+    (target / "second.txt").write_text("C")
+    set_version(work, snapshot(target))
+    second, _ = plan(atlas, middle)
+    assert (
+        next(r for r in second["entries"] if r["entry_id"] == SNAP)["action"]
+        == "reanalyze"
+    )
