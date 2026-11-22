@@ -27,6 +27,19 @@ def test_languages(browser, site):
     check_languages(browser, site)
 
 
+@pytest.mark.parametrize("locale", ["ja", "en"])
+def test_experience_heading_fits_on_desktop(browser, site, locale):
+    page = browser.new_page(locale=locale, viewport={"width": 1440, "height": 900})
+    try:
+        page.goto(site + ("en/" if locale == "en" else ""))
+        heading = page.locator("#experience h2")
+        assert heading.evaluate(
+            "el => el.clientHeight <= Math.ceil(parseFloat(getComputedStyle(el).lineHeight))"
+        )
+    finally:
+        page.close()
+
+
 @pytest.mark.parametrize("preference", ["no-preference", "reduce"])
 def test_motion(browser, site, preference):
     check_motion(browser, site, preference)
