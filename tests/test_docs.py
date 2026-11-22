@@ -38,8 +38,21 @@ def test_check_docs_finds_broken_and_unshipped_links(tmp_path: Path):
         "[ルートから](/docs/architecture/README.md)\n",
         encoding="utf-8",
     )
+    sample = tmp_path / "examples" / "x-atlas"
+    sample.mkdir(parents=True)
+    (sample / "README.md").write_text(
+        "[一覧](../../docs/none-examples.md)\n\n[入口](../../README.md)\n",
+        encoding="utf-8",
+    )
     mod = runpy.run_path(str(CHECK), run_name="check_docs_lib")
     problems = mod["check"](tmp_path)[0]
+    # 見本の README のリンク切れも見つける (文書を動かしたときに、置き去りになりやすい)
+    assert any(
+        "examples/x-atlas/README.md" in p and "none-examples.md" in p for p in problems
+    ), problems
+    assert not any(
+        "examples/x-atlas/README.md" in p and "../../README.md" in p for p in problems
+    ), problems
     assert not any("code.md" in p for p in problems)  # nosec B101 - pytest assertion
     # 配る置き場どうしのリンクは切れない。配る置き場から外へのリンクだけを止める
     assert not any("../architecture/README.md" in p for p in problems), problems

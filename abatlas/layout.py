@@ -44,7 +44,8 @@ OSS_REFERENCE_ITEMS = [
     "docs/architecture",
     "docs/guide",
     "docs/reference",
-    "README.md",
+    # ルートの README.md は配らない: リポジトリの紹介で、リンク (画像、見本、変更の記録) が配布先で切れる。
+    # 分析リポジトリでの入口は docs/guide/README.md
     "LICENSE",
 ]
 OSS_SKILLS = [
