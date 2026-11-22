@@ -59,11 +59,9 @@ skill は、エージェントが頼まれた内容に合わせて選びます�
 |---|---|---|---|
 | 同梱の見本で試す | 見本をコピーして、集計と起動のコマンドを実行する | コマンド `init`、`build` | リポジトリの `README.md` の「10-minute quickstart」(日本語は `README.ja.md` の「10 分で試す」) |
 | 初めて分析する | 上の表の 1 から 5 | 上の表のとおり | [初めて分析する](first-analysis.md) |
-| 画面で結果を読む | メニューから、知りたい問いに合うページを開く | 画面 | [webapp](../architecture/webapp.md) の「画面の一覧」 |
-| エージェントに結果を聞く | MCP を登録して質問する | MCP | [集計表 API と MCP](../architecture/api.md) |
-| 対象のコードが進んだ | 新しいコミットを指定して「分析を進めて」と頼む。案を承認する | skill `abatlas-run-analysis`。コマンド `impact`、`propose`、`approve` | [対象コードの差分から、読み直す入口を選ぶ](../architecture/impact.md) |
-| 前の分析結果と比べる | 比べるコマンドを実行する | コマンド `diff` | [分析リポジトリと配布物](../architecture/analysis-repo.md) の「分析結果の差分」 |
-| 個人情報の列を洗い出す | 「データの辞書を作って」と頼む。区分の案を確かめて承認する | skill `abatlas-classify-data`。コマンド `dictionary` | [分析結果の形式](../architecture/formats.md) の「データの辞書」 |
-| 自分のシステムに合わせる | プロファイルを写して直す | コマンド `validate profile`、`enumerate` | [プロファイル](../architecture/profiles.md) の「自分のシステムに合わせて直す」 |
-| 配布物を新しくする | 更新のコマンドを実行する | コマンド `upgrade`。形式の項目名が変わった版では `migrate` も | [分析リポジトリと配布物](../architecture/analysis-repo.md) の「コマンド」 |
-| エージェントの精度を測る | 見本の正解と突き合わせる | コマンド `evaluate` | [公開サンプルと突き合わせ](../architecture/examples.md) の「突き合わせ」 |
+| 結果を読む | 画面で、知りたい問いに合うページを開く。エージェントに MCP で聞く | 画面と MCP | [結果を読む](read-results.md) |
+| 対象のコードが進んだ | 新しいコミットを指定して「分析を進めて」と頼む。案を承認する。前の結果と比べる | skill `abatlas-run-analysis`。コマンド `impact`、`propose`、`approve`、`diff` | [対象のコードが進んだら更新する](update-analysis.md) |
+| 個人情報の列を洗い出す | 「データの辞書を作って」と頼む。区分の案を確かめて承認する | skill `abatlas-classify-data`。コマンド `dictionary` | [個人情報の列を洗い出す](data-dictionary.md) |
+| 自分のシステムに合わせる | プロファイルを写して直す | コマンド `validate profile`、`enumerate` | [プロファイルを自分のシステムに合わせる](customize-profile.md) |
+| 配布物を新しくする | 更新のコマンドを実行する | コマンド `upgrade`。形式の項目名が変わった版では `migrate` も | [配布物を新しくする](upgrade.md) |
+| エージェントの精度を測る | 見本の正解と突き合わせる | コマンド `evaluate` | [エージェントの精度を測る](evaluate.md) |

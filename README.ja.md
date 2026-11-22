@@ -187,7 +187,7 @@ flowchart LR
 | 画面 | `ui-ios` | iOS のアプリ | 画面、アプリ全体の枠、OS から起動される入口 |
 
 - 入口の決まりの詳しい説明は、[docs/architecture/profiles.md](docs/architecture/profiles.md) にあります (例: 多くの画面が描く大きな部品を、別の入口に分ける)。
-- プロファイルは、自分のシステムに合わせて直せます (例: 使っていない層を外す)。手順も、同じ文書にあります。
+- プロファイルは、自分のシステムに合わせて直せます (例: 使っていない層を外す)。手順は、[手引きの「プロファイルを自分のシステムに合わせる」](docs/guide/customize-profile.md) にあります。
 
 ## 見本
 
@@ -204,20 +204,9 @@ flowchart LR
 
 ### 見本で、自分のエージェントの精度を測る
 
-ことり書店の分析結果は正解なので、手元のエージェントに同じ入口を分析させて、突き合わせられます。
+ことり書店の分析結果は正解なので、手元のエージェントに同じ入口を分析させて、突き合わせられます。`evaluate` が、処理の段、読み書き、パラメータの適合率と再現率を、入口ごとに出します。
 
-前提: [10 分で試す](#10-分で試す) を終えていること。コーディングエージェント (Claude Code、Codex など) と、ホストの `python3` が要ります。
-
-| 手順 | やること | コマンド |
-|---|---|---|
-| 1 | 正解を退避する | `mv analysis/results analysis/truth && mkdir analysis/results` |
-| 2 | 対象を git リポジトリにする | `cd ../kotori-books && git init -q && git add -A && git commit -qm sample && cd -` |
-| 3 | 対象のコミットを書き換える | `analysis/work-definition.yaml` と `analysis/entry-list.yaml` の `target.commit` を、`git -C ../kotori-books rev-parse HEAD` の値にする |
-| 4 | 入口を分析させる | エージェントを起動し、skill `abatlas-analyze-entry` で入口 (例: `daily.sales.settle_orders`) を分析させる |
-| 5 | 突き合わせる | `docker compose run --rm abatlas evaluate analysis/results --truth analysis/truth` |
-
-- 手順 2 で、git の `user.name` と `user.email` が未設定のときは、`git commit` に `-c user.name=you -c user.email=you@example.com` を付けます。
-- `evaluate` は、処理の段・読み書き・パラメータの適合率と再現率を、入口ごとに出します。数え方は [docs/architecture/examples.md](docs/architecture/examples.md) にあります。
+手順は、[手引きの「エージェントの精度を測る」](docs/guide/evaluate.md) にあります。
 
 ## 5 つの約束
 
