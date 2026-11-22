@@ -24,7 +24,12 @@ SHIPPED = ("docs/architecture", "docs/guide", "docs/reference")
 
 
 def files_of(root: Path) -> list[Path]:
-    return sorted(root.glob("*.md")) + sorted((root / "docs").rglob("*.md"))
+    """検査する Markdown: ルート、docs/ の下、見本の README (examples/*/README.md)。"""
+    return (
+        sorted(root.glob("*.md"))
+        + sorted((root / "docs").rglob("*.md"))
+        + sorted((root / "examples").glob("*/README.md"))
+    )
 
 
 def local_links(children):

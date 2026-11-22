@@ -41,7 +41,7 @@ uv run --locked python .agents/skills/dev-docs/scripts/check_docs.py
 
 | 検査 | 内容 |
 |---|---|
-| リンク切れ | ルートの Markdown と `docs/` 内の Markdown の相対リンクの先が、実在するか |
+| リンク切れ | ルートの Markdown、`docs/` 内の Markdown、見本の README (`examples/*/README.md`) の相対リンクの先が、実在するか |
 | 配布先で切れるリンク | 配る置き場 (`docs/architecture/`、`docs/guide/`、`docs/reference/`) から、その外へのリンク (分析リポジトリには、この 3 つだけが配られる) |
 | mermaid の危ない書き方 | 引用符で包んでいない、かっこ・スラッシュ |
 | mermaid を実際に描く | `mmdc` があれば、全部の図を描く。無ければ、その旨を出す (描いていないと報告する) |

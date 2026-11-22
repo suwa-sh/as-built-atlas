@@ -25,6 +25,7 @@
 - 手元の場所 (絶対パス)、個人の情報、公開していない対象の名前を書きません。
 - 同じ事実を、2 か所に書きません。片方を正本にして、もう片方は指します。
 - `docs/guide/`、`docs/architecture/`、`docs/reference/` は、分析リポジトリにも配られます (`.abatlas/docs/` の下)。この 3 つの間は、リンクで指せます。**その外のファイル (例: `DESIGN.md`、ルートの `README.md`) へは、リンクにせず、文で指します。**
+- ルートの `README.md` は、配りません。リポジトリの紹介なので、画像、見本、変更の記録へのリンクが、配布先で切れるためです。分析リポジトリでの入口は、`.abatlas/docs/guide/README.md` です。
 - 配る置き場を増やすときは、配布の一覧 (`abatlas/layout.py` の `OSS_REFERENCE_ITEMS`)、`Dockerfile`、リンクの検査 (`check_docs.py` の `SHIPPED`) を合わせて直します。一覧と検査のずれは、`tests/test_docs.py` が止めます。
 - `docs/architecture/README.md` は、skill や設定から参照されています。場所と名前を変えません。
 
@@ -55,7 +56,7 @@
 | 場面 | やること |
 |---|---|
 | 実装を変えた | 変えた事実 (コマンド、項目の名前、上限の数、ファイルの名前) を `docs/` と `README.md` で探して直す |
-| 文書を動かした・分けた | ほかからの参照を探して直す: skill (`.agents/skills/`)、`AGENTS.md`、`.agents/memory/`、テスト、見本の README (`examples/*/README.md`)、コードのコメントと表示の文字 (`abatlas/`)。リンクの検査が見るのは、ルートと `docs/` の Markdown だけ |
+| 文書を動かした・分けた | ほかからの参照を探して直す: skill (`.agents/skills/`)、`AGENTS.md`、`.agents/memory/`、テスト、見本の README (`examples/*/README.md`) の本文、コードのコメントと表示の文字 (`abatlas/`)。リンクの検査が見るのは、ルートの Markdown、`docs/` の Markdown、見本の README のリンクだけ (本文で引いた節の名前は見ない) |
 | 画面の見た目を変えた | `DESIGN.md` を直し、`README.md` の画像を撮り直す |
 | 決定を変えた | ADR を 1 つ足し、`docs/` を最新の状態に書き換える |
 
