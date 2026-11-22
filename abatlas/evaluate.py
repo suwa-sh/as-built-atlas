@@ -44,7 +44,12 @@ def load_results(path: Path) -> dict[str, dict]:
         except Exception as ex:  # YAML として読めない
             problems.append(f"{p}: 読めない: {ex}")
             continue
-        if not isinstance(r, dict) or not isinstance(r.get("entry"), dict) or "id" not in r["entry"] or not isinstance(r.get("callstack"), list):
+        if (
+            not isinstance(r, dict)
+            or not isinstance(r.get("entry"), dict)
+            or "id" not in r["entry"]
+            or not isinstance(r.get("callstack"), list)
+        ):
             problems.append(f"{p}: 分析結果の形 (entry.id と callstack) ではない")
             continue
         eid = r["entry"]["id"]
@@ -67,7 +72,12 @@ def _norm(level: str, value) -> str:
 
 def normalize_levels(kind: str, levels: dict | None) -> tuple:
     lv = dict(levels or {})
-    if kind == "rdb" and "table" in lv and "schema" not in lv and "." in str(lv["table"]):
+    if (
+        kind == "rdb"
+        and "table" in lv
+        and "schema" not in lv
+        and "." in str(lv["table"])
+    ):
         lv["schema"], lv["table"] = str(lv["table"]).split(".", 1)
     return tuple(sorted((k, _norm(k, v)) for k, v in lv.items() if v not in (None, "")))
 
@@ -86,13 +96,21 @@ def _io_items(result: dict) -> list[tuple[tuple, dict]]:
 
 
 def _param_keys(result: dict) -> Counter:
-    return Counter((frame_key(f), p["name"].strip()) for f in result["callstack"] for p in f.get("parameters", []))
+    return Counter(
+        (frame_key(f), p["name"].strip())
+        for f in result["callstack"]
+        for p in f.get("parameters", [])
+    )
 
 
 def _pr(tp: int, fp: int, fn: int) -> dict:
-    return {"tp": tp, "fp": fp, "fn": fn,
-            "precision": round(tp / (tp + fp), 3) if tp + fp else None,
-            "recall": round(tp / (tp + fn), 3) if tp + fn else None}
+    return {
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "precision": round(tp / (tp + fp), 3) if tp + fp else None,
+        "recall": round(tp / (tp + fn), 3) if tp + fn else None,
+    }
 
 
 def _match(a: Counter, b: Counter) -> tuple[int, int, int]:
@@ -115,7 +133,10 @@ def _section_keys(result: dict, section: str) -> Counter:
 
 
 def compare_entry(result: dict, truth: dict) -> dict:
-    fr_r, fr_t = Counter(frame_key(f) for f in result["callstack"]), Counter(frame_key(f) for f in truth["callstack"])
+    fr_r, fr_t = (
+        Counter(frame_key(f) for f in result["callstack"]),
+        Counter(frame_key(f) for f in truth["callstack"]),
+    )
     frames = _pr(*_match(fr_r, fr_t))
     frames["missing"] = sorted(f"{k[0]} {k[1]}" for k in (fr_t - fr_r))
     frames["extra"] = sorted(f"{k[0]} {k[1]}" for k in (fr_r - fr_t))
@@ -132,8 +153,14 @@ def compare_entry(result: dict, truth: dict) -> dict:
     # 一致した I/O の状態と理由 (同じキーの中では (status) と (status, reason) の多重集合で照合する。並び順に依らない)
     st_r = Counter((k, x["status"]) for k, x in items_r)
     st_t = Counter((k, x["status"]) for k, x in items_t)
-    sr_r = Counter((k, x["status"], x.get("reason") if x["status"] == "unknown" else None) for k, x in items_r)
-    sr_t = Counter((k, x["status"], x.get("reason") if x["status"] == "unknown" else None) for k, x in items_t)
+    sr_r = Counter(
+        (k, x["status"], x.get("reason") if x["status"] == "unknown" else None)
+        for k, x in items_r
+    )
+    sr_t = Counter(
+        (k, x["status"], x.get("reason") if x["status"] == "unknown" else None)
+        for k, x in items_t
+    )
     matched = sum(min(n, io_t[k]) for k, n in io_r.items())
     status_agree = sum(min(n, st_t[k]) for k, n in st_r.items())
     reason_agree = sum(min(n, sr_t[k]) for k, n in sr_r.items())
@@ -142,12 +169,23 @@ def compare_entry(result: dict, truth: dict) -> dict:
     io["matched"] = matched
 
     params = _pr(*_match(_param_keys(result), _param_keys(truth)))
-    unknown_r = Counter(c.get("reason") for c in _claims(result) if c.get("status") == "unknown")
-    unknown_t = Counter(c.get("reason") for c in _claims(truth) if c.get("status") == "unknown")
+    unknown_r = Counter(
+        c.get("reason") for c in _claims(result) if c.get("status") == "unknown"
+    )
+    unknown_t = Counter(
+        c.get("reason") for c in _claims(truth) if c.get("status") == "unknown"
+    )
     out = {"frames": frames, "io": io, "parameters": params}
     for section in SECTIONS:
-        out[section]["distinct"] = _pr(*_match_distinct(_section_keys(result, section), _section_keys(truth, section)))
-    out["unknown_reasons"] = {"result": dict(sorted(unknown_r.items())), "truth": dict(sorted(unknown_t.items()))}
+        out[section]["distinct"] = _pr(
+            *_match_distinct(
+                _section_keys(result, section), _section_keys(truth, section)
+            )
+        )
+    out["unknown_reasons"] = {
+        "result": dict(sorted(unknown_r.items())),
+        "truth": dict(sorted(unknown_t.items())),
+    }
     return out
 
 
@@ -169,25 +207,45 @@ def _fmt_io(k: tuple) -> str:
 def evaluate(results_path: Path, truth_path: Path) -> dict:
     results, truth = load_results(results_path), load_results(truth_path)
     both = sorted(set(results) & set(truth))
-    unanalyzed, not_in_truth = sorted(set(truth) - set(results)), sorted(set(results) - set(truth))
+    unanalyzed, not_in_truth = (
+        sorted(set(truth) - set(results)),
+        sorted(set(results) - set(truth)),
+    )
     per_entry = {eid: compare_entry(results[eid], truth[eid]) for eid in both}
     totals = {}
     for section in SECTIONS:
         tp = sum(e[section]["tp"] for e in per_entry.values())
-        fp = sum(e[section]["fp"] for e in per_entry.values()) + sum(_count(results[eid], section) for eid in not_in_truth)
-        fn = sum(e[section]["fn"] for e in per_entry.values()) + sum(_count(truth[eid], section) for eid in unanalyzed)
+        fp = sum(e[section]["fp"] for e in per_entry.values()) + sum(
+            _count(results[eid], section) for eid in not_in_truth
+        )
+        fn = sum(e[section]["fn"] for e in per_entry.values()) + sum(
+            _count(truth[eid], section) for eid in unanalyzed
+        )
         totals[section] = _pr(tp, fp, fn)
         # 重複を除いた合計: 入口ごとに重複を除いてから足す (未分析・正解に無い入口の項目も、重複を除いて分母に入れる)
         totals[section]["distinct"] = _pr(
             sum(e[section]["distinct"]["tp"] for e in per_entry.values()),
-            sum(e[section]["distinct"]["fp"] for e in per_entry.values()) + sum(len(_section_keys(results[eid], section)) for eid in not_in_truth),
-            sum(e[section]["distinct"]["fn"] for e in per_entry.values()) + sum(len(_section_keys(truth[eid], section)) for eid in unanalyzed))
-    totals["io"]["op_mismatch"] = sum(e["io"]["op_mismatch"] for e in per_entry.values())
+            sum(e[section]["distinct"]["fp"] for e in per_entry.values())
+            + sum(len(_section_keys(results[eid], section)) for eid in not_in_truth),
+            sum(e[section]["distinct"]["fn"] for e in per_entry.values())
+            + sum(len(_section_keys(truth[eid], section)) for eid in unanalyzed),
+        )
+    totals["io"]["op_mismatch"] = sum(
+        e["io"]["op_mismatch"] for e in per_entry.values()
+    )
     totals["io"]["matched"] = sum(e["io"]["matched"] for e in per_entry.values())
-    totals["io"]["status_agree"] = sum(e["io"]["status_agree"] for e in per_entry.values())
-    totals["io"]["status_and_reason_agree"] = sum(e["io"]["status_and_reason_agree"] for e in per_entry.values())
+    totals["io"]["status_agree"] = sum(
+        e["io"]["status_agree"] for e in per_entry.values()
+    )
+    totals["io"]["status_and_reason_agree"] = sum(
+        e["io"]["status_and_reason_agree"] for e in per_entry.values()
+    )
     return {
-        "entries": {"compared": len(both), "unanalyzed": unanalyzed, "not_in_truth": not_in_truth},
+        "entries": {
+            "compared": len(both),
+            "unanalyzed": unanalyzed,
+            "not_in_truth": not_in_truth,
+        },
         "totals": totals,
         "per_entry": per_entry,
     }
@@ -209,32 +267,61 @@ def _pct(x) -> str:
 def format_report(rep: dict) -> str:
     t = rep["totals"]
     e = rep["entries"]
-    lines = [f"突合: 比べた入口 {e['compared']} 件 / 未分析 (正解にだけある) {len(e['unanalyzed'])} 件 / 正解に無い {len(e['not_in_truth'])} 件"
-             + (" (未分析の入口の項目は「正解だけ」に、正解に無い入口の項目は「結果だけ」に含めている)" if e["unanalyzed"] or e["not_in_truth"] else ""), ""]
+    lines = [
+        f"突合: 比べた入口 {e['compared']} 件 / 未分析 (正解にだけある) {len(e['unanalyzed'])} 件 / 正解に無い {len(e['not_in_truth'])} 件"
+        + (
+            " (未分析の入口の項目は「正解だけ」に、正解に無い入口の項目は「結果だけ」に含めている)"
+            if e["unanalyzed"] or e["not_in_truth"]
+            else ""
+        ),
+        "",
+    ]
     lines.append("| 項目 | 一致 | 結果だけ | 正解だけ | 適合率 | 再現率 |")
     lines.append("|---|---|---|---|---|---|")
-    for name, label in (("frames", "フレーム (layer + 定義ファイル)"), ("io", "I/O (種類 + 操作 + 段)"), ("parameters", "パラメータ (フレーム + 名前)")):
+    for name, label in (
+        ("frames", "フレーム (layer + 定義ファイル)"),
+        ("io", "I/O (種類 + 操作 + 段)"),
+        ("parameters", "パラメータ (フレーム + 名前)"),
+    ):
         x = t[name]
-        lines.append(f"| {label} | {x['tp']} | {x['fp']} | {x['fn']} | {_pct(x['precision'])} | {_pct(x['recall'])} |")
+        lines.append(
+            f"| {label} | {x['tp']} | {x['fp']} | {x['fn']} | {_pct(x['precision'])} | {_pct(x['recall'])} |"
+        )
     lines.append("")
-    lines.append("重複を除いた比較 (同じ入口の中で同じキーは、何度書いてあっても 1 つに数える。同じ処理を書く回数の違いに左右されない):")
+    lines.append(
+        "重複を除いた比較 (同じ入口の中で同じキーは、何度書いてあっても 1 つに数える。同じ処理を書く回数の違いに左右されない):"
+    )
     lines.append("")
     lines.append("| 項目 | 一致 | 結果だけ | 正解だけ | 適合率 | 再現率 |")
     lines.append("|---|---|---|---|---|---|")
-    for name, label in (("frames", "フレーム"), ("io", "I/O"), ("parameters", "パラメータ")):
+    for name, label in (
+        ("frames", "フレーム"),
+        ("io", "I/O"),
+        ("parameters", "パラメータ"),
+    ):
         x = t[name]["distinct"]
-        lines.append(f"| {label} | {x['tp']} | {x['fp']} | {x['fn']} | {_pct(x['precision'])} | {_pct(x['recall'])} |")
+        lines.append(
+            f"| {label} | {x['tp']} | {x['fp']} | {x['fn']} | {_pct(x['precision'])} | {_pct(x['recall'])} |"
+        )
     io = t["io"]
     lines.append("")
-    lines.append(f"一致した I/O {io['matched']} 件のうち、状態 (事実 / 解釈 / 不明) も一致 {io['status_agree']} 件、不明の理由まで一致 {io['status_and_reason_agree']} 件。"
-                 f" 同じデータで操作だけ違うもの {io['op_mismatch']} 件")
+    lines.append(
+        f"一致した I/O {io['matched']} 件のうち、状態 (事実 / 解釈 / 不明) も一致 {io['status_agree']} 件、不明の理由まで一致 {io['status_and_reason_agree']} 件。"
+        f" 同じデータで操作だけ違うもの {io['op_mismatch']} 件"
+    )
     lines.append("")
-    lines.append("| 入口 | フレーム 再現率 | I/O 適合率 | I/O 再現率 | I/O 適合率 (重複なし) | I/O 再現率 (重複なし) | 正解だけにある I/O |")
+    lines.append(
+        "| 入口 | フレーム 再現率 | I/O 適合率 | I/O 再現率 | I/O 適合率 (重複なし) | I/O 再現率 (重複なし) | 正解だけにある I/O |"
+    )
     lines.append("|---|---|---|---|---|---|---|")
     for eid, x in rep["per_entry"].items():
-        miss = ", ".join(x["io"]["missing"][:3]) + (" …" if len(x["io"]["missing"]) > 3 else "")
+        miss = ", ".join(x["io"]["missing"][:3]) + (
+            " …" if len(x["io"]["missing"]) > 3 else ""
+        )
         d = x["io"]["distinct"]
-        lines.append(f"| {eid} | {_pct(x['frames']['recall'])} | {_pct(x['io']['precision'])} | {_pct(x['io']['recall'])} | {_pct(d['precision'])} | {_pct(d['recall'])} | {miss} |")
+        lines.append(
+            f"| {eid} | {_pct(x['frames']['recall'])} | {_pct(x['io']['precision'])} | {_pct(x['io']['recall'])} | {_pct(d['precision'])} | {_pct(d['recall'])} | {miss} |"
+        )
     if e["unanalyzed"]:
         lines.append("")
         lines.append("未分析: " + ", ".join(e["unanalyzed"]))
@@ -249,7 +336,9 @@ def main_cli(results: str, truth: str, as_json: bool) -> int:
         if not p.exists():
             raise SystemExit(f"{p} が無い")
     rep = evaluate(rp, tp)
-    print(json.dumps(rep, ensure_ascii=False, indent=2) if as_json else format_report(rep))
+    print(
+        json.dumps(rep, ensure_ascii=False, indent=2) if as_json else format_report(rep)
+    )
     return exit_code(rep)
 
 

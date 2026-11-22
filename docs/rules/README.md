@@ -13,6 +13,7 @@
 | 触るもの | 場所 | 読むルール |
 |---|---|---|
 | 形式の定義と語彙 | `schema/` | [schema.md](schema.md) |
+| 開発時・コミット時・CI の機械チェック | `scripts/check`、Git フック、ワークフロー | [checks.md](checks.md) |
 | 検査・列挙・ETL・集計・API・MCP | `abatlas/*.py` | [tools.md](tools.md) |
 | 集計表と宣言 | `dbt-template/`<br>`profiles/*/dbt-template/`<br>`abatlas/declarations.py` | [marts.md](marts.md) |
 | 画面 | `abatlas/webapp/` | [webapp.md](webapp.md)<br>[DESIGN.md](../../DESIGN.md) |

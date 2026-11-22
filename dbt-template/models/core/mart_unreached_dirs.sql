@@ -3,7 +3,7 @@
 with f as (
   select file, string_split(file, '/') as parts from {{ ref('mart_unreached_files') }}
 ), d as (
-  select array_to_string(parts[1:i], '/') as dir, i as depth from f, unnest(range(1, len(parts))) as t(i)
+  select array_to_string(parts[1:i], '/') as dir, i as depth from f, unnest(range(1, len(parts))) as t (i)
   union all
   select '(top)' as dir, 1 as depth from f where len(parts) = 1
 )

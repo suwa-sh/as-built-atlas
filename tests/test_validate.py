@@ -4,7 +4,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from abatlas.validate import validate_analysis_result, validate_entry_list, validate_profile
+from abatlas.validate import (
+    validate_analysis_result,
+    validate_entry_list,
+    validate_profile,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 FIX = Path(__file__).resolve().parent / "fixtures"
@@ -12,12 +16,16 @@ FIX = Path(__file__).resolve().parent / "fixtures"
 
 @pytest.fixture
 def profile():
-    return yaml.safe_load((ROOT / "profiles/batch-kestra/profile.yaml").read_text(encoding="utf-8"))
+    return yaml.safe_load(
+        (ROOT / "profiles/batch-kestra/profile.yaml").read_text(encoding="utf-8")
+    )
 
 
 @pytest.fixture
 def result():
-    return yaml.safe_load((FIX / "result-housekeeping.yaml").read_text(encoding="utf-8"))
+    return yaml.safe_load(
+        (FIX / "result-housekeeping.yaml").read_text(encoding="utf-8")
+    )
 
 
 def test_profile_is_valid(profile):
@@ -87,8 +95,20 @@ def test_entry_list_duplicate_ids(profile):
         "profile": {"id": "batch-kestra", "version": "0.1.0"},
         "extractors": [],
         "entries": [
-            {"id": "a", "path": "/a", "layer": "scheduler", "source": {"file": "f", "line": 1}, "status": "candidate"},
-            {"id": "a", "path": "/a", "layer": "scheduler", "source": {"file": "f", "line": 1}, "status": "candidate"},
+            {
+                "id": "a",
+                "path": "/a",
+                "layer": "scheduler",
+                "source": {"file": "f", "line": 1},
+                "status": "candidate",
+            },
+            {
+                "id": "a",
+                "path": "/a",
+                "layer": "scheduler",
+                "source": {"file": "f", "line": 1},
+                "status": "candidate",
+            },
         ],
     }
     findings = validate_entry_list(el, profile)
@@ -99,10 +119,19 @@ def test_review_schema_and_where(result):
     from abatlas.validate import validate_review
 
     review = {
-        "format_version": 1, "entry_id": "daily.housekeeping", "reviewed_at": "2026-11-04T05:08:22+09:00",
+        "format_version": 1,
+        "entry_id": "daily.housekeeping",
+        "reviewed_at": "2026-11-04T05:08:22+09:00",
         "machine_check": "ok",
-        "findings": [{"kind": "evidence_mismatch", "severity": "medium", "where": "callstack/run_sh/summary",
-                      "claim": "根拠の行は layers[].io: [...] の説明", "evidence": {"file": "scripts/housekeeping.sh", "line": 3}}],
+        "findings": [
+            {
+                "kind": "evidence_mismatch",
+                "severity": "medium",
+                "where": "callstack/run_sh/summary",
+                "claim": "根拠の行は layers[].io: [...] の説明",
+                "evidence": {"file": "scripts/housekeeping.sh", "line": 3},
+            }
+        ],
     }
     assert validate_review(review, result) == []
     review["findings"][0]["where"] = "callstack/nope/summary"
@@ -117,7 +146,9 @@ def test_old_field_names_are_rejected(profile, result):
 
     old = copy.deepcopy(result)
     old["entry"]["tier"] = old["entry"].pop("layer")
-    assert any("layer" in f for f in validate_analysis_result(old, profile)) and any("tier" in f for f in validate_analysis_result(old, profile))
+    assert any("layer" in f for f in validate_analysis_result(old, profile)) and any(
+        "tier" in f for f in validate_analysis_result(old, profile)
+    )
     old = copy.deepcopy(result)
     old["callstack"][0]["tier"] = old["callstack"][0].pop("layer")
     assert validate_analysis_result(old, profile)
@@ -127,17 +158,44 @@ def test_old_field_names_are_rejected(profile, result):
     p = copy.deepcopy(profile)
     p["layers"][0]["zone"] = "x"
     assert validate_profile(p)
-    assert any("origin" in x for x in check_declaration("m", {"tier": "core", "view": "stat", "level": "path", "keys": {"value": "n"}}, {"n"}))
+    assert any(
+        "origin" in x
+        for x in check_declaration(
+            "m",
+            {"tier": "core", "view": "stat", "level": "path", "keys": {"value": "n"}},
+            {"n"},
+        )
+    )
 
 
 def test_a_leaf_with_business_rules_is_allowed(profile, result):
     """読み書きも外部の呼び出しもしない、判定や計算だけの関数は、業務のルールを書けば終端になれる。"""
     r = copy.deepcopy(result)
-    leaf = {"id": "decide", "layer": "program", "kind": "function", "name": "decide_exit_code", "source": {"file": "scripts/housekeeping.sh", "line": 1},
-            "caller": "run_sh", "call": {"status": "fact", "when": "always", "evidence": [{"file": "scripts/housekeeping.sh", "line": 1}]}}
+    leaf = {
+        "id": "decide",
+        "layer": "program",
+        "kind": "function",
+        "name": "decide_exit_code",
+        "source": {"file": "scripts/housekeeping.sh", "line": 1},
+        "caller": "run_sh",
+        "call": {
+            "status": "fact",
+            "when": "always",
+            "evidence": [{"file": "scripts/housekeeping.sh", "line": 1}],
+        },
+    }
     r["callstack"].append(leaf)
-    assert any("decide" in f and "終端" in f for f in validate_analysis_result(r, profile))
-    leaf["rules"] = [{"kind": "decision", "value": "1 つでも失敗があれば 1 で終わる", "status": "fact", "evidence": [{"file": "scripts/housekeeping.sh", "line": 1}]}]
+    assert any(
+        "decide" in f and "終端" in f for f in validate_analysis_result(r, profile)
+    )
+    leaf["rules"] = [
+        {
+            "kind": "decision",
+            "value": "1 つでも失敗があれば 1 で終わる",
+            "status": "fact",
+            "evidence": [{"file": "scripts/housekeeping.sh", "line": 1}],
+        }
+    ]
     assert validate_analysis_result(r, profile) == []
 
 
@@ -145,8 +203,19 @@ def test_a_resolved_finding_may_point_at_a_removed_frame(result):
     """「このフレームは要らない」という指摘に従ってフレームを消すと、指摘の指す先が無くなる。直した指摘なら、検査に通す。"""
     from abatlas.validate import validate_review
 
-    finding = {"kind": "evidence_mismatch", "severity": "high", "where": "callstack/removed_frame/summary", "claim": "この画面では動かない"}
-    review = {"format_version": 1, "entry_id": result["entry"]["id"], "reviewed_at": "2026-11-04T12:00:00+09:00", "machine_check": "ok", "findings": [finding]}
+    finding = {
+        "kind": "evidence_mismatch",
+        "severity": "high",
+        "where": "callstack/removed_frame/summary",
+        "claim": "この画面では動かない",
+    }
+    review = {
+        "format_version": 1,
+        "entry_id": result["entry"]["id"],
+        "reviewed_at": "2026-11-04T12:00:00+09:00",
+        "machine_check": "ok",
+        "findings": [finding],
+    }
     assert any("removed_frame" in f for f in validate_review(review, result))
     finding["resolved"] = True
     assert validate_review(review, result) == []
@@ -157,9 +226,24 @@ def test_the_open_findings_count_must_match_the_review(result):
     from abatlas.validate import validate_review
 
     r = copy.deepcopy(result)
-    finding = {"kind": "evidence_mismatch", "severity": "low", "where": "summary", "claim": "根拠の行が足りない"}
-    review = {"format_version": 1, "entry_id": r["entry"]["id"], "reviewed_at": "2026-11-04T12:00:00+09:00", "machine_check": "ok", "findings": [finding]}
-    r["analyzer"]["reviewed"] = {"by": "x", "at": "2026-11-04T12:00:00+09:00", "findings_open": 0}
+    finding = {
+        "kind": "evidence_mismatch",
+        "severity": "low",
+        "where": "summary",
+        "claim": "根拠の行が足りない",
+    }
+    review = {
+        "format_version": 1,
+        "entry_id": r["entry"]["id"],
+        "reviewed_at": "2026-11-04T12:00:00+09:00",
+        "machine_check": "ok",
+        "findings": [finding],
+    }
+    r["analyzer"]["reviewed"] = {
+        "by": "x",
+        "at": "2026-11-04T12:00:00+09:00",
+        "findings_open": 0,
+    }
     assert any("findings_open" in f for f in validate_review(review, r))
     finding["resolved"] = True
     assert validate_review(review, r) == []
@@ -168,7 +252,12 @@ def test_the_open_findings_count_must_match_the_review(result):
 def test_the_work_definition_may_name_models_for_subagents():
     from abatlas.validate import validate_work_definition
 
-    work = {"format_version": 1, "target": {"repo": "x", "commit": "abcdef0"}, "profile": {"id": "batch-kestra"}, "analysis": {"models": {"analyze": "m-a", "review": "m-r"}}}
+    work = {
+        "format_version": 1,
+        "target": {"repo": "x", "commit": "abcdef0"},
+        "profile": {"id": "batch-kestra"},
+        "analysis": {"models": {"analyze": "m-a", "review": "m-r"}},
+    }
     assert validate_work_definition(work) == []
     work["analysis"]["models"]["summarize"] = "m-s"
     assert validate_work_definition(work)
@@ -178,21 +267,75 @@ def test_a_leaf_that_embeds_another_entry_is_allowed(profile, result):
     """別の入口にした部品を描くフレームは、読み書きが無くても終端になれる (続きは、行き先の入口の結果にある)。"""
     r = copy.deepcopy(result)
     ev = [{"file": "scripts/housekeeping.sh", "line": 1}]
-    leaf = {"id": "renderer", "layer": "program", "kind": "function", "name": "render_part", "source": {"file": "scripts/housekeeping.sh", "line": 1},
-            "caller": "run_sh", "call": {"status": "fact", "when": "always", "evidence": ev}}
+    leaf = {
+        "id": "renderer",
+        "layer": "program",
+        "kind": "function",
+        "name": "render_part",
+        "source": {"file": "scripts/housekeeping.sh", "line": 1},
+        "caller": "run_sh",
+        "call": {"status": "fact", "when": "always", "evidence": ev},
+    }
     r["callstack"].append(leaf)
-    leaf["links"] = [{"kind": "navigate", "target": "other", "entry_id": "other", "status": "fact", "evidence": ev}]
-    assert any("renderer" in f and "終端" in f for f in validate_analysis_result(r, profile))
-    leaf["links"] = [{"kind": "embed", "target": "Chart", "status": "interpretation", "evidence": ev}]   # 行き先の入口が無い
+    leaf["links"] = [
+        {
+            "kind": "navigate",
+            "target": "other",
+            "entry_id": "other",
+            "status": "fact",
+            "evidence": ev,
+        }
+    ]
+    assert any(
+        "renderer" in f and "終端" in f for f in validate_analysis_result(r, profile)
+    )
+    leaf["links"] = [
+        {"kind": "embed", "target": "Chart", "status": "interpretation", "evidence": ev}
+    ]  # 行き先の入口が無い
     problems = validate_analysis_result(r, profile)
-    assert any("renderer" in f and "終端" in f for f in problems) and any("embed" in f and "entry_id" in f for f in problems)
-    leaf["links"] = [{"kind": "embed", "target": "Chart", "entry_id": "part_p.registry.Chart", "status": "interpretation", "evidence": ev}]
-    assert any("renderer" in f and "終端" in f for f in validate_analysis_result(r, profile))   # 入口の一覧を渡さない検査では、終端の根拠にしない
-    assert any("renderer" in f and "入口の一覧に無い" in f for f in validate_analysis_result(r, profile, entry_ids={"other"}))   # 一覧に無い行き先
-    assert validate_analysis_result(r, profile, entry_ids={"part_p.registry.Chart"}) == []
+    assert any("renderer" in f and "終端" in f for f in problems) and any(
+        "embed" in f and "entry_id" in f for f in problems
+    )
+    leaf["links"] = [
+        {
+            "kind": "embed",
+            "target": "Chart",
+            "entry_id": "part_p.registry.Chart",
+            "status": "interpretation",
+            "evidence": ev,
+        }
+    ]
+    assert any(
+        "renderer" in f and "終端" in f for f in validate_analysis_result(r, profile)
+    )  # 入口の一覧を渡さない検査では、終端の根拠にしない
+    assert any(
+        "renderer" in f and "入口の一覧に無い" in f
+        for f in validate_analysis_result(r, profile, entry_ids={"other"})
+    )  # 一覧に無い行き先
+    assert (
+        validate_analysis_result(r, profile, entry_ids={"part_p.registry.Chart"}) == []
+    )
     me = r["entry"]["id"]
-    leaf["links"] = [{"kind": "embed", "target": "Self", "entry_id": me, "status": "interpretation", "evidence": ev}]   # 自分自身を指しても、続きはどこにも無い
+    leaf["links"] = [
+        {
+            "kind": "embed",
+            "target": "Self",
+            "entry_id": me,
+            "status": "interpretation",
+            "evidence": ev,
+        }
+    ]  # 自分自身を指しても、続きはどこにも無い
     problems = validate_analysis_result(r, profile, entry_ids={me})
-    assert any("renderer" in f and "終端" in f for f in problems) and any("この入口自身" in f for f in problems)
-    leaf["links"] = [{"kind": "trigger", "target": "child.yml", "entry_id": "child", "status": "fact", "evidence": ev}]   # 別の入口を起動するだけの段
+    assert any("renderer" in f and "終端" in f for f in problems) and any(
+        "この入口自身" in f for f in problems
+    )
+    leaf["links"] = [
+        {
+            "kind": "trigger",
+            "target": "child.yml",
+            "entry_id": "child",
+            "status": "fact",
+            "evidence": ev,
+        }
+    ]  # 別の入口を起動するだけの段
     assert validate_analysis_result(r, profile, entry_ids={"child"}) == []

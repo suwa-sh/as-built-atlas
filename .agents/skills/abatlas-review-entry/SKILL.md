@@ -32,26 +32,27 @@ description: 分析結果 YAML (results/ 配下の 1 ファイル) を、分析�
    - **辿り漏れ**: フレームの `source` を読み、次の層の呼び出しがあるのにフレームが無い → `missing_frame`。読み書きを持たず、権限の確認 (`guards`) か業務のルール (`rules`) だけを持つ終端のフレームは、機械チェックが通すので、とくに確かめる: 確認や判定の後に、読み書きや外への呼び出しが続いていないか (続いているのに、その先のフレームが無ければ `missing_frame`)。プロファイルの `context.md` が「フレームにしない」と決めているもの (見た目だけの部品、同じ処理の 2 回目以降など) は、漏れに数えない
 4. `analysis/reviews/<file>` に書く (形式は `<oss>/schema/review.schema.json`):
 
-```yaml
-format_version: 1
-entry_id: <id>
-reviewed_at: "<ISO 8601。書き終えた時点の実際の時刻。date -u +%Y-%m-%dT%H:%M:%SZ で取る>"
-reviewer: "<レビューしたモデルの名前と、fresh context であること。例: claude-xxx (fresh context)>"
-machine_check: ok | ng
-findings:
-  - kind: evidence_mismatch | status_mismatch | reason_mismatch | avoidable_unknown | resource_mismatch | classification_mismatch | missing_frame | missing_item | machine_check
-    severity: high | medium | low
-    where: callstack/<frame id>/io/0      # YAML 内の場所。項目が無い、という指摘 (書き漏れ) は、それが入るはずの親を指す (例: フレームに io が 1 つも無いなら callstack/<frame id>)。ほかの形: summary (入口の概要)、callstack/<frame id>/call、callstack/<frame id>/summary、callstack/<frame id>/parameters/0、callstack/<frame id>/links/0 (guards / settings / rules / tests も同じ形)、callstack/<frame id>/io/0/fields
-    claim: "<何が問題か 1 文>"
-    evidence: { file: <対象の file>, line: <行> }
-    suggestion: "<直し方 1 文>"
-notes: "<指摘にしなかったが、伝えておくこと (任意)>"
-```
+   ```yaml
+   format_version: 1
+   entry_id: <id>
+   reviewed_at: "<ISO 8601。書き終えた時点の実際の時刻。date -u +%Y-%m-%dT%H:%M:%SZ で取る>"
+   reviewer: "<レビューしたモデルの名前と、fresh context であること。例: claude-xxx (fresh context)>"
+   machine_check: ok | ng
+   findings:
+     - kind: evidence_mismatch | status_mismatch | reason_mismatch | avoidable_unknown | resource_mismatch | classification_mismatch | missing_frame | missing_item | machine_check
+       severity: high | medium | low
+       where: callstack/<frame id>/io/0      # YAML 内の場所。項目が無い、という指摘 (書き漏れ) は、それが入るはずの親を指す (例: フレームに io が 1 つも無いなら callstack/<frame id>)。ほかの形: summary (入口の概要)、callstack/<frame id>/call、callstack/<frame id>/summary、callstack/<frame id>/parameters/0、callstack/<frame id>/links/0 (guards / settings / rules / tests も同じ形)、callstack/<frame id>/io/0/fields
+       claim: "<何が問題か 1 文>"
+       evidence: { file: <対象の file>, line: <行> }
+       suggestion: "<直し方 1 文>"
+   notes: "<指摘にしなかったが、伝えておくこと (任意)>"
+   ```
 
    - `resolved` は書かない (分析の側が、直した指摘に書く)
 
    - **文字列は必ず二重引用符で囲む** (`claim` / `suggestion` / `notes`)。コロン・角括弧・`#` を含む文章を裸で書くと YAML として読めなくなる
    - 機械チェックの NG を写すときは `kind: machine_check`
+
 5. 自分の出力を機械チェックする: `<abatlas> validate review analysis/reviews/<file> --result analysis/results/<file>`。NG なら直して OK にする
 6. 報告: findings の件数 (severity 別) と、`high` の要約
 

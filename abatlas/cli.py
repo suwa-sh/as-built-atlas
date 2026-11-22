@@ -38,7 +38,13 @@ from pathlib import Path
 from .enumerate import enumerate_entries
 from .etl import run_etl
 from .schemas import load_yaml
-from .validate import validate_entry_list, validate_profile, validate_result_file, validate_review, validate_work_definition
+from .validate import (
+    validate_entry_list,
+    validate_profile,
+    validate_result_file,
+    validate_review,
+    validate_work_definition,
+)
 
 
 def _analysis_repo(near: Path) -> Path | None:
@@ -78,6 +84,8 @@ def _resolve_profile(repo: Path) -> tuple[Path | None, str]:
     try:
         return profile_dir(repo) / "profile.yaml", "作業定義の profile.dir。集計と同じ"
     except SystemExit as ex:
+        if not isinstance(ex.code, str):
+            raise
         why = str(ex)
     except Exception as ex:  # 作業定義が読めない・形が違う
         return None, f"作業定義を読めない: {ex}"
@@ -87,9 +95,20 @@ def _resolve_profile(repo: Path) -> tuple[Path | None, str]:
     except Exception as ex:
         return None, f"作業定義を読めない: {ex}"
     bundled = REPO_ROOT / "profiles" / str(pid) / "profile.yaml"
-    in_bundle = repo.resolve().is_relative_to((REPO_ROOT / "examples").resolve())  # 公開の見本の置き場だけ (checkout の中でも、spike/ などの普通の分析リポジトリは対象外)
-    if in_bundle and isinstance(rel, str) and Path(rel).parts[:1] == (OSS_DIR,) and not (repo / OSS_DIR).exists() and bundled.exists():
-        return bundled, f"配布物の中の見本で、分析リポジトリとして初期化していない ({OSS_DIR}/ が無い) ので、配布物のプロファイル"
+    in_bundle = repo.resolve().is_relative_to(
+        (REPO_ROOT / "examples").resolve()
+    )  # 公開の見本の置き場だけ (checkout の中でも、spike/ などの普通の分析リポジトリは対象外)
+    if (
+        in_bundle
+        and isinstance(rel, str)
+        and Path(rel).parts[:1] == (OSS_DIR,)
+        and not (repo / OSS_DIR).exists()
+        and bundled.exists()
+    ):
+        return (
+            bundled,
+            f"配布物の中の見本で、分析リポジトリとして初期化していない ({OSS_DIR}/ が無い) ので、配布物のプロファイル",
+        )
     return None, why
 
 
@@ -100,14 +119,25 @@ def _profile_path(given: str | None, near: Path) -> Path | None:
     --profile があればそれを使う。集計が読むものと違うときは、警告する。
     """
     repo = _analysis_repo(near)
-    resolved, why = (None, "分析リポジトリの外か、そのファイルを含む analysis/ に work-definition.yaml が無い") if repo is None else _resolve_profile(repo)
+    resolved, why = (
+        (
+            None,
+            "分析リポジトリの外か、そのファイルを含む analysis/ に work-definition.yaml が無い",
+        )
+        if repo is None
+        else _resolve_profile(repo)
+    )
     if given:
         path = Path(given)
         if resolved is not None and path.resolve() != resolved.resolve():
-            _say(f"warning: --profile {given} は、{repo} の集計 (build) が読むプロファイル {resolved} と違う。作業定義の profile.dir と揃える")
+            _say(
+                f"warning: --profile {given} は、{repo} の集計 (build) が読むプロファイル {resolved} と違う。作業定義の profile.dir と揃える"
+            )
         return path
     if resolved is None:
-        _say(f"note: プロファイルを自動で読めないので、プロファイルとの突き合わせを省く ({why})。--profile で渡す")
+        _say(
+            f"note: プロファイルを自動で読めないので、プロファイルとの突き合わせを省く ({why})。--profile で渡す"
+        )
         return None
     _say(f"profile: {resolved} ({why})")
     return resolved
@@ -123,11 +153,192 @@ def _report(label: str, findings: list[str]) -> int:
     return 0
 
 
+def _validate_path(a, path):
+    if a.kind == "profile":
+        return validate_profile(load_yaml(path))
+    if a.kind == "work":
+        return validate_work_definition(load_yaml(path))
+    if a.kind == "entries":
+        pp = _profile_path(a.profile, path)
+        return validate_entry_list(load_yaml(path), load_yaml(pp) if pp else None)
+    if a.kind == "review":
+        try:
+            review = load_yaml(path)
+        except Exception as ex:
+            return [f"yaml: 読めない: {ex}"]
+        res = load_yaml(Path(a.result)) if a.result else None
+        return validate_review(review, res)
+    return validate_result_file(
+        path, _profile_path(a.profile, path), Path(a.work) if a.work else None
+    )
+
+
+def _run_validate(a):
+    rc = 0
+    for p in a.paths:
+        rc |= _report(p, _validate_path(a, Path(p)))
+    return rc
+
+
+def _run_enumerate(a):
+    out = enumerate_entries(
+        Path(a.entry_list),
+        _profile_path(a.profile, Path(a.entry_list)),
+        write=not a.dry_run,
+    )
+    if a.dry_run:  # 一覧を書かないので、候補をここに出す (件数だけでは、漏れや重複を確かめられない)
+        for e in out["entries"]:
+            print(
+                f"{e['id']}\t{e['path']}\t{e['layer']}\t{e.get('extractor', '')}\t{e['status']}"
+            )
+    return 0
+
+
+def _run_extractors(a):
+    import importlib
+
+    from .enumerate import CORE_EXTRACTORS
+
+    if a.kind is None:
+        print(
+            "コア同梱の抽出器: "
+            + ", ".join(sorted(CORE_EXTRACTORS))
+            + " (abatlas extractors <名前> で、params の全項目を出す)"
+        )
+    elif a.kind not in CORE_EXTRACTORS:
+        raise SystemExit(
+            f"extractors: '{a.kind}' は、コア同梱の抽出器に無い ({', '.join(sorted(CORE_EXTRACTORS))})"
+        )
+    else:
+        print(
+            (importlib.import_module(CORE_EXTRACTORS[a.kind][-1]).__doc__ or "").strip()
+        )
+    return 0
+
+
+def _run_code_search(a):
+    import json
+
+    import yaml
+
+    from .extractors.ast_query import search
+    from .validate import _resolve_scope
+
+    if bool(a.pattern) == bool(a.rule):
+        raise SystemExit("code-search: --pattern か --rule の、どちらか 1 つを渡す")
+    if a.pattern:
+        rule = {"pattern": a.pattern}
+    elif a.rule.startswith("@"):
+        rule = yaml.safe_load(Path(a.rule[1:]).read_text(encoding="utf-8"))
+    else:
+        try:
+            rule = json.loads(a.rule)
+        except json.JSONDecodeError as ex:
+            raise SystemExit(f"code-search: --rule を JSON として読めない: {ex}")
+    work_path = Path(a.work)
+    scope = _resolve_scope(load_yaml(work_path)["target"], work_path.parent)
+    if scope is None or not scope.is_dir():
+        raise SystemExit(
+            f"code-search: {a.work} の target.clone_path/scope が見つからない: {scope}"
+        )
+    print("\n".join(search(scope, a.files, a.exclude, a.language, rule, a.limit)))
+    return 0
+
+
+def _run_init(a):
+    from .layout import init_repo
+
+    for line in init_repo(Path(a.repo), a.profile, a.targets):
+        print(f"  + {line}")
+    print(
+        f"init: {a.repo} (profile {a.profile})。次: .env の ABATLAS_TARGET と analysis/work-definition.yaml を埋めて "
+        "`docker compose run --rm abatlas validate work analysis/work-definition.yaml`"
+    )
+    return 0
+
+
+def _run_upgrade(a):
+    from .layout import upgrade_repo
+
+    placed = upgrade_repo(Path(a.repo))
+    print("upgrade: 置き換えた " + ", ".join(placed) + " / 製品別 adapter を再生成した")
+    return 0
+
+
+def _run_migrate(a):
+    from .migrate import migrate_repo
+
+    lines, rc = migrate_repo(Path(a.repo), a.dry_run)
+    print("\n".join(lines))
+    return rc
+
+
+def _run_dictionary(a):
+    from .dictionary import update_dictionary
+
+    rep = update_dictionary(Path(a.repo), a.dry_run)
+    print("dictionary: " + ", ".join(f"{k}={v}" for k, v in rep.items()))
+    return 0
+
+
+def _run_diff(a):
+    from .diff import diff_repo
+
+    print(diff_repo(Path(a.repo), a.rev))
+    return 0
+
+
+def _run_etl(a):
+    prof_path, _ = _resolve_profile(
+        Path(a.analysis_repo).resolve().parent
+    )  # 集計 (build) と同じプロファイルで検査する。読めなければ、プロファイルとの突き合わせを省く
+    counts = run_etl(
+        Path(a.analysis_repo),
+        Path(a.out),
+        load_yaml(prof_path) if prof_path else None,
+    )
+    print("etl: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
+    return 0
+
+
+def _run_build(a):
+    from .build import build_repo
+
+    rep = build_repo(Path(a.repo), a.select)
+    print("build: " + ", ".join(f"{k}={v}" for k, v in rep.items()))
+    return 0
+
+
+def _run_serve(a):
+    from .api import serve
+
+    serve(Path(a.repo), a.host, a.port)
+    return 0
+
+
+def _run_mcp(a):
+    from .mcp_server import run
+
+    run(a.api)
+    return 0
+
+
+def _run_evaluate(a):
+    from .evaluate import main_cli
+
+    return main_cli(a.results, a.truth, a.json)
+
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="abatlas", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        prog="abatlas",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     v = sub.add_parser("validate", help="機械チェック")
+    v.set_defaults(handler=_run_validate)
     v.add_argument("kind", choices=["profile", "work", "entries", "result", "review"])
     v.add_argument("paths", nargs="+")
     v.add_argument("--profile")
@@ -135,61 +346,114 @@ def main(argv=None) -> int:
     v.add_argument("--result")
 
     e = sub.add_parser("enumerate", help="抽出器を実行して入口の候補を一覧に書く")
+    e.set_defaults(handler=_run_enumerate)
     e.add_argument("entry_list")
     e.add_argument("--profile")
     e.add_argument("--dry-run", action="store_true")
 
-    xs = sub.add_parser("extractors", help="コア同梱の抽出器の一覧と、params の全項目を出す")
+    xs = sub.add_parser(
+        "extractors", help="コア同梱の抽出器の一覧と、params の全項目を出す"
+    )
+    xs.set_defaults(handler=_run_extractors)
     xs.add_argument("kind", nargs="?")
 
-    cs = sub.add_parser("code-search", help="対象のコードを構文で探す (ast-grep の規則)")
-    cs.add_argument("work", help="作業定義 (analysis/work-definition.yaml)。対象の場所と範囲を読む")
+    cs = sub.add_parser(
+        "code-search", help="対象のコードを構文で探す (ast-grep の規則)"
+    )
+    cs.set_defaults(handler=_run_code_search)
+    cs.add_argument(
+        "work", help="作業定義 (analysis/work-definition.yaml)。対象の場所と範囲を読む"
+    )
     cs.add_argument("--language", required=True)
-    cs.add_argument("--files", required=True, nargs="+", help="glob (対象の範囲からの相対)")
+    cs.add_argument(
+        "--files", required=True, nargs="+", help="glob (対象の範囲からの相対)"
+    )
     cs.add_argument("--exclude", nargs="*", default=[])
     cs.add_argument("--pattern", help="コードの形 (ast-grep の pattern。穴は $NAME)")
-    cs.add_argument("--rule", help="ast-grep の規則。JSON 文字列か、@path で JSON / YAML ファイル")
+    cs.add_argument(
+        "--rule", help="ast-grep の規則。JSON 文字列か、@path で JSON / YAML ファイル"
+    )
     cs.add_argument("--limit", type=int, default=200)
 
     from .layout import DEFAULT_TARGETS
 
-    i = sub.add_parser("init", help="分析リポジトリを初期化する (OSS 所有の配置 + 対象層 + 中ハーネス)")
+    i = sub.add_parser(
+        "init", help="分析リポジトリを初期化する (OSS 所有の配置 + 対象層 + 中ハーネス)"
+    )
+    i.set_defaults(handler=_run_init)
     i.add_argument("repo")
     i.add_argument("--profile", required=True, help="プロファイル id (profiles/<id>)")
-    i.add_argument("--targets", default=DEFAULT_TARGETS, help=f"mid-harness の対象製品 (カンマ区切り。既定: {DEFAULT_TARGETS})")
+    i.add_argument(
+        "--targets",
+        default=DEFAULT_TARGETS,
+        help=f"mid-harness の対象製品 (カンマ区切り。既定: {DEFAULT_TARGETS})",
+    )
 
-    u = sub.add_parser("upgrade", help="OSS 所有のパスだけ置き換えて adapter を再生成する")
+    u = sub.add_parser(
+        "upgrade", help="OSS 所有のパスだけ置き換えて adapter を再生成する"
+    )
+    u.set_defaults(handler=_run_upgrade)
     u.add_argument("repo")
 
-    mg = sub.add_parser("migrate", help="分析する側の資産の項目名を、いまの形式に書き換える (値は変えない。文の中の「(tier: <id>)」だけ「(layer: <id>)」に直す)")
+    mg = sub.add_parser(
+        "migrate",
+        help="分析する側の資産の項目名を、いまの形式に書き換える (値は変えない。文の中の「(tier: <id>)」だけ「(layer: <id>)」に直す)",
+    )
+    mg.set_defaults(handler=_run_migrate)
     mg.add_argument("repo")
-    mg.add_argument("--dry-run", action="store_true", help="書き換えずに、書き換わるファイルと、書き換えられないファイルを出す")
+    mg.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="書き換えずに、書き換わるファイルと、書き換えられないファイルを出す",
+    )
 
-    dc = sub.add_parser("dictionary", help="分析結果に出てきた列を、データの辞書 (analysis/data-dictionary.yaml) に candidate で足す (区分は決めない)")
+    dc = sub.add_parser(
+        "dictionary",
+        help="分析結果に出てきた列を、データの辞書 (analysis/data-dictionary.yaml) に candidate で足す (区分は決めない)",
+    )
+    dc.set_defaults(handler=_run_dictionary)
     dc.add_argument("repo")
     dc.add_argument("--dry-run", action="store_true", help="書かずに、数だけ出す")
 
-    df = sub.add_parser("diff", help="分析リポジトリの git の版にある前の分析結果と、いまの分析結果を比べる (入口ごとに、足されたものと消えたもの)")
+    df = sub.add_parser(
+        "diff",
+        help="分析リポジトリの git の版にある前の分析結果と、いまの分析結果を比べる (入口ごとに、足されたものと消えたもの)",
+    )
+    df.set_defaults(handler=_run_diff)
     df.add_argument("repo")
-    df.add_argument("--from", dest="rev", required=True, help="比べる相手の git の版 (コミット、タグ、HEAD~1 など)")
+    df.add_argument(
+        "--from",
+        dest="rev",
+        required=True,
+        help="比べる相手の git の版 (コミット、タグ、HEAD~1 など)",
+    )
 
-    t = sub.add_parser("etl", help="entry-list と results/*.yaml を seed CSV に分解する")
+    t = sub.add_parser(
+        "etl", help="entry-list と results/*.yaml を seed CSV に分解する"
+    )
+    t.set_defaults(handler=_run_etl)
     t.add_argument("analysis_repo")
     t.add_argument("--out", required=True)
 
     b = sub.add_parser("build", help="ETL → dbt build")
+    b.set_defaults(handler=_run_build)
     b.add_argument("repo")
     b.add_argument("--select")
 
     s = sub.add_parser("serve", help="集計表 API")
+    s.set_defaults(handler=_run_serve)
     s.add_argument("repo")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8765)
 
     m = sub.add_parser("mcp", help="MCP サーバを stdio で (API は別プロセス)")
+    m.set_defaults(handler=_run_mcp)
     m.add_argument("--api", default="http://127.0.0.1:8765")
 
-    ev = sub.add_parser("evaluate", help="分析結果を正解と突き合わせる (ディレクトリかファイル)")
+    ev = sub.add_parser(
+        "evaluate", help="分析結果を正解と突き合わせる (ディレクトリかファイル)"
+    )
+    ev.set_defaults(handler=_run_evaluate)
     ev.add_argument("results")
     ev.add_argument("--truth", required=True)
     ev.add_argument("--json", action="store_true", help="表でなく JSON で出す")
@@ -197,134 +461,12 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     _said.clear()  # 知らせをまとめるのは、1 回のコマンドの中だけ
     try:
-        if a.cmd == "validate":
-            rc = 0
-            for p in a.paths:
-                path = Path(p)
-                if a.kind == "profile":
-                    rc |= _report(p, validate_profile(load_yaml(path)))
-                elif a.kind == "work":
-                    rc |= _report(p, validate_work_definition(load_yaml(path)))
-                elif a.kind == "entries":
-                    pp = _profile_path(a.profile, path)
-                    rc |= _report(p, validate_entry_list(load_yaml(path), load_yaml(pp) if pp else None))
-                elif a.kind == "review":
-                    try:
-                        review = load_yaml(path)
-                    except Exception as ex:  # YAML として読めない (引用符の欠落など)
-                        rc |= _report(p, [f"yaml: 読めない: {ex}"])
-                        continue
-                    res = load_yaml(Path(a.result)) if a.result else None
-                    rc |= _report(p, validate_review(review, res))
-                else:
-                    # 読み先は、ファイルごとに決める (別の分析リポジトリの結果を、1 回で検査できる)
-                    rc |= _report(p, validate_result_file(path, _profile_path(a.profile, path), Path(a.work) if a.work else None))
-            return rc
-        if a.cmd == "enumerate":
-            out = enumerate_entries(Path(a.entry_list), _profile_path(a.profile, Path(a.entry_list)), write=not a.dry_run)
-            if a.dry_run:  # 一覧を書かないので、候補をここに出す (件数だけでは、漏れや重複を確かめられない)
-                for e in out["entries"]:
-                    print(f"{e['id']}\t{e['path']}\t{e['layer']}\t{e.get('extractor', '')}\t{e['status']}")
-            return 0
-        if a.cmd == "extractors":
-            import importlib
-
-            from .enumerate import CORE_EXTRACTORS
-
-            if a.kind is None:
-                print("コア同梱の抽出器: " + ", ".join(sorted(CORE_EXTRACTORS)) + " (abatlas extractors <名前> で、params の全項目を出す)")
-                return 0
-            if a.kind not in CORE_EXTRACTORS:
-                raise SystemExit(f"extractors: '{a.kind}' は、コア同梱の抽出器に無い ({', '.join(sorted(CORE_EXTRACTORS))})")
-            print((importlib.import_module(CORE_EXTRACTORS[a.kind][-1]).__doc__ or "").strip())
-            return 0
-        if a.cmd == "code-search":
-            import json
-
-            import yaml
-
-            from .extractors.ast_query import search
-            from .validate import _resolve_scope
-
-            if bool(a.pattern) == bool(a.rule):
-                raise SystemExit("code-search: --pattern か --rule の、どちらか 1 つを渡す")
-            if a.pattern:
-                rule = {"pattern": a.pattern}
-            elif a.rule.startswith("@"):
-                rule = yaml.safe_load(Path(a.rule[1:]).read_text(encoding="utf-8"))
-            else:
-                try:
-                    rule = json.loads(a.rule)
-                except json.JSONDecodeError as ex:
-                    raise SystemExit(f"code-search: --rule を JSON として読めない: {ex}")
-            work_path = Path(a.work)
-            scope = _resolve_scope(load_yaml(work_path)["target"], work_path.parent)
-            if scope is None or not scope.is_dir():
-                raise SystemExit(f"code-search: {a.work} の target.clone_path/scope が見つからない: {scope}")
-            print("\n".join(search(scope, a.files, a.exclude, a.language, rule, a.limit)))
-            return 0
-        if a.cmd == "init":
-            from .layout import init_repo
-
-            for line in init_repo(Path(a.repo), a.profile, a.targets):
-                print(f"  + {line}")
-            print(f"init: {a.repo} (profile {a.profile})。次: .env の ABATLAS_TARGET と analysis/work-definition.yaml を埋めて "
-                  "`docker compose run --rm abatlas validate work analysis/work-definition.yaml`")
-            return 0
-        if a.cmd == "upgrade":
-            from .layout import upgrade_repo
-
-            placed = upgrade_repo(Path(a.repo))
-            print("upgrade: 置き換えた " + ", ".join(placed) + " / 製品別 adapter を再生成した")
-            return 0
-        if a.cmd == "migrate":
-            from .migrate import migrate_repo
-
-            lines, rc = migrate_repo(Path(a.repo), a.dry_run)
-            print("\n".join(lines))
-            return rc
-        if a.cmd == "dictionary":
-            from .dictionary import update_dictionary
-
-            rep = update_dictionary(Path(a.repo), a.dry_run)
-            print("dictionary: " + ", ".join(f"{k}={v}" for k, v in rep.items()))
-            return 0
-        if a.cmd == "diff":
-            from .diff import diff_repo
-
-            print(diff_repo(Path(a.repo), a.rev))
-            return 0
-        if a.cmd == "etl":
-            prof_path, _ = _resolve_profile(Path(a.analysis_repo).resolve().parent)  # 集計 (build) と同じプロファイルで検査する。読めなければ、プロファイルとの突き合わせを省く
-            counts = run_etl(Path(a.analysis_repo), Path(a.out), load_yaml(prof_path) if prof_path else None)
-            print("etl: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
-            return 0
-        if a.cmd == "build":
-            from .build import build_repo
-
-            rep = build_repo(Path(a.repo), a.select)
-            print("build: " + ", ".join(f"{k}={v}" for k, v in rep.items()))
-            return 0
-        if a.cmd == "serve":
-            from .api import serve
-
-            serve(Path(a.repo), a.host, a.port)
-            return 0
-        if a.cmd == "mcp":
-            from .mcp_server import run
-
-            run(a.api)
-            return 0
-        if a.cmd == "evaluate":
-            from .evaluate import main_cli
-
-            return main_cli(a.results, a.truth, a.json)
+        return a.handler(a)
     except SystemExit as ex:
         if isinstance(ex.code, str):
             print(ex.code, file=sys.stderr)
             return 2
         raise
-    return 0
 
 
 if __name__ == "__main__":

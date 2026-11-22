@@ -45,7 +45,9 @@ def validator(name: str) -> Draft202012Validator:
 def schema_errors(name: str, instance) -> list[str]:
     """schema 違反を人が読める 1 行ずつにして返す (空なら合格)。"""
     out = []
-    for err in sorted(validator(name).iter_errors(instance), key=lambda e: list(e.absolute_path)):
+    for err in sorted(
+        validator(name).iter_errors(instance), key=lambda e: list(e.absolute_path)
+    ):
         where = "/".join(str(p) for p in err.absolute_path) or "(root)"
         out.append(f"{where}: {err.message}")
     return out
@@ -74,7 +76,23 @@ def term_refs(text: str) -> list[str]:
 def resolve_terms(text: str, terms: dict[str, str] | None = None) -> str:
     """文字の中の "{id}" を呼び名に置き換える。用語集に無い id はそのまま残す (検査が指摘する)。"\\{id}" は \\ を外して文字どおり残す。"""
     terms = term_labels() if terms is None else terms
-    return TERM_REF.sub(lambda m: "{" + m.group(2) + "}" if m.group(1) else terms.get(m.group(2), m.group(0)), text)
+    return TERM_REF.sub(
+        lambda m: "{" + m.group(2) + "}"
+        if m.group(1)
+        else terms.get(m.group(2), m.group(0)),
+        text,
+    )
+
+
+def _append_hierarchy_notes(profile, out):
+    notes = (
+        (profile.get("hierarchy") or {}).get("notes")
+        if isinstance(profile.get("hierarchy"), dict)
+        else None
+    )
+    for i, n in enumerate(notes if isinstance(notes, list) else []):
+        if isinstance(n, dict) and isinstance(n.get("text"), str):
+            out.append((f"hierarchy/notes/{i}/text", n["text"]))
 
 
 def profile_display_texts(profile: dict) -> list[tuple[str, str]]:
@@ -84,19 +102,24 @@ def profile_display_texts(profile: dict) -> list[tuple[str, str]]:
         out.append(("label", profile["label"]))
     for t in profile.get("layers") or []:
         if isinstance(t, dict):
-            out += [(f"layers/{t.get('id')}/{k}", t[k]) for k in ("label", "tier") if isinstance(t.get(k), str)]
-    notes = (profile.get("hierarchy") or {}).get("notes") if isinstance(profile.get("hierarchy"), dict) else None
-    for i, n in enumerate(notes if isinstance(notes, list) else []):
-        if isinstance(n, dict) and isinstance(n.get("text"), str):
-            out.append((f"hierarchy/notes/{i}/text", n["text"]))
+            out += [
+                (f"layers/{t.get('id')}/{k}", t[k])
+                for k in ("label", "tier")
+                if isinstance(t.get(k), str)
+            ]
+    _append_hierarchy_notes(profile, out)
     return out
 
 
 def profile_term_problems(profile: dict) -> list[str]:
     """プロファイルの表示項目が指す用語のうち、用語集に無いもの。"""
     known = term_labels()
-    return [f"profile: {where}: 用語 '{{{ref}}}' が用語集に無い (schema/vocab/terms.yaml)"
-            for where, text in profile_display_texts(profile) for ref in term_refs(text) if ref not in known]
+    return [
+        f"profile: {where}: 用語 '{{{ref}}}' が用語集に無い (schema/vocab/terms.yaml)"
+        for where, text in profile_display_texts(profile)
+        for ref in term_refs(text)
+        if ref not in known
+    ]
 
 
 @lru_cache(maxsize=None)
@@ -104,7 +127,14 @@ def resource_kinds() -> dict:
     """データの種類の語彙 (種類と操作の label の "{id}" を、用語集の呼び名に置き換えたもの)。"""
     out = {}
     for k, v in vocab("resource-kinds")["kinds"].items():
-        out[k] = {**v, "label": resolve_terms(v.get("label", k)), "ops": [{**o, "label": resolve_terms(o.get("label", o["id"]))} for o in v.get("ops", [])]}
+        out[k] = {
+            **v,
+            "label": resolve_terms(v.get("label", k)),
+            "ops": [
+                {**o, "label": resolve_terms(o.get("label", o["id"]))}
+                for o in v.get("ops", [])
+            ],
+        }
     return out
 
 

@@ -14,6 +14,8 @@
 
 ## 標準コマンド
 
+開発時の機械チェックは `mise exec -- scripts/check dev`、main と同じ全量検査は `mise exec -- scripts/check main`。セットアップ、Git フック、個別の検査は[機械チェックのルール](docs/rules/checks.md)を参照する。
+
 ```bash
 uv sync                                   # 依存を入れる (Python 3.11+ / uv)
 uv run pytest -q                          # コアのテスト

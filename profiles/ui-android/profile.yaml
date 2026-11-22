@@ -35,7 +35,15 @@ layers:
     tier: background
     label: background (画面を持たずに OS から起動される class。Application、Service、BroadcastReceiver、ContentProvider、WorkManager の Worker)
     role: entry
-    stack: [Android Application, Service, BroadcastReceiver, ContentProvider, WorkManager, Firebase Cloud Messaging]
+    stack:
+      [
+        Android Application,
+        Service,
+        BroadcastReceiver,
+        ContentProvider,
+        WorkManager,
+        Firebase Cloud Messaging,
+      ]
     invokes_next: "OS が呼ぶ method (`Application.onCreate`、`Worker.doWork`、`onMessageReceived`、`onReceive`、`query` など) から、呼ぶ repository、data source、SDK。Worker の登録 (`enqueue`) は、登録した Worker の入口へのつながり (trigger) にして、Worker の中は辿らない"
     io: [rdb, kvs, filesystem, external_api]
   - id: ui
@@ -76,17 +84,29 @@ layers:
     io: [rdb, kvs, filesystem, external_api]
 
 hierarchy:
-  level_labels: [section+, screen]   # 文字の route は区切りがそのまま段。型の route は 1 段
-  derivation: "型で書いた route (`entry<ForYouNavKey>`、`composable<Screen.Home>`) は、型の名前 (入れ子の class は `.` でつないだまま) を 1 段にし、末尾の `NavKey` / `Route` / `Destination` を落とす (`/ForYou`、`/Screen.Home`)。文字で書いた route (`composable(\"topic/{topicId}\")`) は '/' で区切って段にし、`?` から後ろの省ける引数は落とす (`/topic/{topicId}`)。navigation graph の XML の destination は `/<graph のファイル名>/<android:id>`。入れ子の graph (`navigation<Graph>`、`<navigation>`) は段にしない。activity は `/(activity)/<class 名>`、アプリ全体の枠が描く共通の composable は `/(shell)/<composable 名>`、画面を持たない起点は `/(background)/<application|service|receiver|provider|worker>/<class 名>`"
-  entry_labels:   # 画面でない入口は、詳細のページで、それぞれの呼び名にする
+  level_labels: [section+, screen] # 文字の route は区切りがそのまま段。型の route は 1 段
+  derivation: '型で書いた route (`entry<ForYouNavKey>`、`composable<Screen.Home>`) は、型の名前 (入れ子の class は `.` でつないだまま) を 1 段にし、末尾の `NavKey` / `Route` / `Destination` を落とす (`/ForYou`、`/Screen.Home`)。文字で書いた route (`composable("topic/{topicId}")`) は ''/'' で区切って段にし、`?` から後ろの省ける引数は落とす (`/topic/{topicId}`)。navigation graph の XML の destination は `/<graph のファイル名>/<android:id>`。入れ子の graph (`navigation<Graph>`、`<navigation>`) は段にしない。activity は `/(activity)/<class 名>`、アプリ全体の枠が描く共通の composable は `/(shell)/<composable 名>`、画面を持たない起点は `/(background)/<application|service|receiver|provider|worker>/<class 名>`'
+  entry_labels: # 画面でない入口は、詳細のページで、それぞれの呼び名にする
     - { contains: "(activity)", label: activity }
     - { contains: "(shell)", label: shell }
     - { contains: "(background)", label: background }
-  notes:   # 段の名前に残る Navigation の書き方を、画面で説明する
-    - { contains: "{", text: "波かっこの段 (例: {topicId}) は、実行時に値が入る場所。対象のソースの route の文字をそのまま出している" }
-    - { contains: "(activity)", text: "(activity) で始まる {entry} は、AndroidManifest に書いた Activity。Navigation の host を置く Activity は、アプリ全体の枠になる" }
-    - { contains: "(shell)", text: "(shell) で始まる {entry} は、アプリ全体の枠が描く共通の composable。どの画面を開いても動く" }
-    - { contains: "(background)", text: "(background) で始まる {entry} は、画面を持たずに OS から起動される class。後ろの段は、{kind} と class 名" }
+  notes: # 段の名前に残る Navigation の書き方を、画面で説明する
+    - {
+        contains: "{",
+        text: "波かっこの段 (例: {topicId}) は、実行時に値が入る場所。対象のソースの route の文字をそのまま出している",
+      }
+    - {
+        contains: "(activity)",
+        text: "(activity) で始まる {entry} は、AndroidManifest に書いた Activity。Navigation の host を置く Activity は、アプリ全体の枠になる",
+      }
+    - {
+        contains: "(shell)",
+        text: "(shell) で始まる {entry} は、アプリ全体の枠が描く共通の composable。どの画面を開いても動く",
+      }
+    - {
+        contains: "(background)",
+        text: "(background) で始まる {entry} は、画面を持たずに OS から起動される class。後ろの段は、{kind} と class 名",
+      }
 
 extractors:
   - name: compose-typed-destinations
@@ -97,7 +117,7 @@ extractors:
       files: ["**/src/main/**/*.kt", "**/src/*/kotlin/**/*.kt"]
       exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
       language: kotlin
-      rule:   # navigation の宣言の中の、型の引数を持つ entry / composable / dialog の呼び出し 1 つ = 画面 1 つ。入れ子の graph (navigation<Graph>) は画面にしない
+      rule: # navigation の宣言の中の、型の引数を持つ entry / composable / dialog の呼び出し 1 つ = 画面 1 つ。入れ子の graph (navigation<Graph>) は画面にしない
         kind: call_expression
         all:
           - has: { kind: simple_identifier, regex: "^(entry|composable|dialog)$" }
@@ -107,9 +127,9 @@ extractors:
           - inside:
               stopBy: end
               any:
-                - kind: function_declaration                    # fun EntryProviderScope<NavKey>.fooEntry() / fun NavGraphBuilder.fooScreen()
+                - kind: function_declaration # fun EntryProviderScope<NavKey>.fooEntry() / fun NavGraphBuilder.fooScreen()
                   has: { kind: receiver_type, regex: "^(EntryProviderScope|NavGraphBuilder)\\b" }
-                - kind: call_expression                         # NavHost(...) { ... } / entryProvider { ... } / navigation<Graph> { ... }
+                - kind: call_expression # NavHost(...) { ... } / entryProvider { ... } / navigation<Graph> { ... }
                   has: { kind: simple_identifier, regex: "^(NavHost|entryProvider|navigation)$" }
       fields:
         path: "{ROUTE}"
@@ -117,15 +137,15 @@ extractors:
         attributes: { route_type: "{ROUTE}" }
       segments:
         replace:
-          - { pattern: "^(.+?)(NavKey|Route|Destination)$", with: "\\1" }   # ForYouNavKey → ForYou、Screen.HomeRoute → Screen.Home
+          - { pattern: "^(.+?)(NavKey|Route|Destination)$", with: "\\1" } # ForYouNavKey → ForYou、Screen.HomeRoute → Screen.Home
       id:
         #   ForYouNavKey → ForYou      Screen.Home → Screen.Home (入れ子の class の . は残す)      Topic_Detail → Topic__Detail
         replace:
-          - { pattern: "_", with: "__" }                 # 名前の中の _ を重ねる (最初に行う。ほかのプロファイルと同じ考え方)
-          - { pattern: "[^A-Za-z0-9_.-]", with: "" }      # 残りの記号を除く
-      unresolved:   # 静的に読めない destination。入口にはせず、場所を知らせる
+          - { pattern: "_", with: "__" } # 名前の中の _ を重ねる (最初に行う。ほかのプロファイルと同じ考え方)
+          - { pattern: "[^A-Za-z0-9_.-]", with: "" } # 残りの記号を除く
+      unresolved: # 静的に読めない destination。入口にはせず、場所を知らせる
         any:
-          - kind: call_expression    # route を名前で渡した destination (composable(TOPIC_ROUTE)、composable(route = TOPIC_ROUTE)、entry(key))
+          - kind: call_expression # route を名前で渡した destination (composable(TOPIC_ROUTE)、composable(route = TOPIC_ROUTE)、entry(key))
             all:
               - has: { kind: simple_identifier, regex: "^(entry|composable|dialog)$" }
               - has:
@@ -142,15 +162,17 @@ extractors:
                   stopBy: end
                   any:
                     - kind: function_declaration
-                      has: { kind: receiver_type, regex: "^(EntryProviderScope|NavGraphBuilder)\\b" }
+                      has:
+                        { kind: receiver_type, regex: "^(EntryProviderScope|NavGraphBuilder)\\b" }
                     - kind: call_expression
-                      has: { kind: simple_identifier, regex: "^(NavHost|entryProvider|navigation)$" }
-          - kind: call_expression    # Navigation 3 の when で書いた entryProvider (is X -> NavEntry(key) { ... })
+                      has:
+                        { kind: simple_identifier, regex: "^(NavHost|entryProvider|navigation)$" }
+          - kind: call_expression # Navigation 3 の when で書いた entryProvider (is X -> NavEntry(key) { ... })
             has: { kind: simple_identifier, regex: "^NavEntry$" }
   - name: compose-string-destinations
     run: abatlas-extract ast
     layer: screen
-    hint: "文字で書いた route の destination (`composable(\"topic/{topicId}\")`、`composable(route = \"...\")`) を取る。files と exclude は compose-typed-destinations と同じにする。文字の route を使わないアプリ (型の route だけ、Navigation 3) では、この抽出器を外す。route の文字に `$` で値を埋め込むアプリは、取れないので、読んで `abatlas-extract listed` で足す"
+    hint: '文字で書いた route の destination (`composable("topic/{topicId}")`、`composable(route = "...")`) を取る。files と exclude は compose-typed-destinations と同じにする。文字の route を使わないアプリ (型の route だけ、Navigation 3) では、この抽出器を外す。route の文字に `$` で値を埋め込むアプリは、取れないので、読んで `abatlas-extract listed` で足す'
     params:
       files: ["**/src/main/**/*.kt", "**/src/*/kotlin/**/*.kt"]
       exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
@@ -166,11 +188,11 @@ extractors:
                 has:
                   kind: value_argument
                   any:
-                    - nthChild: 1                                   # composable("topic/{topicId}")
-                      has: { kind: string_literal, regex: "^\"[^$]*\"$", pattern: $ROUTE }
-                    - all:                                          # composable(route = "topic/{topicId}")
+                    - nthChild: 1 # composable("topic/{topicId}")
+                      has: { kind: string_literal, regex: '^"[^$]*"$', pattern: $ROUTE }
+                    - all: # composable(route = "topic/{topicId}")
                         - has: { kind: simple_identifier, regex: "^route$" }
-                        - has: { kind: string_literal, regex: "^\"[^$]*\"$", pattern: $ROUTE }
+                        - has: { kind: string_literal, regex: '^"[^$]*"$', pattern: $ROUTE }
           - inside:
               stopBy: end
               any:
@@ -184,22 +206,22 @@ extractors:
         attributes: { route: "{ROUTE}" }
       segments:
         replace:
-          - { pattern: "\\?.*$", with: "" }   # search?query={query} → search (省ける引数は段にしない)
+          - { pattern: "\\?.*$", with: "" } # search?query={query} → search (省ける引数は段にしない)
         empty: "(root)"
       id:
         #   topic/{topicId} → topic.topicId_d      topic/topicId → topic.topicId      "" → root_r
         replace:
           - { pattern: "_", with: "__" }
-          - { pattern: "^\\{(.+)\\}$", with: "\\1_d" }       # {topicId} → topicId_d (値が入る段)
+          - { pattern: "^\\{(.+)\\}$", with: "\\1_d" } # {topicId} → topicId_d (値が入る段)
           - { pattern: "^\\(root\\)$", with: "root_r" }
           - { pattern: "[^A-Za-z0-9_-]", with: "" }
-      unresolved:   # route の文字に $ で値を埋め込んだ destination ("orders/$ORDER_ARG"、"x/${A.b}")。入口にはせず、場所を知らせる
+      unresolved: # route の文字に $ で値を埋め込んだ destination ("orders/$ORDER_ARG"、"x/${A.b}")。入口にはせず、場所を知らせる
         kind: string_literal
         all:
           - any:
               - has: { kind: interpolation_identifier_start }
               - has: { kind: interpolation_expression_start }
-          - inside:   # composable(...) の引数の文字だけ (ラムダの中の文字は見ない)
+          - inside: # composable(...) の引数の文字だけ (ラムダの中の文字は見ない)
               kind: value_argument
               inside:
                 kind: value_arguments
@@ -216,7 +238,7 @@ extractors:
       files: ["**/src/main/res/navigation/*.xml"]
       exclude: ["**/build/**"]
       language: html
-      rule:   # <fragment android:id="@+id/home" ...> 1 つ = 画面 1 つ
+      rule: # <fragment android:id="@+id/home" ...> 1 つ = 画面 1 つ
         kind: attribute
         all:
           - inside:
@@ -230,7 +252,7 @@ extractors:
         name: "{ID}"
         attributes: { graph: "{stem}", destination_id: "{ID}" }
       segments:
-        drop: ["@\\+?id"]   # @+id/homeFragment の @+id の段を落とす → homeFragment
+        drop: ["@\\+?id"] # @+id/homeFragment の @+id の段を落とす → homeFragment
       id:
         replace:
           - { pattern: "_", with: "__" }
@@ -243,7 +265,7 @@ extractors:
       files: ["**/src/*/AndroidManifest.xml"]
       exclude: ["**/src/test*/**", "**/src/androidTest*/**", "**/build/**"]
       language: html
-      rule:   # <activity android:name=".MainActivity"> 1 つ = 入口 1 つ。activity-alias は取らない (同じ class の別名)
+      rule: # <activity android:name=".MainActivity"> 1 つ = 入口 1 つ。activity-alias は取らない (同じ class の別名)
         kind: attribute
         all:
           - inside:
@@ -258,7 +280,7 @@ extractors:
         attributes: { component_class: "{NAME}", manifest: "{file}" }
       segments:
         replace:
-          - { pattern: "^(?!\\().*\\.", with: "" }   # .MainActivity / com.example.MainActivity → MainActivity (先頭の固定の段は残す)
+          - { pattern: "^(?!\\().*\\.", with: "" } # .MainActivity / com.example.MainActivity → MainActivity (先頭の固定の段は残す)
           # 別の package に、同じ短い名前の class があると、同じ id になって列挙が止まる。そのときは、上の置換を、package の最後の段を残す形に直す
           #   例: { pattern: "^(?!\\().*\\.([^.]+)\\.([^.]+)$", with: "\\1-\\2" }   # com.foo.MainActivity → foo-MainActivity
       id:
@@ -280,8 +302,24 @@ extractors:
         all:
           - inside:
               any:
-                - { kind: start_tag, has: { kind: tag_name, regex: "^(application|service|receiver|provider)$", pattern: $KIND } }
-                - { kind: self_closing_tag, has: { kind: tag_name, regex: "^(application|service|receiver|provider)$", pattern: $KIND } }
+                - {
+                    kind: start_tag,
+                    has:
+                      {
+                        kind: tag_name,
+                        regex: "^(application|service|receiver|provider)$",
+                        pattern: $KIND,
+                      },
+                  }
+                - {
+                    kind: self_closing_tag,
+                    has:
+                      {
+                        kind: tag_name,
+                        regex: "^(application|service|receiver|provider)$",
+                        pattern: $KIND,
+                      },
+                  }
           - has: { kind: attribute_name, regex: "^android:name$" }
           - has: { kind: quoted_attribute_value, has: { kind: attribute_value, pattern: $NAME } }
       fields:
@@ -313,7 +351,8 @@ extractors:
               kind: delegation_specifier
               has:
                 kind: constructor_invocation
-                has: { kind: user_type, regex: "^(CoroutineWorker|Worker|ListenableWorker|RxWorker)$" }
+                has:
+                  { kind: user_type, regex: "^(CoroutineWorker|Worker|ListenableWorker|RxWorker)$" }
       fields:
         path: "(background)/worker/{NAME}"
         name: "{NAME}"

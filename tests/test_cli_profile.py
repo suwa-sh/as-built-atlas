@@ -16,10 +16,10 @@ PROFILE = REPO_ROOT / "profiles" / "cli" / "profile.yaml"
 
 # 架空の題材。(ファイル, 中身)
 FILES = {
-    "bin/kotori": "#!/usr/bin/env bash\n# 入口\nset -euo pipefail\nexec \"$(dirname \"$0\")/../src/main.sh\" \"$@\"\n",
+    "bin/kotori": '#!/usr/bin/env bash\n# 入口\nset -euo pipefail\nexec "$(dirname "$0")/../src/main.sh" "$@"\n',
     "gateway/bin/validate-config.sh": "#!/usr/bin/env bash\nset -euo pipefail\n",
     "gateway/bin/rerun.py": "#!/usr/bin/env python3\nimport sys\n",
-    "gateway/src/usecase/validate.sh": "validate() { :; }\n",   # source されるだけ。入口ではない
+    "gateway/src/usecase/validate.sh": "validate() { :; }\n",  # source されるだけ。入口ではない
     "src/main.sh": "#!/usr/bin/env bash\n",
 }
 
@@ -41,15 +41,44 @@ def test_executables_become_entries(tmp_path: Path):
     ex = {k: v for k, v in profile["extractors"][0].items() if k != "hint"}
     ex["rationale"] = "実行ファイルは bin/ と <部品>/bin/ にある"
     el_path = repo / "analysis" / "entry-list.yaml"
-    el_path.write_text(yaml.safe_dump({
-        "format_version": 1, "target": {"repo": "example/kotori-cli", "clone_path": str(target), "scope": ".", "commit": "0a1b2c3d4e"},
-        "profile": {"id": "cli", "version": profile["version"]}, "extractors": [ex], "entries": []}, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    el_path.write_text(
+        yaml.safe_dump(
+            {
+                "format_version": 1,
+                "target": {
+                    "repo": "example/kotori-cli",
+                    "clone_path": str(target),
+                    "scope": ".",
+                    "commit": "0a1b2c3d4e",
+                },
+                "profile": {"id": "cli", "version": profile["version"]},
+                "extractors": [ex],
+                "entries": [],
+            },
+            allow_unicode=True,
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
     enumerate_entries(el_path, PROFILE)
     el = yaml.safe_load(el_path.read_text(encoding="utf-8"))
     assert validate_entry_list(el, profile) == []
-    got = {e["id"]: (e["path"], e["layer"], e["source"]["file"], e["source"]["line"]) for e in el["entries"]}
+    got = {
+        e["id"]: (e["path"], e["layer"], e["source"]["file"], e["source"]["line"])
+        for e in el["entries"]
+    }
     assert got == {
-        "kotori": ("/kotori", "command", "bin/kotori", 3),                       # 行は、コメントでない最初の行
-        "gateway.validate-config": ("/gateway/validate-config", "command", "gateway/bin/validate-config.sh", 2),
+        "kotori": (
+            "/kotori",
+            "command",
+            "bin/kotori",
+            3,
+        ),  # 行は、コメントでない最初の行
+        "gateway.validate-config": (
+            "/gateway/validate-config",
+            "command",
+            "gateway/bin/validate-config.sh",
+            2,
+        ),
         "gateway.rerun": ("/gateway/rerun", "command", "gateway/bin/rerun.py", 2),
     }

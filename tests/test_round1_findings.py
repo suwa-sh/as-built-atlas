@@ -17,12 +17,16 @@ FIX = Path(__file__).resolve().parent / "fixtures"
 
 @pytest.fixture
 def profile():
-    return yaml.safe_load((ROOT / "profiles/batch-kestra/profile.yaml").read_text(encoding="utf-8"))
+    return yaml.safe_load(
+        (ROOT / "profiles/batch-kestra/profile.yaml").read_text(encoding="utf-8")
+    )
 
 
 @pytest.fixture
 def result():
-    return yaml.safe_load((FIX / "result-housekeeping.yaml").read_text(encoding="utf-8"))
+    return yaml.safe_load(
+        (FIX / "result-housekeeping.yaml").read_text(encoding="utf-8")
+    )
 
 
 # --- 指摘 1: call に余分な項目を許さない
@@ -56,10 +60,17 @@ def test_evidence_must_stay_inside_scope_and_lines(tmp_path: Path, profile, resu
     scope = tmp_path / "scope"
     scope.mkdir()
     (tmp_path / "outside").write_text("x\n", encoding="utf-8")
-    for rel in ["flows/daily/housekeeping.yaml", "flows/lib/notify.yaml", "scripts/housekeeping.sh", "notify.py"]:
+    for rel in [
+        "flows/daily/housekeeping.yaml",
+        "flows/lib/notify.yaml",
+        "scripts/housekeeping.sh",
+        "notify.py",
+    ]:
         p = scope / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text("\n".join(f"line{i}" for i in range(1, 70)) + "\n", encoding="utf-8")
+        p.write_text(
+            "\n".join(f"line{i}" for i in range(1, 70)) + "\n", encoding="utf-8"
+        )
     r = copy.deepcopy(result)
     assert validate_analysis_result(r, profile, scope) == []
     r["summary"]["evidence"] = [{"file": "../outside", "line": 1}]
@@ -94,31 +105,69 @@ def test_relative_extractor_resolves_from_profile_dir(tmp_path: Path):
 # --- 指摘 6: CSV の出典の行はレコードの行
 def test_csv_source_line_is_record_line(tmp_path: Path, capsys):
     (tmp_path / "jobs.csv").write_text("id,name\na,Alpha\nb,Beta\n", encoding="utf-8")
-    extract(tmp_path, {"files": "jobs.csv", "format": "csv", "fields": {"id": "id", "name": "name", "path": "/{id}"}}, "scheduler")
-    recs = [json.loads(l) for l in capsys.readouterr().out.splitlines() if l.strip()]
+    extract(
+        tmp_path,
+        {
+            "files": "jobs.csv",
+            "format": "csv",
+            "fields": {"id": "id", "name": "name", "path": "/{id}"},
+        },
+        "scheduler",
+    )
+    recs = [
+        json.loads(line)
+        for line in capsys.readouterr().out.splitlines()
+        if line.strip()
+    ]
     assert [(r["id"], r["source"]["line"]) for r in recs] == [("a", 2), ("b", 3)]
 
 
 # --- 指摘 8: glob が 1 件も当たらなければ失敗し、既存の承認を消さない。指摘 4: enumerated_at は内容が同じなら据え置き
-def _write_entry_list(path: Path, scope: Path, entries: list, files: str = "flows/*.yaml"):
+def _write_entry_list(
+    path: Path, scope: Path, entries: list, files: str = "flows/*.yaml"
+):
     el = {
         "format_version": 1,
         "target": {"repo": "x", "clone_path": str(scope), "commit": "abc1234"},
         "profile": {"id": "batch-kestra", "version": "0.1.0"},
-        "extractors": [{"name": "kestra-flows", "run": "abatlas-extract structured-query", "layer": "scheduler",
-                        "params": {"files": [files], "format": "yaml",
-                                   "fields": {"id": "join('.', [namespace, id])", "namespace": "namespace", "flow": "id", "path": "/{namespace}/{flow}"},
-                                   "post": {"namespace": {"split": ".", "join": "/"}}}}],
+        "extractors": [
+            {
+                "name": "kestra-flows",
+                "run": "abatlas-extract structured-query",
+                "layer": "scheduler",
+                "params": {
+                    "files": [files],
+                    "format": "yaml",
+                    "fields": {
+                        "id": "join('.', [namespace, id])",
+                        "namespace": "namespace",
+                        "flow": "id",
+                        "path": "/{namespace}/{flow}",
+                    },
+                    "post": {"namespace": {"split": ".", "join": "/"}},
+                },
+            }
+        ],
         "entries": entries,
     }
-    path.write_text(yaml.safe_dump(el, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    path.write_text(
+        yaml.safe_dump(el, allow_unicode=True, sort_keys=False), encoding="utf-8"
+    )
 
 
 def test_zero_match_fails_and_keeps_list(tmp_path: Path):
     scope = tmp_path / "scope"
     scope.mkdir()
     el = tmp_path / "entry-list.yaml"
-    approved = [{"id": "daily.x", "path": "/daily/x", "layer": "scheduler", "source": {"file": "f", "line": 1}, "status": "approved"}]
+    approved = [
+        {
+            "id": "daily.x",
+            "path": "/daily/x",
+            "layer": "scheduler",
+            "source": {"file": "f", "line": 1},
+            "status": "approved",
+        }
+    ]
     _write_entry_list(el, scope, approved)
     before = el.read_text(encoding="utf-8")
     with pytest.raises(SystemExit):
@@ -132,7 +181,11 @@ def test_enumerated_at_is_stable_when_unchanged(tmp_path: Path):
     (scope / "flows/x.yaml").write_text("id: x\nnamespace: daily\n", encoding="utf-8")
     el = tmp_path / "entry-list.yaml"
     _write_entry_list(el, scope, [])
-    first = enumerate_entries(el, ROOT / "profiles/batch-kestra/profile.yaml", write=True)
+    first = enumerate_entries(
+        el, ROOT / "profiles/batch-kestra/profile.yaml", write=True
+    )
     assert [e["id"] for e in first["entries"]] == ["daily.x"]
-    second = enumerate_entries(el, ROOT / "profiles/batch-kestra/profile.yaml", write=True)
+    second = enumerate_entries(
+        el, ROOT / "profiles/batch-kestra/profile.yaml", write=True
+    )
     assert first == second

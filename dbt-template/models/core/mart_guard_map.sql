@@ -2,7 +2,7 @@
 -- 確かめられなかった確認 (status が unknown) は数えない。認証の確認が 0 の組に no_authentication が付く。この観点を分析した結果だけを出す
 with kinds as (
   select kind, min(kind_order) as kind_order from (
-    select * from (values ('authentication', 1), ('role', 2), ('permission', 3), ('ownership', 4), ('other', 5)) as t(kind, kind_order)
+    select * from (values ('authentication', 1), ('role', 2), ('permission', 3), ('ownership', 4), ('other', 5)) as t (kind, kind_order)
     union all
     select distinct kind, 9 from {{ ref('stg_guards') }}
   ) group by kind

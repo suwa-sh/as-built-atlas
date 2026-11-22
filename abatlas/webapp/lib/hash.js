@@ -9,5 +9,8 @@ export const hEntries = (p) => "#/entries" + encPath(p);
 export const hEntry = (p) => "#/entry" + encPath(p);
 export const hData = (kind, p) => "#/data/" + enc(kind) + encPath(p);
 export const hAccess = (kind, rowRoot) => "#/access/" + enc(kind) + encPath(rowRoot);
-export const hMart = (name, params) => "#/mart/" + enc(name) + (params && Object.keys(params).length ? "?" + new URLSearchParams(params).toString() : "");
+export const hMart = (name, params) =>
+  "#/mart/" +
+  enc(name) +
+  (params && Object.keys(params).length ? "?" + new URLSearchParams(params).toString() : "");
 export const hSubject = (root, mart, id) => root + "/" + enc(mart) + "/" + enc(id);

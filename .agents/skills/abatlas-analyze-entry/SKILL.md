@@ -90,6 +90,7 @@ description: 承認済みの入口 1 件を、プロファイルの層の連鎖�
      | filesystem | read / write / append / delete / list |
      | object_storage | get / put / delete / list |
      | external_api | call |
+
    - `io[].fields`: その読み書きが触る列 (RDB の列、KVS やファイルの中の項目、外部 API へ送る・受け取る項目)。コードから読める範囲で書く
      - `name` は、データの側の名前 (ORM の属性名と列名の対応が範囲の中で読めれば、列名。読めなければ属性名のまま)
      - `use` は、`read` (値を読む) / `write` (値を書く) / `filter` (絞り込み・結合・並べ替えの条件に使う) のうち、当てはまるものすべて

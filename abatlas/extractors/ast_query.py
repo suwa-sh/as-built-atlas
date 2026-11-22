@@ -44,20 +44,43 @@ from pathlib import Path
 
 import yaml
 
-from .file_glob import DEFAULT_ID_REPLACE, _apply, _as_list
+from .file_glob import id_options, _apply, _as_list, shape_segments
 
 # ast-grep (ast-grep-py) が、追加の設定なしで読める言語。tests/test_ast_query.py が、全部が読めることを確かめる
 SUPPORTED_LANGUAGES = (
-    "bash", "c", "cpp", "csharp", "dart", "elixir", "go", "hcl", "html", "java", "javascript", "json", "kotlin",
-    "lua", "php", "python", "ruby", "rust", "scala", "swift", "tsx", "typescript", "yaml",
+    "bash",
+    "c",
+    "cpp",
+    "csharp",
+    "dart",
+    "elixir",
+    "go",
+    "hcl",
+    "html",
+    "java",
+    "javascript",
+    "json",
+    "kotlin",
+    "lua",
+    "php",
+    "python",
+    "ruby",
+    "rust",
+    "scala",
+    "swift",
+    "tsx",
+    "typescript",
+    "yaml",
 )
-_HOLE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+_HOLE = re.compile(r"\{([A-Za-z_]\w*)\}", re.ASCII)
 _FILE_VARS = ("file", "dir", "stem")
 
 
 def check_language(language) -> str:
     if language not in SUPPORTED_LANGUAGES:
-        raise SystemExit(f"[ast] language '{language}' は読めない。読める言語: {', '.join(SUPPORTED_LANGUAGES)}")
+        raise SystemExit(
+            f"[ast] language '{language}' は読めない。読める言語: {', '.join(SUPPORTED_LANGUAGES)}"
+        )
     return language
 
 
@@ -73,15 +96,26 @@ def find_all(text: str, language: str, rule: dict, where: str) -> list:
     except (KeyboardInterrupt, SystemExit):
         raise
     except BaseException as e:  # ast-grep は、規則の誤りを通常の例外でなく異常終了 (PanicException) で返すことがある
-        raise SystemExit(f"[ast] {where} を ast-grep が受け付けない: {type(e).__name__}: {str(e)[:300]}")
+        raise SystemExit(
+            f"[ast] {where} を ast-grep が受け付けない: {type(e).__name__}: {str(e)[:300]}"
+        )
 
 
 def target_files(scope: Path, files: list[str], excludes: list[str]) -> list[str]:
-    paths = sorted({Path(p) for g in files for p in glob.glob(str(scope / g), recursive=True) if Path(p).is_file()})
+    paths = sorted(
+        {
+            Path(p)
+            for g in files
+            for p in glob.glob(str(scope / g), recursive=True)
+            if Path(p).is_file()
+        }
+    )
     root = scope.resolve()
     outside = sorted(str(p) for p in paths if not p.resolve().is_relative_to(root))
     if outside:
-        raise SystemExit(f"[ast] files {files} が、対象の範囲 (scope) の外のファイルに一致した: {outside[:3]}。files は scope の中を指す")
+        raise SystemExit(
+            f"[ast] files {files} が、対象の範囲 (scope) の外のファイルに一致した: {outside[:3]}。files は scope の中を指す"
+        )
     rels = [p.resolve().relative_to(root).as_posix() for p in paths]
     return [r for r in rels if not any(fnmatch.fnmatch(r, x) for x in excludes)]
 
@@ -99,7 +133,9 @@ def _fill(template: str, node, rel: str, unquote: bool, where: str) -> str:
         got = node.get_match(key)
         if got is None:
             line = node.range().start.line + 1
-            raise SystemExit(f"[ast] {rel}:{line}: {where} の {{{key}}} に当たる穴 ${key} が、一致の中に無い (rule に ${key} を置くか、fields を直す)")
+            raise SystemExit(
+                f"[ast] {rel}:{line}: {where} の {{{key}}} に当たる穴 ${key} が、一致の中に無い (rule に ${key} を置くか、fields を直す)"
+            )
         text = got.text()
         return _unquote(text) if unquote else text
 
@@ -110,21 +146,88 @@ def _segments(path_str: str, conf: dict) -> list[str]:
     unknown = sorted(set(conf) - {"drop", "replace", "prefix", "empty"})
     if unknown:
         # glob 抽出器の strip_prefix / drop_last は、ファイルの置き場を段にするときのもの。ここでは効かないので、黙って無視しない
-        raise SystemExit(f"[ast] segments に、使えない項目がある: {unknown}。使えるのは drop / replace / prefix / empty (先頭を落とすなら、drop か replace で書く)")
-    drops = [re.compile(p) for p in _as_list(conf.get("drop"))]
-    out = []
-    for seg in [s for s in path_str.split("/") if s]:
-        if any(d.fullmatch(seg) for d in drops):
-            continue
-        seg = _apply(seg, conf.get("replace") or [])
-        if seg:
-            out.append(seg)
+        raise SystemExit(
+            f"[ast] segments に、使えない項目がある: {unknown}。使えるのは drop / replace / prefix / empty (先頭を落とすなら、drop か replace で書く)"
+        )
+    out = shape_segments([part for part in path_str.split("/") if part], conf)
     head = [str(p) for p in _as_list(conf.get("prefix")) if str(p)]
     if any("/" in p for p in head):
-        raise SystemExit(f"[ast] segments.prefix {head} の段に '/' は書けない (段ごとに配列で書く)")
+        raise SystemExit(
+            f"[ast] segments.prefix {head} の段に '/' は書けない (段ごとに配列で書く)"
+        )
     if not out and not head:
         out = [str(conf.get("empty") or "(root)")]
     return head + out
+
+
+def _entry_id(fields, node, rel, unquote, segs, id_rules, id_join, here, seen):
+    id_src = (
+        _fill(fields["id"], node, rel, unquote, "fields.id").split("/")
+        if fields.get("id")
+        else segs
+    )
+    id_parts = [s for s in (_apply(p, id_rules) for p in id_src) if s]
+    if not id_parts:
+        raise SystemExit(
+            f"[ast] {here}: id が空になった ({id_src} に id.replace を当てた結果)。fields.id か id.replace を見直す"
+        )
+    eid = id_join.join(id_parts)
+    if eid in seen:
+        raise SystemExit(
+            f"[ast] id '{eid}' が 2 つの一致から出た: {seen[eid]} と {here}。fields / segments / id の加工で別の入口が同じ名前になっている"
+        )
+    seen[eid] = here
+    return eid
+
+
+def _entry_record(eid, segs, layer, rel, line, fields, node, unquote):
+    rec = {
+        "format_version": 1,
+        "id": eid,
+        "path": "/" + "/".join(segs),
+        "layer": layer,
+        "source": {"file": rel, "line": line},
+        "name": _fill(fields["name"], node, rel, unquote, "fields.name")
+        if fields.get("name")
+        else segs[-1],
+    }
+    attrs = {
+        k: _fill(t, node, rel, unquote, f"fields.attributes.{k}")
+        for k, t in (fields.get("attributes") or {}).items()
+    }
+    if attrs:
+        rec["attributes"] = attrs
+    return rec
+
+
+def _checked_files(scope, files, params, language, rule, unresolved_rule, seg_conf):
+    # 規則の誤りは、対象のファイルが 1 つも無くても見つける (空の文字に当てて、ast-grep に検査させる)
+    find_all("", language, rule, "params.rule")
+    if unresolved_rule is not None:
+        find_all("", language, unresolved_rule, "params.unresolved")
+    _segments("", seg_conf)
+
+    rels = target_files(scope, files, _as_list(params.get("exclude")))
+    if not rels and not params.get("allow_empty"):
+        raise SystemExit(
+            f"[ast] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true"
+        )
+    return rels
+
+
+def _report_unresolved(text, language, unresolved_rule, rel):
+    unresolved = 0
+    if (
+        unresolved_rule is not None
+    ):  # 空の規則は、書いたつもりで何も探さないことになるので、find_all が止める
+        for node in find_all(text, language, unresolved_rule, "params.unresolved"):
+            first = node.text().splitlines()[0][:120] if node.text() else ""
+            print(
+                f"[ast] 読めなかった参照: {rel}:{node.range().start.line + 1}: {first}",
+                file=sys.stderr,
+            )
+            unresolved += 1
+    return unresolved
 
 
 def extract(scope: Path, params: dict, layer: str):
@@ -135,23 +238,15 @@ def extract(scope: Path, params: dict, layer: str):
     rule = params.get("rule")
     fields = params.get("fields") or {}
     if not fields.get("path"):
-        raise SystemExit("[ast] params.fields.path が無い (階層パスの元。例: \"{PATH}\")")
+        raise SystemExit('[ast] params.fields.path が無い (階層パスの元。例: "{PATH}")')
     unquote = params.get("unquote", True)
     seg_conf = params.get("segments") or {}
-    id_conf = params.get("id") or {}
-    id_rules = id_conf.get("replace") or DEFAULT_ID_REPLACE
-    id_join = id_conf.get("join", ".")
+    id_rules, id_join = id_options(params)
     unresolved_rule = params.get("unresolved")
 
-    # 規則の誤りは、対象のファイルが 1 つも無くても見つける (空の文字に当てて、ast-grep に検査させる)
-    find_all("", language, rule, "params.rule")
-    if unresolved_rule is not None:
-        find_all("", language, unresolved_rule, "params.unresolved")
-    _segments("", seg_conf)
-
-    rels = target_files(scope, files, _as_list(params.get("exclude")))
-    if not rels and not params.get("allow_empty"):
-        raise SystemExit(f"[ast] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true")
+    rels = _checked_files(
+        scope, files, params, language, rule, unresolved_rule, seg_conf
+    )
 
     seen: dict[str, str] = {}
     recs = []
@@ -161,38 +256,31 @@ def extract(scope: Path, params: dict, layer: str):
         for node in find_all(text, language, rule, "params.rule"):
             line = node.range().start.line + 1
             here = f"{rel}:{line}"
-            segs = _segments(_fill(fields["path"], node, rel, unquote, "fields.path"), seg_conf)
-            id_src = _fill(fields["id"], node, rel, unquote, "fields.id").split("/") if fields.get("id") else segs
-            id_parts = [s for s in (_apply(p, id_rules) for p in id_src) if s]
-            if not id_parts:
-                raise SystemExit(f"[ast] {here}: id が空になった ({id_src} に id.replace を当てた結果)。fields.id か id.replace を見直す")
-            eid = id_join.join(id_parts)
-            if eid in seen:
-                raise SystemExit(f"[ast] id '{eid}' が 2 つの一致から出た: {seen[eid]} と {here}。fields / segments / id の加工で別の入口が同じ名前になっている")
-            seen[eid] = here
-            rec = {
-                "format_version": 1,
-                "id": eid,
-                "path": "/" + "/".join(segs),
-                "layer": layer,
-                "source": {"file": rel, "line": line},
-                "name": _fill(fields["name"], node, rel, unquote, "fields.name") if fields.get("name") else segs[-1],
-            }
-            attrs = {k: _fill(t, node, rel, unquote, f"fields.attributes.{k}") for k, t in (fields.get("attributes") or {}).items()}
-            if attrs:
-                rec["attributes"] = attrs
+            segs = _segments(
+                _fill(fields["path"], node, rel, unquote, "fields.path"), seg_conf
+            )
+            eid = _entry_id(
+                fields, node, rel, unquote, segs, id_rules, id_join, here, seen
+            )
+            rec = _entry_record(eid, segs, layer, rel, line, fields, node, unquote)
             recs.append(rec)
-        if unresolved_rule is not None:  # 空の規則は、書いたつもりで何も探さないことになるので、find_all が止める
-            for node in find_all(text, language, unresolved_rule, "params.unresolved"):
-                first = node.text().splitlines()[0][:120] if node.text() else ""
-                print(f"[ast] 読めなかった参照: {rel}:{node.range().start.line + 1}: {first}", file=sys.stderr)
-                unresolved += 1
+        unresolved += _report_unresolved(text, language, unresolved_rule, rel)
     for rec in recs:
         sys.stdout.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    print(f"[ast] files={len(rels)} entries={len(recs)} unresolved={unresolved}", file=sys.stderr)
+    print(
+        f"[ast] files={len(rels)} entries={len(recs)} unresolved={unresolved}",
+        file=sys.stderr,
+    )
 
 
-def search(scope: Path, files: list[str], excludes: list[str], language: str, rule: dict, limit: int = 200) -> list[str]:
+def search(
+    scope: Path,
+    files: list[str],
+    excludes: list[str],
+    language: str,
+    rule: dict,
+    limit: int = 200,
+) -> list[str]:
     """規則に一致した場所を「ファイル:行: 1 行目」の形で返す (入口を見つける skill が、その場で調べるのに使う)。"""
     check_language(language)
     rels = target_files(scope, files, excludes)
@@ -207,16 +295,25 @@ def search(scope: Path, files: list[str], excludes: list[str], language: str, ru
             if len(out) < limit:
                 first = node.text().splitlines()[0][:160] if node.text() else ""
                 out.append(f"{rel}:{node.range().start.line + 1}: {first}")
-    out.append(f"# files={len(rels)} matches={total}" + (f" (先頭の {limit} 件だけ出した)" if total > limit else ""))
+    out.append(
+        f"# files={len(rels)} matches={total}"
+        + (f" (先頭の {limit} 件だけ出した)" if total > limit else "")
+    )
     return out
 
 
 def main(argv=None):
     import argparse
 
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--scope", required=True)
-    ap.add_argument("--params", required=True, help="JSON 文字列、または @path で JSON/YAML ファイル")
+    ap.add_argument(
+        "--params",
+        required=True,
+        help="JSON 文字列、または @path で JSON/YAML ファイル",
+    )
     ap.add_argument("--layer", required=True)
     a = ap.parse_args(argv)
     if a.params.startswith("@"):

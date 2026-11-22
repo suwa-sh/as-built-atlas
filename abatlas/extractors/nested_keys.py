@@ -29,7 +29,6 @@ params (JSON):
 
 from __future__ import annotations
 
-import glob
 import json
 import re
 import sys
@@ -38,14 +37,25 @@ from pathlib import Path
 import jmespath
 import yaml
 
-from .file_glob import DEFAULT_ID_REPLACE, _apply, _as_list
+from .file_glob import (
+    id_options,
+    _apply,
+    _as_list,
+    matching_files,
+    shape_segments,
+    segment_drops,
+)
 
 
 def _pairs(node) -> list[tuple[str, int, object]]:
     """mapping の構文木から (キー, キーの行, 値の構文木) を返す。mapping でなければ空。"""
     if not isinstance(node, yaml.MappingNode):
         return []
-    return [(str(k.value), k.start_mark.line + 1, v) for k, v in node.value if isinstance(k, yaml.ScalarNode)]
+    return [
+        (str(k.value), k.start_mark.line + 1, v)
+        for k, v in node.value
+        if isinstance(k, yaml.ScalarNode)
+    ]
 
 
 def _child(node, key: str):
@@ -64,7 +74,17 @@ def _is_ref(node) -> bool:
     return len(pairs) == 1 and pairs[0][0] == "$ref"
 
 
-def _walk(node, levels: list[dict], depth: int, keys: list[str], segs: list[str], line: int, rel: str, out: list, unresolved: list):
+def _walk(
+    node,
+    levels: list[dict],
+    depth: int,
+    keys: list[str],
+    segs: list[str],
+    line: int,
+    rel: str,
+    out: list,
+    unresolved: list,
+):
     if depth == len(levels):
         out.append((keys, segs, line, node))
         return
@@ -76,8 +96,127 @@ def _walk(node, levels: list[dict], depth: int, keys: list[str], segs: list[str]
         if _is_ref(value):
             unresolved.append(f"{rel}:{kline}: {key}: $ref {_pairs(value)[0][2].value}")
             continue
-        parts = [p for p in key.split(level["split"]) if p] if level.get("split") else [key]
-        _walk(value, levels, depth + 1, keys + [key], segs + [parts], kline, rel, out, unresolved)
+        parts = (
+            [p for p in key.split(level["split"]) if p] if level.get("split") else [key]
+        )
+        _walk(
+            value,
+            levels,
+            depth + 1,
+            keys + [key],
+            segs + [parts],
+            kline,
+            rel,
+            out,
+            unresolved,
+        )
+
+
+def _root_keys(params):
+    root = params.get("root") or []
+    root = (
+        [p for p in root.split(".") if p]
+        if isinstance(root, str)
+        else [str(p) for p in root]
+    )
+    return root
+
+
+def _input_paths(scope, files, params):
+    paths = matching_files(scope, files)
+    if not paths and not params.get("allow_empty"):
+        raise SystemExit(
+            f"[nested-keys] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true"
+        )
+    return paths
+
+
+def _documents(path, rel):
+    try:
+        docs = list(yaml.compose_all(path.read_text(encoding="utf-8")))
+    except yaml.YAMLError as e:
+        raise SystemExit(f"[nested-keys] {rel}: 読めない ({str(e).splitlines()[0]})")
+    return docs
+
+
+def _matches(doc, root, levels, rel, unresolved):
+    node = doc
+    at = 1
+    for key in root:
+        at = next((line for k, line, _v in _pairs(node) if k == key), at)
+        node = _child(node, key)
+        if _is_ref(node):
+            unresolved.append(f"{rel}:{at}: {key}: $ref {_pairs(node)[0][2].value}")
+            node = None
+            break
+    found: list = []
+    _walk(node, levels, 0, [], [], 1, rel, found, unresolved)
+    return found
+
+
+def _entry_segments(seg_groups, seg_conf, drops, head, here, keys):
+    front = [
+        s for group in seg_groups[:-1] for s in shape_segments(group, seg_conf, drops)
+    ]
+    last = shape_segments(seg_groups[-1], seg_conf, drops)
+    if len(seg_groups) > 1 and not front:
+        front = [str(seg_conf.get("empty") or "(root)")]
+    segs = head + front + last
+    if not segs:
+        raise SystemExit(
+            f"[nested-keys] {here}: 段が空になった (キー {keys} に segments を当てた結果)"
+        )
+    return segs
+
+
+def _entry_id(segs, id_rules, id_join, seen, here):
+    id_parts = [s for s in (_apply(seg, id_rules) for seg in segs) if s]
+    if not id_parts:
+        raise SystemExit(
+            f"[nested-keys] {here}: id が空になった (段 {segs} に id.replace を当てた結果)"
+        )
+    eid = id_join.join(id_parts)
+    if eid in seen:
+        raise SystemExit(
+            f"[nested-keys] id '{eid}' が 2 つのキーの組から出た: {seen[eid]} と {here}。segments / id の加工で別の入口が同じ名前になっている"
+        )
+    seen[eid] = here
+    return eid
+
+
+def _entry_metadata(value_node, name_expr, keys, attr_exprs):
+    value = _value(value_node)
+    name = (
+        jmespath.search(name_expr, value)
+        if name_expr and isinstance(value, (dict, list))
+        else None
+    )
+    attrs: dict = {"keys": keys}
+    for ak, aexpr in attr_exprs.items():
+        av = jmespath.search(aexpr, value) if isinstance(value, (dict, list)) else None
+        if av is not None:
+            attrs[ak] = av
+    return name, attrs
+
+
+def _write_records(recs, unresolved, paths, params, root):
+    for u in unresolved:
+        print(f"[nested-keys] 読めなかった参照: {u}", file=sys.stderr)
+    if not recs and not params.get("allow_empty"):
+        hint = (
+            "読めなかった参照の先を、読んで listed で足す"
+            if unresolved
+            else f"root {root} と levels を見直す"
+        )
+        raise SystemExit(
+            f"[nested-keys] 入口が 1 件も出なかった ({hint})。空が正しいなら allow_empty: true"
+        )
+    for rec in recs:
+        sys.stdout.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    print(
+        f"[nested-keys] files={len(paths)} entries={len(recs)} unresolved={len(unresolved)}",
+        file=sys.stderr,
+    )
 
 
 def extract(scope: Path, params: dict, layer: str):
@@ -87,100 +226,55 @@ def extract(scope: Path, params: dict, layer: str):
     levels = params.get("levels") or []
     if not levels:
         raise SystemExit("[nested-keys] params.levels が無い (キーの段を 1 つ以上書く)")
-    root = params.get("root") or []
-    root = [p for p in root.split(".") if p] if isinstance(root, str) else [str(p) for p in root]
+    root = _root_keys(params)
     seg_conf = params.get("segments") or {}
-    drops = [re.compile(p) for p in _as_list(seg_conf.get("drop"))]
+    drops = segment_drops(seg_conf)
     head = [str(p) for p in _as_list(seg_conf.get("prefix")) if str(p)]
-    id_conf = params.get("id") or {}
-    id_rules = id_conf.get("replace") or DEFAULT_ID_REPLACE
-    id_join = id_conf.get("join", ".")
+    id_rules, id_join = id_options(params)
     name_expr = params.get("name")
     attr_exprs = params.get("attributes") or {}
 
-    paths = sorted({Path(p) for g in files for p in glob.glob(str(scope / g), recursive=True) if Path(p).is_file()})
-    if not paths and not params.get("allow_empty"):
-        raise SystemExit(f"[nested-keys] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true")
-
-    def shape(parts: list[str]) -> list[str]:
-        out = []
-        for seg in parts:
-            if any(d.fullmatch(seg) for d in drops):
-                continue
-            seg = _apply(seg, seg_conf.get("replace") or [])
-            if seg:
-                out.append(seg)
-        return out
+    paths = _input_paths(scope, files, params)
 
     seen: dict[str, str] = {}
     recs = []
     unresolved: list[str] = []
     for path in paths:
         rel = path.relative_to(scope).as_posix()
-        try:
-            docs = list(yaml.compose_all(path.read_text(encoding="utf-8")))
-        except yaml.YAMLError as e:
-            raise SystemExit(f"[nested-keys] {rel}: 読めない ({str(e).splitlines()[0]})")
+        docs = _documents(path, rel)
         for doc in docs:
-            node = doc
-            at = 1
-            for key in root:
-                at = next((line for k, line, _v in _pairs(node) if k == key), at)
-                node = _child(node, key)
-                if _is_ref(node):
-                    unresolved.append(f"{rel}:{at}: {key}: $ref {_pairs(node)[0][2].value}")
-                    node = None
-                    break
-            found: list = []
-            _walk(node, levels, 0, [], [], 1, rel, found, unresolved)
+            found = _matches(doc, root, levels, rel, unresolved)
             for keys, seg_groups, line, value_node in found:
                 here = f"{rel}:{line}"
-                front = [s for group in seg_groups[:-1] for s in shape(group)]
-                last = shape(seg_groups[-1])
-                if len(seg_groups) > 1 and not front:
-                    front = [str(seg_conf.get("empty") or "(root)")]
-                segs = head + front + last
-                if not segs:
-                    raise SystemExit(f"[nested-keys] {here}: 段が空になった (キー {keys} に segments を当てた結果)")
-                id_parts = [s for s in (_apply(seg, id_rules) for seg in segs) if s]
-                if not id_parts:
-                    raise SystemExit(f"[nested-keys] {here}: id が空になった (段 {segs} に id.replace を当てた結果)")
-                eid = id_join.join(id_parts)
-                if eid in seen:
-                    raise SystemExit(f"[nested-keys] id '{eid}' が 2 つのキーの組から出た: {seen[eid]} と {here}。segments / id の加工で別の入口が同じ名前になっている")
-                seen[eid] = here
-                value = _value(value_node)
-                name = jmespath.search(name_expr, value) if name_expr and isinstance(value, (dict, list)) else None
-                attrs: dict = {"keys": keys}
-                for ak, aexpr in attr_exprs.items():
-                    av = jmespath.search(aexpr, value) if isinstance(value, (dict, list)) else None
-                    if av is not None:
-                        attrs[ak] = av
-                recs.append({
-                    "format_version": 1,
-                    "id": eid,
-                    "path": "/" + "/".join(segs),
-                    "layer": layer,
-                    "source": {"file": rel, "line": line},
-                    "name": str(name) if name else " ".join(keys),
-                    "attributes": attrs,
-                })
-    for u in unresolved:
-        print(f"[nested-keys] 読めなかった参照: {u}", file=sys.stderr)
-    if not recs and not params.get("allow_empty"):
-        hint = "読めなかった参照の先を、読んで listed で足す" if unresolved else f"root {root} と levels を見直す"
-        raise SystemExit(f"[nested-keys] 入口が 1 件も出なかった ({hint})。空が正しいなら allow_empty: true")
-    for rec in recs:
-        sys.stdout.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    print(f"[nested-keys] files={len(paths)} entries={len(recs)} unresolved={len(unresolved)}", file=sys.stderr)
+                segs = _entry_segments(seg_groups, seg_conf, drops, head, here, keys)
+                eid = _entry_id(segs, id_rules, id_join, seen, here)
+                name, attrs = _entry_metadata(value_node, name_expr, keys, attr_exprs)
+                recs.append(
+                    {
+                        "format_version": 1,
+                        "id": eid,
+                        "path": "/" + "/".join(segs),
+                        "layer": layer,
+                        "source": {"file": rel, "line": line},
+                        "name": str(name) if name else " ".join(keys),
+                        "attributes": attrs,
+                    }
+                )
+    _write_records(recs, unresolved, paths, params, root)
 
 
 def main(argv=None):
     import argparse
 
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--scope", required=True)
-    ap.add_argument("--params", required=True, help="JSON 文字列、または @path で JSON/YAML ファイル")
+    ap.add_argument(
+        "--params",
+        required=True,
+        help="JSON 文字列、または @path で JSON/YAML ファイル",
+    )
     ap.add_argument("--layer", required=True)
     a = ap.parse_args(argv)
     if a.params.startswith("@"):

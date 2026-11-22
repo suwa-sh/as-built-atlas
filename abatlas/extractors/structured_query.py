@@ -68,6 +68,80 @@ def _post(value, rule: dict | None):
     return value
 
 
+def _input_paths(scope, files, params):
+    paths = sorted(
+        {Path(p) for g in files for p in glob.glob(str(scope / g), recursive=True)}
+    )
+    if not paths and not params.get("allow_empty"):
+        raise SystemExit(
+            f"[structured-query] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true"
+        )
+    return paths
+
+
+def _records(doc, fmt, records_expr):
+    if fmt == "csv":
+        items = doc
+    elif records_expr:
+        items = jmespath.search(records_expr, doc) or []
+    else:
+        items = [doc]
+    return items
+
+
+def _field_values(item, rel, path, fields, post):
+    env = dict(item)
+    env["$file"] = rel
+    env["$stem"] = path.stem
+    vals = {}
+    for k, expr in fields.items():
+        if k in ("path", "attributes"):
+            continue
+        v = env[expr] if expr in ("$file", "$stem") else jmespath.search(expr, item)
+        vals[k] = _post(v, post.get(k))
+    return vals
+
+
+def _entry_record(fields, vals, item, rel, layer, fmt, path, line_key):
+    path_str = fields.get("path", "/{id}").format(
+        **{k: (v if v is not None else "") for k, v in vals.items()}
+    )
+    path_str = re.sub(r"/+", "/", path_str)
+    attrs = {}
+    for ak, aexpr in (fields.get("attributes") or {}).items():
+        av = jmespath.search(aexpr, item)
+        if av is not None:
+            attrs[ak] = av
+    rec = {
+        "format_version": 1,
+        "id": str(vals["id"]),
+        "path": path_str,
+        "layer": layer,
+        "source": {
+            "file": rel,
+            "line": item["$line"]
+            if fmt == "csv"
+            else _find_line(path, line_key, item.get(line_key, vals["id"])),
+        },
+    }
+    if vals.get("name"):
+        rec["name"] = str(vals["name"])
+    if attrs:
+        rec["attributes"] = attrs
+    return rec
+
+
+def _matching_items(path, fmt, records_expr, where_expr):
+    for doc in _load(path, fmt):
+        if doc is None:
+            continue
+        for item in _records(doc, fmt, records_expr):
+            if isinstance(item, dict) and (
+                not where_expr or jmespath.search(where_expr, item)
+            ):
+                yield item
+
+
 def extract(scope: Path, params: dict, layer: str):
     files = params["files"]
     if isinstance(files, str):
@@ -79,68 +153,33 @@ def extract(scope: Path, params: dict, layer: str):
     post = params.get("post", {})
     line_key = params.get("line_key", "id")
 
-    paths = sorted({Path(p) for g in files for p in glob.glob(str(scope / g), recursive=True)})
-    if not paths and not params.get("allow_empty"):
-        raise SystemExit(f"[structured-query] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true")
+    paths = _input_paths(scope, files, params)
     n = 0
     for path in paths:
         rel = path.relative_to(scope).as_posix()
-        docs = _load(path, fmt)
-        for doc in docs:
-            if doc is None:
+        for item in _matching_items(path, fmt, records_expr, where_expr):
+            vals = _field_values(item, rel, path, fields, post)
+            if not vals.get("id"):
+                print(f"[structured-query] skip (id 無し): {rel}", file=sys.stderr)
                 continue
-            if fmt == "csv":
-                items = doc
-            elif records_expr:
-                items = jmespath.search(records_expr, doc) or []
-            else:
-                items = [doc]
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                if where_expr and not jmespath.search(where_expr, item):
-                    continue
-                env = dict(item)
-                env["$file"] = rel
-                env["$stem"] = path.stem
-                vals = {}
-                for k, expr in fields.items():
-                    if k in ("path", "attributes"):
-                        continue
-                    v = env[expr] if expr in ("$file", "$stem") else jmespath.search(expr, item)
-                    vals[k] = _post(v, post.get(k))
-                if not vals.get("id"):
-                    print(f"[structured-query] skip (id 無し): {rel}", file=sys.stderr)
-                    continue
-                path_str = fields.get("path", "/{id}").format(**{k: (v if v is not None else "") for k, v in vals.items()})
-                path_str = re.sub(r"/+", "/", path_str)
-                attrs = {}
-                for ak, aexpr in (fields.get("attributes") or {}).items():
-                    av = jmespath.search(aexpr, item)
-                    if av is not None:
-                        attrs[ak] = av
-                rec = {
-                    "format_version": 1,
-                    "id": str(vals["id"]),
-                    "path": path_str,
-                    "layer": layer,
-                    "source": {"file": rel, "line": item["$line"] if fmt == "csv" else _find_line(path, line_key, item.get(line_key, vals["id"]))},
-                }
-                if vals.get("name"):
-                    rec["name"] = str(vals["name"])
-                if attrs:
-                    rec["attributes"] = attrs
-                sys.stdout.write(json.dumps(rec, ensure_ascii=False) + "\n")
-                n += 1
+            rec = _entry_record(fields, vals, item, rel, layer, fmt, path, line_key)
+            sys.stdout.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            n += 1
     print(f"[structured-query] files={len(paths)} entries={n}", file=sys.stderr)
 
 
 def main(argv=None):
     import argparse
 
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--scope", required=True)
-    ap.add_argument("--params", required=True, help="JSON 文字列、または @path で JSON/YAML ファイル")
+    ap.add_argument(
+        "--params",
+        required=True,
+        help="JSON 文字列、または @path で JSON/YAML ファイル",
+    )
     ap.add_argument("--layer", required=True)
     a = ap.parse_args(argv)
     if a.params.startswith("@"):

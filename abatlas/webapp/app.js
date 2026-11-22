@@ -32,35 +32,72 @@ const $nav = document.getElementById("nav");
 // ------------------------------------------------------------ ナビ
 async function buildNav() {
   const items = [];
-  const sec = (hash, label, n, extra) => el("a", { class: `item${extra && extra.dim ? " dim" : ""}`, href: hash, "data-sec": hash }, label, n != null ? el("span", { class: "n" }, n) : null);
-  const [prog, ext, frm] = await Promise.all([progressOf(), ...["external", "frame"].map((s) => { const m = (model.subj[s] || []).find((x) => x.declaration.view === "table"); return m ? countOf(m, {}).catch(() => null) : null; })]);
+  const sec = (hash, label, n, extra) =>
+    el(
+      "a",
+      { class: `item${extra && extra.dim ? " dim" : ""}`, href: hash, "data-sec": hash },
+      label,
+      n != null ? el("span", { class: "n" }, n) : null,
+    );
+  const [prog, ext, frm] = await navCounts();
   // ナビは区分だけ (件数つき)。区分の中の段は、それぞれのページで降りる
   if (hasLayers()) items.push(sec("#/overview", term("architecture")));
-  if (model.subj.entry) items.push(sec("#/entries", term("entry"), model.entryMart ? await countOf(model.entryMart, {}).catch(() => null) : null));
-  if (model.subj.data) {
-    const kinds = model.dataMart ? await tree(model.dataMart, model.dataMart.keys.col, "/").catch(() => []) : [];
-    items.push(sec("#/data", term("datastore"), kinds.reduce((x, c) => x + c.leaves, 0) || null));
-  }
+  await appendEntryNavigation(items, sec);
   if (model.subj.external) items.push(sec("#/external", term("external"), ext));
   if (model.subj.frame) items.push(sec("#/frames", term("shared_frame"), frm));
   if (model.subj.aspect) items.push(sec("#/aspects", term("aspects"), model.subj.aspect.length));
-  if (model.subj.analysis) items.push(sec("#/status", term("analysis_status"), prog ? `${prog.done} / ${prog.total}` : null));
+  if (model.subj.analysis)
+    items.push(
+      sec("#/status", term("analysis_status"), prog ? `${prog.done} / ${prog.total}` : null),
+    );
   items.push(el("hr"));
   items.push(sec("#/marts", `${term("mart")} (API / MCP)`, null, { dim: true }));
   $nav.replaceChildren(...items);
   markNav();
 }
 // 最初に開くページ: 層の並びがあれば構成、無ければ入口
-const hasLayers = () => Array.isArray((model.meta.profile || {}).layers) && model.meta.profile.layers.length > 0;
+const hasLayers = () =>
+  Array.isArray((model.meta.profile || {}).layers) && model.meta.profile.layers.length > 0;
 const home = () => (hasLayers() ? "#/overview" : "#/entries");
+async function navCounts() {
+  return await Promise.all([
+    progressOf(),
+    ...["external", "frame"].map((s) => {
+      const m = (model.subj[s] || []).find((x) => x.declaration.view === "table");
+      return m ? countOf(m, {}).catch(() => null) : null;
+    }),
+  ]);
+}
+
+async function appendEntryNavigation(items, sec) {
+  if (model.subj.entry)
+    items.push(
+      sec(
+        "#/entries",
+        term("entry"),
+        model.entryMart ? await countOf(model.entryMart, {}).catch(() => null) : null,
+      ),
+    );
+  if (model.subj.data) {
+    const kinds = model.dataMart
+      ? await tree(model.dataMart, model.dataMart.keys.col, "/").catch(() => [])
+      : [];
+    items.push(sec("#/data", term("datastore"), kinds.reduce((x, c) => x + c.leaves, 0) || null));
+  }
+}
+
+function matchesSection(h, s) {
+  const aliases = { "#/entries": "#/entry", "#/data": "#/access", "#/marts": "#/mart/" };
+  if (aliases[s] && h.startsWith(aliases[s])) return true;
+  if (s.startsWith("#/data/") && h.startsWith("#/access/" + s.slice(7))) return true;
+  return h === s || h.startsWith(s + "/") || h.startsWith(s + "?");
+}
 function markNav() {
   const h = !location.hash || location.hash === "#/" ? home() : location.hash;
   let best = null;
   for (const a of $nav.querySelectorAll("[data-sec]")) {
     const s = a.dataset.sec;
-    const match = h === s || h.startsWith(s + "/") || h.startsWith(s + "?") ||
-      (s === "#/entries" && h.startsWith("#/entry")) || (s === "#/data" && h.startsWith("#/access")) ||
-      (s === "#/marts" && h.startsWith("#/mart/")) || (s.startsWith("#/data/") && h.startsWith("#/access/" + s.slice(7)));
+    const match = matchesSection(h, s);
     a.classList.remove("active");
     if (match && (!best || s.length > best.dataset.sec.length)) best = a;
   }
@@ -68,6 +105,50 @@ function markNav() {
 }
 
 // ------------------------------------------------------------ 経路と起動
+
+const routes = [
+  [/^#\/overview$/, (_, query) => pageOverview(query)],
+  [/^#\/entries\/?$/, () => pageEntries("/")],
+  [/^#\/entries(\/.*)$/, ([, path]) => pageEntries(decPath(path))],
+  [/^#\/entry(\/.*)$/, ([, path]) => pageEntry(decPath(path))],
+  [/^#\/data$/, (_, query) => pageAccess(null, "/", query)],
+  [
+    /^#\/data\/([^/]+)(\/.*)?$/,
+    ([, kind, path]) => pageDataKind(decodeURIComponent(kind), decPath(path)),
+  ],
+  [
+    /^#\/access\/([^/]+)(\/.*)?$/,
+    ([, kind, path], query) => pageAccess(decodeURIComponent(kind), decPath(path), query),
+  ],
+  [
+    /^#\/external(?:\/(.+))?$/,
+    ([, id]) =>
+      pageSubjectList(
+        "external",
+        term("external"),
+        `${term("host")} ごとに、それを呼ぶ ${term("entry")}。切り替えると誰が影響を受けるか`,
+        Object.assign((m, id) => `#/external/${enc(m.name)}/${enc(id)}`, { root: "#/external" }),
+        id || null,
+      ),
+  ],
+  [
+    /^#\/frames(?:\/(.+))?$/,
+    ([, id]) =>
+      pageSubjectList(
+        "frame",
+        term("shared_frame"),
+        `2 件以上の ${term("entry")} から呼ばれている ${term("frame")}。直すと全部に影響する`,
+        Object.assign((m, id) => `#/frames/${enc(m.name)}/${enc(id)}`, { root: "#/frames" }),
+        id || null,
+      ),
+  ],
+  [/^#\/aspects(?:\/(.+))?$/, ([, name]) => pageAspects(name ? decodeURIComponent(name) : null)],
+  [/^#\/(?:status|monitor)$/, () => pageStatus()],
+  [/^#\/marts$/, () => pageMarts()],
+  [/^#\/mart\/(.+)$/, ([, name], query) => pageMart(decodeURIComponent(name), query)],
+  [/^#\/h(.*)$/, ([, path]) => pageEntries(decPath(path))], // 旧 URL
+];
+
 function route() {
   hideCtxGlobal();
   const raw = !location.hash || location.hash === "#/" ? home() : location.hash;
@@ -79,21 +160,10 @@ function route() {
   document.getElementById("menu").setAttribute("aria-expanded", "false");
   if (!model.catalog.length) return;
   window.scrollTo(0, 0);
-  let mm;
-  if (path === "#/overview") return pageOverview(query);
-  if (path === "#/entries" || path === "#/entries/") return pageEntries("/");
-  if ((mm = /^#\/entries(\/.*)$/.exec(path))) return pageEntries(decPath(mm[1]));
-  if ((mm = /^#\/entry(\/.*)$/.exec(path))) return pageEntry(decPath(mm[1]));
-  if (path === "#/data") return pageAccess(null, "/", query);
-  if ((mm = /^#\/data\/([^/]+)(\/.*)?$/.exec(path))) return pageDataKind(decodeURIComponent(mm[1]), decPath(mm[2]));
-  if ((mm = /^#\/access\/([^/]+)(\/.*)?$/.exec(path))) return pageAccess(decodeURIComponent(mm[1]), decPath(mm[2]), query);
-  if ((mm = /^#\/external(?:\/(.+))?$/.exec(path))) return pageSubjectList("external", term("external"), `${term("host")} ごとに、それを呼ぶ ${term("entry")}。切り替えると誰が影響を受けるか`, Object.assign((m, id) => `#/external/${enc(m.name)}/${enc(id)}`, { root: "#/external" }), mm[1] || null);
-  if ((mm = /^#\/frames(?:\/(.+))?$/.exec(path))) return pageSubjectList("frame", term("shared_frame"), `2 件以上の ${term("entry")} から呼ばれている ${term("frame")}。直すと全部に影響する`, Object.assign((m, id) => `#/frames/${enc(m.name)}/${enc(id)}`, { root: "#/frames" }), mm[1] || null);
-  if ((mm = /^#\/aspects(?:\/(.+))?$/.exec(path))) return pageAspects(mm[1] ? decodeURIComponent(mm[1]) : null);
-  if (path === "#/status" || path === "#/monitor") return pageStatus();
-  if (path === "#/marts") return pageMarts();
-  if ((mm = /^#\/mart\/(.+)$/.exec(path))) return pageMart(decodeURIComponent(mm[1]), query);
-  if (path.startsWith("#/h")) return pageEntries(decPath(path.slice(3))); // 旧 URL
+  for (const [pattern, render] of routes) {
+    const match = pattern.exec(path);
+    if (match) return render(match, query);
+  }
   return pageEntries("/");
 }
 
@@ -109,7 +179,14 @@ function showTarget() {
   sub.hidden = !commit;
   document.title = `${t.name} — as-built-atlas`;
   const prof = model.meta.profile || {};
-  document.getElementById("foot-detail").textContent = ["", t.repo, commit, prof.id ? `profile ${prof.id}` : ""].filter((x, i) => i === 0 || x).join(" · ");
+  document.getElementById("foot-detail").textContent = [
+    "",
+    t.repo,
+    commit,
+    prof.id ? `profile ${prof.id}` : "",
+  ]
+    .filter((x, i) => i === 0 || x)
+    .join(" · ");
 }
 
 async function boot() {
@@ -118,9 +195,23 @@ async function boot() {
     await loadCatalog();
     // 用語集の無い集計表 (古い版の build) は、呼び名を引けない。id のまま出さず、作り直しを促して止める
     // 今の画面が使う呼び名の id が欠けている集計表 (配布物を新しくして、集計し直していない) も同じ
-    if (!model.meta.terms || !Object.keys(model.meta.terms).length || (Array.isArray(model.meta.missing_terms) && model.meta.missing_terms.length)) {
-      $main.replaceChildren(el("div", { class: "head" }, el("div", null, el("h1", null, `${term("mart")} が古い版で作られている`))),
-        el("p", { class: "note" }, "今の画面が読む情報が入っていない。build し直す (docker compose run --rm abatlas build .)"));
+    if (
+      !model.meta.terms ||
+      !Object.keys(model.meta.terms).length ||
+      (Array.isArray(model.meta.missing_terms) && model.meta.missing_terms.length)
+    ) {
+      $main.replaceChildren(
+        el(
+          "div",
+          { class: "head" },
+          el("div", null, el("h1", null, `${term("mart")} が古い版で作られている`)),
+        ),
+        el(
+          "p",
+          { class: "note" },
+          "今の画面が読む情報が入っていない。build し直す (docker compose run --rm abatlas build .)",
+        ),
+      );
       return;
     }
     showTarget();
@@ -128,27 +219,53 @@ async function boot() {
     await buildNav();
     route();
   } catch (e) {
-    $main.replaceChildren(el("div", { class: "head" }, el("div", null, el("h1", null, `${term("mart")} を読めない`))), el("p", { class: "err" }, e.message),
-      el("p", { class: "note" }, `先に build する (docker compose run --rm abatlas build .)。build 済みなら「${term("analysis_status")}」の「${term("mart")} を ${term("rebuild")}」でやり直せる`));
+    $main.replaceChildren(
+      el("div", { class: "head" }, el("div", null, el("h1", null, `${term("mart")} を読めない`))),
+      el("p", { class: "err" }, e.message),
+      el(
+        "p",
+        { class: "note" },
+        `先に build する (docker compose run --rm abatlas build .)。build 済みなら「${term("analysis_status")}」の「${term("mart")} を ${term("rebuild")}」でやり直せる`,
+      ),
+    );
   }
 }
 window.addEventListener("hashchange", route);
 document.addEventListener("click", hideCtxGlobal);
-document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") hideCtxGlobal(); });
-document.getElementById("menu").addEventListener("click", (ev) => ev.currentTarget.setAttribute("aria-expanded", String(document.getElementById("side").classList.toggle("open"))));
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") hideCtxGlobal();
+});
+document
+  .getElementById("menu")
+  .addEventListener("click", (ev) =>
+    ev.currentTarget.setAttribute(
+      "aria-expanded",
+      String(document.getElementById("side").classList.toggle("open")),
+    ),
+  );
 // メニューを畳む (広い画面)。畳んだ状態はこのブラウザに覚える (覚えられなくても動く)
-const $shell = document.getElementById("shell"), $fold = document.getElementById("fold");
+const $shell = document.getElementById("shell"),
+  $fold = document.getElementById("fold");
 function setFolded(on) {
   $shell.classList.toggle("folded", on);
   $fold.textContent = on ? "›" : "‹";
   $fold.setAttribute("aria-expanded", String(!on));
-  for (const a of ["aria-label", "title"]) $fold.setAttribute(a, on ? "メニューを開く" : "メニューを畳む");
+  for (const a of ["aria-label", "title"])
+    $fold.setAttribute(a, on ? "メニューを開く" : "メニューを畳む");
 }
 $fold.addEventListener("click", () => {
   const on = !$shell.classList.contains("folded");
   setFolded(on);
-  try { localStorage.setItem("abatlas.nav.folded", on ? "1" : "0"); } catch (e) { /* 覚えられない環境 */ }
+  try {
+    localStorage.setItem("abatlas.nav.folded", on ? "1" : "0");
+  } catch (e) {
+    /* 覚えられない環境 */
+  }
 });
-try { if (localStorage.getItem("abatlas.nav.folded") === "1") setFolded(true); } catch (e) { /* 既定 (開いたまま) */ }
+try {
+  if (localStorage.getItem("abatlas.nav.folded") === "1") setFolded(true);
+} catch (e) {
+  /* 既定 (開いたまま) */
+}
 document.addEventListener("abatlas:reload", boot); // 下の層 (画面) からの「読み直して」。再計算の後に発火する
 boot();

@@ -57,10 +57,28 @@ models:
         attach: any
         keys: { id: entry_id, path: path, label: name, summary: summary }
         show: [layer, path, name, summary, analyzed, io_count, unknown_count, status]
-        labels: { path: "{entry}", name: "{name}", summary: "{summary}", analyzed: "{analyzed}", io_count: "{data_access}", unknown_count: "{unknown}", layer: "{entry_layer}", status: "{approval}", frame_count: "{frame}",
-                  claim_count: "{claim}", fact_count: "{fact}", interpretation_count: "{interpretation}", run_cost_usd: "{cost} (USD)", run_duration_s: "{duration} (s)",
-                  analyzed_at: "{analyzed_at}", target_commit: "{target_commit}", reviewed_findings_open: "{open_findings}",
-                  profile_version: "{profile_version}", profile_stale: "{stale}" }
+        labels:
+          {
+            path: "{entry}",
+            name: "{name}",
+            summary: "{summary}",
+            analyzed: "{analyzed}",
+            io_count: "{data_access}",
+            unknown_count: "{unknown}",
+            layer: "{entry_layer}",
+            status: "{approval}",
+            frame_count: "{frame}",
+            claim_count: "{claim}",
+            fact_count: "{fact}",
+            interpretation_count: "{interpretation}",
+            run_cost_usd: "{cost} (USD)",
+            run_duration_s: "{duration} (s)",
+            analyzed_at: "{analyzed_at}",
+            target_commit: "{target_commit}",
+            reviewed_findings_open: "{open_findings}",
+            profile_version: "{profile_version}",
+            profile_stale: "{stale}",
+          }
         filters:
           - { label: "{analyzed}", where: { analyzed: "true" } }
           - { label: "{not_analyzed}", where: { analyzed: "false" } }
@@ -83,11 +101,34 @@ models:
         attach: any
         tags: [monitor]
         keys: { id: entry_id, path: path, label: name }
-        show: [path, sharing_entry_count, shared_frame_count, written_datastore_count, datastore_count, external_count, frame_count, max_depth, branch_count]   # 9 列まで (増やすと右端が切れる)。layer_crossings、failure_path_count、unknown_count は出さない (列は API で読める)
-        labels: { path: "{entry}", name: "{name}", layer: "{entry_layer}", frame_count: "{frame}", max_depth: "{call_depth}", layer_crossings: "{layer_crossing}",
-                  datastore_count: "{datastore}", written_datastore_count: "{datastore} ({write})", external_count: "{external}",
-                  shared_frame_count: "{shared_frame}", sharing_entry_count: "{sharing_entry}", unknown_count: "{unknown}",
-                  branch_count: "{branch}", failure_path_count: "{failure_path}" }
+        show: [
+            path,
+            sharing_entry_count,
+            shared_frame_count,
+            written_datastore_count,
+            datastore_count,
+            external_count,
+            frame_count,
+            max_depth,
+            branch_count,
+          ] # 9 列まで (増やすと右端が切れる)。layer_crossings、failure_path_count、unknown_count は出さない (列は API で読める)
+        labels:
+          {
+            path: "{entry}",
+            name: "{name}",
+            layer: "{entry_layer}",
+            frame_count: "{frame}",
+            max_depth: "{call_depth}",
+            layer_crossings: "{layer_crossing}",
+            datastore_count: "{datastore}",
+            written_datastore_count: "{datastore} ({write})",
+            external_count: "{external}",
+            shared_frame_count: "{shared_frame}",
+            sharing_entry_count: "{sharing_entry}",
+            unknown_count: "{unknown}",
+            branch_count: "{branch}",
+            failure_path_count: "{failure_path}",
+          }
     columns:
       - name: entry_id
         tests: [not_null, unique]
@@ -105,8 +146,20 @@ models:
         attach: any
         tags: [monitor]
         keys: { group: level1, value: analyzed, total: approved }
-        labels: { level1: "{level} 1", entries: "{entry}", approved: "{approved}", analyzed: "{analyzed}", candidate: "{candidate}", rejected: "{rejected}", runs_with_cost: "{runs_with_cost}",
-                  cost_usd: "{cost} (USD)", duration_s: "{duration} (s)", estimated_remaining_cost_usd: "{remaining} {cost} (USD)", estimated_remaining_duration_s: "{remaining} {duration} (s)" }
+        labels:
+          {
+            level1: "{level} 1",
+            entries: "{entry}",
+            approved: "{approved}",
+            analyzed: "{analyzed}",
+            candidate: "{candidate}",
+            rejected: "{rejected}",
+            runs_with_cost: "{runs_with_cost}",
+            cost_usd: "{cost} (USD)",
+            duration_s: "{duration} (s)",
+            estimated_remaining_cost_usd: "{remaining} {cost} (USD)",
+            estimated_remaining_duration_s: "{remaining} {duration} (s)",
+          }
 
   - name: mart_quality_unknowns
     description: "{unknown} の {claim} を {reason} 別に数える ({entry} ごと)"
@@ -122,7 +175,8 @@ models:
         tags: [monitor]
         keys: { id: entry_id, path: path }
         show: [path, reason, unknown_count, wheres]
-        labels: { path: "{entry}", reason: "{reason}", unknown_count: "{unknown}", wheres: "{claim}" }
+        labels:
+          { path: "{entry}", reason: "{reason}", unknown_count: "{unknown}", wheres: "{claim}" }
 
   - name: mart_data_access
     description: "{data_access}。{entry} の階層 × {datastore} の階層。ops は {kind} ごとの操作の 1 文字 (RDB なら C/R/U/D、ファイルなら R/W/A/D/L)"
@@ -136,7 +190,15 @@ models:
         hint: "行が {entry}、列が {datastore}。▸ を押すと配下を開く。畳んだ行・列の値は配下の和。点線のセルは {unknown} を含む"
         attach: any
         keys: { row: path, col: resource_path, value: ops, flag: has_unknown, kind: kind }
-        labels: { path: "{entry}", resource_path: "{datastore}", ops: "{ops}", has_unknown: "{has_unknown}", kind: "{kind}", io_count: "{call_sites}" }
+        labels:
+          {
+            path: "{entry}",
+            resource_path: "{datastore}",
+            ops: "{ops}",
+            has_unknown: "{has_unknown}",
+            kind: "{kind}",
+            io_count: "{call_sites}",
+          }
 
   - name: mart_dataflow
     description: "{data_flow} (graph)。{read} する {datastore} → {entry} → {write} する {datastore}"
@@ -162,7 +224,16 @@ models:
         hint: "{architecture} のページの図の線。1 行 = {layer} から {layer} への {call}、または {layer} から {datastore} の {kind} への {data_access}。unknowns はそのうち {unknown} の {call_sites} で、1 つでもあれば status が unknown (図は点線)"
         attach: root
         keys: { from: from_node, to: to_node, label: calls, status: status }
-        labels: { from_node: "{caller} {layer}", to_node: "{callee} {layer} / {kind}", edge_kind: "{edge_kind}", calls: "{call_sites}", entries: "{entry}", unknowns: "{unknown}", status: "{status}" }
+        labels:
+          {
+            from_node: "{caller} {layer}",
+            to_node: "{callee} {layer} / {kind}",
+            edge_kind: "{edge_kind}",
+            calls: "{call_sites}",
+            entries: "{entry}",
+            unknowns: "{unknown}",
+            status: "{status}",
+          }
 
   - name: mart_callstack
     description: "{call_tree} (tree)。{entry} ごとの {frame} (callstack のフレーム) と親子関係"
@@ -175,8 +246,28 @@ models:
         title: "{call_tree}"
         hint: "{entry} から {call} を辿ったツリー。名前の横のタグは {layer} と {kind}"
         attach: any
-        keys: { id: frame_id, parent: caller_id, label: name, group: path, detail: summary, path: path, source: source, tag: layer }
-        labels: { name: "{frame}", layer: "{layer}", kind: "{kind}", source: "{source}", summary: "{summary}", io_count: "{data_access}", call_status: "{call} {status}", summary_status: "{summary} {status}" }
+        keys:
+          {
+            id: frame_id,
+            parent: caller_id,
+            label: name,
+            group: path,
+            detail: summary,
+            path: path,
+            source: source,
+            tag: layer,
+          }
+        labels:
+          {
+            name: "{frame}",
+            layer: "{layer}",
+            kind: "{kind}",
+            source: "{source}",
+            summary: "{summary}",
+            io_count: "{data_access}",
+            call_status: "{call} {status}",
+            summary_status: "{summary} {status}",
+          }
 
   - name: mart_sequence
     description: "{sequence} ({entry} ごと)。{caller} → {frame}、{frame} → {datastore} の {message} を callstack の順に並べる"
@@ -189,8 +280,27 @@ models:
         title: "{sequence}"
         hint: 上から下へ時系列。色の意味は図の下の凡例。参加者が多いときは絞り込み・拡大縮小・全画面。箱や矢印に触れるとつながりだけ濃く残る
         attach: any
-        keys: { group: path, seq: seq, from: from_node, to: to_node, label: message, status: status, path: path, node: frame_id, evidence: evidence }
-        labels: { from_node: "{caller}", to_node: "{callee}", message: "{message}", status: "{status}", reason: "{reason}", evidence: "{evidence}" }
+        keys:
+          {
+            group: path,
+            seq: seq,
+            from: from_node,
+            to: to_node,
+            label: message,
+            status: status,
+            path: path,
+            node: frame_id,
+            evidence: evidence,
+          }
+        labels:
+          {
+            from_node: "{caller}",
+            to_node: "{callee}",
+            message: "{message}",
+            status: "{status}",
+            reason: "{reason}",
+            evidence: "{evidence}",
+          }
 
   - name: mart_external_if
     description: "{external}。{host} ごとに、それを呼ぶ {entry}"
@@ -205,7 +315,14 @@ models:
         attach: any
         keys: { id: host, label: host, members: entries }
         show: [host, api_path, entry_count, has_unknown]
-        labels: { host: "{host}", api_path: "{api_path}", entry_count: "{referenced_by}", entries: "{entry}", has_unknown: "{has_unknown}" }
+        labels:
+          {
+            host: "{host}",
+            api_path: "{api_path}",
+            entry_count: "{referenced_by}",
+            entries: "{entry}",
+            has_unknown: "{has_unknown}",
+          }
         filters:
           - { label: "{has_unknown}", where: { has_unknown: "true" } }
 
@@ -222,7 +339,16 @@ models:
         tags: [within]
         keys: { id: entry_id, path: path, label: name, members: within_path, order: ord }
         show: [layer, path, ord, within_path, within_status]
-        labels: { path: "{entry}", name: "{name}", layer: "{entry_layer}", ord: "{order}", within_path: "{enclosing}", within_name: "{enclosing} {name}", within_status: "{enclosing} {approval}" }
+        labels:
+          {
+            path: "{entry}",
+            name: "{name}",
+            layer: "{entry_layer}",
+            ord: "{order}",
+            within_path: "{enclosing}",
+            within_name: "{enclosing} {name}",
+            within_status: "{enclosing} {approval}",
+          }
     columns:
       - name: entry_id
         tests: [not_null]
@@ -242,7 +368,14 @@ models:
         attach: any
         keys: { id: name, label: name, members: entries, source: source_file }
         show: [layer, name, source_file, entry_count]
-        labels: { name: "{shared_frame}", layer: "{layer}", source_file: "{source}", entry_count: "{referenced_by}", entries: "{entry}" }
+        labels:
+          {
+            name: "{shared_frame}",
+            layer: "{layer}",
+            source_file: "{source}",
+            entry_count: "{referenced_by}",
+            entries: "{entry}",
+          }
 
   - name: mart_field_access
     description: "{field} の単位の {data_access}。{entry} × {datastore} × {field} ごとに、{field_use} (R = {read}、W = {write}、F = {filter}) と、{write} する値 ({set_to})。{field} が * の行は、すべての {field}"
@@ -259,7 +392,18 @@ models:
         attach: any
         keys: { id: field_key, path: path, label: field }
         show: [kind, resource_path, field, uses, set_to, path]
-        labels: { kind: "{kind}", resource_path: "{datastore}", field: "{field}", uses: "{field_use}", set_to: "{set_to}", path: "{entry}", io_count: "{call_sites}", has_unknown: "{has_unknown}", writes: "{write}" }
+        labels:
+          {
+            kind: "{kind}",
+            resource_path: "{datastore}",
+            field: "{field}",
+            uses: "{field_use}",
+            set_to: "{set_to}",
+            path: "{entry}",
+            io_count: "{call_sites}",
+            has_unknown: "{has_unknown}",
+            writes: "{write}",
+          }
         filters:
           - { label: "{write}", where: { uses__contains: "W" } }
 
@@ -278,7 +422,18 @@ models:
         attach: any
         keys: { id: change_key, path: path, label: field }
         show: [resource_path, field, set_to, path, frame_name, call_when]
-        labels: { resource_path: "{datastore}", field: "{field}", field_key: "{field}", set_to: "{set_to}", path: "{entry}", frame_name: "{frame}", layer: "{layer}", call_when: "{when}", io_count: "{call_sites}" }
+        labels:
+          {
+            resource_path: "{datastore}",
+            field: "{field}",
+            field_key: "{field}",
+            set_to: "{set_to}",
+            path: "{entry}",
+            frame_name: "{frame}",
+            layer: "{layer}",
+            call_when: "{when}",
+            io_count: "{call_sites}",
+          }
 
   - name: mart_entry_links
     description: "{entry} から、ほかの {entry} への {link} ({kind}: navigate / trigger / overlay / embed)。{link_to} は、{entry} の一覧と結べたときだけ入る"
@@ -295,7 +450,17 @@ models:
         attach: any
         keys: { id: link_key, path: path, label: target }
         show: [path, kind, to_path, target, frames]
-        labels: { path: "{entry}", kind: "{kind}", to_path: "{link_to}", target: "{link_target}", frames: "{frame}", link_count: "{call_sites}", resolved: "{resolved}", has_unknown: "{has_unknown}" }
+        labels:
+          {
+            path: "{entry}",
+            kind: "{kind}",
+            to_path: "{link_to}",
+            target: "{link_target}",
+            frames: "{frame}",
+            link_count: "{call_sites}",
+            resolved: "{resolved}",
+            has_unknown: "{has_unknown}",
+          }
         filters:
           - { label: "{unresolved}", where: { resolved: "false" } }
 
@@ -312,9 +477,28 @@ models:
         hint: "1 行が {analyzed} の {entry} 1 件。{authentication} が false の行は、{authentication} の {guard} が見つからなかった {entry}。{unknown} の {guard} は、{authentication} に数えない。{enclosing} が {not_analyzed} なら、そこにある {guard} は数えられていない"
         attach: any
         keys: { id: entry_id, path: path, label: name }
-        show: [path, authentication, roles, permissions, guard_count, unknown_guard_count, enclosing_not_analyzed]
-        labels: { path: "{entry}", name: "{name}", layer: "{entry_layer}", authentication: "{authentication}", roles: "{role}", permissions: "{permission}", guard_count: "{guard}", unknown_guard_count: "{guard} ({unknown})",
-                  enclosing_not_analyzed: "{enclosing} ({not_analyzed})" }
+        show:
+          [
+            path,
+            authentication,
+            roles,
+            permissions,
+            guard_count,
+            unknown_guard_count,
+            enclosing_not_analyzed,
+          ]
+        labels:
+          {
+            path: "{entry}",
+            name: "{name}",
+            layer: "{entry_layer}",
+            authentication: "{authentication}",
+            roles: "{role}",
+            permissions: "{permission}",
+            guard_count: "{guard}",
+            unknown_guard_count: "{guard} ({unknown})",
+            enclosing_not_analyzed: "{enclosing} ({not_analyzed})",
+          }
         filters:
           - { label: "{no_authentication}", where: { authentication: "false" } }
     columns:
@@ -335,8 +519,17 @@ models:
         hint: "1 行が {guard} 1 つ。{nested} の数が 1 以上の行は、その {nested} すべてに効く。{entry} ごとの効き方は {access_control} の表"
         attach: any
         keys: { id: guard_key, path: path, label: value }
-        show: [path, kind, inner_entry_count, frame_name, value]   # 長い文になりやすい value は最後 (右端で切れても、数が読めるように)
-        labels: { path: "{entry}", kind: "{kind}", value: "{guard}", frame_name: "{frame}", layer: "{layer}", inner_entry_count: "{nested}", status: "{status}" }
+        show: [path, kind, inner_entry_count, frame_name, value] # 長い文になりやすい value は最後 (右端で切れても、数が読めるように)
+        labels:
+          {
+            path: "{entry}",
+            kind: "{kind}",
+            value: "{guard}",
+            frame_name: "{frame}",
+            layer: "{layer}",
+            inner_entry_count: "{nested}",
+            status: "{status}",
+          }
 
   - name: mart_call_conditions
     description: "{conditional_call}。いつも起きるとは限らない {call} ({when}: conditional = {condition} を満たすとき、on_failure = 失敗したとき) と、その {condition}"
@@ -353,7 +546,15 @@ models:
         attach: any
         keys: { id: call_key, path: path, label: frame_name }
         show: [path, call_when, caller_name, frame_name, call_condition]
-        labels: { path: "{entry}", call_when: "{when}", caller_name: "{caller}", frame_name: "{frame}", call_condition: "{condition}", layer: "{layer}" }
+        labels:
+          {
+            path: "{entry}",
+            call_when: "{when}",
+            caller_name: "{caller}",
+            frame_name: "{frame}",
+            call_condition: "{condition}",
+            layer: "{layer}",
+          }
         filters:
           - { label: "{failure_path}", where: { call_when: "on_failure" } }
 
@@ -372,7 +573,15 @@ models:
         attach: any
         keys: { id: setting_key, path: path, label: setting }
         show: [kind, setting, path, frames, effect]
-        labels: { kind: "{kind}", setting: "{setting}", path: "{entry}", frames: "{frame}", effect: "{effect}", has_unknown: "{has_unknown}" }
+        labels:
+          {
+            kind: "{kind}",
+            setting: "{setting}",
+            path: "{entry}",
+            frames: "{frame}",
+            effect: "{effect}",
+            has_unknown: "{has_unknown}",
+          }
 
   - name: mart_rules
     description: "{rule} の一覧 ({kind}: calculation / validation / decision)。{entry} × {frame} ごとに、内容と {source}"
@@ -389,7 +598,16 @@ models:
         attach: any
         keys: { id: rule_key, path: path, label: rule, source: source }
         show: [path, kind, rule, frame_name, source]
-        labels: { path: "{entry}", kind: "{kind}", rule: "{rule}", frame_name: "{frame}", layer: "{layer}", source: "{source}", status: "{status}" }
+        labels:
+          {
+            path: "{entry}",
+            kind: "{kind}",
+            rule: "{rule}",
+            frame_name: "{frame}",
+            layer: "{layer}",
+            source: "{source}",
+            status: "{status}",
+          }
 
   - name: mart_test_coverage
     description: "{test} との対応。{frame} ごとに、それを直接呼ぶ {test} の数と名前。{test} との対応を分析した結果だけ"
@@ -406,7 +624,17 @@ models:
         attach: any
         keys: { id: frame_key, path: path, label: frame_name, source: source }
         show: [path, layer, frame_name, test_count, unknown_test_count, test_kinds, tests]
-        labels: { path: "{entry}", layer: "{layer}", frame_name: "{frame}", source: "{source}", test_count: "{test}", unknown_test_count: "{test} ({unknown})", test_kinds: "{kind}", tests: "{name}" }
+        labels:
+          {
+            path: "{entry}",
+            layer: "{layer}",
+            frame_name: "{frame}",
+            source: "{source}",
+            test_count: "{test}",
+            unknown_test_count: "{test} ({unknown})",
+            test_kinds: "{kind}",
+            tests: "{name}",
+          }
         filters:
           - { label: "{no_test}", where: { test_count: "0" } }
 
@@ -425,7 +653,17 @@ models:
         attach: any
         keys: { id: field_key, path: path, label: field }
         show: [category_label, resource_path, field, uses, path, externals]
-        labels: { category_label: "{category}", category: "{category}", resource_path: "{datastore}", field: "{field}", uses: "{field_use}", path: "{entry}", externals: "{external}", external_count: "{external}" }
+        labels:
+          {
+            category_label: "{category}",
+            category: "{category}",
+            resource_path: "{datastore}",
+            field: "{field}",
+            uses: "{field_use}",
+            path: "{entry}",
+            externals: "{external}",
+            external_count: "{external}",
+          }
 
   - name: mart_unreached_files
     description: "どの {entry} からも辿られないファイル。{target_scope} にあるファイルのうち、{frame} の {source}、{entry} の {source}、{evidence} のどれにも出てこないもの。{not_analyzed} の {entry} が残っている間は、そこからだけ辿られるファイルも出る"
@@ -442,7 +680,14 @@ models:
         attach: any
         keys: { id: file, label: file }
         show: [top, ext, file, analyzed, approved]
-        labels: { top: "{top_dir}", ext: "{extension}", file: "{file}", analyzed: "{analyzed}", approved: "{approved}" }
+        labels:
+          {
+            top: "{top_dir}",
+            ext: "{extension}",
+            file: "{file}",
+            analyzed: "{analyzed}",
+            approved: "{approved}",
+          }
 
   - name: mart_data_links
     description: "{data_link}。同じ {datastore} を、{write} する {entry} と {read} する {entry} が別にあるもの。キューやテーブルやファイルを介して動く {entry} のつながり。{call} や {link} では結ばれない"
@@ -458,7 +703,15 @@ models:
         attach: any
         keys: { id: resource_path, left: writers, right: readers, label: resource_path, kind: kind }
         show: [kind, resource_path, writer_count, writers, reader_count, readers]
-        labels: { kind: "{kind}", resource_path: "{datastore}", writer_count: "{write} ({entry})", writers: "{write}", reader_count: "{read} ({entry})", readers: "{read}" }
+        labels:
+          {
+            kind: "{kind}",
+            resource_path: "{datastore}",
+            writer_count: "{write} ({entry})",
+            writers: "{write}",
+            reader_count: "{read} ({entry})",
+            readers: "{read}",
+          }
 
   - name: mart_guard_map
     description: "{entry} × {guard} の {kind}。その {entry} に効く {guard} の数 ({enclosing} の {guard} を含む)。{authentication} の {guard} が 0 の {entry} が、{no_authentication}"
@@ -472,8 +725,15 @@ models:
         title: "{guard_map}"
         hint: "行が {entry}、列が {guard} の {kind}。数は、その {entry} に効く {guard} の数 ({enclosing} の分を含む)。朱のセルは {no_authentication}"
         attach: any
-        keys: { row: path, col: kind, value: guard_count, flag: no_authentication, order: kind_order }
-        labels: { path: "{entry}", kind: "{kind}", guard_count: "{guard}", no_authentication: "{no_authentication}" }
+        keys:
+          { row: path, col: kind, value: guard_count, flag: no_authentication, order: kind_order }
+        labels:
+          {
+            path: "{entry}",
+            kind: "{kind}",
+            guard_count: "{guard}",
+            no_authentication: "{no_authentication}",
+          }
 
   - name: mart_behavior_map
     description: "{entry} ごとの、動きを変える物の数。{conditional_call}、{rule} ({kind} ごと)、{setting}"
@@ -518,7 +778,14 @@ models:
         hint: "{entry} を 1 つ選ぶ。左が、そこへ来る {entry}。右が、そこから行く {entry}。行き先が {resolved} の {link} だけ"
         attach: any
         keys: { id: path, left: incoming, right: outgoing, label: path }
-        labels: { path: "{entry}", incoming: "{incoming}", outgoing: "{outgoing}", incoming_count: "{incoming}", outgoing_count: "{outgoing}" }
+        labels:
+          {
+            path: "{entry}",
+            incoming: "{incoming}",
+            outgoing: "{outgoing}",
+            incoming_count: "{incoming}",
+            outgoing_count: "{outgoing}",
+          }
 
   - name: mart_unreached_dirs
     description: "{unreached_file} を、フォルダごとに数えたもの。数は、そのフォルダの下 (さらに下のフォルダも含む) のファイルの数"
@@ -549,4 +816,13 @@ models:
         tags: [monitor]
         keys: { id: candidate_key, label: name, members: entries, source: source_file }
         show: [layer, name, source_file, entry_count, frames_each, repeated_frames]
-        labels: { layer: "{layer}", name: "{frame}", source_file: "{source}", entry_count: "{referenced_by}", frames_each: "{subtree_size}", repeated_frames: "{repeated_frame}", entries: "{entry}" }
+        labels:
+          {
+            layer: "{layer}",
+            name: "{frame}",
+            source_file: "{source}",
+            entry_count: "{referenced_by}",
+            frames_each: "{subtree_size}",
+            repeated_frames: "{repeated_frame}",
+            entries: "{entry}",
+          }

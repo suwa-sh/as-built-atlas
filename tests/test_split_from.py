@@ -21,7 +21,9 @@ UI_PROFILES = ["ui-nextjs", "ui-vue-router", "ui-nuxt", "ui-sveltekit"]
 
 
 def _profile(pid: str) -> dict:
-    return yaml.safe_load((ROOT / "profiles" / pid / "profile.yaml").read_text(encoding="utf-8"))
+    return yaml.safe_load(
+        (ROOT / "profiles" / pid / "profile.yaml").read_text(encoding="utf-8")
+    )
 
 
 def _layer(profile: dict, lid: str) -> dict:
@@ -53,14 +55,23 @@ def test_split_from_must_be_on_an_entry_layer_and_name_an_intermediate_layer():
 
 def test_frames_know_whether_their_layer_can_be_split():
     profile = _profile("batch-kestra")
-    result = yaml.safe_load((FIX / "result-housekeeping.yaml").read_text(encoding="utf-8"))
+    result = yaml.safe_load(
+        (FIX / "result-housekeeping.yaml").read_text(encoding="utf-8")
+    )
     layer_of = {f["id"]: f["layer"] for f in result["callstack"]}
     rows = build_rows(_entries(), [result], profile)
-    assert {f["splittable"] for f in rows["frames"]} == {"false"}, "分けられる層を決めていないプロファイルでは、どのフレームも分けられない"
+    assert {f["splittable"] for f in rows["frames"]} == {"false"}, (
+        "分けられる層を決めていないプロファイルでは、どのフレームも分けられない"
+    )
     declared = copy.deepcopy(profile)
     entry_layer = next(t for t in declared["layers"] if t.get("role") == "entry")
     entry_layer["split_from"] = [layer_of["run_sh"]]
     assert validate_profile(declared) == []
-    flags = {f["frame_id"]: f["splittable"] for f in build_rows(_entries(), [result], declared)["frames"]}
+    flags = {
+        f["frame_id"]: f["splittable"]
+        for f in build_rows(_entries(), [result], declared)["frames"]
+    }
     assert flags["run_sh"] == "true" and flags["psycopg"] == "false"
-    assert build_rows(_entries(), [result])["frames"][0]["splittable"] == "", "プロファイルを渡さなければ、判定しない"
+    assert build_rows(_entries(), [result])["frames"][0]["splittable"] == "", (
+        "プロファイルを渡さなければ、判定しない"
+    )

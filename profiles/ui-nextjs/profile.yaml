@@ -14,19 +14,19 @@ layers:
     role: entry
     stack: [Next.js App Router, React]
     invokes_next: "page ファイルが import して描画するコンポーネント。祖先ディレクトリの layout ファイルは別の入口 (layout) なので、ここからは辿らない。サーバー側で動く page が、サーバー側の関数を直接呼ぶこともある。Pages Router の page では、同じファイルの getServerSideProps / getStaticProps / getInitialProps (Next.js が描画の前に呼ぶ、サーバー側のデータ取得の関数) も次の api_route。_app と middleware、多くの page が自分で描く共通の枠を、入口の一覧に入れたときは、それらは辿らない"
-    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で動く page が ORM や fetch を直接書くことがある。ふつうは呼び先のフレームに書く
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api] # サーバー側で動く page が ORM や fetch を直接書くことがある。ふつうは呼び先のフレームに書く
   - id: layout
     tier: frontend
     label: layout (画面を包む共通の枠。App Router の layout ファイル、Pages Router の _app、middleware、多くの page が自分で描く共通の枠)
     role: entry
     stack: [Next.js App Router, React]
     invokes_next: "layout ファイルが import して描画するコンポーネント (ヘッダー、メニュー、ログイン確認、条件付きで開く小窓など)。`children` と並行ルートの props (`@slot`) の中身は、包まれる側の入口なので辿らない。Pages Router の _app では、props の `Component` (開いた page) が `children` に当たる。middleware では、呼ぶ関数を辿る"
-    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で動く layout が ORM や fetch を直接書くことがある
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api] # サーバー側で動く layout が ORM や fetch を直接書くことがある
   - id: part
     tier: frontend
     label: part (registry から選ばれて描かれる component)
     role: entry
-    split_from: [component]   # 部品は、component の層のフレームを、別の入口に分けたもの (集計表「別の入口に分ける候補」が、この層だけを出す)
+    split_from: [component] # 部品は、component の層のフレームを、別の入口に分けたもの (集計表「別の入口に分ける候補」が、この層だけを出す)
     stack: [React]
     invokes_next: "部品の component が描画する子の component と、呼ぶ hook。部品を描く側 (page や、登録表を引く component) は辿らない"
     io: [rdb, kvs, queue, filesystem, object_storage, external_api]
@@ -35,13 +35,19 @@ layers:
     label: component (React component と、API を呼ぶ hook)
     stack: [React, TanStack Query, fetch]
     invokes_next: "子のコンポーネントとフックの呼び出し。次の api_route へは 2 通り: (a) フックや fetch が API を URL の文字列で呼ぶ (例: get(`/websites/${websiteId}/stats`)) → その URL に当たる route ファイルの HTTP メソッドの関数。(b) 'use server' の関数 (Server Function) を import して呼ぶ → その関数の定義。サーバー側で動くコンポーネントが、サーバー側の関数を直接呼ぶこともある"
-    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # サーバー側で動くコンポーネントが直接データを読むとき、ブラウザから他社のサービスを呼ぶとき。自分のシステムの API は I/O ではなく次のフレーム
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api] # サーバー側で動くコンポーネントが直接データを読むとき、ブラウザから他社のサービスを呼ぶとき。自分のシステムの API は I/O ではなく次のフレーム
   - id: api_route
     tier: backend
     label: API route (route ファイルと pages/api の GET / POST / PUT / PATCH / DELETE、'use server' の関数、getServerSideProps など描画の前にサーバー側で読む関数)
-    stack: [Next.js Route Handlers, Server Functions, Next.js API Routes, getServerSideProps / getStaticProps]
+    stack:
+      [
+        Next.js Route Handlers,
+        Server Functions,
+        Next.js API Routes,
+        getServerSideProps / getStaticProps,
+      ]
     invokes_next: "import したサーバー側の関数 (問い合わせ、認証・権限の検査、入力の解釈) の呼び出し"
-    io: [rdb, kvs, queue, filesystem, object_storage, external_api]   # 受け口が直接データを触る書き方もある
+    io: [rdb, kvs, queue, filesystem, object_storage, external_api] # 受け口が直接データを触る書き方もある
   - id: query
     tier: backend
     label: server function (query、認証・権限、共通の lib)
@@ -56,21 +62,33 @@ layers:
     io: [rdb, kvs, queue, filesystem, object_storage, external_api]
 
 hierarchy:
-  level_labels: [section+, page]   # URL の区切りがそのまま段。最後の段だけが page、それより前は section
+  level_labels: [section+, page] # URL の区切りがそのまま段。最後の段だけが page、それより前は section
   derivation: "page ファイルの置き場 (app ディレクトリからの相対) を '/' で区切って段にする。URL に出ない入れ物 `(group)` は落とす。動的な段 `[id]` と並行ルート `@slot` はそのまま残す。割り込みルートの印 `(.)` `(..)` `(..)(..)` `(...)` は外す。並行ルート + 割り込みルートの page (一覧の上に重ねる小窓) の階層は、割り込み先の URL ではなく**置き場** (どの画面の上に重なるか) を表す (例: `feed/@modal/(..)photo/[id]` → `/feed/@modal/photo/[id]`。割り込み先の URL は /photo/[id])。`_folder` (private folder) の下の page は画面にならないので拾わない。app 直下の page (URL が / だけ) は `(root)` という 1 段にする。Pages Router の画面は、pages ディレクトリからの相対の置き場を '/' で区切り、拡張子を除いたファイル名を最後の段にする。ファイル名の `index` は段にしない (`pages/index.tsx` → `(root)`、`pages/documents/index.tsx` → `/documents`)。動的な段の書き方は App Router と同じなので、同じ URL は同じ階層と id になる"
-  entry_labels:   # 枠の入口は、詳細のページで page ではなく layout と呼ぶ
+  entry_labels: # 枠の入口は、詳細のページで page ではなく layout と呼ぶ
     - { contains: "(layout)", label: layout }
     - { contains: "(part)", label: part }
-  notes:   # 段の名前に残る Next.js の書き方を、画面で説明する
-    - { contains: "[", text: "角かっこの段 (例: [id]) は、実行時に値が入る場所。対象のソースのフォルダ名をそのまま出している" }
-    - { contains: "(layout)", text: "(layout) で始まる {entry} は layout ファイル。後ろの段は layout の置き場のフォルダで、丸かっこの段は URL に出ない route group" }
-    - { contains: "(layout)/_", text: "(layout) の次の段が _ で始まる {entry} は、フォルダの layout ファイルではない枠。_app は Pages Router の、すべての画面を包むファイル。_middleware は、画面より先に動く middleware。_shared は、多くの page が自分で描く共通の枠のコンポーネント" }
-    - { contains: "(part)", text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前" }
+  notes: # 段の名前に残る Next.js の書き方を、画面で説明する
+    - {
+        contains: "[",
+        text: "角かっこの段 (例: [id]) は、実行時に値が入る場所。対象のソースのフォルダ名をそのまま出している",
+      }
+    - {
+        contains: "(layout)",
+        text: "(layout) で始まる {entry} は layout ファイル。後ろの段は layout の置き場のフォルダで、丸かっこの段は URL に出ない route group",
+      }
+    - {
+        contains: "(layout)/_",
+        text: "(layout) の次の段が _ で始まる {entry} は、フォルダの layout ファイルではない枠。_app は Pages Router の、すべての画面を包むファイル。_middleware は、画面より先に動く middleware。_shared は、多くの page が自分で描く共通の枠のコンポーネント",
+      }
+    - {
+        contains: "(part)",
+        text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前",
+      }
 
 # 入口が別の入口の中で動く関係。列挙ツールが entries[].within (包む入口の id、外側から) を埋める
 within:
   - layer: layout
-    rule: source_dir   # layout は、ソースのファイルが自分と同じフォルダか、その配下にある入口 (page と、内側の layout) を包む
+    rule: source_dir # layout は、ソースのファイルが自分と同じフォルダか、その配下にある入口 (page と、内側の layout) を包む
 
 extractors:
   - name: next-pages
@@ -78,55 +96,62 @@ extractors:
     layer: page
     hint: "app ディレクトリの場所を実際に合わせる (`src/app` か `app`)。files・exclude・segments.strip_prefix の 3 つを同じ場所にする。next.config の pageExtensions を変えているシステムでは files の拡張子も合わせる。app ディレクトリが無いシステム (Pages Router だけ) では、この抽出器と next-layouts を書かない。Pages Router の画面は next-pages-router と next-pages-router-index が拾う"
     params:
-      files: ["src/app/**/page.tsx", "src/app/**/page.jsx", "src/app/**/page.ts", "src/app/**/page.js"]
-      exclude: ["src/app/_*/**", "src/app/**/_*/**"]   # _folder (private folder) の下はルーティングの対象外
+      files:
+        ["src/app/**/page.tsx", "src/app/**/page.jsx", "src/app/**/page.ts", "src/app/**/page.js"]
+      exclude: ["src/app/_*/**", "src/app/**/_*/**"] # _folder (private folder) の下はルーティングの対象外
       segments:
         strip_prefix: "src/app"
-        drop: ["\\([^)]+\\)"]                          # URL に出ない入れ物 (route group): (main) / (reports) …
-        replace: [{ pattern: "^(\\(\\.+\\))+", with: "" }]   # 割り込みルートの印: (.)photos / (..)(..)photos → photos
+        drop: ["\\([^)]+\\)"] # URL に出ない入れ物 (route group): (main) / (reports) …
+        replace: [{ pattern: "^(\\(\\.+\\))+", with: "" }] # 割り込みルートの印: (.)photos / (..)(..)photos → photos
         empty: "(root)"
       id:
         # id は結果のファイル名になるので記号を持てない。段の種類を「_ + 1 文字」の印で表し、名前の中の _ は 2 つ重ねる。
         # 重ねた後の名前には _ が偶数個ずつしか現れないので、印 (_ が 1 つ) と取り違えない。静的な段と同じ名前が同居しても別の id になる
         #   /blog/id → blog.id      /blog/[id] → blog.id_d      /blog/id_d → blog.id__d      / → root_r      /root → root      @modal → modal_s
         replace:
-          - { pattern: "_", with: "__" }                                     # 名前の中の _ を重ねる (最初に行う)
-          - { pattern: "^\\[\\[\\.\\.\\.(.+)\\]\\]$", with: "\\1_o" }     # [[...path]] → path_o (optional catch-all)
-          - { pattern: "^\\[\\.\\.\\.(.+)\\]$", with: "\\1_c" }             # [...path]   → path_c (catch-all)
-          - { pattern: "^\\[(.+)\\]$", with: "\\1_d" }                       # [id]        → id_d   (dynamic)
-          - { pattern: "^@(.+)$", with: "\\1_s" }                            # @modal      → modal_s (slot)
-          - { pattern: "^\\(root\\)$", with: "root_r" }                      # app 直下の page (segments.empty)
-          - { pattern: "[^A-Za-z0-9_-]", with: "" }                          # 残りの記号を除く。これで同じ id になる画面が同居していれば、列挙は失敗して両方のファイルを示す (そのリポジトリ向けに replace を足す)
+          - { pattern: "_", with: "__" } # 名前の中の _ を重ねる (最初に行う)
+          - { pattern: "^\\[\\[\\.\\.\\.(.+)\\]\\]$", with: "\\1_o" } # [[...path]] → path_o (optional catch-all)
+          - { pattern: "^\\[\\.\\.\\.(.+)\\]$", with: "\\1_c" } # [...path]   → path_c (catch-all)
+          - { pattern: "^\\[(.+)\\]$", with: "\\1_d" } # [id]        → id_d   (dynamic)
+          - { pattern: "^@(.+)$", with: "\\1_s" } # @modal      → modal_s (slot)
+          - { pattern: "^\\(root\\)$", with: "root_r" } # app 直下の page (segments.empty)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" } # 残りの記号を除く。これで同じ id になる画面が同居していれば、列挙は失敗して両方のファイルを示す (そのリポジトリ向けに replace を足す)
       line_match: "export\\s+default"
       contains:
-        client: "^['\"]use client['\"]"                # true なら page ファイル自身がブラウザ側で動く
+        client: '^[''"]use client[''"]' # true なら page ファイル自身がブラウザ側で動く
         metadata: "export\\s+(const\\s+metadata|(async\\s+)?function\\s+generateMetadata)"
   - name: next-layouts
     run: abatlas-extract glob
     layer: layout
     hint: "next-pages と同じ app ディレクトリにする (files・exclude・segments.strip_prefix)。layout ファイルが 1 つも無いシステムでは、この抽出器を入口の一覧に書かない"
     params:
-      files: ["src/app/**/layout.tsx", "src/app/**/layout.jsx", "src/app/**/layout.ts", "src/app/**/layout.js"]
+      files:
+        [
+          "src/app/**/layout.tsx",
+          "src/app/**/layout.jsx",
+          "src/app/**/layout.ts",
+          "src/app/**/layout.js",
+        ]
       exclude: ["src/app/_*/**", "src/app/**/_*/**"]
       segments:
         strip_prefix: "src/app"
-        prefix: ["(layout)"]                                 # 画面の階層と分ける。app 直下の layout は /(layout) だけになる
-        replace: [{ pattern: "^(\\(\\.+\\))+", with: "" }]   # 割り込みルートの印を外す (next-pages と同じ)。入れ物 (group) は落とさない: どの入れ物の枠かが名前になる
+        prefix: ["(layout)"] # 画面の階層と分ける。app 直下の layout は /(layout) だけになる
+        replace: [{ pattern: "^(\\(\\.+\\))+", with: "" }] # 割り込みルートの印を外す (next-pages と同じ)。入れ物 (group) は落とさない: どの入れ物の枠かが名前になる
       id:
         # next-pages と同じ印に、枠の印を足す。画面の id は _l / _g の印を持たないので、枠の id と取り違えない
         #   app 直下 → layout_l      (main)/layout → layout_l.main_g      (main)/websites/[websiteId]/layout → layout_l.main_g.websites.websiteId_d
         replace:
           - { pattern: "_", with: "__" }
-          - { pattern: "^\\(layout\\)$", with: "layout_l" }                  # 先頭の固定の段 (segments.prefix)
+          - { pattern: "^\\(layout\\)$", with: "layout_l" } # 先頭の固定の段 (segments.prefix)
           - { pattern: "^\\[\\[\\.\\.\\.(.+)\\]\\]$", with: "\\1_o" }
           - { pattern: "^\\[\\.\\.\\.(.+)\\]$", with: "\\1_c" }
           - { pattern: "^\\[(.+)\\]$", with: "\\1_d" }
           - { pattern: "^@(.+)$", with: "\\1_s" }
-          - { pattern: "^\\((.+)\\)$", with: "\\1_g" }                       # (main) → main_g (入れ物)
+          - { pattern: "^\\((.+)\\)$", with: "\\1_g" } # (main) → main_g (入れ物)
           - { pattern: "[^A-Za-z0-9_-]", with: "" }
       line_match: "export\\s+default"
       contains:
-        client: "^['\"]use client['\"]"
+        client: '^[''"]use client[''"]'
         metadata: "export\\s+(const\\s+metadata|(async\\s+)?function\\s+generateMetadata)"
   # ---- Pages Router (pages ディレクトリ)。pages ディレクトリが無いシステムでは、下の 3 つを入口の一覧に書かない
   # App Router と同じ印で階層と id を作る (同じ URL は同じ id)。Next.js は、同じ URL の画面を app と pages の両方に置くとビルドで止めるので、両方があるリポジトリでも id はぶつからない
@@ -136,10 +161,19 @@ extractors:
     hint: "Pages Router の画面 (index 以外のファイル)。pages ディレクトリの場所を実際に合わせる (`pages` か `src/pages`)。files・exclude・segments.strip_prefix の 3 つを、next-pages-router-index とも同じ場所にする。files は scope の直下の pages に固定する (`**/pages/**` にすると、ルーティングと関係ない pages という名前のフォルダまで拾う)。`api` の下、`_app`、`_document`、`_error`、`404`、`500` は画面にしない (exclude)。next.config の pageExtensions を変えているシステムでは files の拡張子も合わせる"
     params:
       files: ["pages/**/*.tsx", "pages/**/*.jsx", "pages/**/*.ts", "pages/**/*.js"]
-      exclude: ["pages/api/*", "pages/_app.*", "pages/_document.*", "pages/_error.*", "pages/404.*", "pages/500.*", "pages/index.*", "pages/*/index.*"]   # fnmatch の * は / もまたぐ。index は next-pages-router-index が拾う
+      exclude: [
+          "pages/api/*",
+          "pages/_app.*",
+          "pages/_document.*",
+          "pages/_error.*",
+          "pages/404.*",
+          "pages/500.*",
+          "pages/index.*",
+          "pages/*/index.*",
+        ] # fnmatch の * は / もまたぐ。index は next-pages-router-index が拾う
       segments:
         strip_prefix: "pages"
-        drop_last: false                                     # ファイル名が URL の最後の段: pages/settings/general.tsx → /settings/general
+        drop_last: false # ファイル名が URL の最後の段: pages/settings/general.tsx → /settings/general
       id:
         # next-pages と同じ印 ([id] → id_d、[...path] → path_c、[[...path]] → path_o)
         replace:
@@ -150,9 +184,9 @@ extractors:
           - { pattern: "[^A-Za-z0-9_-]", with: "" }
       line_match: "export\\s+default"
       contains:
-        server_props: "export\\s+(async\\s+)?(function|const)\\s+getServerSideProps\\b"   # 開くたびにサーバー側でデータを読む
-        static_props: "export\\s+(async\\s+)?(function|const)\\s+getStaticProps\\b"       # 作るときと、決めた間隔でサーバー側でデータを読む
-        initial_props: "\\.getInitialProps\\s*="                                          # 古い書き方。サーバー側とブラウザ側の両方で動く
+        server_props: "export\\s+(async\\s+)?(function|const)\\s+getServerSideProps\\b" # 開くたびにサーバー側でデータを読む
+        static_props: "export\\s+(async\\s+)?(function|const)\\s+getStaticProps\\b" # 作るときと、決めた間隔でサーバー側でデータを読む
+        initial_props: "\\.getInitialProps\\s*=" # 古い書き方。サーバー側とブラウザ側の両方で動く
   - name: next-pages-router-index
     run: abatlas-extract glob
     layer: page
@@ -162,7 +196,7 @@ extractors:
       exclude: ["pages/api/*"]
       segments:
         strip_prefix: "pages"
-        empty: "(root)"                                      # pages 直下の index は、app 直下の page と同じ (root)
+        empty: "(root)" # pages 直下の index は、app 直下の page と同じ (root)
       id:
         replace:
           - { pattern: "_", with: "__" }
@@ -184,7 +218,7 @@ extractors:
       files: ["pages/_app.tsx", "pages/_app.jsx", "pages/_app.ts", "pages/_app.js"]
       segments:
         strip_prefix: "pages"
-        prefix: ["(layout)", "_app"]                         # → /(layout)/_app。App Router の置き場からは _ で始まる段が出ない (private folder) ので、App Router の枠と重ならない
+        prefix: ["(layout)", "_app"] # → /(layout)/_app。App Router の置き場からは _ で始まる段が出ない (private folder) ので、App Router の枠と重ならない
       id:
         #   /(layout)/_app → layout_l.app_a   (_a は、フォルダではなく、Next.js が決まった名前で読むファイルの枠)
         replace:
@@ -201,7 +235,7 @@ extractors:
     params:
       files: ["middleware.ts", "middleware.js", "proxy.ts", "proxy.js"]
       segments:
-        prefix: ["(layout)", "_middleware"]                  # → /(layout)/_middleware。置き場がリポジトリの直下なので、列挙ツールは、これがすべての入口を包むと決める
+        prefix: ["(layout)", "_middleware"] # → /(layout)/_middleware。置き場がリポジトリの直下なので、列挙ツールは、これがすべての入口を包むと決める
       id:
         #   /(layout)/_middleware → layout_l.middleware_a
         replace:

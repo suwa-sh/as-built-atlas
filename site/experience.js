@@ -1,7 +1,7 @@
 // HTML だけでも4つの手順を順に読める。スクリプトが動くと同じ内容をタブで切り替える。
 const controls = document.querySelector(".step-controls");
 const buttons = Array.from(controls.querySelectorAll("button"));
-const panels = buttons.map(button => document.getElementById(button.dataset.panel));
+const panels = buttons.map((button) => document.getElementById(button.dataset.panel));
 
 const languageLink = document.querySelector(".language-link");
 const languageURL = new URL(languageLink.href);
@@ -39,7 +39,7 @@ buttons.forEach((button, index) => {
   panel.setAttribute("aria-labelledby", button.id);
   panel.tabIndex = 0;
   button.addEventListener("click", () => selectStep(index));
-  button.addEventListener("keydown", event => {
+  button.addEventListener("keydown", (event) => {
     const target = {
       ArrowLeft: (index + buttons.length - 1) % buttons.length,
       ArrowRight: (index + 1) % buttons.length,
@@ -53,7 +53,7 @@ buttons.forEach((button, index) => {
   });
 });
 function openLinkedPanel() {
-  const index = panels.findIndex(panel => "#" + panel.id === location.hash);
+  const index = panels.findIndex((panel) => "#" + panel.id === location.hash);
   if (index < 0) return;
   showStep(index);
   controls.scrollIntoView({ block: "start" });
@@ -63,6 +63,13 @@ showStep(0);
 controls.hidden = false;
 openLinkedPanel();
 window.addEventListener("hashchange", openLinkedPanel);
+
+function showPoster(toggle, still) {
+  const hadFocus = document.activeElement === toggle;
+  toggle.hidden = true;
+  still.hidden = false;
+  if (hadFocus) still.focus();
+}
 
 function enableHeroRotation() {
   const toggle = document.querySelector(".hero-rotation");
@@ -92,12 +99,7 @@ function enableHeroRotation() {
   });
   video.addEventListener("play", updateAction);
   video.addEventListener("pause", updateAction);
-  video.addEventListener("error", () => {
-    const hadFocus = document.activeElement === toggle;
-    toggle.hidden = true;
-    still.hidden = false;
-    if (hadFocus) still.focus();
-  });
+  video.addEventListener("error", () => showPoster(toggle, still));
   motion.addEventListener("change", () => {
     if (motion.matches && userWantsRotation) userWantsRotation = undefined;
     updatePlayback();
@@ -113,23 +115,42 @@ function enableHeroRotation() {
   playback.observe(toggle);
 }
 
+function observePendingSections(observer) {
+  // スクリプトの到着前に読めていた文章は消さず、これから出るものだけを準備する。
+  const alreadyPainted =
+    !("PerformancePaintTiming" in window) ||
+    performance.getEntriesByName("first-contentful-paint", "paint").length > 0;
+  const targets = document.querySelectorAll(
+    "[data-reveal], .problems li, .concept-map, .process li, .step-panel",
+  );
+  for (const element of targets) {
+    if (alreadyPainted) {
+      const rect = element.getBoundingClientRect();
+      if (rect.bottom > 0 && rect.top < document.documentElement.clientHeight) continue;
+    }
+    element.classList.add("reveal-pending");
+    observer.observe(element);
+  }
+}
+
+function revealReadingSections(visible, observer) {
+  const height = document.documentElement.clientHeight;
+  const remainingScroll = document.documentElement.scrollHeight - window.scrollY - height;
+  // ページ末尾でも、最後の文章が到達できる位置で動かす。
+  const readingLine = Math.max(height * 0.9, height - Math.max(0, remainingScroll));
+  for (const element of visible) {
+    const rect = element.getBoundingClientRect();
+    const inset = Math.min(rect.height / 2, height * 0.12);
+    if (!rect.height || rect.top + inset > readingLine || rect.bottom < inset) continue;
+    element.classList.replace("reveal-pending", "in-view");
+    observer.unobserve(element);
+    visible.delete(element);
+  }
+}
+
 function enableSectionReveals() {
   const visible = new Set();
   let timer = 0;
-  function reveal() {
-    const height = document.documentElement.clientHeight;
-    const remainingScroll = document.documentElement.scrollHeight - window.scrollY - height;
-    // ページ末尾でも、最後の文章が到達できる位置で動かす。
-    const readingLine = Math.max(height * 0.9, height - Math.max(0, remainingScroll));
-    for (const element of visible) {
-      const rect = element.getBoundingClientRect();
-      const inset = Math.min(rect.height / 2, height * 0.12);
-      if (!rect.height || rect.top + inset > readingLine || rect.bottom < inset) continue;
-      element.classList.replace("reveal-pending", "in-view");
-      observer.unobserve(element);
-      visible.delete(element);
-    }
-  }
   function scheduleReveal() {
     if (timer || !visible.size) return;
     const startY = window.scrollY;
@@ -139,11 +160,11 @@ function enableSectionReveals() {
       if (Math.abs(window.scrollY - startY) > document.documentElement.clientHeight * 0.04) {
         scheduleReveal();
       } else {
-        reveal();
+        revealReadingSections(visible, observer);
       }
     }, 140);
   }
-  const observer = new IntersectionObserver(entries => {
+  const observer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       if (entry.isIntersecting) visible.add(entry.target);
       else visible.delete(entry.target);
@@ -152,18 +173,7 @@ function enableSectionReveals() {
   });
   window.addEventListener("scroll", scheduleReveal, { passive: true });
   window.addEventListener("resize", scheduleReveal);
-  // スクリプトの到着前に読めていた文章は消さず、これから出るものだけを準備する。
-  const alreadyPainted = !("PerformancePaintTiming" in window)
-    || performance.getEntriesByName("first-contentful-paint", "paint").length > 0;
-  const targets = document.querySelectorAll("[data-reveal], .problems li, .concept-map, .process li, .step-panel");
-  for (const element of targets) {
-    if (alreadyPainted) {
-      const rect = element.getBoundingClientRect();
-      if (rect.bottom > 0 && rect.top < document.documentElement.clientHeight) continue;
-    }
-    element.classList.add("reveal-pending");
-    observer.observe(element);
-  }
+  observePendingSections(observer);
 }
 
 if ("IntersectionObserver" in window) {

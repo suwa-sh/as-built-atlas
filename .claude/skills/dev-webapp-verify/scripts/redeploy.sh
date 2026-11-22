@@ -12,44 +12,51 @@ IMAGE=${ABATLAS_IMAGE:-ghcr.io/suwa-sh/as-built-atlas:dev}
 BUILD=0
 UPGRADE=0
 case "$1" in
-  --build) BUILD=1; shift ;;
-  --upgrade) UPGRADE=1; BUILD=1; shift ;;
+--build)
+	BUILD=1
+	shift
+	;;
+--upgrade)
+	UPGRADE=1
+	BUILD=1
+	shift
+	;;
 esac
 if [ "$#" -eq 0 ]; then
-  echo "使い方: redeploy.sh [--build | --upgrade] <分析リポジトリ>..." >&2
-  exit 2
+	echo "使い方: redeploy.sh [--build | --upgrade] <分析リポジトリ>..." >&2
+	exit 2
 fi
-docker build -q -t "$IMAGE" "$ROOT" > /dev/null
+docker build -q -t "$IMAGE" "$ROOT" >/dev/null
 echo "image: $IMAGE"
 START=$PWD
 LOG=$(mktemp)
 trap 'rm -f "$LOG"' EXIT
 # 出力を畳みつつ、終了コードを失わないように、いったんファイルに受ける
 run_step() {
-  label=$1
-  shift
-  if "$@" > "$LOG" 2>&1; then
-    tail -1 "$LOG"
-  else
-    echo "$label が失敗した。起動し直していない: $repo" >&2
-    tail -20 "$LOG" >&2
-    exit 1
-  fi
+	label=$1
+	shift
+	if "$@" >"$LOG" 2>&1; then
+		tail -1 "$LOG"
+	else
+		echo "$label が失敗した。起動し直していない: $repo" >&2
+		tail -20 "$LOG" >&2
+		exit 1
+	fi
 }
 for repo in "$@"; do
-  cd "$START"  # 相対パスで渡されても、毎回、起動した場所から探す
-  if [ ! -f "$repo/compose.yaml" ]; then
-    echo "分析リポジトリではない (compose.yaml が無い): $repo" >&2
-    exit 1
-  fi
-  cd "$repo"
-  if [ "$UPGRADE" -eq 1 ]; then
-    run_step "upgrade" docker compose run --rm abatlas upgrade .
-  fi
-  if [ "$BUILD" -eq 1 ]; then
-    run_step "build" docker compose run --rm abatlas build .
-  fi
-  docker compose up -d --force-recreate api > /dev/null 2>&1
-  echo "restarted: $repo"
+	cd "$START" # 相対パスで渡されても、毎回、起動した場所から探す
+	if [ ! -f "$repo/compose.yaml" ]; then
+		echo "分析リポジトリではない (compose.yaml が無い): $repo" >&2
+		exit 1
+	fi
+	cd "$repo"
+	if [ "$UPGRADE" -eq 1 ]; then
+		run_step "upgrade" docker compose run --rm abatlas upgrade .
+	fi
+	if [ "$BUILD" -eq 1 ]; then
+		run_step "build" docker compose run --rm abatlas build .
+	fi
+	docker compose up -d --force-recreate api >/dev/null 2>&1
+	echo "restarted: $repo"
 done
 sleep 3

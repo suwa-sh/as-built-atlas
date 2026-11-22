@@ -55,12 +55,14 @@ def _params():
 def test_extracts_kestra_flows(tmp_path: Path, capsys):
     (tmp_path / "flows/daily/morning").mkdir(parents=True)
     (tmp_path / "flows/lib").mkdir(parents=True)
-    (tmp_path / "flows/daily/morning/news_curate.yaml").write_text(FLOW_A, encoding="utf-8")
+    (tmp_path / "flows/daily/morning/news_curate.yaml").write_text(
+        FLOW_A, encoding="utf-8"
+    )
     (tmp_path / "flows/lib/notify.yaml").write_text(FLOW_B, encoding="utf-8")
 
     extract(tmp_path, _params(), "scheduler")
     out = capsys.readouterr().out
-    recs = [json.loads(l) for l in out.splitlines() if l.strip()]
+    recs = [json.loads(line) for line in out.splitlines() if line.strip()]
     assert len(recs) == 2
     for r in recs:
         assert schema_errors("entry-candidate", r) == []
@@ -68,7 +70,9 @@ def test_extracts_kestra_flows(tmp_path: Path, capsys):
     a = by_id["daily.morning.news_curate"]
     assert a["path"] == "/daily/morning/news_curate"
     assert a["source"] == {"file": "flows/daily/morning/news_curate.yaml", "line": 1}
-    assert a["attributes"]["commands"] == ["scripts/run-skill.sh marketer news-curate-run"]
+    assert a["attributes"]["commands"] == [
+        "scripts/run-skill.sh marketer news-curate-run"
+    ]
     assert a["attributes"]["subflows"] == ["notify"]
     assert a["attributes"]["cron"] == ["0 7 * * *"]
     assert by_id["lib.notify"]["path"] == "/lib/notify"

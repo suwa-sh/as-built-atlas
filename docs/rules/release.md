@@ -14,7 +14,9 @@ flowchart LR
   T --> C{タグと版が同じか<br>テストが通るか}
   C -->|はい| B[イメージを作る<br>amd64 と arm64]
   C -->|いいえ| X[止まる]
-  B --> P[ghcr.io に出す]
+  B --> S{両方のイメージの<br>脆弱性検査が通るか}
+  S -->|はい| P[ghcr.io に出す]
+  S -->|いいえ| X
 ```
 
 | 出るタグ | 例 | 使いみち |
@@ -37,11 +39,15 @@ flowchart LR
 | 順 | やること |
 |---|---|
 | 1 | `uv version <新しい版>` で、`pyproject.toml` と `uv.lock` の版を上げ、変更の記録 (`CHANGELOG.md`) にその版の節を足して、commit する |
-| 2 | main に push して、テスト (`test`) が通るのを待つ |
+| 2 | main に push して、機械チェック (`test`) が通るのを待つ |
 | 3 | `git tag v<新しい版>` を打って、タグを push する |
 | 4 | `release` が終わったら、`docker pull` でイメージを取り、見本の分析リポジトリで `upgrade` と `build` を試す |
 
 `release` は、タグを push したときだけ動きます。main への push では、イメージは出ません。
+
+リリース用ビルドでは、QEMU、Buildx、ビルドレイヤーを GitHub Actions の共有キャッシュから復元しません。
+
+リリース時の Gitleaks は main と同じく、マージコミットで加わった変更を含む Git 全履歴を検査します。`image` ジョブはビルド直後の OCI イメージを Actions の artifact に保存します。`scan` ジョブはその ID を指定してダウンロードし、amd64・arm64 を Trivy で検査します。両方が通ると `publish` ジョブが同じ ID からイメージを取得し、Buildx が返した digest と一致することを確かめて GHCR に配布します。`packages: write` はこの公開ジョブだけに付与します。
 
 ## GitHub Pages の紹介ページ
 

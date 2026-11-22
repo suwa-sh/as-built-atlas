@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import shlex
-import subprocess
+import subprocess  # nosec B404 - executes subprocesses with argument lists
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,7 +41,9 @@ def _command(run: str, profile_dir: Path | None, entry_list_dir: Path) -> list[s
     parts = shlex.split(run)
     if parts and parts[0] == "abatlas-extract":
         if len(parts) < 2 or parts[1] not in CORE_EXTRACTORS:
-            raise SystemExit(f"unknown core extractor: {run} (known: {sorted(CORE_EXTRACTORS)})")
+            raise SystemExit(
+                f"unknown core extractor: {run} (known: {sorted(CORE_EXTRACTORS)})"
+            )
         return CORE_EXTRACTORS[parts[1]] + parts[2:]
     exe = Path(parts[0])
     if not exe.is_absolute():
@@ -51,7 +53,9 @@ def _command(run: str, profile_dir: Path | None, entry_list_dir: Path) -> list[s
         candidates.append((entry_list_dir / exe).resolve())
         found = next((c for c in candidates if c.is_file()), None)
         if found is None:
-            raise SystemExit(f"extractor '{run}' が見つからない (探した場所: {', '.join(str(c) for c in candidates)})")
+            raise SystemExit(
+                f"extractor '{run}' が見つからない (探した場所: {', '.join(str(c) for c in candidates)})"
+            )
         exe = found
     return [str(exe)] + parts[1:]
 
@@ -68,13 +72,24 @@ def _show(target: tuple[str, str, str]) -> str:
     return f"'{target[0]}' (層 {target[1]}、{target[2]})"
 
 
-def run_extractor(ex: dict, scope: Path, profile_dir: Path | None, entry_list_dir: Path) -> list[dict]:
-    cmd = _command(ex["run"], profile_dir, entry_list_dir) + ["--scope", str(scope), "--layer", ex["layer"], "--params", json.dumps(ex.get("params", {}), ensure_ascii=False)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+def run_extractor(
+    ex: dict, scope: Path, profile_dir: Path | None, entry_list_dir: Path
+) -> list[dict]:
+    cmd = _command(ex["run"], profile_dir, entry_list_dir) + [
+        "--scope",
+        str(scope),
+        "--layer",
+        ex["layer"],
+        "--params",
+        json.dumps(ex.get("params", {}), ensure_ascii=False),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 - extractor selected by the local analysis profile
     for line in proc.stderr.splitlines():
         print(f"  [{ex['name']}] {line}", file=sys.stderr)
     if proc.returncode != 0:
-        raise SystemExit(f"extractor '{ex['name']}' failed (exit {proc.returncode}): {' '.join(cmd)}")
+        raise SystemExit(
+            f"extractor '{ex['name']}' failed (exit {proc.returncode}): {' '.join(cmd)}"
+        )
     out = []
     for n, line in enumerate(proc.stdout.splitlines(), 1):
         if not line.strip():
@@ -82,28 +97,38 @@ def run_extractor(ex: dict, scope: Path, profile_dir: Path | None, entry_list_di
         try:
             rec = json.loads(line)
         except json.JSONDecodeError as e:
-            raise SystemExit(f"extractor '{ex['name']}' line {n}: JSON として読めない: {e}")
+            raise SystemExit(
+                f"extractor '{ex['name']}' line {n}: JSON として読めない: {e}"
+            )
         errs = schema_errors("entry-candidate", rec)
         if errs:
-            raise SystemExit(f"extractor '{ex['name']}' line {n}: 契約違反: " + "; ".join(errs))
+            raise SystemExit(
+                f"extractor '{ex['name']}' line {n}: 契約違反: " + "; ".join(errs)
+            )
         rec["extractor"] = ex["name"]
         out.append(rec)
     return out
 
 
-def enumerate_entries(entry_list_path: Path, profile_path: Path | None = None, write: bool = True) -> dict:
-    entry_list = load_yaml(entry_list_path)
-    profile = load_yaml(profile_path) if profile_path else None
+def _validated_scope(entry_list, profile, entry_list_path):
     # within はこの後で作り直すので、前回の値は検査から外す (宣言を変えた後の列挙が、古い within で止まらないように)
-    before = [{k: v for k, v in e.items() if k != "within"} if isinstance(e, dict) else e for e in entry_list.get("entries", [])]
-    pre = validate_entry_list({**entry_list, "entries": before}, {**profile, "within": []} if profile else None)
+    before = [
+        {k: v for k, v in e.items() if k != "within"} if isinstance(e, dict) else e
+        for e in entry_list.get("entries", [])
+    ]
+    pre = validate_entry_list(
+        {**entry_list, "entries": before},
+        {**profile, "within": []} if profile else None,
+    )
     if pre:
         raise SystemExit("entry-list が不正:\n  " + "\n  ".join(pre))
     scope = _resolve_scope(entry_list["target"], entry_list_path.parent)
     if scope is None or not scope.is_dir():
         raise SystemExit(f"target.clone_path/scope が見つからない: {scope}")
+    return scope
 
-    previous = {e["id"]: e for e in entry_list.get("entries", [])}
+
+def _collect_candidates(entry_list, scope, profile_path, entry_list_path):
     found: dict[str, dict] = {}
     profile_dir = profile_path.parent if profile_path else None
     for ex in entry_list["extractors"]:
@@ -125,19 +150,30 @@ def enumerate_entries(entry_list_path: Path, profile_path: Path | None = None, w
                         f"id '{rec['id']}' が 2 つの抽出器から、違う入口として出た: {first['extractor']} は {_show(a)} の {la} 行、{rec['extractor']} は {_show(b)} の {lb} 行。"
                         " 別の入口なら、どちらかの id を変える。同じ入口なら、片方の設定から外す。既存の一覧は変更しない"
                     )
-                print(f"  warn: id '{rec['id']}' が複数の抽出器から出た ({first['extractor']} と {rec['extractor']})。先に書いた抽出器の候補を残す", file=sys.stderr)
+                print(
+                    f"  warn: id '{rec['id']}' が複数の抽出器から出た ({first['extractor']} と {rec['extractor']})。先に書いた抽出器の候補を残す",
+                    file=sys.stderr,
+                )
                 continue
             found[rec["id"]] = rec
+    return found
 
+
+def _merge_previous_decisions(previous, found):
     entries = []
     for eid in sorted(found):
         rec = found[eid]
         old = previous.get(eid, {})
         # 人が判断した後に、同じ id の指す先 (階層パスか、定義のファイル) が変わったら、判断をやり直してもらう。
         # 行だけの違いは、同じ入口として扱う (対象のコミットを進めると、行はずれる)
-        if old.get("status", "candidate") != "candidate" and _target(old) != _target(rec):
-            print(f"  info: 入口 '{eid}' は、{old['status']} の後に指す先が変わった ({_show(_target(old))} → {_show(_target(rec))})。"
-                  " candidate に戻す (承認し直す)", file=sys.stderr)
+        if old.get("status", "candidate") != "candidate" and _target(old) != _target(
+            rec
+        ):
+            print(
+                f"  info: 入口 '{eid}' は、{old['status']} の後に指す先が変わった ({_show(_target(old))} → {_show(_target(rec))})。"
+                " candidate に戻す (承認し直す)",
+                file=sys.stderr,
+            )
             old = {}
         entry = {
             "id": rec["id"],
@@ -154,27 +190,59 @@ def enumerate_entries(entry_list_path: Path, profile_path: Path | None = None, w
         if old.get("note"):
             entry["note"] = old["note"]
         entries.append(entry)
-    # 入口が別の入口の中で動く関係 (プロファイルの within の宣言から決める。プロファイルを渡さなければ付けない)
+    return entries
+
+
+def _apply_within_and_report_removals(entries, previous, found, profile):
     within = within_of(entries, profile)
     for entry in entries:
         if entry["id"] in within:
             entry["within"] = within[entry["id"]]
-    gone =sorted(set(previous) - set(found))
+    gone = sorted(set(previous) - set(found))
     for g in gone:
-        print(f"  info: 前回あった入口 '{g}' が今回は列挙されなかった (一覧から外す)", file=sys.stderr)
+        print(
+            f"  info: 前回あった入口 '{g}' が今回は列挙されなかった (一覧から外す)",
+            file=sys.stderr,
+        )
+
+
+def enumerate_entries(
+    entry_list_path: Path, profile_path: Path | None = None, write: bool = True
+) -> dict:
+    entry_list = load_yaml(entry_list_path)
+    profile = load_yaml(profile_path) if profile_path else None
+    scope = _validated_scope(entry_list, profile, entry_list_path)
+
+    previous = {e["id"]: e for e in entry_list.get("entries", [])}
+    found = _collect_candidates(entry_list, scope, profile_path, entry_list_path)
+
+    entries = _merge_previous_decisions(previous, found)
+    # 入口が別の入口の中で動く関係 (プロファイルの within の宣言から決める。プロファイルを渡さなければ付けない)
+    _apply_within_and_report_removals(entries, previous, found, profile)
 
     # 決定論: entries の内容が前回と同じなら enumerated_at も据え置く (差分ゼロを保つ)
     if entries != entry_list.get("entries") or "enumerated_at" not in entry_list:
-        entry_list["enumerated_at"] = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        entry_list["enumerated_at"] = (
+            datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        )
     entry_list["entries"] = entries
     post = validate_entry_list(entry_list, profile)
     if post:
         raise SystemExit("列挙結果が不正:\n  " + "\n  ".join(post))
     for wid, n in rejected_wrappers(entries).items():
-        print(f"  warn: 包む入口 '{wid}' は rejected。中で動く {n} 件の入口はこれを辿らないので、その処理はどの入口の結果にも現れない"
-              " (データを読まない枠なら問題ない。理由を note に書く)", file=sys.stderr)
+        print(
+            f"  warn: 包む入口 '{wid}' は rejected。中で動く {n} 件の入口はこれを辿らないので、その処理はどの入口の結果にも現れない"
+            " (データを読まない枠なら問題ない。理由を note に書く)",
+            file=sys.stderr,
+        )
     if write:
-        entry_list_path.write_text(yaml.safe_dump(entry_list, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        entry_list_path.write_text(
+            yaml.safe_dump(entry_list, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
     n_app = sum(1 for e in entries if e["status"] == "approved")
-    print(f"enumerate: entries={len(entries)} approved={n_app} candidate={sum(1 for e in entries if e['status']=='candidate')} rejected={sum(1 for e in entries if e['status']=='rejected')}", file=sys.stderr)
+    print(
+        f"enumerate: entries={len(entries)} approved={n_app} candidate={sum(1 for e in entries if e['status'] == 'candidate')} rejected={sum(1 for e in entries if e['status'] == 'rejected')}",
+        file=sys.stderr,
+    )
     return entry_list

@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+usage() {
+	echo "usage: scripts/check {dev|hook|pr|main} [generate|format|lint|build|test|security]"
+}
+if [[ ${1:-} == --help ]]; then
+	usage
+	exit 0
+fi
+[[ $# -ge 1 && $# -le 2 ]] || {
+	usage >&2
+	exit 2
+}
+mode=$1
+shift
+case $mode in
+dev)
+	phases=(format generate lint test security)
+	base=HEAD
+	;;
+hook) ;;
+pr | main)
+	phases=(generate format lint build test security)
+	base=${CHECK_BASE:-origin/main}
+	;;
+*)
+	usage >&2
+	exit 2
+	;;
+esac
+
+check_lint() {
+	local status=0
+	qlty check "${flags[@]}" "$@" || status=1
+	uv run --script scripts/complexity.py --check "$@" || status=1
+	return "$status"
+}
+
+format_rules=ruff:fmt,markdownlint:fmt,sqlfluff:fmt,prettier:fmt,shfmt:fmt,dockerfmt:fmt
+if [[ $mode == hook ]]; then
+	echo "[hook] ${1:-security format lint test}"
+	case ${1:-} in
+	'')
+		gitleaks git --staged --redact --no-banner .
+		flags=(--no-fix)
+		;;
+	security) exec gitleaks git --staged --redact --no-banner . ;;
+	format) flags=(--no-fix --filter "$format_rules") ;;
+	lint) flags=(--no-fix --no-formatters) ;;
+	test) ;;
+	*)
+		usage >&2
+		exit 2
+		;;
+	esac
+
+	# Capture Git's active index (also used by path-limited commits).
+	tree=$(git write-tree)
+	if head=$(git rev-parse --verify -q HEAD); then
+		if [[ $tree == "$(git rev-parse "$head^{tree}")" ]]; then exit 0; fi
+		base_args=(--upstream "$head")
+	else
+		base_args=(--all)
+	fi
+
+	# Qlty keys its cache by checkout path. Reuse the path, never the checkout.
+	snapshot="$(git rev-parse --absolute-git-dir)/abatlas-hook-check"
+	if ! mkdir -m 700 "$snapshot" 2>/dev/null; then snapshot=$(mktemp -d); fi
+	trap 'rm -rf -- "$snapshot"' EXIT
+	# Borrow the source object database, including staged blobs in shallow clones.
+	objects=$(git rev-parse --path-format=absolute --git-path objects)
+	object_format=$(git rev-parse --show-object-format)
+	# Git exports repository-specific variables to hooks. The checkout needs its own index.
+	local_vars=$(git rev-parse --local-env-vars)
+	while IFS= read -r name; do unset "$name"; done <<<"$local_vars"
+	cd "$snapshot"
+	git init --quiet --object-format="$object_format"
+	git config core.hooksPath /dev/null
+	printf '%s\n' "$objects" >.git/objects/info/alternates
+	if [[ -n $head ]]; then git update-ref HEAD "$head"; fi
+	git read-tree --reset -u "$tree"
+	case ${1:-} in
+	'' | lint) check_lint "${base_args[@]}" ;;
+	format) qlty check "${flags[@]}" "${base_args[@]}" ;;
+	esac
+	if [[ -z ${1:-} || $1 == test ]]; then
+		uv run --isolated --locked --only-group docs python .agents/skills/dev-docs/scripts/check_docs.py --no-render
+	fi
+	exit 0
+fi
+
+if [[ $# == 0 ]]; then
+	# Run independent checks even if a preceding check reports findings.
+	if [[ $mode == pr || $mode == main ]]; then
+		CHECK_IID_FILE=$(mktemp)
+		export CHECK_IID_FILE
+		trap 'rm -f "$CHECK_IID_FILE"' EXIT
+	fi
+	status=0
+	for phase in "${phases[@]}"; do
+		scripts/check "$mode" "$phase" || status=1
+	done
+	exit "$status"
+fi
+
+phase=$1
+echo "[$mode] $phase"
+uv_run=(uv run --locked)
+qlty_scope=(--all)
+comparison_base() {
+	git rev-parse --verify --end-of-options "${base}^{commit}"
+}
+if [[ $mode != main && ($phase == format || $phase == lint) ]]; then
+	base_sha=$(comparison_base)
+	qlty_scope=(--upstream "$base_sha")
+fi
+case $phase in
+generate)
+	"${uv_run[@]}" python .agents/skills/mid-harness/scripts/check_drift.py .
+	"${uv_run[@]}" pytest -q tests/test_examples.py::test_generated_files_are_up_to_date
+	;;
+format)
+	if [[ $mode == dev ]]; then
+		qlty fmt "${qlty_scope[@]}"
+	else
+		qlty check --no-fix --filter "$format_rules" "${qlty_scope[@]}"
+	fi
+	;;
+lint)
+	flags=(--no-fix --no-formatters)
+	check_lint "${qlty_scope[@]}"
+	;;
+build)
+	flags=(--pull --no-cache-filter os-updates)
+	if [[ -n ${CHECK_IID_FILE:-} ]]; then flags+=(--iidfile "$CHECK_IID_FILE"); fi
+	docker buildx build --load "${flags[@]}" .
+	;;
+test) "${uv_run[@]}" pytest -q ;;
+security)
+	status=0
+	if [[ $mode == main ]]; then
+		gitleaks git --log-opts="--all --diff-merges=first-parent" --redact --no-banner . || status=1
+	elif base_sha=$(comparison_base); then
+		gitleaks git --log-opts="--diff-merges=first-parent ${base_sha}..HEAD" --redact --no-banner . || status=1
+	else
+		status=1
+	fi
+	gitleaks git --pre-commit --redact --no-banner . || status=1
+	gitleaks git --staged --redact --no-banner . || status=1
+	while IFS= read -r -d '' file; do
+		if [[ -f $file && ! -L $file ]]; then
+			gitleaks dir --log-level error --redact --no-banner -- "$file" || status=1
+		fi
+	done < <(git ls-files --others --exclude-standard -z)
+	"${uv_run[@]}" python scripts/scan.py lock || status=1
+	if [[ $mode == pr || $mode == main ]]; then
+		# The ID comes from this build, including when security is run on its own.
+		if [[ -n ${CHECK_IID_FILE:-} ]]; then
+			[[ -s $CHECK_IID_FILE ]] || {
+				echo "No image from the CI build" >&2
+				exit 1
+			}
+			image=$(cat "$CHECK_IID_FILE")
+		else
+			image=$(docker buildx build --load --pull --no-cache-filter os-updates --quiet .)
+		fi
+		"${uv_run[@]}" python scripts/scan.py image "$image" || status=1
+	fi
+	exit "$status"
+	;;
+*)
+	usage >&2
+	exit 2
+	;;
+esac

@@ -2,4 +2,7 @@
 
 export const segs = (p) => String(p).split("/").filter(Boolean);
 export const joinPath = (parts) => "/" + parts.join("/");
-export const parentOf = (p) => { const s = segs(p); return s.length > 1 ? joinPath(s.slice(0, -1)) : "/"; };
+export const parentOf = (p) => {
+  const s = segs(p);
+  return s.length > 1 ? joinPath(s.slice(0, -1)) : "/";
+};

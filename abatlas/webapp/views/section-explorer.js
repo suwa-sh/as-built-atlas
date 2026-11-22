@@ -11,95 +11,254 @@ import { sectionData, sectionDiagram } from "./section-diagram.js";
 
 const BATCH = 3;
 export function supportsSection() {
-  return model.treeMart?.cols.has(model.treeMart.keys.tag)
-    && model.seqMart?.cols.has(model.seqMart.keys.group);
+  return (
+    model.treeMart?.cols.has(model.treeMart.keys.tag) &&
+    model.seqMart?.cols.has(model.seqMart.keys.group)
+  );
 }
 
 export function sectionExplorer(layers, initial, flow, initialTier) {
-  const knownIds = new Set();
-  const k = model.layerMart?.keys;
-  if (k) for (const r of flow?.rows || []) for (const col of [k.from, k.to]) if (r[col]) knownIds.add(String(r[col]));
-  const camera = { yaw: 0, pitch: 12, zoom: 1, panX: 0, panY: 0, knownIds, drillTier: initialTier || "" };
-  function updateLocation(entry, tier) {
+  return new SectionExplorer().mount(layers, initial, flow, initialTier);
+}
+
+class SectionExplorer {
+  constructor() {
+    this.read = this.read.bind(this);
+    this.show = this.show.bind(this);
+  }
+
+  mount(layers, initial, flow, initialTier) {
+    this.layers = layers;
+    this.initial = initial;
+
+    const knownIds = new Set();
+
+    const k = model.layerMart?.keys;
+
+    if (k)
+      for (const r of flow?.rows || [])
+        for (const col of [k.from, k.to]) if (r[col]) knownIds.add(String(r[col]));
+
+    this.camera = {
+      yaw: 0,
+      pitch: 12,
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+      knownIds,
+      drillTier: initialTier || "",
+    };
+
+    this.filters = el("div", { class: "tier-scene-filters" });
+
+    if (!supportsSection()) {
+      const view = tierScene(
+        this.layers,
+        null,
+        this.camera,
+        (tier) => this.updateLocation(this.initial, tier),
+        this.filters,
+      );
+      return el("section", { class: "section-explorer" }, this.filters, view);
+    }
+
+    this.mart = model.treeMart;
+
+    this.createEntryControls();
+
+    this.choices = [];
+    this.sections = new Map();
+
+    this.total = 0;
+    this.limit = BATCH;
+    this.generation = 0;
+    this.loadingPage = null;
+
+    if (this.initial) {
+      this.select.append(el("option", { value: this.initial }, this.initial));
+      this.select.value = this.initial;
+    }
+
+    this.listenToEntries();
+
+    this.show();
+
+    return this.host;
+  }
+  createEntryControls() {
+    this.select = el(
+      "select",
+      { "aria-label": term("entry") },
+      el("option", { value: "" }, "重ねて表示"),
+    );
+
+    this.more = el("button", { hidden: true, type: "button" }, "候補をさらに表示");
+
+    this.stack = el("button", { hidden: true, type: "button" }, `さらに ${BATCH} 件を重ねる`);
+
+    this.count = el("span", { class: "count", role: "status" });
+
+    this.body = el("div", null, loading());
+
+    this.detail = el("a", { class: "more", hidden: true }, "詳細を開く");
+
+    const controls = el(
+      "div",
+      { class: "section-picker" },
+      el(
+        "div",
+        { class: "toolbar tier-filters" },
+        el("label", null, term("entry"), this.select),
+        this.filters,
+      ),
+      el(
+        "div",
+        { class: "toolbar tier-entry-actions" },
+        this.more,
+        this.stack,
+        this.count,
+        this.detail,
+      ),
+    );
+
+    this.host = el("section", { class: "section-explorer" }, controls, this.body);
+  }
+  listenToEntries() {
+    this.select.addEventListener("change", () => {
+      this.updateLocation(this.select.value, this.camera.drillTier);
+      this.show();
+    });
+
+    this.more.addEventListener("click", () =>
+      this.loadChoices().catch((e) => {
+        this.count.textContent = e.message;
+      }),
+    );
+
+    this.stack.addEventListener("click", () => {
+      this.limit += BATCH;
+      this.show();
+    });
+  }
+
+  updateLocation(entry, tier) {
     const query = new URLSearchParams({ view: "3d" });
     if (entry) query.set("entry", entry);
     if (tier) query.set("focusTier", tier);
     history.replaceState(null, "", "#/overview?" + query);
   }
-  const filters = el("div", { class: "tier-scene-filters" });
-  if (!supportsSection()) {
-    const view = tierScene(layers, null, camera, (tier) => updateLocation(initial, tier), filters);
-    return el("section", { class: "section-explorer" }, filters, view);
+
+  loadChoices() {
+    if (this.loadingPage) return this.loadingPage;
+    this.more.disabled = true;
+    this.loadingPage = groups(this.mart, {
+      by: this.mart.keys.group,
+      order: "key",
+      limit: PAGE,
+      offset: this.choices.length,
+    })
+      .then((data) => {
+        this.total = data.total;
+        for (const { key } of data.groups) {
+          this.choices.push(key);
+          if (key !== this.initial) this.select.append(el("option", { value: key }, key));
+        }
+        this.more.hidden = this.choices.length >= this.total;
+      })
+      .finally(() => {
+        this.more.disabled = false;
+        this.loadingPage = null;
+      });
+    return this.loadingPage;
   }
-  const mart = model.treeMart;
-  const select = el("select", { "aria-label": term("entry") }, el("option", { value: "" }, "重ねて表示"));
-  const more = el("button", { hidden: true, type: "button" }, "候補をさらに表示");
-  const stack = el("button", { hidden: true, type: "button" }, `さらに ${BATCH} 件を重ねる`);
-  const count = el("span", { class: "count", role: "status" });
-  const body = el("div", null, loading());
-  const detail = el("a", { class: "more", hidden: true }, "詳細を開く");
-  const controls = el("div", { class: "section-picker" },
-    el("div", { class: "toolbar tier-filters" }, el("label", null, term("entry"), select), filters),
-    el("div", { class: "toolbar tier-entry-actions" }, more, stack, count, detail));
-  const host = el("section", { class: "section-explorer" }, controls, body);
-  const choices = [], sections = new Map();
-  let total = 0, limit = BATCH, generation = 0, loadingPage = null;
-  function loadChoices() {
-    if (loadingPage) return loadingPage;
-    more.disabled = true;
-    loadingPage = groups(mart, { by: mart.keys.group, order: "key", limit: PAGE, offset: choices.length }).then((data) => {
-      total = data.total;
-      for (const { key } of data.groups) {
-        choices.push(key);
-        if (key !== initial) select.append(el("option", { value: key }, key));
-      }
-      more.hidden = choices.length >= total;
-    }).finally(() => { more.disabled = false; loadingPage = null; });
-    return loadingPage;
+
+  async read(path) {
+    if (!this.sections.has(path))
+      this.sections.set(
+        path,
+        loadEntry(path)
+          .then((data) => sectionData(this.layers, data))
+          .catch((e) => {
+            this.sections.delete(path);
+            throw e;
+          }),
+      );
+    return { path, section: await this.sections.get(path) };
   }
-  async function read(path) {
-    if (!sections.has(path)) sections.set(path, loadEntry(path).then((data) => sectionData(layers, data))
-      .catch((e) => { sections.delete(path); throw e; }));
-    return { path, section: await sections.get(path) };
-  }
-  async function show() {
-    const gen = ++generation, path = select.value;
-    detail.hidden = !path; detail.href = hEntry(path);
-    stack.hidden = true; count.textContent = "";
-    filters.replaceChildren();
-    body.replaceChildren(loading());
+
+  async show() {
+    const gen = ++this.generation,
+      path = this.select.value;
+    this.detail.hidden = !path;
+    this.detail.href = hEntry(path);
+    this.stack.hidden = true;
+    this.count.textContent = "";
+    this.filters.replaceChildren();
+    this.body.replaceChildren(loading());
     try {
-      if (!choices.length || (!path && choices.length < Math.min(total, limit))) await loadChoices();
-      const paths = path ? [path] : choices.slice(0, limit);
-      const entries = await Promise.all(paths.map(read));
-      if (gen !== generation) return;
-      if (path && !entries[0].section.frames.size) { body.replaceChildren(pendingRoute(path)); return; }
-      const parts = [tierScene(layers, entries, camera, (tier) => updateLocation(path, tier), filters)];
-      if (path) {
-        const box = el("details", { class: "section-functions" }, el("summary", null, `${term("frame")} ごとの断面図`));
-        box.addEventListener("toggle", () => {
-          if (box.open && box.childElementCount === 1) box.append(sectionDiagram(path, entries[0].section));
-        });
-        parts.push(box);
-      } else {
-        count.textContent = `${paths.length} / ${total} ${term("entry")} を表示`;
-        stack.hidden = paths.length >= total;
-        stack.textContent = `さらに ${Math.min(BATCH, total - paths.length)} 件を重ねる`;
-        if (paths.length) parts.push(el("details", { class: "section-functions" }, el("summary", null, `表示中の ${term("entry")}`),
-          el("ul", null, paths.map((p) => el("li", null, el("a", { href: hEntry(p) }, p))))));
+      const paths = await this.visibleEntryPaths(path);
+      const entries = await Promise.all(paths.map(this.read));
+      if (gen !== this.generation) return;
+      if (path && !entries[0].section.frames.size) {
+        this.body.replaceChildren(pendingRoute(path));
+        return;
       }
-      body.replaceChildren(...parts);
+      this.renderEntries(entries, path, paths);
     } catch (e) {
-      if (gen === generation) body.replaceChildren(el("p", { class: "err" }, e.message), el("button", { onclick: show }, "再試行"));
+      if (gen === this.generation)
+        this.body.replaceChildren(
+          el("p", { class: "err" }, e.message),
+          el("button", { onclick: this.show }, "再試行"),
+        );
     }
   }
-  if (initial) { select.append(el("option", { value: initial }, initial)); select.value = initial; }
-  select.addEventListener("change", () => {
-    updateLocation(select.value, camera.drillTier);
-    show();
-  });
-  more.addEventListener("click", () => loadChoices().catch((e) => { count.textContent = e.message; }));
-  stack.addEventListener("click", () => { limit += BATCH; show(); });
-  show();
-  return host;
+
+  async visibleEntryPaths(path) {
+    if (!this.choices.length || (!path && this.choices.length < Math.min(this.total, this.limit)))
+      await this.loadChoices();
+    const paths = path ? [path] : this.choices.slice(0, this.limit);
+    return paths;
+  }
+
+  renderEntries(entries, path, paths) {
+    const parts = [
+      tierScene(
+        this.layers,
+        entries,
+        this.camera,
+        (tier) => this.updateLocation(path, tier),
+        this.filters,
+      ),
+    ];
+    if (path) {
+      const box = el(
+        "details",
+        { class: "section-functions" },
+        el("summary", null, `${term("frame")} ごとの断面図`),
+      );
+      box.addEventListener("toggle", () => {
+        if (box.open && box.childElementCount === 1)
+          box.append(sectionDiagram(path, entries[0].section));
+      });
+      parts.push(box);
+    } else {
+      this.count.textContent = `${paths.length} / ${this.total} ${term("entry")} を表示`;
+      this.stack.hidden = paths.length >= this.total;
+      this.stack.textContent = `さらに ${Math.min(BATCH, this.total - paths.length)} 件を重ねる`;
+      if (paths.length)
+        parts.push(
+          el(
+            "details",
+            { class: "section-functions" },
+            el("summary", null, `表示中の ${term("entry")}`),
+            el(
+              "ul",
+              null,
+              paths.map((p) => el("li", null, el("a", { href: hEntry(p) }, p))),
+            ),
+          ),
+        );
+    }
+    this.body.replaceChildren(...parts);
+  }
 }

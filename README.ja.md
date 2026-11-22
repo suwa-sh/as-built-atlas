@@ -85,7 +85,7 @@ aspects (観点) のページは、上の 2 つのほかに、列ごとの読み
 
 同梱の見本「ことり書店」を、手元で開きます。必要なものは、Docker と git だけです。
 
-**1. リポジトリとイメージを取る**
+### 1. リポジトリとイメージを取る
 
 ```bash
 git clone https://github.com/suwa-sh/as-built-atlas.git
@@ -93,7 +93,7 @@ cd as-built-atlas
 docker pull ghcr.io/suwa-sh/as-built-atlas:latest
 ```
 
-**2. 見本を、checkout の外へコピーする**
+### 2. 見本を、checkout の外へコピーする
 
 対象 (`kotori-books`) と分析リポジトリ (`kotori-books-atlas`) を、並べて置きます。
 
@@ -102,7 +102,7 @@ mkdir -p ~/abatlas-try && cp -r examples/kotori-books examples/kotori-books-atla
 cd ~/abatlas-try/kotori-books-atlas
 ```
 
-**3. 分析リポジトリとして初期化する**
+### 3. 分析リポジトリとして初期化する
 
 既にある `.env` と `analysis/` は、そのまま残ります。
 
@@ -110,14 +110,14 @@ cd ~/abatlas-try/kotori-books-atlas
 docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-atlas:latest init . --profile batch-kestra
 ```
 
-**4. 集計して、画面を起動する**
+### 4. 集計して、画面を起動する
 
 ```bash
 docker compose run --rm abatlas build .
 docker compose up -d api
 ```
 
-**5. 開く**
+### 5. 開く
 
 | 読む人 | 方法 |
 |---|---|
@@ -130,7 +130,7 @@ docker compose up -d api
 
 分析対象ごとに、「分析リポジトリ」を 1 つ作ります。
 
-**1. 分析リポジトリを作る**
+### 1. 分析リポジトリを作る
 
 `<プロファイル>` を、対象に合うプロファイルの名前に置き換えます (例: `batch-kestra`。一覧は [対応している対象](#対応している対象))。
 
@@ -139,14 +139,14 @@ mkdir my-analysis && cd my-analysis
 docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-atlas:latest init . --profile <プロファイル>
 ```
 
-**2. 対象を書く**
+### 2. 対象を書く
 
 | ファイル | 書くこと |
 |---|---|
 | `.env` | `ABATLAS_TARGET` に、対象の clone の場所 |
 | `analysis/work-definition.yaml` | 対象のリポジトリ、範囲、コミット、画面に出す名前 |
 
-**3. エージェントと交互に進める**
+### 3. エージェントと交互に進める
 
 ```mermaid
 flowchart LR
@@ -246,7 +246,7 @@ flowchart TB
 
 ## 文書
 
-**使う人向け**
+### 使う人向け
 
 | 文書 | 内容 |
 |---|---|
@@ -254,7 +254,7 @@ flowchart TB
 | [docs/architecture/](docs/architecture/README.md) | 仕組みの説明。分析リポジトリ、形式、プロファイル、集計、API、画面、見本 |
 | [examples/kotori-books/](examples/kotori-books/README.md) | 見本の対象システムの説明と、正解に入れてある「不明」の見どころ |
 
-**開発する人向け**
+### 開発する人向け
 
 | 文書 | 内容 |
 |---|---|

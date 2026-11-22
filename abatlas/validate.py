@@ -35,14 +35,18 @@ def _resolve_scope(work_or_target: dict, base: Path) -> Path | None:
     try:
         scope.relative_to(p)
     except ValueError:
-        raise SystemExit(f"target.scope '{work_or_target.get('scope')}' が clone_path の外を指している")
+        raise SystemExit(
+            f"target.scope '{work_or_target.get('scope')}' が clone_path の外を指している"
+        )
     return scope
 
 
 def tests_flag_problems(result: dict, frame: dict) -> list[str]:
     """テスト (tests) は、analyzer.tests が true の結果だけが持てる。ETL も同じ検査をする (印が無いと、テストの表から黙って消えるため)。"""
     if frame.get("tests") and not result["analyzer"].get("tests"):
-        return ["tests: analyzer.tests が true でないのに、テストが書かれている (作業定義の analysis.tests が true のときだけ分析する)"]
+        return [
+            "tests: analyzer.tests が true でないのに、テストが書かれている (作業定義の analysis.tests が true のときだけ分析する)"
+        ]
     return []
 
 
@@ -54,7 +58,9 @@ def field_problems(io: dict) -> list[str]:
         out.append(f"fields: 列 '{n}' が 2 回書かれている (使い方は use にまとめる)")
     for fl in io.get("fields", []):
         if "set_to" in fl and "write" not in fl["use"]:
-            out.append(f"fields/{fl['name']}: set_to は、use に write があるときだけ書ける")
+            out.append(
+                f"fields/{fl['name']}: set_to は、use に write があるときだけ書ける"
+            )
     return out
 
 
@@ -66,14 +72,348 @@ def kind_ops(kinds: dict, kind: str) -> list[str]:
 def hierarchy_label_problems(labels: list) -> list[str]:
     """プロファイルの階層ラベルの検査。`名前+` (繰り返す段) は 1 つまで。"""
     problems = []
-    if not isinstance(labels, list) or not all(isinstance(x, str) and x.strip("+") for x in labels):
+    if not isinstance(labels, list) or not all(
+        isinstance(x, str) and x.strip("+") for x in labels
+    ):
         return ["hierarchy.level_labels は空でない文字列の並び"]
     pluses = [i for i, x in enumerate(labels) if x.endswith("+")]
     if len(pluses) > 1:
         problems.append("hierarchy.level_labels: 繰り返す段 (末尾が +) は 1 つまで")
     elif pluses and len(labels) - pluses[0] - 1 > 1:
-        problems.append("hierarchy.level_labels: 繰り返す段の後ろに置ける段は 1 つまで (深さが決まらない節に段の名前を付けられないため)")
+        problems.append(
+            "hierarchy.level_labels: 繰り返す段の後ろに置ける段は 1 つまで (深さが決まらない節に段の名前を付けられないため)"
+        )
     return problems
+
+
+def _check_split_layers(layers, findings):
+    for t in layers:
+        if "split_from" not in t:
+            continue
+        if t.get("role") != "entry":
+            findings.append(
+                f"profile: layers/{t['id']}/split_from: role: entry の層にだけ書ける"
+            )
+        for s in t["split_from"]:
+            src = next((x for x in layers if x["id"] == s), None)
+            if src is None:
+                findings.append(f"profile: layers/{t['id']}/split_from: 未知の層 '{s}'")
+            elif src.get("role", "intermediate") != "intermediate":
+                findings.append(
+                    f"profile: layers/{t['id']}/split_from: '{s}' は role: {src['role']} の層 (分けられるのは、入口でも boundary でもない層)"
+                )
+
+
+def _check_profile_references(profile, layers, ids, findings):
+    kinds = set(vocab("resource-kinds")["kinds"])
+    for t in layers:
+        for k in t.get("io", []):
+            if k not in kinds:
+                findings.append(
+                    f"profile: layers/{t['id']}/io: 未知のデータの種類 '{k}' (schema/vocab/resource-kinds.yaml)"
+                )
+    for ex in profile["extractors"]:
+        if ex.get("layer") and ex["layer"] not in ids:
+            findings.append(
+                f"profile: extractors/{ex['name']}: layer '{ex['layer']}' が layers に無い"
+            )
+
+
+def _check_within_layers(profile, layers, findings):
+    entry_layers = {t["id"] for t in layers if t.get("role") == "entry"}
+    seen_within = set()
+    for i, w in enumerate(profile.get("within", [])):
+        if w["layer"] not in entry_layers:
+            findings.append(
+                f"profile: within/{i}: layer '{w['layer']}' は role: entry の層ではない ({sorted(entry_layers)})"
+            )
+        if w["layer"] in seen_within:
+            findings.append(
+                f"profile: within/{i}: layer '{w['layer']}' の宣言が重複している"
+            )
+        seen_within.add(w["layer"])
+
+
+def _check_review_locations(review, result, findings):
+    frame_ids = {f["id"] for f in result["callstack"]}
+    for i, f in enumerate(review["findings"]):
+        w = f["where"]
+        if w.startswith("callstack/"):
+            fid = w.split("/")[1]
+            # 直した指摘 (resolved) は、指す先のフレームが無くてもよい (「このフレームは要らない」という指摘に従って消すと、指す先が無くなる)
+            if (
+                fid not in frame_ids
+                and f["kind"] != "missing_frame"
+                and not f.get("resolved")
+            ):
+                findings.append(
+                    f"review: findings/{i}: where '{w}' のフレーム '{fid}' が結果に無い"
+                )
+
+
+def _check_entry_profile(entry_list, profile, findings):
+    layer_ids = {t["id"] for t in profile["layers"]}
+    entry_layers = {t["id"] for t in profile["layers"] if t.get("role") == "entry"}
+    for ex in entry_list["extractors"]:
+        if ex["layer"] not in entry_layers:
+            findings.append(
+                f"entry-list: extractors/{ex['name']}: layer '{ex['layer']}' は role: entry の層ではない ({sorted(entry_layers)})"
+            )
+    for e in entry_list["entries"]:
+        if e["layer"] not in layer_ids:
+            findings.append(
+                f"entry-list: entries/{e['id']}: layer '{e['layer']}' がプロファイルに無い"
+            )
+        elif e["layer"] not in entry_layers:
+            findings.append(
+                f"entry-list: entries/{e['id']}: layer '{e['layer']}' は role: entry の層ではない"
+            )
+    if entry_list["profile"]["id"] != profile["id"]:
+        findings.append(
+            f"entry-list: profile.id '{entry_list['profile']['id']}' がプロファイル '{profile['id']}' と違う"
+        )
+
+
+def _find_roots(frames, findings):
+    for f in frames:
+        if "caller" not in f:
+            findings.append(
+                f"callstack/{f['id']}: caller が無い (入口なら caller: null と明示する)"
+            )
+    roots = [f for f in frames if "caller" in f and f["caller"] is None]
+    if len(roots) != 1:
+        findings.append(
+            f"callstack: caller が null のフレーム (入口) は 1 つであるべきだが {len(roots)} 個"
+        )
+    return roots
+
+
+def _check_caller_references(frames, by_id, findings):
+    for f in frames:
+        c = f.get("caller")
+        if c is not None and c not in by_id:
+            findings.append(f"callstack/{f['id']}: caller '{c}' が存在しない")
+        if c is not None and "call" not in f:
+            findings.append(
+                f"callstack/{f['id']}: caller があるのに call (呼び出しの主張) が無い"
+            )
+        if c == f["id"]:
+            findings.append(f"callstack/{f['id']}: caller が自分自身")
+
+
+def _check_reachable_frames(roots, frames, frame_ids, by_id, result, findings):
+    root = roots[0]
+    if root["layer"] != result["entry"]["layer"]:
+        findings.append(
+            f"callstack/{root['id']}: 入口フレームの layer '{root['layer']}' が entry.layer '{result['entry']['layer']}' と違う"
+        )
+    children: dict[str, list[str]] = {fid: [] for fid in by_id}
+    for f in frames:
+        c = f.get("caller")
+        if c in children:
+            children[c].append(f["id"])
+    reached, stack = set(), [root["id"]]
+    while stack:
+        cur = stack.pop()
+        if cur in reached:
+            continue
+        reached.add(cur)
+        stack.extend(children[cur])
+    for fid in frame_ids:
+        if fid not in reached:
+            findings.append(
+                f"callstack/{fid}: 入口から caller を辿って到達できない (循環か、切れた参照)"
+            )
+
+
+def _check_claim(where, claim, reasons, files, findings):
+    if claim.get("status") == "unknown":
+        r = claim.get("reason")
+        if r not in reasons:
+            findings.append(
+                f"{where}: unknown の reason '{r}' が語彙に無い (schema/vocab/unknown-reasons.yaml)"
+            )
+    if files is not None:
+        for ev in claim.get("evidence", []) or []:
+            problem, n = files.check(ev["file"])
+            if problem:
+                findings.append(f"{where}: 根拠のファイル '{ev['file']}' が{problem}")
+            elif n is not None and ev["line"] > n:
+                findings.append(
+                    f"{where}: 根拠の行 {ev['line']} が '{ev['file']}' の行数 {n} を超えている"
+                )
+
+
+def _check_entry_source(result, files, findings):
+    if files is not None:
+        problem, n = files.check(result["entry"]["source"]["file"])
+        if problem:
+            findings.append(
+                f"entry/source: ファイル '{result['entry']['source']['file']}' が{problem}"
+            )
+        elif n is not None and result["entry"]["source"]["line"] > n:
+            findings.append(
+                f"entry/source: 行 {result['entry']['source']['line']} が行数 {n} を超えている"
+            )
+
+
+def _check_frame_source(f, w, files, findings):
+    if files is not None:
+        problem, n = files.check(f["source"]["file"])
+        if problem:
+            findings.append(f"{w}/source: ファイル '{f['source']['file']}' が{problem}")
+        elif n is not None and f["source"]["line"] > n:
+            findings.append(
+                f"{w}/source: 行 {f['source']['line']} が行数 {n} を超えている"
+            )
+
+
+def _check_frame_claims(f, w, check_claim):
+    if "call" in f:
+        check_claim(f"{w}/call", f["call"])
+    if "summary" in f:
+        check_claim(f"{w}/summary", f["summary"])
+    for i, p in enumerate(f.get("parameters", [])):
+        check_claim(f"{w}/parameters/{i}", p)
+    for name in ("links", "guards", "settings", "rules", "tests"):
+        for i, c in enumerate(f.get(name, [])):
+            check_claim(f"{w}/{name}/{i}", c)
+
+
+def _check_frame_links(f, w, result, entry_ids, findings):
+    for i, ln in enumerate(f.get("links", [])):
+        if ln.get("kind") == "embed":
+            _check_embed_target(ln, w, i, result, findings)
+        if (
+            entry_ids is not None
+            and ln.get("entry_id")
+            and ln["entry_id"] not in entry_ids
+        ):
+            findings.append(
+                f"{w}/links/{i}: entry_id '{ln['entry_id']}' が、入口の一覧に無い (rejected の入口も、行き先にできない)"
+            )
+
+
+def _check_embed_target(ln, w, i, result, findings):
+    if not ln.get("entry_id"):
+        findings.append(
+            f"{w}/links/{i}: embed には entry_id が要る (この入口の中に描く部品が、どの入口か。入口になっていない部品は、embed に書かない)"
+        )
+    # 自分自身への遷移 (保存の後に同じ画面を開き直す) や、自分を起動し直す処理は、ある。自分の中に自分を描くことだけは、無い
+    if ln.get("entry_id") and ln["entry_id"] == (result.get("entry") or {}).get("id"):
+        findings.append(
+            f"{w}/links/{i}: embed の entry_id が、この入口自身を指している (embed は、この入口の中に描く、ほかの入口を書く)"
+        )
+
+
+def _check_resource_vocabulary(kinds, kind, io, iw, findings):
+    allowed = set(kinds[kind]["levels"])
+    for lv in io["resource"].get("levels", {}):
+        if lv not in allowed:
+            findings.append(f"{iw}: 段 '{lv}' は {kind} の段 {sorted(allowed)} に無い")
+    ops = kind_ops(kinds, kind)
+    if io["op"] not in ops:
+        findings.append(
+            f"{iw}: 操作 '{io['op']}' は {kind} では使えない (使えるのは {ops})"
+        )
+
+
+def _check_within_cycles(entries, by_id, problems):
+    for e in entries:
+        seen, stack = set(), list(e.get("within", []))
+        while stack:
+            cur = stack.pop()
+            if cur == e["id"]:
+                problems.append(
+                    f"entry-list: entries/{e['id']}: within を辿ると自分に戻る (循環)"
+                )
+                break
+            if cur in seen:
+                continue
+            seen.add(cur)
+            stack.extend(by_id[cur].get("within", []))
+
+
+def _check_frame_io(f, w, layers, kinds, check_claim, findings):
+    layer_io = layers.get(f["layer"], {}).get("io") if layers else None
+    for i, io in enumerate(f.get("io", [])):
+        iw = f"{w}/io/{i}"
+        check_claim(iw, io)
+        kind = io["resource"]["kind"]
+        if kind not in kinds:
+            findings.append(
+                f"{iw}: データの種類 '{kind}' が語彙に無い (schema/vocab/resource-kinds.yaml)"
+            )
+        else:
+            _check_resource_vocabulary(kinds, kind, io, iw, findings)
+        findings.extend(f"{iw}/{p}" for p in field_problems(io))
+        if layer_io is not None and kind not in layer_io:
+            findings.append(
+                f"{iw}: 層 '{f['layer']}' は io に '{kind}' を宣言していない (プロファイルの layers[].io: {layer_io})"
+            )
+
+
+def _check_frame_layers(result, layers, frames, findings):
+    if result["entry"]["layer"] not in layers:
+        findings.append(
+            f"entry/layer: '{result['entry']['layer']}' がプロファイルに無い"
+        )
+    elif layers[result["entry"]["layer"]].get("role") != "entry":
+        findings.append(
+            f"entry/layer: '{result['entry']['layer']}' は role: entry ではない"
+        )
+    for f in frames:
+        if f["layer"] not in layers:
+            findings.append(
+                f"callstack/{f['id']}/layer: '{f['layer']}' がプロファイルに無い"
+            )
+
+
+def _continues_in_entry(f, result, entry_ids):
+    return entry_ids is not None and any(
+        ln.get("kind") in ("embed", "trigger")
+        and ln.get("entry_id") in entry_ids
+        and ln["entry_id"] != result["entry"]["id"]
+        and ln.get("status") != "unknown"
+        for ln in f.get("links", [])
+    )
+
+
+def _unknown_leaf(f):
+    return any(
+        (f.get(k) or {}).get("status") == "unknown" for k in ("call", "summary")
+    ) or any(p.get("status") == "unknown" for p in f.get("parameters", []))
+
+
+def _check_leaf_frames(result, frames, layers, entry_ids, findings):
+    callers = {f.get("caller") for f in frames}
+    for f in frames:
+        if f["id"] in callers:
+            continue
+        layer = layers.get(f["layer"], {})
+        if layer.get("role") == "boundary" or any(
+            f.get(key) for key in ("io", "rules", "guards")
+        ):
+            continue  # 業務のルールか、権限の確認を持つフレームは、読み書きも外部の呼び出しも無くても終端になれる (純粋な判定や計算の関数、確認だけをする middleware)
+        if _continues_in_entry(f, result, entry_ids):
+            continue  # 続きが、別の入口の結果にあるフレーム (別の入口にした部品を描く、別の入口を起動する)。行き先が、入口の一覧にあるものだけ (一覧を渡されない検査では、終端の根拠にしない)
+        if not _unknown_leaf(f):
+            findings.append(
+                f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も業務のルールも権限の確認も、行き先が入口の一覧にあるつながり (embed / trigger と entry_id。--work で作業定義を渡すと、隣の入口の一覧と照合する) も、unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
+            )
+
+
+def _check_work_target(work, result, findings):
+    wt, rt = work["target"], result["target"]
+    for k in ("repo", "commit"):
+        if wt.get(k) != rt.get(k):
+            findings.append(
+                f"target/{k}: 結果の '{rt.get(k)}' が作業定義の '{wt.get(k)}' と違う"
+            )
+    if wt.get("scope", ".") != rt.get("scope", "."):
+        findings.append(
+            f"target/scope: 結果の '{rt.get('scope', '.')}' が作業定義の '{wt.get('scope', '.')}' と違う"
+        )
 
 
 def validate_profile(profile: dict) -> list[str]:
@@ -92,34 +432,10 @@ def validate_profile(profile: dict) -> list[str]:
         findings.append("profile: layers: role: entry の層が無い")
     if "boundary" not in roles:
         findings.append("profile: layers: role: boundary の層が無い")
-    for t in layers:
-        if "split_from" not in t:
-            continue
-        if t.get("role") != "entry":
-            findings.append(f"profile: layers/{t['id']}/split_from: role: entry の層にだけ書ける")
-        for s in t["split_from"]:
-            src = next((x for x in layers if x["id"] == s), None)
-            if src is None:
-                findings.append(f"profile: layers/{t['id']}/split_from: 未知の層 '{s}'")
-            elif src.get("role", "intermediate") != "intermediate":
-                findings.append(f"profile: layers/{t['id']}/split_from: '{s}' は role: {src['role']} の層 (分けられるのは、入口でも boundary でもない層)")
+    _check_split_layers(layers, findings)
     findings.extend(profile_term_problems(profile))
-    kinds = set(vocab("resource-kinds")["kinds"])
-    for t in layers:
-        for k in t.get("io", []):
-            if k not in kinds:
-                findings.append(f"profile: layers/{t['id']}/io: 未知のデータの種類 '{k}' (schema/vocab/resource-kinds.yaml)")
-    for ex in profile["extractors"]:
-        if ex.get("layer") and ex["layer"] not in ids:
-            findings.append(f"profile: extractors/{ex['name']}: layer '{ex['layer']}' が layers に無い")
-    entry_layers = {t["id"] for t in layers if t.get("role") == "entry"}
-    seen_within = set()
-    for i, w in enumerate(profile.get("within", [])):
-        if w["layer"] not in entry_layers:
-            findings.append(f"profile: within/{i}: layer '{w['layer']}' は role: entry の層ではない ({sorted(entry_layers)})")
-        if w["layer"] in seen_within:
-            findings.append(f"profile: within/{i}: layer '{w['layer']}' の宣言が重複している")
-        seen_within.add(w["layer"])
+    _check_profile_references(profile, layers, ids, findings)
+    _check_within_layers(profile, layers, findings)
     return findings
 
 
@@ -141,7 +457,13 @@ def within_of(entries: list[dict], profile: dict | None) -> dict[str, list[str]]
     for e in entries:
         d = tuple(e["source"]["file"].split("/")[:-1])
         is_wrapper = e["id"] in wrapper_ids
-        chain = [wid for wdir, wid in wrappers if wid != e["id"] and d[: len(wdir)] == wdir and not (is_wrapper and wdir == d)]
+        chain = [
+            wid
+            for wdir, wid in wrappers
+            if wid != e["id"]
+            and d[: len(wdir)] == wdir
+            and not (is_wrapper and wdir == d)
+        ]
         if chain:
             out[e["id"]] = chain
     return out
@@ -160,7 +482,9 @@ def within_problems(entries: list[dict], profile: dict | None = None) -> list[st
     expected = within_of(entries, profile)
     for e in entries:
         if e.get("within", []) != expected.get(e["id"], []):
-            problems.append(f"entry-list: entries/{e['id']}: within {e.get('within', [])} がプロファイルの宣言から決まる {expected.get(e['id'], [])} と違う (enumerate をやり直す)")
+            problems.append(
+                f"entry-list: entries/{e['id']}: within {e.get('within', [])} がプロファイルの宣言から決まる {expected.get(e['id'], [])} と違う (enumerate をやり直す)"
+            )
     return problems
 
 
@@ -183,22 +507,16 @@ def _within_ref_problems(entries: list[dict]) -> list[str]:
     for e in entries:
         for w in e.get("within", []):
             if w == e["id"]:
-                problems.append(f"entry-list: entries/{e['id']}: within が自分自身を指している")
+                problems.append(
+                    f"entry-list: entries/{e['id']}: within が自分自身を指している"
+                )
             elif w not in by_id:
-                problems.append(f"entry-list: entries/{e['id']}: within の '{w}' が entries に無い")
+                problems.append(
+                    f"entry-list: entries/{e['id']}: within の '{w}' が entries に無い"
+                )
     if problems:
         return problems
-    for e in entries:
-        seen, stack = set(), list(e.get("within", []))
-        while stack:
-            cur = stack.pop()
-            if cur == e["id"]:
-                problems.append(f"entry-list: entries/{e['id']}: within を辿ると自分に戻る (循環)")
-                break
-            if cur in seen:
-                continue
-            seen.add(cur)
-            stack.extend(by_id[cur].get("within", []))
+    _check_within_cycles(entries, by_id, problems)
     return problems
 
 
@@ -212,19 +530,16 @@ def validate_review(review: dict, result: dict | None = None) -> list[str]:
     if findings or result is None:
         return findings
     if review["entry_id"] != result["entry"]["id"]:
-        findings.append(f"review: entry_id '{review['entry_id']}' が結果の '{result['entry']['id']}' と違う")
+        findings.append(
+            f"review: entry_id '{review['entry_id']}' が結果の '{result['entry']['id']}' と違う"
+        )
     open_count = sum(1 for f in review["findings"] if not f.get("resolved"))
     recorded = (result["analyzer"].get("reviewed") or {}).get("findings_open")
     if recorded is not None and recorded != open_count:
-        findings.append(f"review: 結果の analyzer.reviewed.findings_open ({recorded}) が、レビューの直っていない指摘の数 ({open_count}) と違う (直した指摘に resolved: true を書くか、結果の数を直す)")
-    frame_ids = {f["id"] for f in result["callstack"]}
-    for i, f in enumerate(review["findings"]):
-        w = f["where"]
-        if w.startswith("callstack/"):
-            fid = w.split("/")[1]
-            # 直した指摘 (resolved) は、指す先のフレームが無くてもよい (「このフレームは要らない」という指摘に従って消すと、指す先が無くなる)
-            if fid not in frame_ids and f["kind"] != "missing_frame" and not f.get("resolved"):
-                findings.append(f"review: findings/{i}: where '{w}' のフレーム '{fid}' が結果に無い")
+        findings.append(
+            f"review: 結果の analyzer.reviewed.findings_open ({recorded}) が、レビューの直っていない指摘の数 ({open_count}) と違う (直した指摘に resolved: true を書くか、結果の数を直す)"
+        )
+    _check_review_locations(review, result, findings)
     return findings
 
 
@@ -235,24 +550,17 @@ def validate_entry_list(entry_list: dict, profile: dict | None = None) -> list[s
     ids = [e["id"] for e in entry_list["entries"]]
     dup = {i for i in ids if ids.count(i) > 1}
     for d in sorted(dup):
-        findings.append(f"entry-list: entries: id '{d}' が重複している (抽出器の id が安定していない)")
+        findings.append(
+            f"entry-list: entries: id '{d}' が重複している (抽出器の id が安定していない)"
+        )
     for name, group in sorted(file_name_collisions(set(ids)).items()):
-        findings.append(f"entry-list: entries: id {group} は同じ結果ファイル名 '{name}' になる (`/` は `__` に置き換えるため)。抽出器の id の付け方を変える")
+        findings.append(
+            f"entry-list: entries: id {group} は同じ結果ファイル名 '{name}' になる (`/` は `__` に置き換えるため)。抽出器の id の付け方を変える"
+        )
     if not dup:
         findings.extend(within_problems(entry_list["entries"], profile))
     if profile:
-        layer_ids = {t["id"] for t in profile["layers"]}
-        entry_layers = {t["id"] for t in profile["layers"] if t.get("role") == "entry"}
-        for ex in entry_list["extractors"]:
-            if ex["layer"] not in entry_layers:
-                findings.append(f"entry-list: extractors/{ex['name']}: layer '{ex['layer']}' は role: entry の層ではない ({sorted(entry_layers)})")
-        for e in entry_list["entries"]:
-            if e["layer"] not in layer_ids:
-                findings.append(f"entry-list: entries/{e['id']}: layer '{e['layer']}' がプロファイルに無い")
-            elif e["layer"] not in entry_layers:
-                findings.append(f"entry-list: entries/{e['id']}: layer '{e['layer']}' は role: entry の層ではない")
-        if entry_list["profile"]["id"] != profile["id"]:
-            findings.append(f"entry-list: profile.id '{entry_list['profile']['id']}' がプロファイル '{profile['id']}' と違う")
+        _check_entry_profile(entry_list, profile, findings)
     return findings
 
 
@@ -279,7 +587,26 @@ class _ScopeFiles:
             return sum(1 for _ in fh)
 
 
-def validate_analysis_result(result: dict, profile: dict | None = None, scope_dir: Path | None = None, entry_ids: set[str] | None = None) -> list[str]:
+def _check_call_graph(result, frames, findings):
+    frame_ids = [f["id"] for f in frames]
+    dup = {i for i in frame_ids if frame_ids.count(i) > 1}
+    for d in sorted(dup):
+        findings.append(f"callstack: frame id '{d}' が重複している")
+    by_id = {f["id"]: f for f in frames}
+
+    # --- 呼び出しグラフ: 入口 1 つ、参照の解決、到達可能性、循環
+    roots = _find_roots(frames, findings)
+    _check_caller_references(frames, by_id, findings)
+    if len(roots) == 1 and not dup:
+        _check_reachable_frames(roots, frames, frame_ids, by_id, result, findings)
+
+
+def validate_analysis_result(
+    result: dict,
+    profile: dict | None = None,
+    scope_dir: Path | None = None,
+    entry_ids: set[str] | None = None,
+) -> list[str]:
     """分析結果 YAML の機械チェック。
 
     - schema (claim の status と evidence / reason の組み合わせを含む)
@@ -302,143 +629,30 @@ def validate_analysis_result(result: dict, profile: dict | None = None, scope_di
     kinds = vocab("resource-kinds")["kinds"]
     files = _ScopeFiles(scope_dir) if scope_dir is not None else None
     frames = result["callstack"]
-    frame_ids = [f["id"] for f in frames]
-    dup = {i for i in frame_ids if frame_ids.count(i) > 1}
-    for d in sorted(dup):
-        findings.append(f"callstack: frame id '{d}' が重複している")
-    by_id = {f["id"]: f for f in frames}
-
-    # --- 呼び出しグラフ: 入口 1 つ、参照の解決、到達可能性、循環
-    for f in frames:
-        if "caller" not in f:
-            findings.append(f"callstack/{f['id']}: caller が無い (入口なら caller: null と明示する)")
-    roots = [f for f in frames if "caller" in f and f["caller"] is None]
-    if len(roots) != 1:
-        findings.append(f"callstack: caller が null のフレーム (入口) は 1 つであるべきだが {len(roots)} 個")
-    for f in frames:
-        c = f.get("caller")
-        if c is not None and c not in by_id:
-            findings.append(f"callstack/{f['id']}: caller '{c}' が存在しない")
-        if c is not None and "call" not in f:
-            findings.append(f"callstack/{f['id']}: caller があるのに call (呼び出しの主張) が無い")
-        if c == f["id"]:
-            findings.append(f"callstack/{f['id']}: caller が自分自身")
-    if len(roots) == 1 and not dup:
-        root = roots[0]
-        if root["layer"] != result["entry"]["layer"]:
-            findings.append(f"callstack/{root['id']}: 入口フレームの layer '{root['layer']}' が entry.layer '{result['entry']['layer']}' と違う")
-        children: dict[str, list[str]] = {fid: [] for fid in by_id}
-        for f in frames:
-            c = f.get("caller")
-            if c in children:
-                children[c].append(f["id"])
-        reached, stack = set(), [root["id"]]
-        while stack:
-            cur = stack.pop()
-            if cur in reached:
-                continue
-            reached.add(cur)
-            stack.extend(children[cur])
-        for fid in frame_ids:
-            if fid not in reached:
-                findings.append(f"callstack/{fid}: 入口から caller を辿って到達できない (循環か、切れた参照)")
+    _check_call_graph(result, frames, findings)
 
     def check_claim(where: str, claim: dict):
-        if claim.get("status") == "unknown":
-            r = claim.get("reason")
-            if r not in reasons:
-                findings.append(f"{where}: unknown の reason '{r}' が語彙に無い (schema/vocab/unknown-reasons.yaml)")
-        if files is not None:
-            for ev in claim.get("evidence", []) or []:
-                problem, n = files.check(ev["file"])
-                if problem:
-                    findings.append(f"{where}: 根拠のファイル '{ev['file']}' が{problem}")
-                elif n is not None and ev["line"] > n:
-                    findings.append(f"{where}: 根拠の行 {ev['line']} が '{ev['file']}' の行数 {n} を超えている")
+        _check_claim(where, claim, reasons, files, findings)
 
     layers = {t["id"]: t for t in profile["layers"]} if profile else {}
     check_claim("summary", result["summary"])
-    if files is not None:
-        problem, n = files.check(result["entry"]["source"]["file"])
-        if problem:
-            findings.append(f"entry/source: ファイル '{result['entry']['source']['file']}' が{problem}")
-        elif n is not None and result["entry"]["source"]["line"] > n:
-            findings.append(f"entry/source: 行 {result['entry']['source']['line']} が行数 {n} を超えている")
+    _check_entry_source(result, files, findings)
     for f in frames:
         w = f"callstack/{f['id']}"
-        if files is not None:
-            problem, n = files.check(f["source"]["file"])
-            if problem:
-                findings.append(f"{w}/source: ファイル '{f['source']['file']}' が{problem}")
-            elif n is not None and f["source"]["line"] > n:
-                findings.append(f"{w}/source: 行 {f['source']['line']} が行数 {n} を超えている")
-        if "call" in f:
-            check_claim(f"{w}/call", f["call"])
-        if "summary" in f:
-            check_claim(f"{w}/summary", f["summary"])
-        for i, p in enumerate(f.get("parameters", [])):
-            check_claim(f"{w}/parameters/{i}", p)
-        for name in ("links", "guards", "settings", "rules", "tests"):
-            for i, c in enumerate(f.get(name, [])):
-                check_claim(f"{w}/{name}/{i}", c)
-        for i, ln in enumerate(f.get("links", [])):
-            if ln.get("kind") == "embed" and not ln.get("entry_id"):
-                findings.append(f"{w}/links/{i}: embed には entry_id が要る (この入口の中に描く部品が、どの入口か。入口になっていない部品は、embed に書かない)")
-            # 自分自身への遷移 (保存の後に同じ画面を開き直す) や、自分を起動し直す処理は、ある。自分の中に自分を描くことだけは、無い
-            if ln.get("kind") == "embed" and ln.get("entry_id") and ln["entry_id"] == (result.get("entry") or {}).get("id"):
-                findings.append(f"{w}/links/{i}: embed の entry_id が、この入口自身を指している (embed は、この入口の中に描く、ほかの入口を書く)")
-            if entry_ids is not None and ln.get("entry_id") and ln["entry_id"] not in entry_ids:
-                findings.append(f"{w}/links/{i}: entry_id '{ln['entry_id']}' が、入口の一覧に無い (rejected の入口も、行き先にできない)")
+        _check_frame_source(f, w, files, findings)
+        _check_frame_claims(f, w, check_claim)
+        _check_frame_links(f, w, result, entry_ids, findings)
         if f.get("caller") is None and (f.get("call") or {}).get("when"):
-            findings.append(f"{w}/call: 入口のフレームは呼び出し元が無いので、when を書けない")
+            findings.append(
+                f"{w}/call: 入口のフレームは呼び出し元が無いので、when を書けない"
+            )
         findings.extend(f"{w}/{p}" for p in tests_flag_problems(result, f))
-        layer_io = layers.get(f["layer"], {}).get("io") if layers else None
-        for i, io in enumerate(f.get("io", [])):
-            iw = f"{w}/io/{i}"
-            check_claim(iw, io)
-            kind = io["resource"]["kind"]
-            if kind not in kinds:
-                findings.append(f"{iw}: データの種類 '{kind}' が語彙に無い (schema/vocab/resource-kinds.yaml)")
-            else:
-                allowed = set(kinds[kind]["levels"])
-                for lv in io["resource"].get("levels", {}):
-                    if lv not in allowed:
-                        findings.append(f"{iw}: 段 '{lv}' は {kind} の段 {sorted(allowed)} に無い")
-                ops = kind_ops(kinds, kind)
-                if io["op"] not in ops:
-                    findings.append(f"{iw}: 操作 '{io['op']}' は {kind} では使えない (使えるのは {ops})")
-            findings.extend(f"{iw}/{p}" for p in field_problems(io))
-            if layer_io is not None and kind not in layer_io:
-                findings.append(f"{iw}: 層 '{f['layer']}' は io に '{kind}' を宣言していない (プロファイルの layers[].io: {layer_io})")
+        _check_frame_io(f, w, layers, kinds, check_claim, findings)
 
     if profile:
-        if result["entry"]["layer"] not in layers:
-            findings.append(f"entry/layer: '{result['entry']['layer']}' がプロファイルに無い")
-        elif layers[result["entry"]["layer"]].get("role") != "entry":
-            findings.append(f"entry/layer: '{result['entry']['layer']}' は role: entry ではない")
-        for f in frames:
-            if f["layer"] not in layers:
-                findings.append(f"callstack/{f['id']}/layer: '{f['layer']}' がプロファイルに無い")
+        _check_frame_layers(result, layers, frames, findings)
         # 葉 (誰からも呼ばれないフレーム) は、boundary 層か、I/O を持つか、unknown の主張を持つべき。
-        callers = {f.get("caller") for f in frames}
-        for f in frames:
-            if f["id"] in callers:
-                continue
-            layer = layers.get(f["layer"], {})
-            if layer.get("role") == "boundary" or f.get("io") or f.get("rules") or f.get("guards"):
-                continue  # 業務のルールか、権限の確認を持つフレームは、読み書きも外部の呼び出しも無くても終端になれる (純粋な判定や計算の関数、確認だけをする middleware)
-            if entry_ids is not None and any(
-                ln.get("kind") in ("embed", "trigger") and ln.get("entry_id") in entry_ids and ln["entry_id"] != result["entry"]["id"] and ln.get("status") != "unknown"
-                for ln in f.get("links", [])
-            ):
-                continue  # 続きが、別の入口の結果にあるフレーム (別の入口にした部品を描く、別の入口を起動する)。行き先が、入口の一覧にあるものだけ (一覧を渡されない検査では、終端の根拠にしない)
-            unknown_leaf = any((f.get(k) or {}).get("status") == "unknown" for k in ("call", "summary")) or any(
-                p.get("status") == "unknown" for p in f.get("parameters", [])
-            )
-            if not unknown_leaf:
-                findings.append(
-                    f"callstack/{f['id']}: 終端なのに boundary 層でなく、I/O も業務のルールも権限の確認も、行き先が入口の一覧にあるつながり (embed / trigger と entry_id。--work で作業定義を渡すと、隣の入口の一覧と照合する) も、unknown の主張も無い (辿り切れていないなら unknown + reason を書く)"
-                )
+        _check_leaf_frames(result, frames, layers, entry_ids, findings)
     return findings
 
 
@@ -446,32 +660,41 @@ def entry_ids_of(entry_list: dict | None) -> set[str] | None:
     """つながりの行き先にできる入口の id (rejected を除く)。一覧が無ければ None。"""
     if not isinstance(entry_list, dict):
         return None
-    return {e["id"] for e in entry_list.get("entries", []) if isinstance(e, dict) and e.get("id") and e.get("status") != "rejected"}
+    return {
+        e["id"]
+        for e in entry_list.get("entries", [])
+        if isinstance(e, dict) and e.get("id") and e.get("status") != "rejected"
+    }
 
 
 def _entry_ids(path: Path) -> set[str] | None:
     return entry_ids_of(load_yaml(path)) if path.is_file() else None
 
 
-def validate_result_file(path: Path, profile_path: Path | None = None, work_path: Path | None = None) -> list[str]:
+def validate_result_file(
+    path: Path, profile_path: Path | None = None, work_path: Path | None = None
+) -> list[str]:
     result = load_yaml(path)
     profile = load_yaml(profile_path) if profile_path else None
+    has_target = isinstance(result, dict) and isinstance(result.get("target"), dict)
     scope_dir = None
     if work_path:
         work = load_yaml(work_path)
         scope_dir = _resolve_scope(work["target"], work_path.parent)
-    elif isinstance(result, dict) and isinstance(result.get("target"), dict):
+    elif has_target:
         scope_dir = _resolve_scope(result["target"], path.parent)
-    findings = validate_analysis_result(result, profile, scope_dir, _entry_ids(work_path.parent / "entry-list.yaml") if work_path else None)
-    if work_path and isinstance(result, dict) and isinstance(result.get("target"), dict):
-        wt, rt = work["target"], result["target"]
-        for k in ("repo", "commit"):
-            if wt.get(k) != rt.get(k):
-                findings.append(f"target/{k}: 結果の '{rt.get(k)}' が作業定義の '{wt.get(k)}' と違う")
-        if wt.get("scope", ".") != rt.get("scope", "."):
-            findings.append(f"target/scope: 結果の '{rt.get('scope', '.')}' が作業定義の '{wt.get('scope', '.')}' と違う")
+    findings = validate_analysis_result(
+        result,
+        profile,
+        scope_dir,
+        _entry_ids(work_path.parent / "entry-list.yaml") if work_path else None,
+    )
+    if work_path and has_target:
+        _check_work_target(work, result, findings)
     if scope_dir is None:
-        findings.append("scope: target.clone_path が無く、根拠の実在を検査していない (--work で作業定義を渡す)")
+        findings.append(
+            "scope: target.clone_path が無く、根拠の実在を検査していない (--work で作業定義を渡す)"
+        )
     elif not scope_dir.is_dir():
         findings.append(f"scope: '{scope_dir}' が無く、根拠の実在を検査できない")
     return findings

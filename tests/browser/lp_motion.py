@@ -11,6 +11,13 @@ import sys
 from playwright.sync_api import expect, sync_playwright
 
 
+PLAY_ROTATION = "3D図の回転を再生"
+PROFILES_HEADING = "#profiles h2"
+WAIT_FOR_ANIMATIONS = "el => Promise.all(el.getAnimations().map(a => a.finished))"
+ANIMATION_COUNT = "el => el.getAnimations().length"
+EXPERIENCE_HEADING = "#experience h2"
+
+
 def scroll_to_height(element, fraction):
     element.evaluate(
         "(el, fraction) => window.scrollBy(0, el.getBoundingClientRect().top - innerHeight * fraction)",
@@ -31,7 +38,7 @@ def check_motion(browser, url, preference):
     if preference == "reduce":
         expect(video).to_have_js_property("paused", True)
         assert not any(path.endswith(".mp4") for path in requested_paths)
-        expect(rotation).to_have_accessible_name("3D図の回転を再生")
+        expect(rotation).to_have_accessible_name(PLAY_ROTATION)
         rotation.press("Enter")
     page.wait_for_function("document.querySelector('video').currentTime > 0")
     expect(rotation).to_have_accessible_name("3D図の回転を一時停止")
@@ -53,12 +60,12 @@ def check_motion(browser, url, preference):
     rotation.scroll_into_view_if_needed()
     expect(video).to_have_js_property("paused", False)
     rotation.press("Space")
-    expect(rotation).to_have_accessible_name("3D図の回転を再生")
+    expect(rotation).to_have_accessible_name(PLAY_ROTATION)
     page.locator("footer").scroll_into_view_if_needed()
     rotation.scroll_into_view_if_needed()
     expect(video).to_have_js_property("paused", True)
 
-    heading = page.locator("#profiles h2")
+    heading = page.locator(PROFILES_HEADING)
     lead = page.locator("#profiles .description")
     expect(heading).to_have_css("animation-name", "none")
     if preference == "no-preference":
@@ -72,11 +79,11 @@ def check_motion(browser, url, preference):
         for text in (heading, lead):
             expect(text).to_have_css("animation-name", "text-in")
         expect(lead).to_have_css("animation-delay", "0.12s")
-        lead.evaluate("el => Promise.all(el.getAnimations().map(a => a.finished))")
+        lead.evaluate(WAIT_FOR_ANIMATIONS)
         expect(lead).to_have_css("opacity", "1")
         page.locator("header").scroll_into_view_if_needed()
         lead.scroll_into_view_if_needed()
-        assert lead.evaluate("el => el.getAnimations().length") == 0
+        assert lead.evaluate(ANIMATION_COUNT) == 0
 
     diagram = page.locator(".concept-map")
     scroll_to_height(diagram, 0.40)
@@ -88,10 +95,10 @@ def check_motion(browser, url, preference):
         expect(trace).to_have_css("display", "none")
     else:
         expect(trace).to_have_css("animation-name", "trace-routes")
-        trace.evaluate("el => Promise.all(el.getAnimations().map(a => a.finished))")
+        trace.evaluate(WAIT_FOR_ANIMATIONS)
         page.locator("header").scroll_into_view_if_needed()
         diagram.scroll_into_view_if_needed()
-        assert trace.evaluate("el => el.getAnimations().length") == 0
+        assert trace.evaluate(ANIMATION_COUNT) == 0
 
     tab = page.get_by_role("tab", name="影響候補を確認")
     panel = page.locator("#impact")
@@ -105,33 +112,45 @@ def check_motion(browser, url, preference):
     tab.click()
     scroll_to_height(panel, 0.35)
     expect(panel).to_be_visible()
-    page.wait_for_function("document.querySelector('#impact').classList.contains('in-view')")
+    page.wait_for_function(
+        "document.querySelector('#impact').classList.contains('in-view')"
+    )
     if preference == "reduce":
         expect(panel_heading).to_have_css("transition-duration", "0s")
         assert page.evaluate("window.panelStarts") == 0
     else:
         page.wait_for_function("window.panelStarts === 1")
-        panel_heading.evaluate("el => Promise.all(el.getAnimations().map(a => a.finished))")
+        panel_heading.evaluate(WAIT_FOR_ANIMATIONS)
         page.get_by_role("tab", name="根拠を確認").click()
         tab.click()
-        assert panel_heading.evaluate("el => el.getAnimations().length") == 0
+        assert panel_heading.evaluate(ANIMATION_COUNT) == 0
     page.close()
 
 
 def check_reveal_timing(browser, url, viewport):
-    page = browser.new_page(locale="ja-JP", viewport=viewport, reduced_motion="no-preference")
+    page = browser.new_page(
+        locale="ja-JP", viewport=viewport, reduced_motion="no-preference"
+    )
     page.goto(url)
     first_panel = page.locator("#structure")
-    assert first_panel.evaluate("el => !el.classList.contains('in-view') && !el.getAnimations().length")
+    assert first_panel.evaluate(
+        "el => !el.classList.contains('in-view') && !el.getAnimations().length"
+    )
     expect(first_panel).to_have_css("opacity", "1")
     expect(first_panel.locator("figure img")).to_have_css("opacity", "1")
-    for selector in ("#experience h2", "#structure", "#profiles h2", ".concept-map", ".process li"):
+    for selector in (
+        EXPERIENCE_HEADING,
+        "#structure",
+        PROFILES_HEADING,
+        ".concept-map",
+        ".process li",
+    ):
         element = page.locator(selector).first
         scroll_to_height(element, 0.94)
         # 画面の下端で読み手が待っても、登場アニメーションは消費しない。
         page.wait_for_timeout(900)
         assert not element.evaluate("el => el.classList.contains('in-view')"), selector
-        if selector == "#experience h2":
+        if selector == EXPERIENCE_HEADING:
             expect(element).to_have_css("opacity", "0")
             # 見出しの中央が画面の89%に来た時点で、フェードが始まる。
             element.evaluate("""el => {
@@ -148,7 +167,7 @@ def check_reveal_timing(browser, url, viewport):
             }""")
             assert 0 < start < 0.1 and start < early < 0.25 and 0.45 < middle < 0.65
             expect(element).to_have_css("opacity", "1")
-        elif selector == "#profiles h2":
+        elif selector == PROFILES_HEADING:
             # 一瞬で通過した見出しは次に読むときまで残し、低速スクロール中には動かす。
             scroll_to_height(element, 0.42)
             page.locator("header").scroll_into_view_if_needed()
@@ -167,37 +186,52 @@ def check_reveal_timing(browser, url, viewport):
             }""")
         else:
             scroll_to_height(element, 0.42)
-        page.wait_for_function("s => document.querySelector(s).classList.contains('in-view')", arg=selector)
+        page.wait_for_function(
+            "s => document.querySelector(s).classList.contains('in-view')", arg=selector
+        )
 
     page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
-    page.wait_for_function("document.querySelector('#start [data-reveal=lead]').classList.contains('in-view')")
+    page.wait_for_function(
+        "document.querySelector('#start [data-reveal=lead]').classList.contains('in-view')"
+    )
     page.close()
 
 
 def check_video_fallback(browser, url):
-    page = browser.new_page(locale="ja-JP", has_touch=True, reduced_motion="no-preference")
+    page = browser.new_page(
+        locale="ja-JP", has_touch=True, reduced_motion="no-preference"
+    )
     page.route("**/architecture-3d.mp4", lambda route: route.abort())
     page.goto(url)
     page.locator(".hero-media").scroll_into_view_if_needed()
     still = page.get_by_role("link", name="ことり書店の3D図を原寸で開く")
     expect(still).to_be_visible()
     expect(page.locator(".hero-touch-hint")).to_be_hidden()
-    assert still.locator("img").evaluate("async el => { await el.decode(); return el.naturalWidth > 0 }")
+    assert still.locator("img").evaluate(
+        "async el => { await el.decode(); return el.naturalWidth > 0 }"
+    )
     page.close()
 
     page = browser.new_page(locale="ja-JP", java_script_enabled=False)
     page.goto(url)
-    expect(page.get_by_role("link", name="ことり書店の3D図を原寸で開く")).to_be_visible()
+    expect(
+        page.get_by_role("link", name="ことり書店の3D図を原寸で開く")
+    ).to_be_visible()
     expect(page.locator(".hero-rotation")).to_be_hidden()
-    expect(page.locator("#experience h2")).to_have_css("opacity", "1")
+    expect(page.locator(EXPERIENCE_HEADING)).to_have_css("opacity", "1")
     page.close()
 
 
 def check_touch_rotation(browser, url):
-    page = browser.new_page(locale="ja-JP", has_touch=True, viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    page = browser.new_page(
+        locale="ja-JP",
+        has_touch=True,
+        viewport={"width": 390, "height": 844},
+        reduced_motion="reduce",
+    )
     page.goto(url)
     expect(page.locator(".hero-touch-hint")).to_be_visible()
-    rotation = page.get_by_role("button", name="3D図の回転を再生")
+    rotation = page.get_by_role("button", name=PLAY_ROTATION)
     rotation.tap()
     page.get_by_role("button", name="3D図の回転を一時停止").tap()
     expect(rotation).to_be_visible()
@@ -212,11 +246,15 @@ def check_late_script(browser, url):
     heading = page.locator("#hero-title")
     expect(heading).to_be_in_viewport()
     expect(heading).to_have_css("opacity", "1")
-    page.evaluate("() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))")
+    page.evaluate(
+        "() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))"
+    )
     page.wait_for_function("""!('PerformancePaintTiming' in window)
         || performance.getEntriesByName('first-contentful-paint', 'paint').length > 0""")
     held[0].continue_()
-    page.wait_for_function("document.querySelector('#profiles h2').classList.contains('reveal-pending')")
+    page.wait_for_function(
+        "document.querySelector('#profiles h2').classList.contains('reveal-pending')"
+    )
     assert heading.evaluate("el => !el.matches('.in-view, .reveal-pending')")
     expect(heading).to_have_css("opacity", "1")
     page.close()

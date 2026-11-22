@@ -20,7 +20,7 @@ FILES = {
     ".github/workflows/nightly-report.yaml": "name: nightly\non:\n  schedule:\n    - cron: '0 18 * * *'\n  workflow_dispatch:\njobs: {}\n",
     ".github/workflows/publish.yml": "on:\n  workflow_call:\n    inputs: {}\njobs: {}\n",
     ".github/workflows/notes.md": "# workflow ではない\n",
-    ".github/actions/setup/action.yml": "name: setup\nruns:\n  using: composite\n  steps: []\n",   # リポジトリの中の action。入口ではない
+    ".github/actions/setup/action.yml": "name: setup\nruns:\n  using: composite\n  steps: []\n",  # リポジトリの中の action。入口ではない
 }
 
 
@@ -41,19 +41,59 @@ def test_workflow_files_become_entries(tmp_path: Path):
     ex = {k: v for k, v in profile["extractors"][0].items() if k != "hint"}
     ex["rationale"] = "workflow は .github/workflows の直下"
     el_path = repo / "analysis" / "entry-list.yaml"
-    el_path.write_text(yaml.safe_dump({
-        "format_version": 1, "target": {"repo": "example/kotori-ci", "clone_path": str(target), "scope": ".", "commit": "0a1b2c3d4e"},
-        "profile": {"id": "batch-github-actions", "version": profile["version"]}, "extractors": [ex], "entries": []}, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    el_path.write_text(
+        yaml.safe_dump(
+            {
+                "format_version": 1,
+                "target": {
+                    "repo": "example/kotori-ci",
+                    "clone_path": str(target),
+                    "scope": ".",
+                    "commit": "0a1b2c3d4e",
+                },
+                "profile": {
+                    "id": "batch-github-actions",
+                    "version": profile["version"],
+                },
+                "extractors": [ex],
+                "entries": [],
+            },
+            allow_unicode=True,
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
     enumerate_entries(el_path, PROFILE)
     el = yaml.safe_load(el_path.read_text(encoding="utf-8"))
     assert validate_entry_list(el, profile) == []
     got = {e["id"]: (e["path"], e["layer"], e["source"]["line"]) for e in el["entries"]}
     assert got == {
-        "test": ("/test", "workflow", 3),                       # 行は、on の行
+        "test": ("/test", "workflow", 3),  # 行は、on の行
         "nightly-report": ("/nightly-report", "workflow", 2),
         "publish": ("/publish", "workflow", 1),
     }
-    flags = {e["id"]: {k: v for k, v in e["attributes"].items() if k != "file_segments"} for e in el["entries"]}
-    assert flags["test"] == {"schedule": False, "workflow_dispatch": False, "workflow_call": False, "push": True, "pull_request": True}
-    assert flags["nightly-report"] == {"schedule": True, "workflow_dispatch": True, "workflow_call": False, "push": False, "pull_request": False}
-    assert flags["publish"] == {"schedule": False, "workflow_dispatch": False, "workflow_call": True, "push": False, "pull_request": False}
+    flags = {
+        e["id"]: {k: v for k, v in e["attributes"].items() if k != "file_segments"}
+        for e in el["entries"]
+    }
+    assert flags["test"] == {
+        "schedule": False,
+        "workflow_dispatch": False,
+        "workflow_call": False,
+        "push": True,
+        "pull_request": True,
+    }
+    assert flags["nightly-report"] == {
+        "schedule": True,
+        "workflow_dispatch": True,
+        "workflow_call": False,
+        "push": False,
+        "pull_request": False,
+    }
+    assert flags["publish"] == {
+        "schedule": False,
+        "workflow_dispatch": False,
+        "workflow_call": True,
+        "push": False,
+        "pull_request": False,
+    }

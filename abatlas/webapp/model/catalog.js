@@ -22,6 +22,22 @@ export const model = {
   layerMart: null, // 層のつながり (view layers)。構成のページの図の線
 };
 
+function hasNamedColumn(m, col) {
+  return Boolean(col) && m.cols.has(col);
+}
+
+function findMart(subject, view, columns, test) {
+  const candidates = subject ? model.subj[subject] || [] : model.catalog;
+  return (
+    candidates.find(
+      (m) =>
+        m.declaration.view === view &&
+        columns(m.keys).every((col) => hasNamedColumn(m, col)) &&
+        (!test || test(m)),
+    ) || null
+  );
+}
+
 export async function loadCatalog() {
   [model.catalog, model.meta] = await Promise.all([api("marts"), api("meta").catch(() => ({}))]);
   model.meta = { profile: {}, resource_kinds: {}, ...(model.meta || {}) };
@@ -32,17 +48,37 @@ export async function loadCatalog() {
     m.keys = m.declaration.keys || {};
     m.cols = new Set((m.columns || []).map((c) => c.name));
     m.tags = m.declaration.tags || [];
-    (model.subj[m.declaration.subject || ""] = model.subj[m.declaration.subject || ""] || []).push(m);
+    (model.subj[m.declaration.subject || ""] ||= []).push(m);
   }
-  model.entryMart = (model.subj.entry || []).find((m) => m.declaration.view === "table" && m.declaration.level === "entry" && m.keys.path && m.cols.has(m.keys.path)) || null;
-  model.dataMart = (model.subj.data || []).find((m) => m.declaration.view === "matrix" && m.keys.kind) || null;
-  model.graphMart = (model.subj.entry || []).find((m) => m.declaration.view === "graph" && m.keys.path) || null;
-  model.withinMart = model.catalog.find((m) => m.tags.includes("within") && m.declaration.view === "table" && m.keys.path && m.cols.has(m.keys.path) && m.keys.members && m.cols.has(m.keys.members)) || null;
-  model.treeMart = (model.subj.entry || []).find((m) => m.declaration.view === "tree" && m.keys.group && m.cols.has(m.keys.group)) || null;
-  model.seqMart = (model.subj.entry || []).find((m) => m.declaration.view === "sequence" && m.keys.node && m.cols.has(m.keys.node)) || null;
-  model.frameMart = (model.subj.frame || []).find((m) => m.declaration.view === "table" && m.keys.members && m.cols.has(m.keys.members)) || null;
-  model.progressMart = (model.subj.analysis || []).find((m) => m.declaration.view === "stat" && m.keys.total && m.cols.has(m.keys.total)) || null;
-  model.layerMart = model.catalog.find((m) => m.declaration.view === "layers" && m.keys.from && m.cols.has(m.keys.from) && m.keys.to && m.cols.has(m.keys.to)) || null;
+  model.entryMart = findMart(
+    "entry",
+    "table",
+    (keys) => [keys.path],
+    (m) => m.declaration.level === "entry",
+  );
+  model.dataMart = findMart(
+    "data",
+    "matrix",
+    () => [],
+    (m) => m.keys.kind,
+  );
+  model.graphMart = findMart(
+    "entry",
+    "graph",
+    () => [],
+    (m) => m.keys.path,
+  );
+  model.withinMart = findMart(
+    null,
+    "table",
+    (keys) => [keys.path, keys.members],
+    (m) => m.tags.includes("within"),
+  );
+  model.treeMart = findMart("entry", "tree", (keys) => [keys.group]);
+  model.seqMart = findMart("entry", "sequence", (keys) => [keys.node]);
+  model.frameMart = findMart("frame", "table", (keys) => [keys.members]);
+  model.progressMart = findMart("analysis", "stat", (keys) => [keys.total]);
+  model.layerMart = findMart(null, "layers", (keys) => [keys.from, keys.to]);
   lineLabels.length = 0;
   clearTreeCache();
 }
@@ -53,8 +89,11 @@ const lineLabels = [];
 function seedLines() {
   if (lineLabels.length) return;
   const h = (model.meta.profile || {}).hierarchy || {};
-  const last = (h.level_labels || []).slice(-1)[0];
-  for (const l of [last ? last.replace(/\+$/, "") : null, ...(Array.isArray(h.entry_labels) ? h.entry_labels : []).map((x) => x && x.label)]) {
+  const last = h.level_labels?.at(-1);
+  for (const l of [
+    last?.replace(/\+$/, ""),
+    ...(Array.isArray(h.entry_labels) ? h.entry_labels : []).map((x) => x?.label),
+  ]) {
     if (l && !lineLabels.includes(String(l))) lineLabels.push(String(l));
   }
 }
@@ -72,7 +111,8 @@ export function lineLegend() {
 // 操作の 1 文字の並び (例 "RUD") を、読む操作と書く操作に分ける。向きは語彙の direction (in = 読む)
 export function splitOps(kind, letters) {
   const ops = kindOf(kind).ops || [];
-  const read = [], write = [];
+  const read = [],
+    write = [];
   for (const ch of new Set(String(letters || ""))) {
     const op = ops.find((o) => o.letter === ch);
     (op && op.direction === "in" ? read : write).push(op ? op.label : ch);
@@ -93,26 +133,46 @@ export function isWrite(resourcePath, op) {
 export async function progressOf() {
   const m = model.progressMart;
   if (!m) return null;
-  const d = await api(`marts/${encodeURIComponent(m.name)}/rows`, { limit: 10000 }).catch(() => null);
+  const d = await api(`marts/${encodeURIComponent(m.name)}/rows`, { limit: 10000 }).catch(
+    () => null,
+  );
   if (!d) return null;
-  let done = 0, total = 0;
-  for (const r of d.rows) { done += Number(r[m.keys.value]) || 0; total += Number(r[m.keys.total]) || 0; }
+  let done = 0,
+    total = 0;
+  for (const r of d.rows) {
+    done += Number(r[m.keys.value]) || 0;
+    total += Number(r[m.keys.total]) || 0;
+  }
   return { done, total, doneLabel: labelOf(m, m.keys.value), totalLabel: labelOf(m, m.keys.total) };
 }
 
-export function titleOf(m) { return m.declaration.title || m.name; }
-export function hintOf(m) { return m.declaration.hint || viewHint(m.declaration.view) || ""; }
-export function labelOf(m, col) { return (m.declaration.labels || {})[col] || col; }
+export function titleOf(m) {
+  return m.declaration.title || m.name;
+}
+export function hintOf(m) {
+  return m.declaration.hint || viewHint(m.declaration.view) || "";
+}
+export function labelOf(m, col) {
+  return (m.declaration.labels || {})[col] || col;
+}
 export function showCols(m, columns) {
   const s = m.declaration.show;
   return s && s.length ? s.filter((c) => columns.includes(c)) : columns;
 }
 export function physLink(m, params) {
-  return el("a", { class: "more", href: hMart(m.name, params), title: `${m.name} (絞り込みと API の呼び方)` }, `${term("mart")} で見る`);
+  return el(
+    "a",
+    { class: "more", href: hMart(m.name, params), title: `${m.name} (絞り込みと API の呼び方)` },
+    `${term("mart")} で見る`,
+  );
 }
 // 入口の階層の概念名。labels の `名前+` は繰り返す段 (それより前は上から、それより後は下から当てる)
+function hierarchyLabels() {
+  return model.meta.profile?.hierarchy?.level_labels || [];
+}
+
 export function levelLabel(depth, isLeaf) {
-  const labels = ((model.meta.profile || {}).hierarchy || {}).level_labels || [];
+  const labels = hierarchyLabels();
   if (!labels.length || depth < 1) return depth ? `${term("level")} ${depth}` : "";
   const plus = labels.findIndex((l) => l.endsWith("+"));
   if (plus < 0) return labels[depth - 1] || labels[labels.length - 1];
@@ -124,24 +184,32 @@ export function levelLabel(depth, isLeaf) {
 // 入口の詳細のページでの、その入口の呼び名。プロファイルの hierarchy.entry_labels にパスが当たればそれ、無ければこれまでどおり、深さで決まる段の名前 (levelLabel)
 export function entryLabel(path, depth) {
   const raw = ((model.meta.profile || {}).hierarchy || {}).entry_labels;
-  const hit = (Array.isArray(raw) ? raw : []).find((x) => x && x.contains && x.label && String(path).includes(x.contains)); // build は profile を検査しないので、形が違っても画面を落とさない
+  const hit = (Array.isArray(raw) ? raw : []).find(
+    (x) => x && x.contains && x.label && String(path).includes(x.contains),
+  ); // build は profile を検査しないので、形が違っても画面を落とさない
   return hit ? String(hit.label) : levelLabel(depth, true);
 }
 export function levelLabelsText() {
-  const labels = ((model.meta.profile || {}).hierarchy || {}).level_labels || [];
+  const labels = hierarchyLabels();
   return labels.map((l) => l.replace(/\+$/, "")).join(" › ");
 }
 // 段の名前の読み方の説明 (プロファイルの hierarchy.notes)。path を渡すと、contains の文字列をそのパスが含むものだけ返す
 export function hierarchyNotes(path) {
   const raw = ((model.meta.profile || {}).hierarchy || {}).notes;
   const notes = Array.isArray(raw) ? raw : []; // build は profile を検査しないので、形が違っても画面を落とさない
-  return notes.filter((n) => {
-    if (!n || !n.text) return false;
-    return path == null || !n.contains || path.includes(n.contains);
-  }).map((n) => n.text);
+  return notes
+    .filter((n) => {
+      if (!n || !n.text) return false;
+      return path == null || !n.contains || path.includes(n.contains);
+    })
+    .map((n) => n.text);
 }
-export const kindsOf = () => Object.entries(model.meta.resource_kinds || {}).filter(([k]) => k !== "external_api").map(([k, v]) => ({ id: k, ...v }));
-export const kindOf = (id) => (model.meta.resource_kinds || {})[id] || { label: id, levels: [], ops: [] };
+export const kindsOf = () =>
+  Object.entries(model.meta.resource_kinds || {})
+    .filter(([k]) => k !== "external_api")
+    .map(([k, v]) => ({ id: k, ...v }));
+export const kindOf = (id) =>
+  (model.meta.resource_kinds || {})[id] || { label: id, levels: [], ops: [] };
 // データのパス (/種類/段/段/…) の段の名前。repeat の段は何段にも広がる
 // isLeaf = その節が実際のデータ (葉)。繰り返しの段 (directory など) の下では、葉だけが末尾の段 (file) の名前になる
 export function dataLevelLabel(kind, idx, isLeaf) {
@@ -154,26 +222,41 @@ export function dataLevelLabel(kind, idx, isLeaf) {
   if (isLeaf && rIdx < lv.length - 1) return lv[lv.length - 1];
   return k.repeat;
 }
-export function dataLevelsText(kind) { return [term("kind"), ...(kindOf(kind).levels || [])].join(" › "); }
-export const opsText = (kind) => (kindOf(kind).ops || []).map((o) => `${o.letter} ${o.label}`).join(" / ");
-export const relPath = (p, root) => (root && root !== "/" && p.startsWith(root + "/")) ? p.slice(root.length + 1) : segs(p).join("/");
+export function dataLevelsText(kind) {
+  return [term("kind"), ...(kindOf(kind).levels || [])].join(" › ");
+}
+export const opsText = (kind) =>
+  (kindOf(kind).ops || []).map((o) => `${o.letter} ${o.label}`).join(" / ");
+export const relPath = (p, root) =>
+  root && root !== "/" && p.startsWith(root + "/") ? p.slice(root.length + 1) : segs(p).join("/");
 
 // 入口の画面の節に対して mart をどう絞るか (宣言の列だけ)
+function levelFilter(pathCols, node) {
+  for (const col of pathCols) {
+    const lv = /^level(\d)$/.exec(col);
+    if (lv) {
+      const n = Number(lv[1]);
+      return node.depth >= n ? { [col]: segs(node.path)[n - 1] } : {};
+    }
+  }
+  return null;
+}
+
 export function scopeFilter(m, node) {
   if (!node || node.path === "/") return {};
   const k = m.keys;
-  const attach = m.declaration.attach || "any";
-  const pathCols = [k.path, k.row, k.group].filter((c) => c && m.cols.has(c));
-  for (const col of pathCols) {
-    const lv = /^level(\d)$/.exec(col);
-    if (lv) { const n = Number(lv[1]); return node.depth >= n ? { [col]: segs(node.path)[n - 1] } : {}; }
-  }
-  if (attach === `level${node.depth}`) {
-    const col = [k.id, k.group].find((c) => c && m.cols.has(c));
+  const hasColumn = (c) => hasNamedColumn(m, c);
+  const pathCols = [k.path, k.row, k.group].filter(hasColumn);
+  const level = levelFilter(pathCols, node);
+  if (level) return level;
+  if (m.declaration.attach === `level${node.depth}`) {
+    const col = [k.id, k.group].find(hasColumn);
     return col ? { [col]: node.name } : {};
   }
-  if (pathCols.length) return node.isLeaf ? { [pathCols[0]]: node.path } : { [`${pathCols[0]}__under`]: node.path };
-  return null;
+  const [col] = pathCols;
+  if (!col) return null;
+  const filter = node.isLeaf ? col : `${col}__under`;
+  return { [filter]: node.path };
 }
 export function attaches(m, node) {
   const a = m.declaration.attach || "any";

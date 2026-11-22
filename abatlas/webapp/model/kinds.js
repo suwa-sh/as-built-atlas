@@ -12,7 +12,8 @@ export function kindOfNode(p) {
 }
 export function passesFilter(state, from, to, status) {
   if (state.unknownOnly && status !== "unknown") return false;
-  const a = state.kinds.has(kindOfNode(from)), b = state.kinds.has(kindOfNode(to));
+  const a = state.kinds.has(kindOfNode(from)),
+    b = state.kinds.has(kindOfNode(to));
   if (state.mode === "both" ? !(a && b) : !(a || b)) return false;
   return !state.q || from.toLowerCase().includes(state.q) || to.toLowerCase().includes(state.q);
 }

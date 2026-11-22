@@ -19,9 +19,9 @@ VOCAB_DIR = SCHEMA_DIR / "vocab"
 
 # 分析リポジトリの中の置き場。ルート直下は中ハーネス (AGENTS.md / .agents/ / 製品別の生成物) が使うので、
 # 分析の資産は analysis/ の下にまとめる
-OSS_DIR = ".abatlas"            # OSS が所有する参照物 (schema / profiles / 見本 / 文書)。upgrade で置き換える
-ANALYSIS_DIR = "analysis"       # 分析する側が所有する資産 (work-definition / entry-list / results / reviews / dbt/models/repo)
-DATA_DIR = "analysis/data"      # 派生物 (DuckDB、dbt の作業ディレクトリ)。git 管理外。消して作り直せる
+OSS_DIR = ".abatlas"  # OSS が所有する参照物 (schema / profiles / 見本 / 文書)。upgrade で置き換える
+ANALYSIS_DIR = "analysis"  # 分析する側が所有する資産 (work-definition / entry-list / results / reviews / dbt/models/repo)
+DATA_DIR = "analysis/data"  # 派生物 (DuckDB、dbt の作業ディレクトリ)。git 管理外。消して作り直せる
 
 
 def analysis_dir(repo: Path) -> Path:
@@ -42,7 +42,6 @@ def duckdb_path(repo: Path) -> Path:
     return Path(env) if env else data_dir(repo) / "abatlas.duckdb"
 
 
-
 def result_file_name(entry_id: str) -> str:
     """入口 id → results/ と reviews/ のファイル名。`/` は `__` に置き換える (skill と ETL と検査が同じ規則を使う)。"""
     return entry_id.replace("/", "__") + ".yaml"
@@ -57,4 +56,8 @@ def file_name_collisions(entry_ids) -> dict[str, list[str]]:
     by_name: dict[str, list[str]] = {}
     for eid in entry_ids:
         by_name.setdefault(result_file_name(eid).casefold(), []).append(eid)
-    return {result_file_name(ids[0]): sorted(ids) for ids in by_name.values() if len(ids) > 1}
+    return {
+        result_file_name(ids[0]): sorted(ids)
+        for ids in by_name.values()
+        if len(ids) > 1
+    }

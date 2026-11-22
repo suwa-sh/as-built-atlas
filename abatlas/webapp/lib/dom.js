@@ -4,16 +4,7 @@ import { segs } from "./path.js";
 
 export function el(tag, attrs, ...children) {
   const e = document.createElement(tag);
-  if (attrs) {
-    for (const [k, v] of Object.entries(attrs)) {
-      if (v == null || v === false) continue;
-      if (k === "class") e.className = v;
-      else if (k === "text") e.textContent = v;
-      else if (k === "style") e.style.cssText = v; // CSP (default-src 'self') はインラインの style 属性を許さないので CSSOM で付ける
-      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
-      else e.setAttribute(k, v === true ? "" : v);
-    }
-  }
+  applyAttributes(e, attrs);
   for (const c of children.flat(Infinity)) {
     if (c == null || c === false) continue;
     e.append(c instanceof Node ? c : document.createTextNode(String(c)));
@@ -24,7 +15,8 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 export function svg(tag, attrs, ...children) {
   const e = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs || {})) if (v != null) e.setAttribute(k, v);
-  for (const c of children.flat(Infinity)) if (c != null) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  for (const c of children.flat(Infinity))
+    if (c != null) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
   return e;
 }
 export const isPathLike = (v) => typeof v === "string" && v.startsWith("/");
@@ -44,4 +36,18 @@ export function short(id, max = 34) {
     return "…/" + (tail.length > max - 2 ? tail.slice(-(max - 3)) : tail);
   }
   return "…" + s.slice(-(max - 1));
+}
+
+function applyAttributes(e, attrs) {
+  if (attrs) {
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === "class") e.className = v;
+      else if (k === "text") e.textContent = v;
+      else if (k === "style")
+        e.style.cssText = v; // CSP (default-src 'self') はインラインの style 属性を許さないので CSSOM で付ける
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? "" : v);
+    }
+  }
 }

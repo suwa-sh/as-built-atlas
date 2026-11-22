@@ -1,210 +1,607 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>as-built-atlas — Trace the impact of a code change</title>
-  <meta name="description" content="Explore a working example of change impact analysis. Follow entry points to calls, data access, and source lines. Try this open-source tool with Docker and Git.">
-  <link rel="canonical" href="https://suwa-sh.github.io/as-built-atlas/en/">
-  <meta property="og:title" content="What will this change affect? | as-built-atlas">
-  <meta property="og:description" content="Follow an order settlement job from its entry point to the tables it updates and the source lines behind each finding.">
-  <meta property="og:type" content="website">
-  <meta property="og:locale" content="en_US">
-  <meta property="og:url" content="https://suwa-sh.github.io/as-built-atlas/en/">
-  <meta property="og:image" content="https://suwa-sh.github.io/as-built-atlas/assets/social-preview-en.png">
-  <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1280">
-  <meta property="og:image:height" content="640">
-  <meta property="og:image:alt" content="The as-built-atlas logo and a 3D view of a batch job and its data stores.">
-  <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" type="image/png" href="../assets/atlas-mark.png">
-  <link rel="stylesheet" href="../style.css">
-  <link rel="alternate" hreflang="ja" href="https://suwa-sh.github.io/as-built-atlas/?lang=ja">
-  <link rel="alternate" hreflang="en" href="https://suwa-sh.github.io/as-built-atlas/en/">
-  <script src="../language.js"></script>
-  <script src="../experience.js" defer></script>
-</head>
-<body>
-<a class="skip" href="#main">Skip to content</a>
-<header id="top"><div class="wrap mast">
-  <a class="wordmark" href="#top" lang="en"><img src="../assets/atlas-mark.png" width="34" height="34" alt="">as-built-atlas</a>
-  <nav aria-label="On this page"><a href="#experience">Example</a><a href="#profiles">Profiles</a><a href="#concept">How it works</a><a href="#start">Try it <span aria-hidden="true">↓</span></a><a class="language-link" href="../?lang=ja" hreflang="ja" lang="ja">日本語</a></nav>
-</div></header>
-<main id="main">
-  <section class="wrap hero" aria-labelledby="hero-title">
-    <div class="intro">
-      <p class="license"><i aria-hidden="true"></i> Open Source <span>/</span> MIT License</p>
-      <h1 id="hero-title" data-reveal="heading">What will this <br>change affect?</h1>
-      <p class="lead" data-reveal="lead">Trace a change through an existing codebase. This open-source tool maps calls and data access from screens, API endpoints, and jobs, with source lines you can check.</p>
-      <div class="actions"><a class="button" href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#10-minute-quickstart">Try it on GitHub <span aria-hidden="true">↗</span></a><a class="link" href="#experience">Explore the example <span aria-hidden="true">↓</span></a></div>
-      <p class="hero-touch-hint">Tap the 3D view to pause or resume rotation.</p>
-    </div>
-    <figure class="hero-media" aria-label="Rotating view of Kotori Books showing calls between the scheduler, jobs, data stores, and external services.">
-      <button type="button" class="hero-rotation" data-play="Play 3D rotation" data-pause="Pause 3D rotation" aria-label="Play 3D rotation" hidden>
-        <video width="756" height="588" loop muted playsinline preload="none" aria-hidden="true"
-               poster="../assets/architecture-3d-poster.webp" src="../assets/architecture-3d.mp4"></video>
-      </button>
-      <a class="sample-image" href="../assets/architecture-3d.png" aria-label="Open the full-size 3D view">
-        <picture><source media="(max-width: 680px)" srcset="../assets/structure-small.png" width="534" height="510"><img src="../assets/architecture-3d.png" loading="lazy" width="1235" height="798" alt="Calls across the scheduler, job, data store, and external tiers"></picture>
-      </a>
-    </figure>
-  </section>
-
-  <section class="wrap problem" aria-labelledby="problem-title">
-    <h2 data-reveal="heading" id="problem-title">Where change investigations get stuck</h2>
-    <ul class="problems">
-      <li><img loading="lazy" src="../assets/problem-trace.svg" width="300" height="112" alt=""><b>Calls cross too many layers</b><p>Following one function at a time makes it hard to see which entry points depend on it.</p></li>
-      <li><img loading="lazy" src="../assets/problem-design.svg" width="300" height="112" alt=""><b>The design docs are out of date</b><p>You end up reading the code again to find out how the system behaves today.</p></li>
-      <li><img loading="lazy" src="../assets/problem-proof.svg" width="300" height="112" alt=""><b>An AI answer is hard to check</b><p>You need to know which lines support a claim and how much of the code was examined.</p></li>
-    </ul>
-  </section>
-
-  <section id="experience" class="band"><div class="wrap">
-    <h2 data-reveal="heading">Investigating a change <br class="wide">to order processing</h2>
-    <p class="description" data-reveal="lead">At Kotori Books, a fictional bookstore, a daily job settles the previous day’s orders. Follow it to the orders table and check the update in the source. The sample code and reference data come from the same specification.</p>
-    <div class="experience-body">
-      <div class="step-controls" hidden aria-label="Investigation steps">
-        <button type="button" data-panel="structure">See the structure</button>
-        <button type="button" data-panel="path">Trace the calls</button>
-        <button type="button" data-panel="impact">Find affected jobs</button>
-        <button type="button" data-panel="source">Check the source</button>
-      </div>
-      <article id="structure" class="step-panel">
-        <h3>Find the settlement job</h3>
-        <p class="step-description">Of the 34 entry points, start with <code>/daily/sales/settle_orders</code>, a daily batch job launched by the scheduler.</p>
-        <figure><a href="../assets/architecture.png" aria-label="Open the full-size architecture diagram"><img loading="lazy" src="../assets/architecture.png" width="1551" height="608" alt="Calls from the scheduler through shell scripts and programs to data stores and external APIs"></a></figure>
-      </article>
-      <article id="path" class="step-panel">
-        <h3>Follow the calls to the orders table</h3>
-        <p class="step-description">The flow calls <code>scripts/run_job.sh</code>, which runs <code>jobs/settle_orders.py</code>. This job both reads and updates orders.</p>
-        <figure><a href="../assets/order-path.png" aria-label="Open the full-size call path"><picture><source media="(max-width: 680px)" srcset="../assets/order-path-small.png"><img loading="lazy" src="../assets/order-path.png" width="1966" height="1023" alt="The selected orders table is reached through the flow, a shared shell script, and a Python job."></picture></a></figure>
-      </article>
-      <article id="impact" class="step-panel">
-        <h3>Find who reads and writes orders</h3>
-        <p class="step-description">The <code>orders</code> column shows that only the settlement job (<code>settle_orders</code>) reads and updates this table (<b>RU</b>). The sales report and product ranking both read it (<b>R</b>). Check those two reports when changing an order status.</p>
-        <p class="crud-scope">Scope: <code>/daily/sales</code> has five entry points that access eight tables in the <code>shop</code> schema. <span class="narrow-crud">The compact view shows the three entries that access <code>orders</code>. Open the image to see all eight columns.</span></p>
-        <figure class="crud-figure">
-          <a href="../assets/sales-crud.png" aria-label="Open the complete CRUD matrix for daily sales">
-            <picture><source media="(max-width: 900px)" srcset="../assets/orders-crud-small.png" width="354" height="201"><img loading="lazy" src="../assets/sales-crud.png" width="1526" height="300" alt="In the orders column, settlement reads and updates. The sales report and product ranking read."></picture>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>as-built-atlas — Trace the impact of a code change</title>
+    <meta
+      name="description"
+      content="Explore a working example of change impact analysis. Follow entry points to calls, data access, and source lines. Try this open-source tool with Docker and Git."
+    />
+    <link rel="canonical" href="https://suwa-sh.github.io/as-built-atlas/en/" />
+    <meta property="og:title" content="What will this change affect? | as-built-atlas" />
+    <meta
+      property="og:description"
+      content="Follow an order settlement job from its entry point to the tables it updates and the source lines behind each finding."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://suwa-sh.github.io/as-built-atlas/en/" />
+    <meta
+      property="og:image"
+      content="https://suwa-sh.github.io/as-built-atlas/assets/social-preview-en.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta
+      property="og:image:alt"
+      content="The as-built-atlas logo and a 3D view of a batch job and its data stores."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/png" href="../assets/atlas-mark.png" />
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="alternate" hreflang="ja" href="https://suwa-sh.github.io/as-built-atlas/?lang=ja" />
+    <link rel="alternate" hreflang="en" href="https://suwa-sh.github.io/as-built-atlas/en/" />
+    <script src="../language.js"></script>
+    <script src="../experience.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header id="top"
+      ><div class="wrap mast">
+        <a class="wordmark" href="#top" lang="en"
+          ><img src="../assets/atlas-mark.png" width="34" height="34" alt="" />as-built-atlas</a
+        >
+        <nav aria-label="On this page"
+          ><a href="#experience">Example</a><a href="#profiles">Profiles</a
+          ><a href="#concept">How it works</a
+          ><a href="#start">Try it <span aria-hidden="true">↓</span></a
+          ><a class="language-link" href="../?lang=ja" hreflang="ja" lang="ja">日本語</a></nav
+        >
+      </div></header
+    >
+    <main id="main">
+      <section class="wrap hero" aria-labelledby="hero-title">
+        <div class="intro">
+          <p class="license"><i aria-hidden="true"></i> Open Source <span>/</span> MIT License</p>
+          <h1 id="hero-title" data-reveal="heading">What will this <br />change affect?</h1>
+          <p class="lead" data-reveal="lead"
+            >Trace a change through an existing codebase. This open-source tool maps calls and data
+            access from screens, API endpoints, and jobs, with source lines you can check.</p
+          >
+          <div class="actions"
+            ><a
+              class="button"
+              href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#10-minute-quickstart"
+              >Try it on GitHub <span aria-hidden="true">↗</span></a
+            ><a class="link" href="#experience"
+              >Explore the example <span aria-hidden="true">↓</span></a
+            ></div
+          >
+          <p class="hero-touch-hint">Tap the 3D view to pause or resume rotation.</p>
+        </div>
+        <figure
+          class="hero-media"
+          aria-label="Rotating view of Kotori Books showing calls between the scheduler, jobs, data stores, and external services."
+        >
+          <button
+            type="button"
+            class="hero-rotation"
+            data-play="Play 3D rotation"
+            data-pause="Pause 3D rotation"
+            aria-label="Play 3D rotation"
+            hidden
+          >
+            <video
+              width="756"
+              height="588"
+              loop
+              muted
+              playsinline
+              preload="none"
+              aria-hidden="true"
+              poster="../assets/architecture-3d-poster.webp"
+              src="../assets/architecture-3d.mp4"
+            ></video>
+          </button>
+          <a
+            class="sample-image"
+            href="../assets/architecture-3d.png"
+            aria-label="Open the full-size 3D view"
+          >
+            <picture
+              ><source
+                media="(max-width: 680px)"
+                srcset="../assets/structure-small.png"
+                width="534"
+                height="510" /><img
+                src="../assets/architecture-3d.png"
+                loading="lazy"
+                width="1235"
+                height="798"
+                alt="Calls across the scheduler, job, data store, and external tiers"
+            /></picture>
           </a>
         </figure>
-        <details class="data-text"><summary>Read the matrix as text</summary>
-          <table><caption>Operations across five daily sales entries and eight tables in the <code>shop</code> schema. Empty combinations are omitted.</caption>
-            <thead><tr><th scope="col">Entry point</th><th scope="col">Table</th><th scope="col">Operation</th></tr></thead>
-            <tbody>
-              <tr><th scope="rowgroup" rowspan="2">coupon_expiry</th><td>coupon_usages</td><td>D (delete)</td></tr>
-              <tr><td>coupons</td><td>RU (read, update)</td></tr>
-            </tbody>
-            <tbody>
-              <tr><th scope="rowgroup" rowspan="3">product_ranking</th><td>order_items</td><td>R (read)</td></tr>
-              <tr><td>orders</td><td>R (read)</td></tr>
-              <tr><td>products</td><td>R (read)</td></tr>
-            </tbody>
-            <tbody>
-              <tr><th scope="rowgroup" rowspan="3">refund_returns</th><td>customers</td><td>R (read)</td></tr>
-              <tr><td>payments</td><td>CR (create, read)</td></tr>
-              <tr><td>returns</td><td>RU (read, update)</td></tr>
-            </tbody>
-            <tbody>
-              <tr><th scope="rowgroup" rowspan="3">sales_report</th><td>order_items</td><td>R (read)</td></tr>
-              <tr><td>orders</td><td>R (read)</td></tr>
-              <tr><td>products</td><td>R (read)</td></tr>
-            </tbody>
-            <tbody>
-              <tr><th scope="rowgroup" rowspan="2">settle_orders</th><td>orders</td><td>RU (read, update)</td></tr>
-              <tr><td>payments</td><td>CR (create, read)</td></tr>
-            </tbody>
-          </table>
-        </details>
-      </article>
-      <article id="source" class="step-panel">
-        <h3>Check the update in the source</h3>
-        <div class="source-body"><p class="file mono">jobs/settle_orders.py</p>
-          <ol class="code-lines" start="37"><li><code>if not args.dry_run:</code></li><li><code>    db.execute_many(</code></li><li class="highlight"><code>        "UPDATE shop.orders SET status = 'settled', settled_at = now() WHERE id = %s",</code></li></ol>
-          <p>Line 39 sets the order status and settlement time. Two lines above it, the condition on line 37 shows why a dry run skips this update.</p>
-          <a class="link" href="https://github.com/suwa-sh/as-built-atlas/blob/90b61f2fa3e107f80ad97152240eac00c422793a/examples/kotori-books/jobs/settle_orders.py#L37-L41">View the source on GitHub <span aria-hidden="true">↗</span></a>
+      </section>
+
+      <section class="wrap problem" aria-labelledby="problem-title">
+        <h2 data-reveal="heading" id="problem-title">Where change investigations get stuck</h2>
+        <ul class="problems">
+          <li
+            ><img
+              loading="lazy"
+              src="../assets/problem-trace.svg"
+              width="300"
+              height="112"
+              alt=""
+            /><b>Calls cross too many layers</b
+            ><p
+              >Following one function at a time makes it hard to see which entry points depend on
+              it.</p
+            ></li
+          >
+          <li
+            ><img
+              loading="lazy"
+              src="../assets/problem-design.svg"
+              width="300"
+              height="112"
+              alt=""
+            /><b>The design docs are out of date</b
+            ><p>You end up reading the code again to find out how the system behaves today.</p></li
+          >
+          <li
+            ><img
+              loading="lazy"
+              src="../assets/problem-proof.svg"
+              width="300"
+              height="112"
+              alt=""
+            /><b>An AI answer is hard to check</b
+            ><p
+              >You need to know which lines support a claim and how much of the code was
+              examined.</p
+            ></li
+          >
+        </ul>
+      </section>
+
+      <section id="experience" class="band"
+        ><div class="wrap">
+          <h2 data-reveal="heading"
+            >Investigating a change <br class="wide" />to order processing</h2
+          >
+          <p class="description" data-reveal="lead"
+            >At Kotori Books, a fictional bookstore, a daily job settles the previous day’s orders.
+            Follow it to the orders table and check the update in the source. The sample code and
+            reference data come from the same specification.</p
+          >
+          <div class="experience-body">
+            <div class="step-controls" hidden aria-label="Investigation steps">
+              <button type="button" data-panel="structure">See the structure</button>
+              <button type="button" data-panel="path">Trace the calls</button>
+              <button type="button" data-panel="impact">Find affected jobs</button>
+              <button type="button" data-panel="source">Check the source</button>
+            </div>
+            <article id="structure" class="step-panel">
+              <h3>Find the settlement job</h3>
+              <p class="step-description"
+                >Of the 34 entry points, start with <code>/daily/sales/settle_orders</code>, a daily
+                batch job launched by the scheduler.</p
+              >
+              <figure
+                ><a
+                  href="../assets/architecture.png"
+                  aria-label="Open the full-size architecture diagram"
+                  ><img
+                    loading="lazy"
+                    src="../assets/architecture.png"
+                    width="1551"
+                    height="608"
+                    alt="Calls from the scheduler through shell scripts and programs to data stores and external APIs" /></a
+              ></figure>
+            </article>
+            <article id="path" class="step-panel">
+              <h3>Follow the calls to the orders table</h3>
+              <p class="step-description"
+                >The flow calls <code>scripts/run_job.sh</code>, which runs
+                <code>jobs/settle_orders.py</code>. This job both reads and updates orders.</p
+              >
+              <figure
+                ><a href="../assets/order-path.png" aria-label="Open the full-size call path"
+                  ><picture
+                    ><source
+                      media="(max-width: 680px)"
+                      srcset="../assets/order-path-small.png" /><img
+                      loading="lazy"
+                      src="../assets/order-path.png"
+                      width="1966"
+                      height="1023"
+                      alt="The selected orders table is reached through the flow, a shared shell script, and a Python job." /></picture></a
+              ></figure>
+            </article>
+            <article id="impact" class="step-panel">
+              <h3>Find who reads and writes orders</h3>
+              <p class="step-description"
+                >The <code>orders</code> column shows that only the settlement job
+                (<code>settle_orders</code>) reads and updates this table (<b>RU</b>). The sales
+                report and product ranking both read it (<b>R</b>). Check those two reports when
+                changing an order status.</p
+              >
+              <p class="crud-scope"
+                >Scope: <code>/daily/sales</code> has five entry points that access eight tables in
+                the <code>shop</code> schema.
+                <span class="narrow-crud"
+                  >The compact view shows the three entries that access <code>orders</code>. Open
+                  the image to see all eight columns.</span
+                ></p
+              >
+              <figure class="crud-figure">
+                <a
+                  href="../assets/sales-crud.png"
+                  aria-label="Open the complete CRUD matrix for daily sales"
+                >
+                  <picture
+                    ><source
+                      media="(max-width: 900px)"
+                      srcset="../assets/orders-crud-small.png"
+                      width="354"
+                      height="201" /><img
+                      loading="lazy"
+                      src="../assets/sales-crud.png"
+                      width="1526"
+                      height="300"
+                      alt="In the orders column, settlement reads and updates. The sales report and product ranking read."
+                  /></picture>
+                </a>
+              </figure>
+              <details class="data-text"
+                ><summary>Read the matrix as text</summary>
+                <table
+                  ><caption
+                    >Operations across five daily sales entries and eight tables in the
+                    <code>shop</code> schema. Empty combinations are omitted.</caption
+                  >
+                  <thead
+                    ><tr
+                      ><th scope="col">Entry point</th><th scope="col">Table</th
+                      ><th scope="col">Operation</th></tr
+                    ></thead
+                  >
+                  <tbody>
+                    <tr
+                      ><th scope="rowgroup" rowspan="2">coupon_expiry</th><td>coupon_usages</td
+                      ><td>D (delete)</td></tr
+                    >
+                    <tr><td>coupons</td><td>RU (read, update)</td></tr>
+                  </tbody>
+                  <tbody>
+                    <tr
+                      ><th scope="rowgroup" rowspan="3">product_ranking</th><td>order_items</td
+                      ><td>R (read)</td></tr
+                    >
+                    <tr><td>orders</td><td>R (read)</td></tr>
+                    <tr><td>products</td><td>R (read)</td></tr>
+                  </tbody>
+                  <tbody>
+                    <tr
+                      ><th scope="rowgroup" rowspan="3">refund_returns</th><td>customers</td
+                      ><td>R (read)</td></tr
+                    >
+                    <tr><td>payments</td><td>CR (create, read)</td></tr>
+                    <tr><td>returns</td><td>RU (read, update)</td></tr>
+                  </tbody>
+                  <tbody>
+                    <tr
+                      ><th scope="rowgroup" rowspan="3">sales_report</th><td>order_items</td
+                      ><td>R (read)</td></tr
+                    >
+                    <tr><td>orders</td><td>R (read)</td></tr>
+                    <tr><td>products</td><td>R (read)</td></tr>
+                  </tbody>
+                  <tbody>
+                    <tr
+                      ><th scope="rowgroup" rowspan="2">settle_orders</th><td>orders</td
+                      ><td>RU (read, update)</td></tr
+                    >
+                    <tr><td>payments</td><td>CR (create, read)</td></tr>
+                  </tbody>
+                </table>
+              </details>
+            </article>
+            <article id="source" class="step-panel">
+              <h3>Check the update in the source</h3>
+              <div class="source-body"
+                ><p class="file mono">jobs/settle_orders.py</p>
+                <ol class="code-lines" start="37"
+                  ><li><code>if not args.dry_run:</code></li
+                  ><li><code> db.execute_many(</code></li
+                  ><li class="highlight"
+                    ><code>
+                      "UPDATE shop.orders SET status = 'settled', settled_at = now() WHERE id =
+                      %s",</code
+                    ></li
+                  ></ol
+                >
+                <p
+                  >Line 39 sets the order status and settlement time. Two lines above it, the
+                  condition on line 37 shows why a dry run skips this update.</p
+                >
+                <a
+                  class="link"
+                  href="https://github.com/suwa-sh/as-built-atlas/blob/90b61f2fa3e107f80ad97152240eac00c422793a/examples/kotori-books/jobs/settle_orders.py#L37-L41"
+                  >View the source on GitHub <span aria-hidden="true">↗</span></a
+                >
+              </div>
+            </article>
+          </div>
+          <a
+            class="link"
+            href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#10-minute-quickstart"
+            >Try this example on GitHub <span aria-hidden="true">↗</span></a
+          >
+        </div></section
+      >
+
+      <section id="profiles" class="wrap block" aria-labelledby="profiles-title">
+        <h2 data-reveal="heading" id="profiles-title">Start where your system starts.</h2>
+        <p class="description" data-reveal="lead"
+          >A web app has pages and routes. A CLI has subcommands. Each profile defines what counts
+          as an entry point and which layers to trace.</p
+        >
+        <div class="profile-examples">
+          <div class="profile-feature">
+            <h3>From a page to its API and data</h3>
+            <p
+              >In umami, a Next.js application, trace calls from pages through React components and
+              API routes to queries.</p
+            >
+            <a
+              class="sample-image"
+              href="../assets/umami-architecture.png"
+              aria-label="Open the full-size umami architecture view"
+              ><picture
+                ><source
+                  media="(max-width: 680px)"
+                  srcset="../assets/umami-frontend.png"
+                  width="630"
+                  height="404" /><img
+                  loading="lazy"
+                  src="../assets/umami-architecture.png"
+                  width="1662"
+                  height="873"
+                  alt="The umami view shows page, layout, and part nodes calling components." /></picture
+            ></a>
+            <a
+              class="link"
+              href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/umami-atlas"
+              >Explore the umami example <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <ul class="profile-list">
+            <li
+              ><h3>Mobile</h3
+              ><div
+                ><p>Follow screens and OS-triggered operations to on-device data.</p>
+                <a
+                  href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/nowinandroid-atlas"
+                  >Now in Android <span aria-hidden="true">↗</span></a
+                >
+                <a
+                  href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/icecubes-atlas"
+                  >Ice Cubes (iOS)<span aria-hidden="true">↗</span></a
+                ></div
+              ></li
+            >
+            <li
+              ><h3>API</h3
+              ><div
+                ><p>Follow a request from its HTTP method and URL to the handler.</p>
+                <a
+                  href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/abatlas-api-atlas"
+                  >as-built-atlas API <span aria-hidden="true">↗</span></a
+                ></div
+              ></li
+            >
+            <li
+              ><h3>CLI</h3
+              ><div
+                ><p>Follow each subcommand through validation, execution, and reporting.</p>
+                <a href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/stfw-atlas"
+                  >stfw <span aria-hidden="true">↗</span></a
+                ></div
+              ></li
+            >
+            <li
+              ><h3>dbt</h3
+              ><div
+                ><p>Start with a model to find the tables it reads and writes.</p>
+                <a
+                  href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/abatlas-dbt-atlas"
+                  >as-built-atlas dbt models <span aria-hidden="true">↗</span></a
+                ></div
+              ></li
+            >
+          </ul>
         </div>
-      </article>
-    </div>
-    <a class="link" href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#10-minute-quickstart">Try this example on GitHub <span aria-hidden="true">↗</span></a>
-  </div></section>
+        <a
+          class="link all-profiles"
+          href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#supported-profiles"
+          >See all 11 profiles <span aria-hidden="true">↗</span></a
+        >
+      </section>
 
-  <section id="profiles" class="wrap block" aria-labelledby="profiles-title">
-    <h2 data-reveal="heading" id="profiles-title">Start where your system starts.</h2>
-    <p class="description" data-reveal="lead">A web app has pages and routes. A CLI has subcommands. Each profile defines what counts as an entry point and which layers to trace.</p>
-    <div class="profile-examples">
-      <div class="profile-feature">
-        <h3>From a page to its API and data</h3>
-        <p>In umami, a Next.js application, trace calls from pages through React components and API routes to queries.</p>
-        <a class="sample-image" href="../assets/umami-architecture.png" aria-label="Open the full-size umami architecture view"><picture><source media="(max-width: 680px)" srcset="../assets/umami-frontend.png" width="630" height="404"><img loading="lazy" src="../assets/umami-architecture.png" width="1662" height="873" alt="The umami view shows page, layout, and part nodes calling components."></picture></a>
-        <a class="link" href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/umami-atlas">Explore the umami example <span aria-hidden="true">↗</span></a>
-      </div>
-      <ul class="profile-list">
-        <li><h3>Mobile</h3><div><p>Follow screens and OS-triggered operations to on-device data.</p>
-          <a href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/nowinandroid-atlas">Now in Android <span aria-hidden="true">↗</span></a> <a href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/icecubes-atlas">Ice Cubes (iOS)<span aria-hidden="true">↗</span></a></div></li>
-        <li><h3>API</h3><div><p>Follow a request from its HTTP method and URL to the handler.</p>
-          <a href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/abatlas-api-atlas">as-built-atlas API <span aria-hidden="true">↗</span></a></div></li>
-        <li><h3>CLI</h3><div><p>Follow each subcommand through validation, execution, and reporting.</p>
-          <a href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/stfw-atlas">stfw <span aria-hidden="true">↗</span></a></div></li>
-        <li><h3>dbt</h3><div><p>Start with a model to find the tables it reads and writes.</p>
-          <a href="https://github.com/suwa-sh/as-built-atlas/tree/main/examples/abatlas-dbt-atlas">as-built-atlas dbt models <span aria-hidden="true">↗</span></a></div></li>
-      </ul>
-    </div>
-    <a class="link all-profiles" href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#supported-profiles">See all 11 profiles <span aria-hidden="true">↗</span></a>
-  </section>
+      <section id="concept" class="concept-band block"
+        ><div class="wrap">
+          <h2 data-reveal="heading"
+            >Turn AI analysis into <br class="narrow" />results you can reuse.</h2
+          >
+          <p class="description" data-reveal="lead"
+            >AI reads the code and records relationships. Once the analysis is saved, running the
+            same operations on the same data produces the same summaries.</p
+          >
+          <div class="concept-map">
+            <svg
+              viewBox="0 0 720 164"
+              width="720"
+              height="164"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              role="img"
+              aria-labelledby="concept-map-title"
+            >
+              <title id="concept-map-title">
+                Code relationships are saved as YAML, then aggregated for people and agents.
+              </title>
+              <use class="flow-tracks" href="../assets/concept.svg#routes" />
+              <use class="flow-trace" href="../assets/concept.svg#routes" />
+              <use href="../assets/concept.svg#stations" />
+            </svg>
+          </div>
+          <div class="concept-flow">
+            <div class="infer"
+              ><span class="flow-label">AI analysis</span><h3>Read the code</h3
+              ><p
+                >The agent follows calls, dependencies, reads, and writes from each entry point and
+                records evidence for its claims.</p
+              ></div
+            >
+            <div class="boundary"
+              ><span class="flow-label">Validate and save</span><h3>Keep the evidence</h3
+              ><p
+                >Tools check structure and consistency, then save one YAML result per entry
+                point.</p
+              ></div
+            >
+            <div class="compute"
+              ><span class="flow-label">Deterministic queries</span><h3>Explore the results</h3
+              ><p>Build dependency graphs and CRUD matrices from the saved analysis.</p></div
+            >
+          </div>
+          <p class="limit"
+            >When the source is available, checks also verify that cited files and lines exist. Use
+            those references to judge the interpretation and coverage.</p
+          >
+        </div></section
+      >
 
-  <section id="concept" class="concept-band block"><div class="wrap">
-    <h2 data-reveal="heading">Turn AI analysis into <br class="narrow">results you can reuse.</h2>
-    <p class="description" data-reveal="lead">AI reads the code and records relationships. Once the analysis is saved, running the same operations on the same data produces the same summaries.</p>
-    <div class="concept-map">
-      <svg viewBox="0 0 720 164" width="720" height="164" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="concept-map-title">
-        <title id="concept-map-title">Code relationships are saved as YAML, then aggregated for people and agents.</title>
-        <use class="flow-tracks" href="../assets/concept.svg#routes"/>
-        <use class="flow-trace" href="../assets/concept.svg#routes"/>
-        <use href="../assets/concept.svg#stations"/>
-      </svg>
-    </div>
-    <div class="concept-flow">
-      <div class="infer"><span class="flow-label">AI analysis</span><h3>Read the code</h3><p>The agent follows calls, dependencies, reads, and writes from each entry point and records evidence for its claims.</p></div>
-      <div class="boundary"><span class="flow-label">Validate and save</span><h3>Keep the evidence</h3><p>Tools check structure and consistency, then save one YAML result per entry point.</p></div>
-      <div class="compute"><span class="flow-label">Deterministic queries</span><h3>Explore the results</h3><p>Build dependency graphs and CRUD matrices from the saved analysis.</p></div>
-    </div>
-    <p class="limit">When the source is available, checks also verify that cited files and lines exist. Use those references to judge the interpretation and coverage.</p>
-  </div></section>
+      <section id="evidence" class="wrap block evidence"
+        ><h2 data-reveal="heading">Check the evidence. Share it with an agent.</h2>
+        <div class="pair"
+          ><div
+            ><h3>From a claim to a source line</h3>
+            <figure class="evidence-figure"
+              ><a
+                href="../assets/orders-evidence.png"
+                aria-label="Open the source evidence for the orders table"
+                ><img
+                  loading="lazy"
+                  src="../assets/orders-evidence.png"
+                  width="690"
+                  height="150"
+                  alt="The settlement job reads orders at line 25 and updates them at line 39." /></a
+            ></figure>
+            <p
+              >The analysis distinguishes facts, interpretations, and unknowns with reasons.
+              Maintainers can return to the cited file and line to check a claim.</p
+            >
+            <a
+              class="link"
+              href="https://github.com/suwa-sh/as-built-atlas/blob/90b61f2fa3e107f80ad97152240eac00c422793a/examples/kotori-books-atlas/analysis/results/daily.sales.settle_orders.yaml"
+              >Read the settlement analysis <span aria-hidden="true">↗</span></a
+            > </div
+          ><div
+            ><h3 id="shared-mart">One table for people and agents</h3>
+            <figure class="evidence-figure shared-mart-figure">
+              <a href="../assets/shared-mart-en.svg" title="Enlarge the diagram"
+                ><img
+                  loading="lazy"
+                  src="../assets/shared-mart-en.svg"
+                  width="320"
+                  height="154"
+                  alt="Maintainers use the web app and agents use MCP to query the same data access table, mart_data_access."
+              /></a>
+            </figure>
+            <p
+              >The web app and MCP use the same API. Agents can call <code>describe_atlas</code> to
+              read the profile and vocabulary, then <code>query_mart</code> to retrieve the rows
+              they need.</p
+            >
+            <details class="data-text"
+              ><summary>See example queries</summary
+              ><dl class="query-example">
+                <dt>HTTP</dt><dd><code>GET /marts/mart_data_access/rows?limit=200</code></dd>
+                <dt>MCP</dt
+                ><dd
+                  ><code>query_mart(name="mart_data_access", filters={}, limit=200)</code></dd
+                > </dl
+              ><a href="../assets/mart-query.png">View the query example in the web app</a></details
+            >
+          </div></div
+        >
+      </section>
 
-  <section id="evidence" class="wrap block evidence"><h2 data-reveal="heading">Check the evidence. Share it with an agent.</h2>
-    <div class="pair"><div><h3>From a claim to a source line</h3>
-      <figure class="evidence-figure"><a href="../assets/orders-evidence.png" aria-label="Open the source evidence for the orders table"><img loading="lazy" src="../assets/orders-evidence.png" width="690" height="150" alt="The settlement job reads orders at line 25 and updates them at line 39."></a></figure>
-      <p>The analysis distinguishes facts, interpretations, and unknowns with reasons. Maintainers can return to the cited file and line to check a claim.</p>
-      <a class="link" href="https://github.com/suwa-sh/as-built-atlas/blob/90b61f2fa3e107f80ad97152240eac00c422793a/examples/kotori-books-atlas/analysis/results/daily.sales.settle_orders.yaml">Read the settlement analysis <span aria-hidden="true">↗</span></a>
-    </div><div><h3 id="shared-mart">One table for people and agents</h3>
-      <figure class="evidence-figure shared-mart-figure">
-        <a href="../assets/shared-mart-en.svg" title="Enlarge the diagram"><img loading="lazy" src="../assets/shared-mart-en.svg" width="320" height="154" alt="Maintainers use the web app and agents use MCP to query the same data access table, mart_data_access."></a>
-      </figure>
-      <p>The web app and MCP use the same API. Agents can call <code>describe_atlas</code> to read the profile and vocabulary, then <code>query_mart</code> to retrieve the rows they need.</p>
-      <details class="data-text"><summary>See example queries</summary><dl class="query-example">
-        <dt>HTTP</dt><dd><code>GET /marts/mart_data_access/rows?limit=200</code></dd>
-        <dt>MCP</dt><dd><code>query_mart(name="mart_data_access", filters={}, limit=200)</code></dd>
-      </dl><a href="../assets/mart-query.png">View the query example in the web app</a></details>
-    </div></div>
-  </section>
-
-  <section class="wrap block"><h2 data-reveal="heading">How the map is built</h2>
-    <ol class="process">
-      <li><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true"><use href="../assets/process.svg#discover"/></svg><b>Discover</b><p>Identify candidates and enumerate entry points.</p></li>
-      <li><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true"><use href="../assets/process.svg#approve"/></svg><b>Approve</b><p>A maintainer selects the entries to analyze.</p></li>
-      <li><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true"><use href="../assets/process.svg#analyze"/></svg><b>Analyze</b><p>An agent traces calls and records the evidence.</p></li>
-      <li><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true"><use href="../assets/process.svg#validate"/></svg><b>Validate and aggregate</b><p>Check results and build tables across entries.</p></li>
-      <li><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true"><use href="../assets/process.svg#use"/></svg><b>Webapp / MCP</b><p>People and agents explore the same data.</p></li>
-    </ol>
-  </section>
-  <section id="start" class="band"><div class="wrap start">
-    <div><h2 data-reveal="heading">Open the sample map.</h2><p data-reveal="lead">All you need is Docker and Git. The sample includes the bookstore’s code and analysis results.</p>
-      <div class="start-links"><a class="button" href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#10-minute-quickstart">10-minute quickstart<span aria-hidden="true">↗</span></a><a class="link" href="https://github.com/suwa-sh/as-built-atlas">View on GitHub <span aria-hidden="true">↗</span></a></div>
-    </div>
-    <figure class="start-figure"><a href="../assets/kotori-entries.png" aria-label="Open the full-size entry point list"><picture><source media="(max-width: 680px)" srcset="../assets/kotori-entries-small.png" width="537" height="642"><img loading="lazy" src="../assets/kotori-entries.png" width="1650" height="1095" alt="Browse the Kotori Books entries by category, including daily and hourly jobs."></picture></a></figure>
-  </div></section>
-</main>
-<footer class="wrap"><a class="wordmark" href="#top" lang="en"><img src="../assets/atlas-mark.png" width="34" height="34" alt="">as-built-atlas</a><a href="https://github.com/suwa-sh/as-built-atlas/blob/main/LICENSE">MIT License</a></footer>
-</body>
+      <section class="wrap block"
+        ><h2 data-reveal="heading">How the map is built</h2>
+        <ol class="process">
+          <li
+            ><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true">
+              <use href="../assets/process.svg#discover" /></svg
+            ><b>Discover</b><p>Identify candidates and enumerate entry points.</p></li
+          >
+          <li
+            ><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true">
+              <use href="../assets/process.svg#approve" /></svg
+            ><b>Approve</b><p>A maintainer selects the entries to analyze.</p></li
+          >
+          <li
+            ><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true">
+              <use href="../assets/process.svg#analyze" /></svg
+            ><b>Analyze</b><p>An agent traces calls and records the evidence.</p></li
+          >
+          <li
+            ><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true">
+              <use href="../assets/process.svg#validate" /></svg
+            ><b>Validate and aggregate</b><p>Check results and build tables across entries.</p></li
+          >
+          <li
+            ><svg class="process-icon" viewBox="0 0 56 44" aria-hidden="true">
+              <use href="../assets/process.svg#use" /></svg
+            ><b>Webapp / MCP</b><p>People and agents explore the same data.</p></li
+          >
+        </ol>
+      </section>
+      <section id="start" class="band"
+        ><div class="wrap start">
+          <div
+            ><h2 data-reveal="heading">Open the sample map.</h2
+            ><p data-reveal="lead"
+              >All you need is Docker and Git. The sample includes the bookstore’s code and analysis
+              results.</p
+            >
+            <div class="start-links"
+              ><a
+                class="button"
+                href="https://github.com/suwa-sh/as-built-atlas/blob/main/README.md#10-minute-quickstart"
+                >10-minute quickstart<span aria-hidden="true">↗</span></a
+              ><a class="link" href="https://github.com/suwa-sh/as-built-atlas"
+                >View on GitHub <span aria-hidden="true">↗</span></a
+              ></div
+            >
+          </div>
+          <figure class="start-figure"
+            ><a href="../assets/kotori-entries.png" aria-label="Open the full-size entry point list"
+              ><picture
+                ><source
+                  media="(max-width: 680px)"
+                  srcset="../assets/kotori-entries-small.png"
+                  width="537"
+                  height="642" /><img
+                  loading="lazy"
+                  src="../assets/kotori-entries.png"
+                  width="1650"
+                  height="1095"
+                  alt="Browse the Kotori Books entries by category, including daily and hourly jobs." /></picture></a
+          ></figure> </div
+      ></section>
+    </main>
+    <footer class="wrap"
+      ><a class="wordmark" href="#top" lang="en"
+        ><img src="../assets/atlas-mark.png" width="34" height="34" alt="" />as-built-atlas</a
+      ><a href="https://github.com/suwa-sh/as-built-atlas/blob/main/LICENSE">MIT License</a></footer
+    >
+  </body>
 </html>

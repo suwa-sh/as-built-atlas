@@ -26,7 +26,7 @@ layers:
     tier: frontend
     label: part (registry から選ばれて描かれる component)
     role: entry
-    split_from: [component]   # 部品は、component の層のフレームを、別の入口に分けたもの (集計表「別の入口に分ける候補」が、この層だけを出す)
+    split_from: [component] # 部品は、component の層のフレームを、別の入口に分けたもの (集計表「別の入口に分ける候補」が、この層だけを出す)
     stack: [Vue]
     invokes_next: "部品の component が描画する子の component と、呼ぶ composable と store。部品を描く側 (screen や、登録表を引く component) は辿らない"
     io: [external_api]
@@ -56,25 +56,34 @@ layers:
     io: [external_api]
 
 hierarchy:
-  level_labels: [section+, screen]   # URL の区切りがそのまま段。最後の段だけが screen、それより前は section
+  level_labels: [section+, screen] # URL の区切りがそのまま段。最後の段だけが screen、それより前は section
   derivation: "route の `path` を '/' で区切って段にする。実行時に値が入る段 (`:id`) はそのまま残す。全部の画面に付く共通の段 (例: 省ける先頭の `:tenant?`) は落としてよい。URL が / だけの route は `(root)` という 1 段にする。入れ子の route (`children`) は、親の画面に含める (別の入口にしない)。枠 (shell) は `/(shell)` で始める (`/(shell)/app`、`/(shell)/layout/<名前>`、`/(shell)/part/<名前>`、`/(shell)/guard`)"
-  entry_labels:   # 枠の入口は、詳細のページで screen ではなく shell と呼ぶ
+  entry_labels: # 枠の入口は、詳細のページで screen ではなく shell と呼ぶ
     - { contains: "(shell)", label: shell }
     - { contains: "(part)", label: part }
-  notes:   # 段の名前に残る Vue Router の書き方を、画面で説明する
-    - { contains: ":", text: "コロンで始まる段 (例: :id) は、実行時に値が入る場所。後ろの ? は省ける段、かっこは値の形 (正規表現)。対象のソースの書き方をそのまま出している" }
-    - { contains: "(shell)", text: "(shell) で始まる {entry} は、アプリ全体の枠。どの画面を開いても動く" }
-    - { contains: "(part)", text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前" }
+  notes: # 段の名前に残る Vue Router の書き方を、画面で説明する
+    - {
+        contains: ":",
+        text: "コロンで始まる段 (例: :id) は、実行時に値が入る場所。後ろの ? は省ける段、かっこは値の形 (正規表現)。対象のソースの書き方をそのまま出している",
+      }
+    - {
+        contains: "(shell)",
+        text: "(shell) で始まる {entry} は、アプリ全体の枠。どの画面を開いても動く",
+      }
+    - {
+        contains: "(part)",
+        text: "(part) で始まる {entry} は、登録表から選ばれて描かれる component。後ろの段は、登録表の名前と、選ぶときの名前",
+      }
 
 extractors:
   - name: vue-routes
     run: abatlas-extract ast
     layer: screen
-    hint: "画面の定義 (routes の配列) があるファイルを探して、files に書く (`createRouter` に渡す `routes` を辿る。`routes.ts`、`router/index.ts` など)。JavaScript なら language を javascript にする。既定の規則は「変数に入れた配列の直下にある、name と path を文字で書いたオブジェクト」を 1 画面にする。配列を `createRouter({routes: [...]})` や `export default [...]` に直接書くシステムでは、rule と unresolved の `inside` を書き換える。name を書かないシステムでは、rule から name の条件を外し、fields.name を \"{PATH}\" にする。全部の画面に付く共通の段は segments.drop で落とす。unresolved に出た場所 (別のファイルの定義、定数で書いた name、関数が作る定義、children) は、定義を読んで、入口を `abatlas-extract listed` で足す"
+    hint: '画面の定義 (routes の配列) があるファイルを探して、files に書く (`createRouter` に渡す `routes` を辿る。`routes.ts`、`router/index.ts` など)。JavaScript なら language を javascript にする。既定の規則は「変数に入れた配列の直下にある、name と path を文字で書いたオブジェクト」を 1 画面にする。配列を `createRouter({routes: [...]})` や `export default [...]` に直接書くシステムでは、rule と unresolved の `inside` を書き換える。name を書かないシステムでは、rule から name の条件を外し、fields.name を "{PATH}" にする。全部の画面に付く共通の段は segments.drop で落とす。unresolved に出た場所 (別のファイルの定義、定数で書いた name、関数が作る定義、children) は、定義を読んで、入口を `abatlas-extract listed` で足す'
     params:
       files: ["src/routes/**/*.ts", "src/router/**/*.ts"]
       language: typescript
-      rule:   # 変数に入れた配列の直下にある、name と path を文字で書いたオブジェクト。入れ子 (children) の中は拾わない
+      rule: # 変数に入れた配列の直下にある、name と path を文字で書いたオブジェクト。入れ子 (children) の中は拾わない
         kind: object
         inside: { kind: array, inside: { kind: variable_declarator } }
         all:
@@ -98,20 +107,20 @@ extractors:
         # id は結果のファイル名になるので記号を持てない。段の種類を「_ + 1 文字」の印で表し、名前の中の _ は 2 つ重ねる (ui-nextjs と同じ考え方)
         #   /flows/id → flows.id      /flows/:id → flows.id_d      /flows/:tab? → flows.tab_o      /docs/:path(.*)? → docs.path_o      / → root_r
         replace:
-          - { pattern: "_", with: "__" }                                              # 名前の中の _ を重ねる (最初に行う)
-          - { pattern: "^:([A-Za-z0-9_]+)(\\(.*\\))?[?*]$", with: "\\1_o" }       # :tab? / :path(.*)? / :rest* → 省ける段
-          - { pattern: "^:([A-Za-z0-9_]+)(\\(.*\\))?\\+?$", with: "\\1_d" }       # :id / :id(\\d+) / :rest+   → 値が入る段
-          - { pattern: "^\\(root\\)$", with: "root_r" }                              # URL が / だけの route (segments.empty)
-          - { pattern: "[^A-Za-z0-9_-]", with: "" }                                  # 残りの記号を除く
-      unresolved:   # 静的に読めない定義。入口にはせず、場所を知らせる
+          - { pattern: "_", with: "__" } # 名前の中の _ を重ねる (最初に行う)
+          - { pattern: "^:([A-Za-z0-9_]+)(\\(.*\\))?[?*]$", with: "\\1_o" } # :tab? / :path(.*)? / :rest* → 省ける段
+          - { pattern: "^:([A-Za-z0-9_]+)(\\(.*\\))?\\+?$", with: "\\1_d" } # :id / :id(\\d+) / :rest+   → 値が入る段
+          - { pattern: "^\\(root\\)$", with: "root_r" } # URL が / だけの route (segments.empty)
+          - { pattern: "[^A-Za-z0-9_-]", with: "" } # 残りの記号を除く
+      unresolved: # 静的に読めない定義。入口にはせず、場所を知らせる
         any:
-          - kind: identifier        # 別のファイルで定義して、名前で並べた route
+          - kind: identifier # 別のファイルで定義して、名前で並べた route
             inside: { kind: array, inside: { kind: variable_declarator } }
-          - kind: spread_element    # 展開した配列 (...otherRoutes)
+          - kind: spread_element # 展開した配列 (...otherRoutes)
             inside: { kind: array, inside: { kind: variable_declarator } }
-          - kind: call_expression   # 関数が作る route
+          - kind: call_expression # 関数が作る route
             inside: { kind: array, inside: { kind: variable_declarator } }
-          - kind: pair              # name / path を文字で書いていない route と、入れ子の route
+          - kind: pair # name / path を文字で書いていない route と、入れ子の route
             all:
               - has: { field: key, regex: "^(name|path|children)$" }
               - not: { has: { field: value, kind: string } }

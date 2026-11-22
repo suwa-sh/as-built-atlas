@@ -51,19 +51,28 @@ def _apply(seg: str, rules: list[dict]) -> str:
     return seg
 
 
-def segments_of(rel: str, conf: dict) -> tuple[list[str], list[str]]:
-    """相対パスから (加工前の段, 加工後の段) を作る。"""
+def _relative_parts(rel, conf):
     parts = rel.split("/")
     prefix = [p for p in str(conf.get("strip_prefix") or "").split("/") if p]
     if parts[: len(prefix)] != prefix:
-        raise SystemExit(f"[glob] {rel} は segments.strip_prefix '{'/'.join(prefix)}' の下に無い (files と strip_prefix を合わせる)")
-    parts = parts[len(prefix):]
+        raise SystemExit(
+            f"[glob] {rel} は segments.strip_prefix '{'/'.join(prefix)}' の下に無い (files と strip_prefix を合わせる)"
+        )
+    parts = parts[len(prefix) :]
     if conf.get("drop_last", True):
         parts = parts[:-1]
     else:
         parts = parts[:-1] + [Path(parts[-1]).stem]
-    raw = list(parts)
-    drops = [re.compile(p) for p in _as_list(conf.get("drop"))]
+    return parts
+
+
+def segment_drops(conf):
+    return [re.compile(p) for p in _as_list(conf.get("drop"))]
+
+
+def shape_segments(parts, conf, drops=None):
+    if drops is None:
+        drops = segment_drops(conf)
     out = []
     for seg in parts:
         if any(d.fullmatch(seg) for d in drops):
@@ -71,9 +80,45 @@ def segments_of(rel: str, conf: dict) -> tuple[list[str], list[str]]:
         seg = _apply(seg, conf.get("replace") or [])
         if seg:
             out.append(seg)
+    return out
+
+
+def matching_files(scope, files):
+    paths = sorted(
+        {
+            Path(p)
+            for g in files
+            for p in glob.glob(str(scope / g), recursive=True)
+            if Path(p).is_file()
+        }
+    )
+    return paths
+
+
+def _entry_id(segs, id_rules, id_join, seen, rel):
+    id_parts = [s for s in (_apply(seg, id_rules) for seg in segs) if s]
+    if not id_parts:
+        raise SystemExit(
+            f"[glob] {rel}: id が空になった (段 {segs} に id.replace を当てた結果)。id.replace か segments.empty を見直す"
+        )
+    eid = id_join.join(id_parts)
+    if eid in seen:
+        raise SystemExit(
+            f"[glob] id '{eid}' が 2 つのファイルから出た: {seen[eid]} と {rel}。segments / id の加工で別の入口が同じ名前になっている"
+        )
+    seen[eid] = rel
+    return eid
+
+
+def segments_of(rel: str, conf: dict) -> tuple[list[str], list[str]]:
+    """相対パスから (加工前の段, 加工後の段) を作る。"""
+    raw = _relative_parts(rel, conf)
+    out = shape_segments(raw, conf)
     head = [str(p) for p in _as_list(conf.get("prefix")) if str(p)]
     if any("/" in p for p in head):
-        raise SystemExit(f"[glob] segments.prefix {head} の段に '/' は書けない (段ごとに配列で書く)")
+        raise SystemExit(
+            f"[glob] segments.prefix {head} の段に '/' は書けない (段ごとに配列で書く)"
+        )
     if not out and not head:
         out = [str(conf.get("empty") or "(root)")]
     return raw, head + out
@@ -89,52 +134,68 @@ def _line(text: str, pattern: str | None) -> int:
     return 1
 
 
+def _relative_files(scope, files, excludes, params):
+    paths = matching_files(scope, files)
+    rels = [p.relative_to(scope).as_posix() for p in paths]
+    rels = [r for r in rels if not any(fnmatch.fnmatch(r, x) for x in excludes)]
+    if not rels and not params.get("allow_empty"):
+        raise SystemExit(
+            f"[glob] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true"
+        )
+    return rels
+
+
+def _file_attributes(scope, rel, raw, contains, line_match):
+    attrs: dict = {"file_segments": raw}
+    text = None
+    if contains or line_match:
+        text = (scope / rel).read_text(encoding="utf-8", errors="replace")
+    for key, pattern in contains.items():
+        attrs[key] = re.search(pattern, text, re.M) is not None
+    return attrs, text
+
+
+def id_options(params):
+    id_conf = params.get("id") or {}
+    id_rules = id_conf.get("replace") or DEFAULT_ID_REPLACE
+    id_join = id_conf.get("join", ".")
+    return id_rules, id_join
+
+
 def extract(scope: Path, params: dict, layer: str):
     files = _as_list(params.get("files"))
     if not files:
         raise SystemExit("[glob] params.files が無い")
     excludes = _as_list(params.get("exclude"))
     seg_conf = params.get("segments") or {}
-    id_conf = params.get("id") or {}
-    id_rules = id_conf.get("replace") or DEFAULT_ID_REPLACE
-    id_join = id_conf.get("join", ".")
+    id_rules, id_join = id_options(params)
     name_mode = params.get("name", "last")
     contains = params.get("contains") or {}
     line_match = params.get("line_match")
 
-    paths = sorted({Path(p) for g in files for p in glob.glob(str(scope / g), recursive=True) if Path(p).is_file()})
-    rels = [p.relative_to(scope).as_posix() for p in paths]
-    rels = [r for r in rels if not any(fnmatch.fnmatch(r, x) for x in excludes)]
-    if not rels and not params.get("allow_empty"):
-        raise SystemExit(f"[glob] files {files} に一致するファイルが scope に無い (glob の誤り?)。空が正しいなら allow_empty: true")
+    rels = _relative_files(scope, files, excludes, params)
 
     seen: dict[str, str] = {}
     recs = []
     for rel in rels:
         raw, segs = segments_of(rel, seg_conf)
-        id_parts = [s for s in (_apply(seg, id_rules) for seg in segs) if s]
-        if not id_parts:
-            raise SystemExit(f"[glob] {rel}: id が空になった (段 {segs} に id.replace を当てた結果)。id.replace か segments.empty を見直す")
-        eid = id_join.join(id_parts)
-        if eid in seen:
-            raise SystemExit(f"[glob] id '{eid}' が 2 つのファイルから出た: {seen[eid]} と {rel}。segments / id の加工で別の入口が同じ名前になっている")
-        seen[eid] = rel
+        eid = _entry_id(segs, id_rules, id_join, seen, rel)
         path_str = "/" + "/".join(segs)
-        attrs: dict = {"file_segments": raw}
-        text = None
-        if contains or line_match:
-            text = (scope / rel).read_text(encoding="utf-8", errors="replace")
-        for key, pattern in contains.items():
-            attrs[key] = re.search(pattern, text, re.M) is not None
-        recs.append({
-            "format_version": 1,
-            "id": eid,
-            "path": path_str,
-            "layer": layer,
-            "source": {"file": rel, "line": _line(text, line_match) if text is not None else 1},
-            "name": path_str if name_mode == "path" else segs[-1],
-            "attributes": attrs,
-        })
+        attrs, text = _file_attributes(scope, rel, raw, contains, line_match)
+        recs.append(
+            {
+                "format_version": 1,
+                "id": eid,
+                "path": path_str,
+                "layer": layer,
+                "source": {
+                    "file": rel,
+                    "line": _line(text, line_match) if text is not None else 1,
+                },
+                "name": path_str if name_mode == "path" else segs[-1],
+                "attributes": attrs,
+            }
+        )
     for rec in recs:
         sys.stdout.write(json.dumps(rec, ensure_ascii=False) + "\n")
     print(f"[glob] files={len(rels)} entries={len(recs)}", file=sys.stderr)
@@ -143,9 +204,15 @@ def extract(scope: Path, params: dict, layer: str):
 def main(argv=None):
     import argparse
 
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--scope", required=True)
-    ap.add_argument("--params", required=True, help="JSON 文字列、または @path で JSON/YAML ファイル")
+    ap.add_argument(
+        "--params",
+        required=True,
+        help="JSON 文字列、または @path で JSON/YAML ファイル",
+    )
     ap.add_argument("--layer", required=True)
     a = ap.parse_args(argv)
     if a.params.startswith("@"):

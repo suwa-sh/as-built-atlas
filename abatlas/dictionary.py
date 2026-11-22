@@ -33,11 +33,15 @@ def dictionary_problems(doc) -> list[str]:
             problems.append(f"{where}: 同じ列が 2 回書かれている")
         seen.add(key)
         if "category" in f and f["category"] not in categories:
-            problems.append(f"{where}: 区分 '{f['category']}' が語彙に無い (schema/vocab/data-categories.yaml: {sorted(categories)})")
+            problems.append(
+                f"{where}: 区分 '{f['category']}' が語彙に無い (schema/vocab/data-categories.yaml: {sorted(categories)})"
+            )
         if f["status"] == "approved" and "category" not in f:
             problems.append(f"{where}: approved なのに、区分 (category) が無い")
         if f["field"] == "*":
-            problems.append(f"{where}: * (全部の列) には区分を付けられない。列の名前で書く")
+            problems.append(
+                f"{where}: * (全部の列) には区分を付けられない。列の名前で書く"
+            )
     return problems
 
 
@@ -49,7 +53,9 @@ def load_dictionary(repo: Path) -> dict:
     doc = load_yaml(p)
     problems = dictionary_problems(doc)
     if problems:
-        raise SystemExit("dictionary: 辞書が形式に違反している:\n  " + "\n  ".join(problems[:20]))
+        raise SystemExit(
+            "dictionary: 辞書が形式に違反している:\n  " + "\n  ".join(problems[:20])
+        )
     return doc
 
 
@@ -58,7 +64,13 @@ def result_fields(repo: Path) -> list[tuple[str, str]]:
     base = analysis_dir(repo)
     results = [load_yaml(p) for p in sorted((base / "results").glob("*.yaml"))]
     rows = build_rows({"entries": []}, results)["io_fields"]
-    return sorted({(r["resource_path"], r["name"]) for r in rows if r["name"] != "*" and r["kind"] != "external_api"})
+    return sorted(
+        {
+            (r["resource_path"], r["name"])
+            for r in rows
+            if r["name"] != "*" and r["kind"] != "external_api"
+        }
+    )
 
 
 def update_dictionary(repo: Path, dry_run: bool = False) -> dict[str, int]:
@@ -67,11 +79,19 @@ def update_dictionary(repo: Path, dry_run: bool = False) -> dict[str, int]:
     have = {(f["resource"], f["field"]) for f in doc["fields"]}
     found = result_fields(repo)
     added = [k for k in found if k not in have]
-    doc["fields"] = sorted(doc["fields"] + [{"resource": r, "field": f, "status": "candidate"} for r, f in added], key=lambda f: (f["resource"], f["field"]))
+    doc["fields"] = sorted(
+        doc["fields"]
+        + [{"resource": r, "field": f, "status": "candidate"} for r, f in added],
+        key=lambda f: (f["resource"], f["field"]),
+    )
     if added and not dry_run:
-        (analysis_dir(repo) / FILE).write_text(HEADER + yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        (analysis_dir(repo) / FILE).write_text(
+            HEADER + yaml.safe_dump(doc, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
     return {
-        "fields": len(doc["fields"]), "added": len(added),
+        "fields": len(doc["fields"]),
+        "added": len(added),
         "unclassified": sum(1 for f in doc["fields"] if "category" not in f),
         "candidate": sum(1 for f in doc["fields"] if f["status"] == "candidate"),
         "not_in_results": len(have - set(found)),

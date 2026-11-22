@@ -1,0 +1,55 @@
+name: Weekly vulnerability scan
+
+on:
+  schedule:
+    - cron: "17 0 * * 1" # 月曜 09:17 JST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # 配布イメージが参照している版の uv.lock も読む
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.13.9"
+          python-version: "3.12"
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        id: tools
+        with:
+          install_args: trivy
+      - name: uv.lock
+        run: |
+          echo '### uv.lock' >> "$GITHUB_STEP_SUMMARY"
+          uv run --locked python scripts/scan.py lock --show-unfixed | tee /dev/stderr | sed '/^UNFIXED /d; s/^/    /' >> "$GITHUB_STEP_SUMMARY"
+      - name: 公開イメージの digest を確定
+        id: release
+        if: ${{ !cancelled() && steps.tools.outcome == 'success' }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          digest=$(docker buildx imagetools inspect "${image}:latest" --format '{{.Manifest.Digest}}')
+          echo "image=$image@$digest" >> "$GITHUB_OUTPUT"
+          echo "検査した公開イメージは ${image}@${digest}。" >> "$GITHUB_STEP_SUMMARY"
+      - name: 公開イメージの両アーキテクチャ
+        if: ${{ !cancelled() && steps.release.outcome == 'success' }}
+        env:
+          IMAGE: ${{ steps.release.outputs.image }}
+        run: |
+          status=0
+          for arch in amd64 arm64; do
+            echo "### linux/$arch" >> "$GITHUB_STEP_SUMMARY"
+            uv run --locked python scripts/scan.py published "$IMAGE" --arch "$arch" --show-unfixed \
+              | tee /dev/stderr | sed '/^UNFIXED /d; s/^/    /' >> "$GITHUB_STEP_SUMMARY" || status=1
+          done
+          exit "$status"

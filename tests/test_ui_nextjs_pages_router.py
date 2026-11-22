@@ -26,12 +26,27 @@ PAGES = {
     "pages/dashboard.tsx": ("/dashboard", "dashboard"),
     "pages/documents/index.tsx": ("/documents", "documents"),
     "pages/documents/[id]/index.tsx": ("/documents/[id]", "documents.id_d"),
-    "pages/documents/[id]/redactions/[jobId].tsx": ("/documents/[id]/redactions/[jobId]", "documents.id_d.redactions.jobId_d"),
-    "pages/documents/tree/[...name].tsx": ("/documents/tree/[...name]", "documents.tree.name_c"),
+    "pages/documents/[id]/redactions/[jobId].tsx": (
+        "/documents/[id]/redactions/[jobId]",
+        "documents.id_d.redactions.jobId_d",
+    ),
+    "pages/documents/tree/[...name].tsx": (
+        "/documents/tree/[...name]",
+        "documents.tree.name_c",
+    ),
     "pages/help/[[...slug]].tsx": ("/help/[[...slug]]", "help.slug_o"),
-    "pages/settings/billing.tsx": ("/settings/billing", "settings.billing"),  # 同じ名前のフォルダと同居する
-    "pages/settings/billing/invoices.tsx": ("/settings/billing/invoices", "settings.billing.invoices"),
-    "pages/index/about.tsx": ("/index/about", "index.about"),  # index という名前のフォルダは段に残す (落とすのはファイル名の index だけ)
+    "pages/settings/billing.tsx": (
+        "/settings/billing",
+        "settings.billing",
+    ),  # 同じ名前のフォルダと同居する
+    "pages/settings/billing/invoices.tsx": (
+        "/settings/billing/invoices",
+        "settings.billing.invoices",
+    ),
+    "pages/index/about.tsx": (
+        "/index/about",
+        "index.about",
+    ),  # index という名前のフォルダは段に残す (落とすのはファイル名の index だけ)
     "pages/my_page.tsx": ("/my_page", "my__page"),
 }
 NOT_PAGES = [
@@ -52,10 +67,16 @@ CONTENT = {
 
 
 def _extractor(name: str) -> dict:
-    return next(e for e in yaml.safe_load(PROFILE.read_text(encoding="utf-8"))["extractors"] if e["name"] == name)
+    return next(
+        e
+        for e in yaml.safe_load(PROFILE.read_text(encoding="utf-8"))["extractors"]
+        if e["name"] == name
+    )
 
 
-def _write(root: Path, rel: str, text: str = "export default function () { return null; }\n") -> None:
+def _write(
+    root: Path, rel: str, text: str = "export default function () { return null; }\n"
+) -> None:
     p = root / rel
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(text, encoding="utf-8")
@@ -64,24 +85,43 @@ def _write(root: Path, rel: str, text: str = "export default function () { retur
 @pytest.fixture()
 def site(tmp_path: Path) -> Path:
     for rel in [*PAGES, *NOT_PAGES]:
-        _write(tmp_path, rel, CONTENT.get(rel, "export default function () { return null; }\n"))
+        _write(
+            tmp_path,
+            rel,
+            CONTENT.get(rel, "export default function () { return null; }\n"),
+        )
     return tmp_path
 
 
 def _run(scope: Path, name: str, capsys) -> list[dict]:
     ex = _extractor(name)
     extract(scope, ex["params"], ex["layer"])
-    return [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in capsys.readouterr().out.splitlines()
+        if line.strip()
+    ]
 
 
 def test_pages_router_files_become_url_shaped_entries(site: Path, capsys):
-    recs = _run(site, "next-pages-router", capsys) + _run(site, "next-pages-router-index", capsys)
+    recs = _run(site, "next-pages-router", capsys) + _run(
+        site, "next-pages-router-index", capsys
+    )
     assert all(schema_errors("entry-candidate", r) == [] for r in recs)
-    assert {r["source"]["file"]: (r["path"], r["id"]) for r in recs} == PAGES, "_app・_document・_error・404・500・api と、直下でない pages は画面にしない"
+    assert {r["source"]["file"]: (r["path"], r["id"]) for r in recs} == PAGES, (
+        "_app・_document・_error・404・500・api と、直下でない pages は画面にしない"
+    )
     by_file = {r["source"]["file"]: r for r in recs}
-    assert by_file["pages/dashboard.tsx"]["source"]["line"] == 3, "出典の行は export default の行"
-    assert by_file["pages/documents/[id]/index.tsx"]["attributes"]["server_props"] is True
-    assert by_file["pages/dashboard.tsx"]["attributes"]["static_props"] is True and by_file["pages/dashboard.tsx"]["attributes"]["server_props"] is False
+    assert by_file["pages/dashboard.tsx"]["source"]["line"] == 3, (
+        "出典の行は export default の行"
+    )
+    assert (
+        by_file["pages/documents/[id]/index.tsx"]["attributes"]["server_props"] is True
+    )
+    assert (
+        by_file["pages/dashboard.tsx"]["attributes"]["static_props"] is True
+        and by_file["pages/dashboard.tsx"]["attributes"]["server_props"] is False
+    )
     assert by_file["pages/help/[[...slug]].tsx"]["attributes"]["initial_props"] is True
 
 
@@ -98,17 +138,38 @@ def test_pages_router_ids_match_app_router_marks(tmp_path: Path, capsys):
     for a, p in pairs.items():
         _write(app, a)
         _write(pages, p)
-    by_app = {r["source"]["file"]: (r["path"], r["id"]) for r in _run(app, "next-pages", capsys)}
-    by_pages = {r["source"]["file"]: (r["path"], r["id"]) for r in _run(pages, "next-pages-router", capsys) + _run(pages, "next-pages-router-index", capsys)}
-    assert {by_app[a]: by_pages[p] for a, p in pairs.items()} == {by_app[a]: by_app[a] for a in pairs}
+    by_app = {
+        r["source"]["file"]: (r["path"], r["id"])
+        for r in _run(app, "next-pages", capsys)
+    }
+    by_pages = {
+        r["source"]["file"]: (r["path"], r["id"])
+        for r in _run(pages, "next-pages-router", capsys)
+        + _run(pages, "next-pages-router-index", capsys)
+    }
+    assert {by_app[a]: by_pages[p] for a, p in pairs.items()} == {
+        by_app[a]: by_app[a] for a in pairs
+    }
 
 
 def test_app_and_middleware_wrappers(site: Path, capsys):
-    _write(site, "middleware.ts", "import { NextResponse } from 'next/server';\n\nexport async function middleware(req) { return NextResponse.next(); }\n")
+    _write(
+        site,
+        "middleware.ts",
+        "import { NextResponse } from 'next/server';\n\nexport async function middleware(req) { return NextResponse.next(); }\n",
+    )
     app = _run(site, "next-pages-app", capsys)
-    assert [(r["source"]["file"], r["path"], r["id"], r["layer"]) for r in app] == [("pages/_app.tsx", "/(layout)/_app", "layout_l.app_a", "layout")]
+    assert [(r["source"]["file"], r["path"], r["id"], r["layer"]) for r in app] == [
+        ("pages/_app.tsx", "/(layout)/_app", "layout_l.app_a", "layout")
+    ]
     mw = _run(site, "next-middleware", capsys)
-    assert [(r["source"], r["path"], r["id"]) for r in mw] == [({"file": "middleware.ts", "line": 3}, "/(layout)/_middleware", "layout_l.middleware_a")]
+    assert [(r["source"], r["path"], r["id"]) for r in mw] == [
+        (
+            {"file": "middleware.ts", "line": 3},
+            "/(layout)/_middleware",
+            "layout_l.middleware_a",
+        )
+    ]
 
 
 @pytest.fixture()
@@ -117,7 +178,15 @@ def mixed(tmp_path_factory):
     target = tmp_path_factory.mktemp("mixed-target")
     for rel in [*PAGES, *NOT_PAGES]:
         _write(target, rel)
-    for rel in ("app/layout.tsx", "app/(auth)/layout.tsx", "app/(auth)/login/page.tsx", "app/(auth)/verify/page.tsx", "app/app_a/page.tsx", "app/(app)/x/layout.tsx", "app/(app)/x/page.tsx"):
+    for rel in (
+        "app/layout.tsx",
+        "app/(auth)/layout.tsx",
+        "app/(auth)/login/page.tsx",
+        "app/(auth)/verify/page.tsx",
+        "app/app_a/page.tsx",
+        "app/(app)/x/layout.tsx",
+        "app/(app)/x/page.tsx",
+    ):
         _write(target, rel)
     _write(target, "middleware.ts", "export default function middleware() {}\n")
     repo = tmp_path_factory.mktemp("mixed-repo")
@@ -125,26 +194,61 @@ def mixed(tmp_path_factory):
     profile = yaml.safe_load(PROFILE.read_text(encoding="utf-8"))
     extractors = []
     for ex in profile["extractors"]:
-        params = json.loads(json.dumps(ex["params"]).replace("src/app", "app"))  # app ディレクトリを pages と同じ直下に合わせる
-        extractors.append({"name": ex["name"], "run": ex["run"], "layer": ex["layer"], "params": params, "rationale": "test"})
-    doc = {"format_version": 1, "target": {"repo": "example/app", "commit": "0" * 40, "clone_path": str(target)},
-           "profile": {"id": profile["id"], "version": profile["version"]}, "extractors": extractors}
+        params = json.loads(
+            json.dumps(ex["params"]).replace("src/app", "app")
+        )  # app ディレクトリを pages と同じ直下に合わせる
+        extractors.append(
+            {
+                "name": ex["name"],
+                "run": ex["run"],
+                "layer": ex["layer"],
+                "params": params,
+                "rationale": "test",
+            }
+        )
+    doc = {
+        "format_version": 1,
+        "target": {
+            "repo": "example/app",
+            "commit": "0" * 40,
+            "clone_path": str(target),
+        },
+        "profile": {"id": profile["id"], "version": profile["version"]},
+        "extractors": extractors,
+    }
     path = repo / "analysis" / "entry-list.yaml"
-    path.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    path.write_text(
+        yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8"
+    )
     return target, path
 
 
 def test_app_and_pages_live_together_without_id_collisions(mixed):
-    target, path = mixed
+    _, path = mixed
     out = enumerate_entries(path, PROFILE)
     within = {e["id"]: e.get("within") for e in out["entries"]}
-    assert len(out["entries"]) == len(PAGES) + 4 + 3 + 1 + 1, "Pages Router の画面 + App Router の画面 4 + App Router の枠 3 + _app + middleware"
-    assert validate_entry_list(out, yaml.safe_load(PROFILE.read_text(encoding="utf-8"))) == []
-    assert {"layout_l", "layout_l.auth_g", "layout_l.app_g.x", "layout_l.app_a", "layout_l.middleware_a", "app__a", "x"} <= set(within), "App Router の (app) と app_a、Pages Router の _app は別の id"
+    assert len(out["entries"]) == len(PAGES) + 4 + 3 + 1 + 1, (
+        "Pages Router の画面 + App Router の画面 4 + App Router の枠 3 + _app + middleware"
+    )
+    assert (
+        validate_entry_list(out, yaml.safe_load(PROFILE.read_text(encoding="utf-8")))
+        == []
+    )
+    assert {
+        "layout_l",
+        "layout_l.auth_g",
+        "layout_l.app_g.x",
+        "layout_l.app_a",
+        "layout_l.middleware_a",
+        "app__a",
+        "x",
+    } <= set(within), "App Router の (app) と app_a、Pages Router の _app は別の id"
     # middleware は直下にあるので、すべての入口を包む。_app は pages の下だけを包む (App Router の画面は包まない)
     assert within["documents.id_d"] == ["layout_l.middleware_a", "layout_l.app_a"]
     assert within["login"] == ["layout_l.middleware_a", "layout_l", "layout_l.auth_g"]
-    assert within["layout_l.app_a"] == ["layout_l.middleware_a"] and within["layout_l"] == ["layout_l.middleware_a"]
+    assert within["layout_l.app_a"] == ["layout_l.middleware_a"] and within[
+        "layout_l"
+    ] == ["layout_l.middleware_a"]
     assert within["layout_l.middleware_a"] is None
 
 
@@ -161,8 +265,17 @@ def test_profile_stays_valid_and_app_router_defaults_come_first():
     profile = yaml.safe_load(PROFILE.read_text(encoding="utf-8"))
     assert validate_profile(profile) == []
     names = [e["name"] for e in profile["extractors"]]
-    assert names[:2] == ["next-pages", "next-layouts"] and set(PAGES_ROUTER) | {"next-middleware"} <= set(names)
-    assert profile["within"] == [{"layer": "layout", "rule": "source_dir"}], "_app と middleware も、layout の層の入口として、置き場から包む"
+    assert names[:2] == ["next-pages", "next-layouts"] and set(PAGES_ROUTER) | {
+        "next-middleware"
+    } <= set(names)
+    assert profile["within"] == [{"layer": "layout", "rule": "source_dir"}], (
+        "_app と middleware も、layout の層の入口として、置き場から包む"
+    )
     notes = profile["hierarchy"]["notes"]
-    hit = lambda p: [n["text"] for n in notes if n["contains"] in p]
-    assert len(hit("/(layout)/_app")) == 2 and len(hit("/(layout)/(main)")) == 1, "_ で始まる枠の段は、route group の説明とは別に説明する"
+
+    def hit(p):
+        return [n["text"] for n in notes if n["contains"] in p]
+
+    assert len(hit("/(layout)/_app")) == 2 and len(hit("/(layout)/(main)")) == 1, (
+        "_ で始まる枠の段は、route group の説明とは別に説明する"
+    )

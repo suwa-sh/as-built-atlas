@@ -14,8 +14,9 @@
   }
 
   const languages = navigator.languages?.length ? navigator.languages : [navigator.language];
-  const preferred = languages.map(tag => tag.toLowerCase().split("-")[0])
-    .find(language => supported.includes(language));
+  const preferred = languages
+    .map((tag) => tag.toLowerCase().split("-")[0])
+    .find((language) => supported.includes(language));
   const rootDefault = supported.includes(saved) ? saved : preferred || "en";
   const target = supported.includes(requested) ? requested : current === "en" ? "en" : rootDefault;
   if (target === current) {

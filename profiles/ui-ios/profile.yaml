@@ -63,18 +63,33 @@ layers:
     io: [rdb, kvs, queue, filesystem, object_storage, external_api]
 
 hierarchy:
-  level_labels: [section+, screen]   # 行き先を宣言した型の名前が section、case の名前が screen
+  level_labels: [section+, screen] # 行き先を宣言した型の名前が section、case の名前が screen
   derivation: "SwiftUI の画面は、行き先を宣言した enum の名前と、case の名前の 2 段 (例: `/RouterDestination/accountDetail`、`/SheetDestination/settings`、`/AppTab/timeline`)。UIKit の画面は `/(uikit)/<クラスの名前>`。行き先の enum を通らずに push で開く View と、2 つ以上の画面から重ねて開く View は `/(view)/<View の型の名前>`。枠 (shell) は `/(shell)` で始める (`/(shell)/app`、`/(shell)/delegate/<クラスの名前>`、`/(shell)/root/<View の型の名前>`、`/(shell)/part/<View の型の名前>`)。OS から起動される入口 (system) は `/(system)/<種類>/<名前>` で、種類は widget / intent / notification / extension / link / background (例: `/(system)/widget/LatestPostsWidget`、`/(system)/link/icecubesapp`)"
-  entry_labels:   # 枠と、OS から起動される入口は、詳細のページで screen ではなくそれぞれの名前で呼ぶ
+  entry_labels: # 枠と、OS から起動される入口は、詳細のページで screen ではなくそれぞれの名前で呼ぶ
     - { contains: "(shell)", label: shell }
     - { contains: "(system)", label: system }
-  notes:   # 段の名前に残る書き方を、画面で説明する
-    - { contains: "Destination/", text: "Destination で終わる段は、行き先を宣言した enum の名前。後ろの段が case の名前 (コードの書き方をそのまま出している)" }
-    - { contains: "Tab/", text: "Tab で終わる段は、タブを宣言した enum の名前。後ろの段が、タブの case の名前" }
-    - { contains: "(shell)", text: "(shell) で始まる {entry} は、アプリ全体の枠。どの画面を開いても動く" }
-    - { contains: "(system)", text: "(system) で始まる {entry} は、アプリの画面を通らずに OS から起動される。2 段目は {kind} (widget、intent、notification、extension、link、background)" }
+  notes: # 段の名前に残る書き方を、画面で説明する
+    - {
+        contains: "Destination/",
+        text: "Destination で終わる段は、行き先を宣言した enum の名前。後ろの段が case の名前 (コードの書き方をそのまま出している)",
+      }
+    - {
+        contains: "Tab/",
+        text: "Tab で終わる段は、タブを宣言した enum の名前。後ろの段が、タブの case の名前",
+      }
+    - {
+        contains: "(shell)",
+        text: "(shell) で始まる {entry} は、アプリ全体の枠。どの画面を開いても動く",
+      }
+    - {
+        contains: "(system)",
+        text: "(system) で始まる {entry} は、アプリの画面を通らずに OS から起動される。2 段目は {kind} (widget、intent、notification、extension、link、background)",
+      }
     - { contains: "(uikit)", text: "(uikit) で始まる {entry} は、UIKit の view controller 1 つ" }
-    - { contains: "(view)", text: "(view) で始まる {entry} は、行き先の enum を通らずに開く View (push で開くものと、2 つ以上の画面から重ねて開くもの)" }
+    - {
+        contains: "(view)",
+        text: "(view) で始まる {entry} は、行き先の enum を通らずに開く View (push で開くものと、2 つ以上の画面から重ねて開くもの)",
+      }
 
 extractors:
   - name: swiftui-destinations
@@ -85,7 +100,7 @@ extractors:
       files: ["**/*.swift"]
       exclude: ["*Tests/*", "*.build/*", "Pods/*", "*/Pods/*", "Carthage/*", "*/Carthage/*"]
       language: swift
-      rule:   # 名前が Destination / Route / Screen / Tab で終わる enum の、case の名前 1 つ。`case a, b` は 2 件。関連値の名前は拾わない
+      rule: # 名前が Destination / Route / Screen / Tab で終わる enum の、case の名前 1 つ。`case a, b` は 2 件。関連値の名前は拾わない
         kind: simple_identifier
         pattern: $CASE
         inside:
@@ -105,20 +120,29 @@ extractors:
         replace:
           - { pattern: "_", with: "__" }
           - { pattern: "[^A-Za-z0-9_-]", with: "" }
-      unresolved:   # 行き先の enum の正規表現から漏れたかもしれない場所と、UIKit の画面。入口にはせず、場所を知らせる
+      unresolved: # 行き先の enum の正規表現から漏れたかもしれない場所と、UIKit の画面。入口にはせず、場所を知らせる
         any:
-          - kind: call_suffix   # navigationDestination(for:) / (item:)、sheet(item:)、fullScreenCover(item:)。`.sheet(...)` と、self を省いた `sheet(...)` の両方
+          - kind: call_suffix # navigationDestination(for:) / (item:)、sheet(item:)、fullScreenCover(item:)。`.sheet(...)` と、self を省いた `sheet(...)` の両方
             follows:
               any:
                 - kind: navigation_expression
-                  has: { kind: navigation_suffix, regex: "^\\.(navigationDestination|sheet|fullScreenCover)$" }
+                  has:
+                    {
+                      kind: navigation_suffix,
+                      regex: "^\\.(navigationDestination|sheet|fullScreenCover)$",
+                    }
                 - kind: simple_identifier
                   regex: "^(navigationDestination|sheet|fullScreenCover)$"
             has:
               kind: value_arguments
-              has: { kind: value_argument, has: { kind: value_argument_label, regex: "^(for|item)$" } }
-          - kind: class_declaration   # UIKit の view controller を直接継いだクラス
-            has: { kind: inheritance_specifier, regex: "^UI(Table|Collection|Page|Navigation|TabBar|Split|Hosting)?ViewController$" }
+              has:
+                { kind: value_argument, has: { kind: value_argument_label, regex: "^(for|item)$" } }
+          - kind: class_declaration # UIKit の view controller を直接継いだクラス
+            has:
+              {
+                kind: inheritance_specifier,
+                regex: "^UI(Table|Collection|Page|Navigation|TabBar|Split|Hosting)?ViewController$",
+              }
 
   - name: os-entry-points
     run: abatlas-extract ast
@@ -129,7 +153,7 @@ extractors:
       exclude: ["*Tests/*", "*.build/*", "Pods/*", "*/Pods/*", "Carthage/*", "*/Carthage/*"]
       language: swift
       allow_empty: true
-      rule:   # プロトコルを直接書いて準拠する struct / class 1 つ
+      rule: # プロトコルを直接書いて準拠する struct / class 1 つ
         kind: class_declaration
         all:
           - has: { field: name, pattern: $NAME }
@@ -142,9 +166,12 @@ extractors:
         name: "{NAME}"
         attributes: { conforms_to: "{BASE}" }
       segments:
-        replace:   # 準拠するプロトコルを、種類の名前にそろえる
+        replace: # 準拠するプロトコルを、種類の名前にそろえる
           - { pattern: "^(Widget|ControlWidget)$", with: "widget" }
-          - { pattern: "^(AppIntent|AudioPlaybackIntent|LiveActivityIntent|ForegroundContinuableIntent)$", with: "intent" }
+          - {
+              pattern: "^(AppIntent|AudioPlaybackIntent|LiveActivityIntent|ForegroundContinuableIntent)$",
+              with: "intent",
+            }
           - { pattern: "^UNNotification(Service|Content)Extension$", with: "notification" }
           - { pattern: "^NSExtensionRequestHandling$", with: "extension" }
       id:
