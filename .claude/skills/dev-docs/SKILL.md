@@ -12,6 +12,7 @@ description: as-built-atlas の文書 (README.md、docs/ の仕組みの説明�
 | 書きたいこと | 置き場 |
 |---|---|
 | 決定の経緯 (なぜそう決めたか、捨てた案) | `docs/adr/NNNN-<slug>.md` を 1 つ足し、`docs/adr/README.md` の表に 1 行 |
+| 使う人の手順 (人がやること、裏で動くもの、手に入るもの) | `docs/guide/` の、場面のファイル |
 | いま守る状態 (仕組み) | `docs/architecture/` の、主題のファイル |
 | 開発で守ること | `docs/rules/` の、部分のファイル |
 | 画面の見た目の決まり | `DESIGN.md` |
@@ -40,7 +41,7 @@ uv run --locked python .agents/skills/dev-docs/scripts/check_docs.py
 | 検査 | 内容 |
 |---|---|
 | リンク切れ | ルートの Markdown と `docs/` 内の Markdown の相対リンクの先が、実在するか |
-| 配布先で切れるリンク | `docs/architecture/` から、その外へのリンク (分析リポジトリには、`docs/architecture/` だけが配られる) |
+| 配布先で切れるリンク | 配る置き場 (`docs/architecture/`、`docs/guide/`) から、その外へのリンク (分析リポジトリには、この 2 つだけが配られる) |
 | mermaid の危ない書き方 | 引用符で包んでいない、かっこ・スラッシュ |
 | mermaid を実際に描く | `mmdc` があれば、全部の図を描く。無ければ、その旨を出す (描いていないと報告する) |
 

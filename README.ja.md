@@ -163,9 +163,10 @@ flowchart LR
 | 2. 入口を列挙する | ツール | 入口の候補を出す。同じコミットと同じ設定なら、同じ結果になる | `enumerate` |
 | 3. 入口を承認する | 人 | AI が調べても決まらない点に答え、入口一覧と作業一覧を一度で承認する | `abatlas-run-analysis` が案を示し、承認後に対象の入口から分析を始める。[手順](docs/architecture/impact.md) |
 | 4. 入口を分析する | エージェント | 入口 1 件を、YAML 1 ファイルにする。機械チェックに通し、別のエージェントがレビューする | skill `abatlas-analyze-entry` |
-| 5. 集計して配る | ツール | 集計表を作り、画面と MCP を起動する | `build`、`docker compose up -d api` |
+| 5. 集計して配る | ツール | 集計表を作り、画面と MCP を起動する | `build` (分析とレビューが済むと、エージェントが実行する)、`docker compose up -d api` (人が実行する) |
 
-分析リポジトリの中身と、コマンドの詳しい説明は、[docs/architecture/analysis-repo.md](docs/architecture/analysis-repo.md) にあります。
+- 段階ごとに、人がやること、裏で動く skill とコマンド、手に入るものを分けた手順は、[手引きの「初めて分析する」](docs/guide/first-analysis.md) にあります。
+- 分析リポジトリの中身と、コマンドの詳しい説明は、[docs/architecture/analysis-repo.md](docs/architecture/analysis-repo.md) にあります。
 
 ## 対応している対象
 
@@ -252,6 +253,7 @@ flowchart TB
 
 | 文書 | 内容 |
 |---|---|
+| [docs/guide/](docs/guide/README.md) | 手引き。人が何をすると何が手に入るか、その途中でどの skill とコマンドが動くか |
 | [CHANGELOG.md](CHANGELOG.md) | 版ごとの変更と、更新で手を動かすこと |
 | [docs/architecture/](docs/architecture/README.md) | 仕組みの説明。分析リポジトリ、形式、プロファイル、集計、API、画面、見本 |
 | [examples/kotori-books/](examples/kotori-books/README.md) | 見本の対象システムの説明と、正解に入れてある「不明」の見どころ |

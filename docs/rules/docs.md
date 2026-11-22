@@ -2,23 +2,31 @@
 
 [← rules の地図へ](README.md)
 
-対象: `README.md`、`docs/`、`DESIGN.md`、`PRODUCT.md`。経緯は [ADR 0007](../adr/0007-docs-by-topic.md) と [ADR 0001](../adr/0001-knowledge-placement.md) です。
+対象: `README.md`、`docs/`、`DESIGN.md`、`PRODUCT.md`。経緯は [ADR 0035](../adr/0035-docs-by-reader-purpose.md)、[ADR 0007](../adr/0007-docs-by-topic.md)、[ADR 0001](../adr/0001-knowledge-placement.md) です。
 
 ## どこに何を書くか
 
-| 文書 | 書くこと |
-|---|---|
-| `README.md` | 何であるか、何が見えるか、試し方。細かい仕組みは書かず、`docs/` を指す |
-| `docs/architecture/` | 仕組みの、最新の状態。入口 (`README.md`) は、全体像・地図・言葉の表。中身は、主題ごとのファイル |
-| `docs/rules/` | 開発で守ること |
-| `docs/adr/` | 決定の経緯 |
-| `DESIGN.md` | 画面の見た目の決まり。**正本は、ここだけ** |
-| `PRODUCT.md` | 画面の利用者と、使う場面 |
+置き場は、読み手の問いで選びます。
+
+| 文書 | 読み手の問い | 書くこと |
+|---|---|---|
+| `README.md` | これは何か | 何であるか、何が見えるか、試し方。細かい仕組みは書かず、`docs/` を指す |
+| `docs/guide/` | どうやるか | 使う人の手順。場面ごとに、人がやること、裏で動く skill とコマンド、手に入るものを分けて書く。入口 (`README.md`) は、全体の流れと、場面から文書を選ぶ表 |
+| `docs/architecture/` | なぜこうなっているか | 仕組みの、最新の状態。入口 (`README.md`) は、全体像・地図・言葉の表。中身は、主題ごとのファイル |
+| `docs/rules/` | 直すとき何を守るか | 開発で守ること |
+| `docs/adr/` | なぜそう決めたか | 決定の経緯 |
+| `DESIGN.md` | 画面はどう見せるか | 画面の見た目の決まり。**正本は、ここだけ** |
+| `PRODUCT.md` | 誰がどの場面で使うか | 画面の利用者と、使う場面 |
+
+仕様 (正確には何か) の置き場 `docs/reference/` は、これから作ります。それまでは、仕様も `docs/architecture/` にあります。
+
+手引きには、仕組みの理由と、項目の全部の一覧を書きません。理由は `docs/architecture/` を、一覧は仕様の文書を指します。
 
 - 計画、進み具合の記録、検討の途中の資料は、このリポジトリに置きません。決まったことは `docs/architecture/` と `docs/rules/` に、経緯は `docs/adr/` に書きます。
 - 手元の場所 (絶対パス)、個人の情報、公開していない対象の名前を書きません。
 - 同じ事実を、2 か所に書きません。片方を正本にして、もう片方は指します。
-- `docs/architecture/` は、分析リポジトリにも配られます (`.abatlas/docs/architecture/`)。**その外のファイル (例: `DESIGN.md`) へは、リンクにせず、文で指します。**
+- `docs/architecture/` と `docs/guide/` は、分析リポジトリにも配られます (`.abatlas/docs/` の下)。この 2 つの間は、リンクで指せます。**その外のファイル (例: `DESIGN.md`、ルートの `README.md`) へは、リンクにせず、文で指します。**
+- 配る置き場を増やすときは、配布の一覧 (`abatlas/layout.py` の `OSS_REFERENCE_ITEMS`)、`Dockerfile`、リンクの検査 (`check_docs.py` の `SHIPPED`) を合わせて直します。一覧と検査のずれは、`tests/test_docs.py` が止めます。
 - `docs/architecture/README.md` は、skill や設定から参照されています。場所と名前を変えません。
 
 ## 書き方

@@ -56,13 +56,13 @@ type: Troubleshooting
 
 ## 分析リポジトリに配る文書から、配られないファイルへのリンクが切れる
 
-- 適用対象: docs/architecture/
-- 症状: 分析リポジトリの .abatlas/docs/architecture/ から、リンクを辿れない
-- 原因: 分析リポジトリに配るのは docs/architecture/ だけ (DESIGN.md、docs/rules/、docs/adr/ は配らない)
+- 適用対象: docs/architecture/、docs/guide/
+- 症状: 分析リポジトリの .abatlas/docs/ の下の文書から、リンクを辿れない
+- 原因: 分析リポジトリに配るのは docs/architecture/ と docs/guide/ だけ (DESIGN.md、ルートの README.ja.md、docs/rules/、docs/adr/ は配らない)
 - 検出: uv run --locked python .agents/skills/dev-docs/scripts/check_docs.py
-- 復旧: リンクにせず、文で指す
-- 再発防止: docs/architecture/ から外を指すときは、配られるかを考える
-- 最終確認日: 2026-11-15
+- 復旧: リンクにせず、文で指す。配る置き場どうしは、リンクでよい
+- 再発防止: 配る置き場から外を指すときは、配られるかを考える。配る置き場を増やすときは、abatlas/layout.py、Dockerfile、check_docs.py の SHIPPED を合わせて直す
+- 最終確認日: 2026-11-23
 
 ## ast-grep が、通常の例外でなく異常終了で失敗を返す
 

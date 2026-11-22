@@ -146,12 +146,12 @@ flowchart LR
 | Step | Action |
 |---|---|
 | Discover | Start with `code-map .` to list files at the target commit. The `abatlas-discover-entries` skill configures extraction and adds entries with evidence. Specify which files define entries to catch omissions before approval. |
-| Enumerate | Run `docker compose run --rm abatlas enumerate analysis/entry-list.yaml` to list candidates. The same commit and configuration produce the same list. |
+| Enumerate | The agent runs `enumerate analysis/entry-list.yaml` to list candidates. The same commit and configuration produce the same list. |
 | Approve | Use `abatlas-run-analysis` to prepare the entry list and worklist. Answer open questions and approve the plan once. The agent then dispatches one analysis per entry. [Workflow](docs/architecture/impact.md) |
 | Analyze | With `abatlas-analyze-entry`, the agent produces one YAML file per approved entry. The result goes through automated checks and a separate agent review. |
-| Serve | Run `docker compose run --rm abatlas build .` to build the tables, then `docker compose up -d api` to serve the web app and MCP. |
+| Serve | When every entry is analyzed and reviewed, the agent runs `build .` to build the tables. Run `docker compose up -d api` to serve the web app and MCP. |
 
-See the [analysis repository guide](docs/architecture/analysis-repo.md) for the directory layout and command reference.
+The [user guide](docs/guide/first-analysis.md) walks through each stage: what you do, which skills and commands run, and what you get. See the [analysis repository guide](docs/architecture/analysis-repo.md) for the directory layout and command reference.
 
 <a name="対応している対象"></a>
 
@@ -245,6 +245,7 @@ The following guides are in Japanese.
 
 | For users | Contents |
 |---|---|
+| [User guide](docs/guide/README.md) | What you do at each stage, which skills and commands run, and what you get |
 | [Changelog](CHANGELOG.md) | Changes and upgrade instructions by version |
 | [Architecture](docs/architecture/README.md) | Analysis repositories, formats, profiles, tables, API, web app, and samples |
 | [Kotori Books](examples/kotori-books/README.md) | The sample system and the deliberately unresolved questions in its ground truth |

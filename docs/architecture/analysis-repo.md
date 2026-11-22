@@ -28,7 +28,7 @@ flowchart LR
 | 持ち主 | パス | 内容 |
 |---|---|---|
 | OSS (配布物) | `compose.yaml` | docker compose の定義。設定は `.env` に書く |
-| OSS | `.abatlas/` | エージェントが読む参照物: `schema/`、`profiles/<id>/`、`tests/fixtures/`、`docs/architecture/`、`OWNED.md` |
+| OSS | `.abatlas/` | エージェントが読む参照物: `schema/`、`profiles/<id>/`、`tests/fixtures/`、`docs/architecture/`、`docs/guide/`、`OWNED.md` |
 | OSS | `.agents/skills/abatlas-*`、`.agents/skills/mid-harness` | skill の実体 (symlink ではない) |
 | OSS | `scripts/agent-hooks/pre-tool-policy.sh` | hook の本体 |
 | 分析リポジトリ | `AGENTS.md`、`CLAUDE.md`、`docs/` | エージェントの設定の正本。初回だけ置く |
@@ -140,7 +140,7 @@ claude mcp add --transport http abatlas http://localhost:8765/mcp
 | `analysis.models.analyze` | | 入口を分析するサブエージェントのモデル。書いてなければ、起動する側の既定 (多くの製品では、起動した側と同じモデル) で動く |
 | `analysis.models.review` | | 分析結果をレビューするサブエージェントのモデル。同上 |
 
-入口が多いときは、`analysis.models` を書いておきます。書かないと、すべてのサブエージェントが、起動した側と同じ (いちばん高いことが多い) モデルで動き、費用がかさみ、利用の上限にも当たりやすくなります。値は、使っているコーディングエージェントが受け付けるモデルの名前です。実際に使ったモデルは、結果ごとの `analyzer.model` に残ります。
+入口が多いときは、`analysis.models` を書いておきます。書かなかった役のサブエージェントは、使っているコーディングエージェントの既定のモデルで動きます。多くの製品では、起動した側と同じ (いちばん高いことが多い) モデルになり、費用がかさみ、利用の上限にも当たりやすくなります。分析のモデル (`analyze`) を書いていないと、複数の入口を分析する前に、エージェントが今回使うモデルを人に確かめます。値は、使っているコーディングエージェントが受け付けるモデルの名前です。実際に使ったモデルは、結果ごとの `analyzer.model` に残ります。
 
 ## このリポジトリの構成 (配布物になるもの)
 

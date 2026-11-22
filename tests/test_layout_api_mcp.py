@@ -108,9 +108,14 @@ def test_init_layout(repo: Path):
         "profiles/batch-kestra/context.md",
         "tests/fixtures/result-housekeeping.yaml",
         "docs/architecture/README.md",
+        "docs/guide/README.md",
         "OWNED.md",
     ):
         assert (oss / item).exists(), item
+    # init と upgrade の完了表示が案内する手引きが、その場所にある
+    from abatlas.cli import GUIDE_PATH
+
+    assert (repo / GUIDE_PATH).exists(), GUIDE_PATH
     # 実行環境と dbt テンプレートは分析リポジトリに置かない (Docker だけで動く)
     assert not (oss / "abatlas").exists() and not (oss / "pyproject.toml").exists()
     assert (

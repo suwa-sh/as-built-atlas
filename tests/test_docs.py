@@ -31,9 +31,36 @@ def test_check_docs_finds_broken_and_unshipped_links(tmp_path: Path):
         "[外](../../DESIGN.md)\n\n```mermaid\nflowchart LR\n  A[a (b)] --> B\n```\n",
         encoding="utf-8",
     )
+    guide = tmp_path / "docs" / "guide"
+    guide.mkdir()
+    (guide / "README.md").write_text(
+        "[仕組み](../architecture/README.md)\n\n[外](../../README.md)\n\n"
+        "[ルートから](/docs/architecture/README.md)\n",
+        encoding="utf-8",
+    )
     mod = runpy.run_path(str(CHECK), run_name="check_docs_lib")
     problems = mod["check"](tmp_path)[0]
     assert not any("code.md" in p for p in problems)  # nosec B101 - pytest assertion
+    # 配る置き場どうしのリンクは切れない。配る置き場から外へのリンクだけを止める
+    assert not any("../architecture/README.md" in p for p in problems), problems
+    assert any(
+        "docs/guide/README.md" in p and "の外" in p and "../../README.md" in p
+        for p in problems
+    ), problems
+    # 配布先では、リポジトリのルートが変わる。ルートからの指定は、配る置き場の中を指していても止める
+    assert any(
+        "ルートからの指定" in p and "/docs/architecture/README.md" in p
+        for p in problems
+    ), problems
+    # 配る置き場の一覧は、配布の実装と同じ
+    from abatlas.layout import OSS_REFERENCE_ITEMS
+
+    assert set(mod["SHIPPED"]) == {
+        item for item in OSS_REFERENCE_ITEMS if item.startswith("docs/")
+    }
     assert any("リンク切れ" in p and "docs/none.md" in p for p in problems), problems
-    assert any("配布先で切れるリンク" in p for p in problems), problems
+    assert any(
+        "docs/architecture/README.md" in p and "の外" in p and "../../DESIGN.md" in p
+        for p in problems
+    ), problems
     assert any("mermaid" in p for p in problems), problems
