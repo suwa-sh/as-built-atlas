@@ -290,7 +290,10 @@ def test_api_declaration_driven(repo: Path):
     )
     prog = c.get("/marts/mart_progress/rows").json()["rows"][0]
     assert prog["approved"] == 2 and prog["analyzed"] == 1
-    assert prog["estimated_remaining_cost_usd"] == pytest.approx(8.36)
+    # 一方は旧版の結果、もう一方は未分析。今回の作業は 2 入口分。
+    assert rows["rows"][0]["update_status"] == "stale"
+    assert prog["current_results"] == prog["reused_results"] == 0
+    assert prog["estimated_remaining_cost_usd"] == pytest.approx(2 * 8.36)
     assert (
         c.get("/marts/mart_entry_overview/rows", params={"nope": "1"}).status_code
         == 400

@@ -39,6 +39,6 @@ docker compose run --rm abatlas reuse . --from <前回の分析コミット> \
 
 確認記録は `analysis/reuse/` に入口ごとに残ります。判定が変わると計画 ID が変わるため、最新の一覧で確認をやり直してください。再利用を確定する操作は、入力が同じほかの候補の計画 ID を維持します。
 
-`validate result --work` と `build` は、元結果・入口・分析条件と、対象 Git の新旧の根拠ファイルを照合します。入口の概要の `target_commit` は実際に分析した版、`effective_commit` は利用できる版です。`update_status` の `analyzed` は分析、`reused` は再利用、`stale` は旧版の結果です。進捗の `analyzed` は結果がある入口の数、`current_results` は今回有効な数、`reused_results` はそのうち再利用した数です。元の結果・分析日時・レビューを再利用で上書きすることはありません。
+`validate result --work` と `build` は、元結果・入口・分析条件と、対象 Git の新旧の根拠ファイルを照合します。入口の概要の `target_commit` は実際に分析した版、`effective_commit` は利用できる版です。`update_status` の `analyzed` は分析、`reused` は再利用、`stale` は旧版の結果です。進捗の `analyzed` は結果がある入口の数、`current_results` は今回有効な数、`reused_results` はそのうち再利用した数です。残りのコスト・時間は、承認済みで今回有効な結果がない入口の件数から見積もります。元の結果・分析日時・レビューを再利用で上書きすることはありません。
 
 集計後の `diff . --from <前回の分析コミット>` は、以前と同じく入口ごとの分析内容の変化を出します。次の更新も元の分析コミットと直接比べます。
