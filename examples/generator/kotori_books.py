@@ -3333,7 +3333,10 @@ def main(argv=None) -> int:
                 "format_version": 1,
                 "target": work_target,
                 "profile": {"id": PROFILE_ID, "dir": f".abatlas/profiles/{PROFILE_ID}"},
-                "analysis": {"tests": True},
+                "analysis": {
+                    "tests": True,
+                    "entry_file_patterns": [r"flows/.+\.ya?ml"],
+                },
             },
             allow_unicode=True,
             sort_keys=False,

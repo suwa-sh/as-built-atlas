@@ -145,7 +145,7 @@ flowchart LR
 
 | Step | Action |
 |---|---|
-| Discover | With the `abatlas-discover-entries` skill, the agent configures discovery for this repository and adds entries the extractor misses, with evidence. |
+| Discover | Start with `code-map .` to list files at the target commit. The `abatlas-discover-entries` skill configures extraction and adds entries with evidence. Specify which files define entries to catch omissions before approval. |
 | Enumerate | Run `docker compose run --rm abatlas enumerate analysis/entry-list.yaml` to list candidates. The same commit and configuration produce the same list. |
 | Approve | Use `abatlas-run-analysis` to prepare the entry list and worklist. Answer open questions and approve the plan once. The agent then dispatches one analysis per entry. [Workflow](docs/architecture/impact.md) |
 | Analyze | With `abatlas-analyze-entry`, the agent produces one YAML file per approved entry. The result goes through automated checks and a separate agent review. |

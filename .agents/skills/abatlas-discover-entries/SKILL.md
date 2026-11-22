@@ -29,6 +29,7 @@ description: 分析対象リポジトリの「入口」(ジョブ・エンドポ
 ## 手順
 
 1. プロファイルを読む: `profile.yaml` (層、`extractors[]` の候補と `hint`、`hierarchy.derivation`) と `context.md` (入口の判別の節)
+   - 対象 Git を読める場合は、抽出器を設定する前に `<abatlas> code-map .` で固定コミットのファイル配置を確かめる。登録規約や設定から「各ファイルが入口を定義する」と確認できる範囲を、作業定義の `analysis.entry_file_patterns` に書く。式は scope からの相対パス全体に当てる。抽出器の出力から式を逆算すると、取りこぼした場所を検査できない
 2. 対象を調べる: `target.clone_path/target.scope` の中で、プロファイルの `extractors[].hint` に従って、入口を定義している場所・形式・必須項目を確かめる。`rg` / `find` / 実ファイルの先頭を読む程度にとどめ、全ファイルを読まない
    - コードの構文で探すときは、`<abatlas> code-search analysis/work-definition.yaml --language <言語> --files <glob> --pattern '<コードの形>'` を使う (一致した場所を出すだけで、一覧は変えない)
 3. `analysis/entry-list.yaml` を作る (無ければ)。既にあるときは、作り直さずに見直す: `profile.version` を、いまの `profile.yaml` の版に合わせる。版が上がっていたら、プロファイルの決まりを読み直し、抽出器の設定と、読んで足した入口 (`listed`) を、いまの決まりで見直す。`format_version: 1`、`target` は `analysis/work-definition.yaml` と同じ、`profile.id` と `profile.version` は `profile.yaml` から、`entries: []`
@@ -50,6 +51,7 @@ description: 分析対象リポジトリの「入口」(ジョブ・エンドポ
    - `listed` は、`extractors[]` の最後に書く。抽出器が出した入口を、`listed` に重ねて書かない (同じ id で、指す先か行が違うと、列挙が止まる)
    - `listed` が出す入口の層は、抽出器の `layer` で決まる (入口ごとには書けない)。入口の層が 2 つ以上あるプロファイルでは、層ごとに別の名前の `listed` を作り (例: `agent-listed-page`、`agent-listed-layout`)、その層の入口だけを書く
 7. 本番の列挙: `--dry-run` を外して実行する。`entries[]` に `status: candidate` で候補が書かれる
+   - 定義ファイルの規則を設定したら `<abatlas> code-map . --check` を実行する。漏れたパスの定義を読み、抽出器か `listed` を直して列挙と照合をやり直す。同じファイルに複数の入口がある場合は登録ごとに調べる
 8. 人に渡す報告を書く (標準出力でよい)
    - 件数と、階層の第 1 段ごとの内訳
    - 抽出器が出した件数と、読んで足した件数 (足した入口は、1 件ずつ id と理由)

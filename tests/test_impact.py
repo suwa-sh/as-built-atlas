@@ -1,5 +1,6 @@
 """実 Git の 2 つの履歴から、変更理由と再利用を入口単位で確かめる。"""
 
+import json
 import shutil
 import subprocess  # nosec B404 - test Git repositories
 
@@ -7,6 +8,7 @@ import pytest
 import yaml
 
 from abatlas import REPO_ROOT
+from abatlas.cli import main
 from abatlas.impact import confirm, format_plan, plan
 from abatlas.schemas import load_yaml, schema_errors
 from abatlas.validate import validate_result_file
@@ -136,6 +138,86 @@ def test_enumerates_fixed_tree_and_reports_renames(histories):
         "flows/daily/rotate_logs.yaml",
         "flows/daily/rotated.yaml",
     }
+
+
+def test_code_map_before_discovery_uses_scoped_commit(histories, capsys):
+    target, atlas, _ = histories
+    (atlas / "analysis/entry-list.yaml").unlink()
+    work_path = atlas / "analysis/work-definition.yaml"
+    work = load_yaml(REPO_ROOT / "tests/fixtures/work-definition.yaml")
+    work["target"].update(
+        scope="flows/monthly", commit=git(target, "rev-parse", "HEAD")
+    )
+    work["analysis"]["entry_file_patterns"] = [r".+\.yaml"]
+    work_path.write_text(yaml.safe_dump(work))
+    (target / "flows/monthly/new.yaml").touch()
+    (target / "flows/monthly/invoice_batch.yaml").unlink()
+    args = ["code-map", str(atlas), "--json"]
+    assert main(args) == 0
+    output = capsys.readouterr().out
+    report = json.loads(output)
+    assert report["scope"] == "flows/monthly"
+    assert report["target_commit"] == work["target"]["commit"]
+    assert (
+        report["files"]
+        == report["expected_entry_files"]
+        == [
+            "custom_reports.yaml",
+            "invoice_batch.yaml",
+            "monthly_kpi.yaml",
+            "purge_sessions.yaml",
+        ]
+    )
+    assert main(args) == 0
+    assert capsys.readouterr().out == output
+
+
+def test_code_map_reconciles_files_before_approval(histories, capsys):
+    from abatlas.batch import approve, preview
+
+    _, atlas, baseline = histories
+    ep = atlas / "analysis/entry-list.yaml"
+    args = ["code-map", str(atlas), "--json", "--check"]
+    assert main(args) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["missing_entry_files"] == []
+    assert report["entries_by_file"]["flows/daily/db_snapshot.yaml"] == [SNAP]
+    # 保存済みの一覧は全件揃っていても、抽出器から一部の定義が漏れる。
+    saved = load_yaml(ep)
+    saved["extractors"][0]["params"]["files"] = ["flows/daily/**/*.yaml"]
+    ep.write_text(yaml.safe_dump(saved))
+    before = ep.read_bytes()
+    assert main(args) == 1
+    missing = json.loads(capsys.readouterr().out)["missing_entry_files"]
+    assert "flows/monthly/invoice_batch.yaml" in missing
+    assert "flows/daily/db_snapshot.yaml" not in missing
+    draft = {"assessment": "全体案の確認"}
+    for revision in (None, baseline):
+        with pytest.raises(SystemExit, match="flows/monthly/invoice_batch.yaml"):
+            preview(atlas, revision, draft)
+        with pytest.raises(SystemExit, match="flows/monthly/invoice_batch.yaml"):
+            approve(atlas, revision, draft, "stale", "tester")
+    assert ep.read_bytes() == before
+
+
+def test_code_map_checks_each_pattern_and_supports_older_work(histories, capsys):
+    _, atlas, baseline = histories
+    path = atlas / "analysis/work-definition.yaml"
+    work = load_yaml(path)
+    args = ["code-map", str(atlas)]
+    work["analysis"]["entry_file_patterns"].append("absent/.+")
+    path.write_text(yaml.safe_dump(work))
+    assert main(args) == 2 and "absent/.+" in capsys.readouterr().err
+    work["analysis"]["entry_file_patterns"] = ["["]
+    path.write_text(yaml.safe_dump(work))
+    assert main(["validate", "work", str(path)]) == 1
+    assert "entry_file_patterns" in capsys.readouterr().out
+    assert main(args) == 2 and "entry_file_patterns" in capsys.readouterr().err
+    del work["analysis"]["entry_file_patterns"]
+    path.write_text(yaml.safe_dump(work))
+    assert main(args) == 0 and "未設定" in capsys.readouterr().out
+    assert main([*args, "--check"]) == 2 and "指定" in capsys.readouterr().err
+    assert plan(atlas, baseline)[0]["entries"]
 
 
 def test_second_update_compares_directly_with_analysis(histories):

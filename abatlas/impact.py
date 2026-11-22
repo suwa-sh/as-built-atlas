@@ -7,12 +7,14 @@ import yaml
 
 from . import analysis_dir, result_file_name
 from .build import PROFILE_FILE, profile_dir
+from .code_map import code_map, reconcile_entries
 from .diff import _git, results_at
 from .enumerate import enumerate_entries
 from .impact_evidence import checkpoints, linked_entries, references
 from .impact_git import TargetHistory, commit
 from .reuse import CONVENTIONS, ReuseContext, digest, record_path, save_record
 from .schemas import load_yaml, schema_errors
+from .validate import validate_work_definition
 
 WORK_FILE = "work-definition.yaml"
 
@@ -257,11 +259,26 @@ def _worklist(repo, baseline, ctx, old_work, before, changed_rules, current_list
     return rows, changes
 
 
-def plan_inputs(repo):
-    assets = analysis_dir(repo)
-    work = _valid("work-definition", load_yaml(assets / WORK_FILE))
-    path = assets / ENTRIES_FILE
-    saved = _valid("entry-list", load_yaml(path))
+def _read_input(path):
+    try:
+        return load_yaml(path)
+    except (OSError, UnicodeError, yaml.YAMLError) as ex:
+        raise SystemExit(
+            f"{path} を読めません。ファイルと YAML を確認してください: {ex}"
+        )
+
+
+def read_work(repo):
+    work = _read_input(analysis_dir(repo) / WORK_FILE)
+    problems = validate_work_definition(work)
+    if problems:
+        raise SystemExit(f"{WORK_FILE}: {problems[0]}")
+    return work
+
+
+def enumerate_at_target(repo, work, history):
+    path = analysis_dir(repo) / ENTRIES_FILE
+    saved = _valid("entry-list", _read_input(path))
     if saved["target"]["commit"] != work["target"]["commit"] or not _same_subject(
         saved["target"], work["target"]
     ):
@@ -269,10 +286,24 @@ def plan_inputs(repo):
             "impact: 入口一覧の target.repo/scope/commit を作業定義に合わせてください"
         )
     pp = profile_dir(repo) / PROFILE_FILE
-
-    history = TargetHistory(work["target"], assets)
     with history.snapshot() as scope:
         entries = enumerate_entries(path, pp, write=False, scope_override=scope)
+    return saved, entries
+
+
+def plan_inputs(repo):
+    work = read_work(repo)
+    history = TargetHistory(work["target"], analysis_dir(repo))
+    patterns = work.get("analysis", {}).get("entry_file_patterns")
+    report = code_map(history, patterns) if patterns else None
+    saved, entries = enumerate_at_target(repo, work, history)
+    if report and (
+        missing := reconcile_entries(report, entries["entries"])["missing_entry_files"]
+    ):
+        raise SystemExit(
+            "code-map: 次の定義ファイルに入口がありません。抽出器の設定と定義を確認してください:\n"
+            + "\n".join(missing)
+        )
     return work, saved, entries
 
 

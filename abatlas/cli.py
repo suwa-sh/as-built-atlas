@@ -8,6 +8,7 @@
       --profile を省くと、分析リポジトリの作業定義 (analysis/work-definition.yaml の profile.dir) から、集計と同じプロファイルを読む (enumerate も同じ)
     abatlas validate review <review.yaml>... [--result <result.yaml>]
   入口の列挙
+    abatlas code-map <repo> [--check] [--json]                         固定コミットのファイルを列挙。`--check` は入口の定義ファイルを再列挙結果と照合する
     abatlas enumerate <entry-list.yaml> [--profile <profile.yaml>] [--dry-run]
       --dry-run は、一覧を書かずに、候補を 1 行 1 件 (id、階層パス、層、抽出器、状態。タブ区切り) で出す
     abatlas extractors [<名前>]                                        コア同梱の抽出器の一覧。名前を渡すと、その params の全項目
@@ -192,6 +193,34 @@ def _run_enumerate(a):
                 f"{e['id']}\t{e['path']}\t{e['layer']}\t{e.get('extractor', '')}\t{e['status']}"
             )
     return 0
+
+
+def _run_code_map(a):
+    import json
+
+    from . import analysis_dir
+    from .code_map import code_map, format_code_map, reconcile_entries
+    from .impact import enumerate_at_target, read_work
+    from .impact_git import TargetHistory
+
+    repo = Path(a.repo).resolve()
+    work = read_work(repo)
+    history = TargetHistory(work["target"], analysis_dir(repo))
+    patterns = work.get("analysis", {}).get("entry_file_patterns", [])
+    report = code_map(history, patterns)
+    if a.check:
+        if not patterns:
+            raise SystemExit(
+                "code-map: 照合するには作業定義に analysis.entry_file_patterns を指定してください"
+            )
+        _, entries = enumerate_at_target(repo, work, history)
+        report.update(reconcile_entries(report, entries["entries"]))
+    print(
+        json.dumps(report, ensure_ascii=False, indent=2)
+        if a.json
+        else format_code_map(report)
+    )
+    return int(bool(report.get("missing_entry_files")))
 
 
 def _run_extractors(a):
@@ -405,6 +434,14 @@ def main(argv=None) -> int:
     v.add_argument("--profile")
     v.add_argument("--work")
     v.add_argument("--result")
+
+    cm = sub.add_parser("code-map", help="固定コミットから対象ファイルの地図を作る")
+    cm.set_defaults(handler=_run_code_map)
+    cm.add_argument("repo")
+    cm.add_argument(
+        "--check", action="store_true", help="定義ファイルと再列挙した入口を照合する"
+    )
+    cm.add_argument("--json", action="store_true")
 
     e = sub.add_parser("enumerate", help="抽出器を実行して入口の候補を一覧に書く")
     e.set_defaults(handler=_run_enumerate)

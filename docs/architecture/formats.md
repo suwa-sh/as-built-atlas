@@ -160,4 +160,6 @@ flowchart LR
 
 ## 全体承認
 
+作業定義の `analysis.entry_file_patterns` は、入口を定義するファイルの範囲を指定する任意の配列です。各要素は `target.scope` からの相対パス全体に照合する Python 正規表現です。各式に一致するファイルが 1 件以上必要で、その和集合が入口の照合対象になります。[コードマップと照合手順](impact.md)
+
 `propose --draft` で読む下書きの正本は `schema/batch-draft.schema.json`。採否や再分析の理由と、質問に対する人の回答を別々に記録します。確定した入口一覧の省略可能な `approval` は `schema/batch-approval.schema.json` に従います。計画 ID、対象版、承認者、下書き、実行する仕事、入口ごとの再利用記録を含みます。再利用には従来の `schema/reuse.schema.json` と同じ照合を行います。分析結果は引き続き1入口1ファイルです。

@@ -8,6 +8,7 @@ from __future__ import annotations
 from functools import lru_cache
 import os
 from pathlib import Path
+import re
 
 from . import ANALYSIS_DIR, file_name_collisions
 from .schemas import load_yaml, schema_errors, vocab, profile_term_problems
@@ -521,7 +522,17 @@ def _within_ref_problems(entries: list[dict]) -> list[str]:
 
 
 def validate_work_definition(work: dict) -> list[str]:
-    return [f"schema: {e}" for e in schema_errors("work-definition", work)]
+    findings = [f"schema: {e}" for e in schema_errors("work-definition", work)]
+    if findings:
+        return findings
+    for pattern in work.get("analysis", {}).get("entry_file_patterns", []):
+        try:
+            re.compile(pattern)
+        except (re.error, OverflowError) as ex:
+            findings.append(
+                f"analysis.entry_file_patterns: {pattern!r} を正規表現として読めません。式を直してください ({ex})"
+            )
+    return findings
 
 
 def validate_review(review: dict, result: dict | None = None) -> list[str]:
