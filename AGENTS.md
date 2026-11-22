@@ -33,11 +33,11 @@ uv run python examples/generator/kotori_books.py    # 公開サンプル (対象
 docker build -t ghcr.io/suwa-sh/as-built-atlas:dev .   # 配布物 (コンテナイメージ)。分析リポジトリはこれだけに依存する
 ```
 
-分析リポジトリ側の使い方 (docker compose) は `docs/architecture/analysis-repo.md`。配布物の中身を変えたら、イメージを作り直して、手元の確認用の分析リポジトリで `docker compose run --rm abatlas upgrade .` を試す。
+分析リポジトリ側の使い方は `docs/guide/README.md` (手引き)、コマンドの一覧は `docs/reference/commands.md`。配布物の中身を変えたら、イメージを作り直して、手元の確認用の分析リポジトリで `docker compose run --rm abatlas upgrade .` を試す。
 
 ## このリポジトリの約束
 
-- 正本は `schema/` (JSON Schema と語彙)。schema を変えたら `tests/fixtures/` の見本と `abatlas/validate.py` の意味検査も合わせて直し、`docs/architecture/` の説明 (形式は `formats.md`、地図は `README.md`) を更新する
+- 正本は `schema/` (JSON Schema と語彙)。schema を変えたら `tests/fixtures/` の見本と `abatlas/validate.py` の意味検査も合わせて直し、文書 (形式は `docs/reference/formats.md`、仕組みの地図は `docs/architecture/README.md`) を更新する
 - 決定論でできることは決定論で行う。抽出器・列挙・機械チェック・ETL・集計はスクリプトにし、エージェントに任せるのは、入口を見つけること (抽出器の設定を書き、抽出器で取れない入口を根拠付きで足す) と、各フレームの概要だけ
 - skill (`.agents/skills/`) は agent skills の規約の範囲で書き、特定製品のツール名を書かない
 - 公開されていない対象の分析結果は、このリポジトリに入れない (試すときの置き場 `spike/` は gitignore)
@@ -49,7 +49,7 @@ docker build -t ghcr.io/suwa-sh/as-built-atlas:dev .   # 配布物 (コンテナ
 ## 知識の読み分け
 
 - このリポジトリを直すときは、skill `dev-change` の流れに従う。触る部分ごとのルールは `docs/rules/README.md` の表から選ぶ
-- 決定の経緯は `docs/adr/`、いま守ることは `docs/architecture/` (仕組み) と `docs/rules/` (開発のルール)
+- 決定の経緯は `docs/adr/`、いま守ることは `docs/guide/` (使う手順)、`docs/architecture/` (仕組みと理由)、`docs/reference/` (仕様)、`docs/rules/` (開発のルール)。どこに何を書くかは `docs/rules/docs.md`
 - リポジトリ知識の全体像が必要なときは `docs/README.md` から辿る
 - 作業開始時に `.agents/memory/index.md` を読み、対象タスクに必要なリンクだけを追加で読む
 - スキル実行時は、そのスキルの `SKILL.md` と参照された資料を優先する

@@ -1,6 +1,6 @@
 # nocodb-gui-atlas (Nuxt の画面を分析した見本)
 
-表計算の形のデータベース NocoDB の画面 (Nuxt、`packages/nc-gui/`) を、as-built-atlas の `ui-nuxt` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/architecture/examples.md))。
+表計算の形のデータベース NocoDB の画面 (Nuxt、`packages/nc-gui/`) を、as-built-atlas の `ui-nuxt` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/reference/examples.md))。
 
 | | |
 |---|---|

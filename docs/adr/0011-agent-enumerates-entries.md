@@ -50,4 +50,4 @@
 - 同じ設定から同じ一覧が出る、という性質は残る。エージェントが足した入口も、設定に書かれているためである。変わるのは、設定を書くときに、エージェントの判断が入る範囲である。
 - エージェントが足した入口は、道具が出した入口より誤りやすい。人は、印の付いた入口を、理由と根拠を読んで承認する。
 - 配布物のイメージに、ast-grep (MIT License) が入る。
-- 最新の状態: [../architecture/profiles.md](../architecture/profiles.md) の「抽出器の契約」、[../architecture/pipeline.md](../architecture/pipeline.md) の「流れ」、[../rules/common.md](../rules/common.md) の「進め方」。
+- 最新の状態: [../reference/profiles.md](../reference/profiles.md) の「抽出器の契約」、[../architecture/pipeline.md](../architecture/pipeline.md) の「流れ」、[../rules/common.md](../rules/common.md) の「進め方」。

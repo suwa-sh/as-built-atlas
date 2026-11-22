@@ -35,4 +35,4 @@
 ## 結果
 
 - [0009](0009-field-names-match-labels.md) の「結果」にある、手で書き換える手順は、このコマンドに置き換わった。
-- 最新の状態: [../architecture/analysis-repo.md](../architecture/analysis-repo.md) の「コマンド」、[../rules/schema.md](../rules/schema.md) の「版」。
+- 最新の状態: [../reference/commands.md](../reference/commands.md) の「コマンド」、[../rules/schema.md](../rules/schema.md) の「版」。

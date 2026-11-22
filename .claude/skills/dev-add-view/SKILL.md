@@ -29,7 +29,7 @@ description: as-built-atlas の画面に、新しい表示の種類 (集計表�
 | 6 | `abatlas/webapp/model/vocab.js` | `VIEW_ORDER` に足し、`viewHint` に、読み方の既定の文を足す (呼び名は `term()` で引く) |
 | 7 | `abatlas/webapp/css/views.css` | 節を足す。色・線・余白は `DESIGN.md` の決まりに合わせる |
 | 8 | テスト | 宣言の検査のテスト、その表を探すテスト (`tests/test_navigation_api.py`) を直す |
-| 9 | 文書 | `docs/architecture/pipeline.md` の表示の種類の表、`docs/architecture/webapp.md` の描き方と `views/` の表、`DESIGN.md` の部品の表 |
+| 9 | 文書 | `docs/reference/marts.md` の表示の種類の表、`docs/architecture/webapp.md` の描き方、`docs/rules/webapp.md` の `views/` の表、`DESIGN.md` の部品の表 |
 
 描き方 (順 4) を書くときは、`docs/rules/webapp.md` の「作りの決まり」と「見せ方の決まり」を読んでから書く。書いた後に、次の場合を 1 つずつ考える。
 

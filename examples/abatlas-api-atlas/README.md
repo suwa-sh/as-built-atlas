@@ -1,6 +1,6 @@
 # abatlas-api-atlas (API を分析した見本)
 
-as-built-atlas 自身の API と MCP (Python、FastAPI) を、as-built-atlas の `api` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/architecture/examples.md))。
+as-built-atlas 自身の API と MCP (Python、FastAPI) を、as-built-atlas の `api` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/reference/examples.md))。
 
 | | |
 |---|---|

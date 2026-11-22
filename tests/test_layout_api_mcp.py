@@ -109,6 +109,8 @@ def test_init_layout(repo: Path):
         "tests/fixtures/result-housekeeping.yaml",
         "docs/architecture/README.md",
         "docs/guide/README.md",
+        "docs/reference/README.md",
+        "docs/reference/profiles/ui-nextjs.md",
         "OWNED.md",
     ):
         assert (oss / item).exists(), item

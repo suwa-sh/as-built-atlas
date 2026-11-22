@@ -1,6 +1,6 @@
 # chat-ui-atlas (SvelteKit の画面を分析した見本)
 
-チャットの画面 chat-ui (SvelteKit) を、as-built-atlas の `ui-sveltekit` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/architecture/examples.md))。
+チャットの画面 chat-ui (SvelteKit) を、as-built-atlas の `ui-sveltekit` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/reference/examples.md))。
 
 | | |
 |---|---|

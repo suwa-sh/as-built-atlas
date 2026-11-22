@@ -1,6 +1,6 @@
 # 公開サンプルと突き合わせ
 
-[← architecture の地図へ](README.md)
+[← 仕様の地図へ](README.md)
 
 `examples/` に、見本を、プロファイルごとに 1 つ持ちます (経緯は ADR 0017)。イメージには入れません (リポジトリからコピーして使います)。
 
@@ -65,7 +65,7 @@ flowchart LR
 | 点 | 内容 |
 |---|---|
 | `target.commit` | 対象のディレクトリの**内容ハッシュ** (sha1、40 桁)。対象は as-built-atlas の一部で、独立した git の履歴を持たないため、コミットの代わりに置く |
-| 自分のエージェントで分析し直すとき | 対象を git リポジトリにして、`commit` を書き換える (ルートの README の手順) |
+| 自分のエージェントで分析し直すとき | 対象を git リポジトリにして、`commit` を書き換える (手引きの [エージェントの精度を測る](../guide/evaluate.md)) |
 | 使うとき | checkout の外へ、`kotori-books/` と `kotori-books-atlas/` を**並べて**コピーする (`.env` が `ABATLAS_TARGET=../kotori-books` で、`init` が git init するため) |
 | checkout の中で init したとき | 生成物は `.gitignore` で除外している |
 

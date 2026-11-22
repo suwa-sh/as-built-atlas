@@ -103,5 +103,5 @@ extractors:
 
 ## 参照
 
-- 抽出器の契約と `params` の書き方: `<oss>/docs/architecture/profiles.md` の「抽出器の契約」、`<oss>/schema/entry-candidate.schema.json`、プロファイルの `profile.yaml` の `extractors[]` (既定の params と hint)。コア同梱の抽出器の `params` の全項目は、`<abatlas> extractors <名前>` で出す (名前は `structured-query` / `nested-keys` / `glob` / `ast` / `listed`)
+- 抽出器の契約と `params` の書き方: `<oss>/docs/reference/profiles.md` の「抽出器の契約」、`<oss>/schema/entry-candidate.schema.json`、プロファイルの `profile.yaml` の `extractors[]` (既定の params と hint)。コア同梱の抽出器の `params` の全項目は、`<abatlas> extractors <名前>` で出す (名前は `structured-query` / `nested-keys` / `glob` / `ast` / `listed`)
 - 入口一覧の形式: `<oss>/schema/entry-list.schema.json`

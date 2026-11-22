@@ -1,6 +1,6 @@
 # 分析結果の形式
 
-[← architecture の地図へ](README.md)
+[← 仕様の地図へ](README.md)
 
 分析結果は、入口 1 件につき YAML 1 ファイルです。形式の正本は `schema/analysis-result.schema.json`、正しい例は `tests/fixtures/result-housekeeping.yaml` です。ここでは、形式の考え方を書きます。
 
@@ -150,7 +150,7 @@ flowchart LR
 | `reviewed` | `by`<br>`at`<br>`findings_open` | レビューの記録 | レビューの後 |
 | `run` | `cost_usd`<br>`duration_s`<br>`by` | 費用と時間。任意 | エージェントを呼び出した側 |
 
-**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致し (skill の版は、2 つ目の数字までを比べる。3 つ目だけの違いは、同じと見る)、テストとの対応の選択 (作業定義の `analysis.tests` と、結果の `analyzer.tests`) も同じ結果があるとき。対象コミットを進めたときは、根拠・条件を対象 Git と照合した再利用の確認記録も使えます。手順と記録の場所は[対象コードの差分](impact.md)にあります。
+**再分析しない条件**: `target.commit`、`analyzer.profile.version`、`analyzer.skill_version` の 3 つが一致し (skill の版は、2 つ目の数字までを比べる。3 つ目だけの違いは、同じと見る)、テストとの対応の選択 (作業定義の `analysis.tests` と、結果の `analyzer.tests`) も同じ結果があるとき。対象コミットを進めたときは、根拠・条件を対象 Git と照合した再利用の確認記録も使えます。手順と記録の場所は[対象コードの差分](update-commands.md)にあります。
 
 | 決まり | 理由 |
 |---|---|
@@ -160,6 +160,6 @@ flowchart LR
 
 ## 全体承認
 
-作業定義の `analysis.entry_file_patterns` は、入口を定義するファイルの範囲を指定する任意の配列です。各要素は `target.scope` からの相対パス全体に照合する Python 正規表現です。各式に一致するファイルが 1 件以上必要で、その和集合が入口の照合対象になります。[コードマップと照合手順](impact.md)
+作業定義の `analysis.entry_file_patterns` は、入口を定義するファイルの範囲を指定する任意の配列です。各要素は `target.scope` からの相対パス全体に照合する Python 正規表現です。各式に一致するファイルが 1 件以上必要で、その和集合が入口の照合対象になります。[コードマップと照合手順](update-commands.md)
 
 `propose --draft` で読む下書きの正本は `schema/batch-draft.schema.json`。採否や再分析の理由と、質問に対する人の回答を別々に記録します。確定した入口一覧の省略可能な `approval` は `schema/batch-approval.schema.json` に従います。計画 ID、対象版、承認者、下書き、実行する仕事、入口ごとの再利用記録を含みます。再利用には従来の `schema/reuse.schema.json` と同じ照合を行います。分析結果は引き続き1入口1ファイルです。

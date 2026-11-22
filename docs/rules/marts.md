@@ -2,7 +2,7 @@
 
 [← rules の地図へ](README.md)
 
-対象: `dbt-template/` (コアの集計表)、`profiles/*/dbt-template/` (プロファイル固有の集計表)、`abatlas/declarations.py` (宣言の検査)。仕組みの説明は [../architecture/pipeline.md](../architecture/pipeline.md) です。
+対象: `dbt-template/` (コアの集計表)、`profiles/*/dbt-template/` (プロファイル固有の集計表)、`abatlas/declarations.py` (宣言の検査)。仕組みの説明は [../architecture/pipeline.md](../architecture/pipeline.md)、集計表の一覧と宣言の仕様は [../reference/marts.md](../reference/marts.md) です。
 
 ## 守ること
 
@@ -27,7 +27,7 @@
 | `abatlas/webapp/views/<name>.js` と、`views/index.js` の `renderers` | 描き方 |
 | `abatlas/webapp/model/vocab.js` の `VIEW_ORDER` と `viewHint` | 並び順と、読み方の既定の文 |
 | `abatlas/webapp/css/views.css` | 見た目 |
-| `docs/architecture/pipeline.md` と `webapp.md` | 表示の種類の表 |
+| `docs/reference/marts.md` と `docs/architecture/webapp.md` | 表示の種類の表 |
 
 ## メニューの項目 (`subject`) を足すとき
 
@@ -43,5 +43,5 @@
 
 - 列を変えたら、宣言の `keys` / `show` / `labels` / `filters` も合わせます (検査が、列の実在を見ます)。
 - 宣言の `origin` は、定義の置き場所と同じにします (`models/core/` なら `core`)。集計の検査が、食い違いを止めます (`tests/test_webapp.py`)。
-- コアの集計表を足したら、`docs/architecture/pipeline.md` の「コアの集計表」に 1 行足します。
+- コアの集計表を足したら、`docs/reference/marts.md` の「コアの集計表」に 1 行足します。
 - 数を数える列は、何を数えているかを `labels` と `hint` に書きます (例: 箇所の数、入口の数)。

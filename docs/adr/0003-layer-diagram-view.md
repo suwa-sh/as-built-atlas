@@ -25,4 +25,4 @@
 ## 結果
 
 - 表示の種類は 7 つになった。足すときに触る場所は [../rules/marts.md](../rules/marts.md)。
-- 最新の状態: [../architecture/pipeline.md](../architecture/pipeline.md) の「層の並び」、[../architecture/webapp.md](../architecture/webapp.md)。
+- 最新の状態: [../reference/marts.md](../reference/marts.md) の「層の並び」、[../architecture/webapp.md](../architecture/webapp.md)。

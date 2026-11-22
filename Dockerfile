@@ -30,6 +30,7 @@ COPY .agents ./.agents
 COPY tests/fixtures ./tests/fixtures
 COPY docs/architecture ./docs/architecture
 COPY docs/guide ./docs/guide
+COPY docs/reference ./docs/reference
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
 ENV PATH="/opt/abatlas/.venv/bin:$PATH"

@@ -85,5 +85,6 @@ ABATLAS_IMAGE=ghcr.io/suwa-sh/as-built-atlas:<版>
 
 | 知りたいこと | 文書 |
 |---|---|
-| 分析リポジトリのパスごとの持ち主、`migrate` が書き換える範囲 | [分析リポジトリと配布物](../architecture/analysis-repo.md) |
-| 分析し直すかどうかの条件 | [分析結果の形式](../architecture/formats.md) の「来歴」 |
+| 分析リポジトリのパスごとの持ち主 | [分析リポジトリと配布物](../architecture/analysis-repo.md) |
+| `migrate` が書き換える範囲、書き換えを見送る条件 | [コマンド](../reference/commands.md) |
+| 分析し直すかどうかの条件 | [分析結果の形式](../reference/formats.md) の「来歴」 |

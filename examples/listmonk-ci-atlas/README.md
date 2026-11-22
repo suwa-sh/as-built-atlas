@@ -1,6 +1,6 @@
 # listmonk-ci-atlas (GitHub Actions のワークフローを分析した見本)
 
-メール配信ソフト listmonk の GitHub Actions のワークフロー を、as-built-atlas の `batch-github-actions` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/architecture/examples.md))。
+メール配信ソフト listmonk の GitHub Actions のワークフロー を、as-built-atlas の `batch-github-actions` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/reference/examples.md))。
 
 | | |
 |---|---|

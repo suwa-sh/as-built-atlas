@@ -1,6 +1,6 @@
 # abatlas-dbt-atlas (dbt のモデルを分析した見本)
 
-as-built-atlas 自身の集計 (dbt のモデル。`dbt-template/`) を、as-built-atlas の `transform-dbt` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/architecture/examples.md))。
+as-built-atlas 自身の集計 (dbt のモデル。`dbt-template/`) を、as-built-atlas の `transform-dbt` プロファイルで分析した状態の、分析リポジトリの資産です。プロファイルごとに 1 つ置いている見本の 1 つです ([見本の一覧](../../docs/reference/examples.md))。
 
 | | |
 |---|---|
