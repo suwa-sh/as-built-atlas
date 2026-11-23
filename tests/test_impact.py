@@ -217,6 +217,30 @@ def test_code_map_check_stops_when_extractor_cannot_start(histories, capsys):
     assert "extractor 'own' を起動できない" in err and own.name in err
 
 
+def test_extractor_search_failure_stops_with_message(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from abatlas.enumerate import run_extractor
+
+    def denied(self):  # 置き場を読めない (Python の版によっては、is_file が例外を出す)
+        raise PermissionError(13, "Permission denied")
+
+    def loop(self, strict=False):  # リンクの循環 (Python 3.12 までは RuntimeError)
+        raise RuntimeError(f"Symlink loop from {self}")
+
+    ex = {"name": "own", "run": "own-extractor.sh", "layer": "scheduler"}
+    for name, fake, reason in (
+        ("is_file", denied, "Permission denied"),
+        ("resolve", loop, "Symlink loop"),
+    ):
+        with monkeypatch.context() as m:
+            m.setattr(Path, name, fake)
+            with pytest.raises(SystemExit) as stopped:
+                run_extractor(ex, tmp_path, None, tmp_path)
+        message = str(stopped.value)
+        assert "extractor 'own' を起動できない" in message and reason in message
+
+
 def test_code_map_checks_each_pattern_and_supports_older_work(histories, capsys):
     _, atlas, baseline = histories
     path = atlas / "analysis/work-definition.yaml"

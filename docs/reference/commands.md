@@ -20,7 +20,7 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 | プロファイルを検査する | `docker compose run --rm abatlas validate profile <profile.yaml>` |
 | 対象のコードマップを作る | `docker compose run --rm abatlas code-map .`。[定義ファイルと入口の照合](update-commands.md) |
 | 入口の一覧を検査する | `docker compose run --rm abatlas validate entries analysis/entry-list.yaml` |
-| 入口を列挙する | `docker compose run --rm abatlas enumerate analysis/entry-list.yaml`。`--dry-run` を付けると、一覧を書かずに候補を出す。対象の clone にいまあるファイルを読む (Git が無視するファイルも読む。`code-map` と承認の案は、作業定義のコミットに入っているファイルだけを読む) |
+| 入口を列挙する | `docker compose run --rm abatlas enumerate analysis/entry-list.yaml`。`--dry-run` を付けると、一覧を書かずに候補を出す。対象の clone にいまあるファイルを読む (Git が無視するファイルも読む。`code-map` と承認の案は、作業定義のコミットから取り出したファイルを読み、コミットに無いファイルは読まない。コミットの中のシンボリックリンクが対象の範囲の外を指すときの扱いは、抽出器で違う。`structured-query` はリンク先のいまの内容を読み、`ast` と `listed` はエラーで止まる) |
 | コア同梱の抽出器と、その `params` の全項目を見る | `docker compose run --rm abatlas extractors [<名前>]` ([profiles.md](profiles.md) の「抽出器の契約」) |
 | 対象のコードを、構文で探す | `docker compose run --rm abatlas code-search analysis/work-definition.yaml --language <言語> --files <glob> --pattern '<コードの形>'` |
 | 分析結果を検査する | `docker compose run --rm abatlas validate result analysis/results/<file> --work analysis/work-definition.yaml` |
