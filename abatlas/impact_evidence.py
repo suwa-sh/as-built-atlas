@@ -1,6 +1,6 @@
 """入口の根拠ファイルと、変更箇所へ届く前回の呼び出し経路。"""
 
-from pathlib import Path
+from pathlib import PurePosixPath
 
 
 def references(node):
@@ -8,7 +8,7 @@ def references(node):
     if isinstance(node, dict):
         for source in [node.get("source"), *node.get("evidence", [])]:
             if isinstance(source, dict) and "file" in source:
-                yield str(Path(source["file"]))
+                yield str(PurePosixPath(source["file"]))
         for child in node.values():
             yield from references(child)
     elif isinstance(node, list):

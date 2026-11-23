@@ -1,7 +1,7 @@
 """差分分析で使用する、固定コミットの読み取り。"""
 
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 
 from .diff import _git
@@ -35,6 +35,10 @@ class TargetHistory:
         self._changes = {}
         self._tree = None
 
+    def _in_scope(self, path):
+        """Git が返すパスを、範囲からの相対にする。区切りは、どの OS でも「/」(規則や根拠のパスと比べるため)。"""
+        return str(PurePosixPath(path).relative_to(self.scope.as_posix()))
+
     def changes(self, old):
         if old not in self._changes:
             resolved = commit(self.root, old)
@@ -51,7 +55,7 @@ class TargetHistory:
                 self.scope.as_posix(),
             )
             self._changes[old] = sorted(
-                str(Path(p).relative_to(self.scope)) for p in paths.split("\0") if p
+                self._in_scope(p) for p in paths.split("\0") if p
             )
         return self._changes[old]
 
@@ -71,7 +75,7 @@ class TargetHistory:
             for row in filter(None, data.split("\0")):
                 meta, path = row.split("\t", 1)
                 if meta.startswith(("100644 blob ", "100755 blob ")):
-                    self._tree.add(str(Path(path).relative_to(self.scope)))
+                    self._tree.add(self._in_scope(path))
         return self._tree
 
     def checkout_matches(self):

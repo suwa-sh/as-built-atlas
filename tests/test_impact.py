@@ -246,6 +246,21 @@ def test_extractor_search_failure_does_not_fall_back(tmp_path):
             (profile / "bin").chmod(0o755)
 
 
+def test_target_paths_use_slash_on_any_os():
+    from pathlib import PureWindowsPath
+    from types import SimpleNamespace
+
+    from abatlas.impact_evidence import references
+    from abatlas.impact_git import TargetHistory
+
+    # Windows では、範囲 (scope) のパスの区切りが「\」になる。Git が返すパスと規則は「/」
+    windows = SimpleNamespace(scope=PureWindowsPath("apps\\web"))
+    assert TargetHistory._in_scope(windows, "apps/web/flows/a.yaml") == "flows/a.yaml"
+    here = SimpleNamespace(scope=PureWindowsPath("."))
+    assert TargetHistory._in_scope(here, "flows/a.yaml") == "flows/a.yaml"
+    assert list(references({"source": {"file": "./flows/a.yaml"}})) == ["flows/a.yaml"]
+
+
 def test_broken_run_setting_stops_with_message(tmp_path):
     from abatlas.enumerate import _command
 
