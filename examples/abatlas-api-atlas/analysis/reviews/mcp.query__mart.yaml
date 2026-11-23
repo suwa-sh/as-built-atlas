@@ -1,7 +1,21 @@
 format_version: 1
 entry_id: mcp.query__mart
-reviewed_at: "2026-11-18T00:21:48Z"
+reviewed_at: "2026-11-23T10:12:27Z"
 reviewer: "claude-opus-5-5 (fresh context)"
 machine_check: ok
-findings: []
-notes: "根拠の行 (mcp_server.py の 3, 22, 26-32, 40-42, 53, 77-80, 97 行) をすべて開き、主張を支えていることを確かめた。木の形 (入口 → handler → ApiClient.query_mart → httpx.AsyncClient.get)、links の綴り (/marts/{name}/rows、entry_id marts.name_d.rows.get)、_json を rules (decision) に書くこと、転送の違いを adapter の note に書き settings に書かないことは、analysis-conventions.md の「MCP のツール」と合う。note の中の api.py と cli.py の主張 (in_process_client を create_server で使う、TransportSecuritySettings の Host と Origin の許可を _allowed_hosts() から作る、--api の既定 http://127.0.0.1:8765) は、作業ツリーの api.py 425-439 行 (コミットでは 44 行前) と cli.py 190 行で確かめた。指摘にしなかったこと: (a) 入口の summary の「ツールの名前は関数の名前」は、コードではなく MCP SDK の既定の振る舞いだが、広く知られた既定で、主張の中心でもないので fact のままでよいとした。(b) /mcp の DNS rebinding 対策をフレームにせず note に書いた判断は、確認の実体が SDK の中で、規約の木にも無いので妥当とした。"
+findings:
+  - kind: evidence_mismatch
+    severity: low
+    where: summary
+    claim: "入口の概要は filters を「列ごとの等値の絞り込み」と書くが、ツールは filters の項目をそのままクエリにして渡し、呼ばれる操作は列名の接尾辞 __prefix / __under / __contains / __min / __max を前方一致・配下・部分一致・数値の範囲として読み、order の項目は並べ替えとして読む (api.py 60-62 行、245 行)。根拠の行 (mcp_server.py 79 行) はツールの説明 (docstring) で、コードの動きを支えていない"
+    evidence: { file: api.py, line: 61 }
+    suggestion: "概要の「等値の絞り込み」を「列ごとの絞り込み (既定は等値。呼ばれる操作が接尾辞で前方一致などに、order を並べ替えに読む)」のように、コードを正とした書き方に直し、api.py 60-62 行と 245 行を根拠に足す"
+    resolved: true
+  - kind: missing_item
+    severity: low
+    where: callstack/tool/summary
+    claim: "入口のフレームの summary の note は、説明 (docstring) とコードの食い違いとして limit の上限だけを書き、filters が等値に限らない (接尾辞で前方一致などになり、order は並べ替えになる) 食い違いを書いていない (order は adapter の note にだけある)。parameters の filters の value も「等値の絞り込み」のまま"
+    evidence: { file: mcp_server.py, line: 79 }
+    suggestion: "context.md の「説明とコードが食い違うときは、食い違いを summary の note に書く」に従い、filters の食い違い (api.py 60-62 行と 245 行) を入口のフレームの summary の note に足し、parameters の filters の value も合わせて直す"
+    resolved: true
+notes: "(1) 入口の id (mcp.query__mart) と path (/mcp/query_mart) は、プロファイルの hierarchy.derivation と context.md の決まり (/(mcp)/tools/query_mart、mcp_x.tools.query__mart) と違う。結果の notes が理由 (入口の一覧に合わせた) を書いているので、結果への指摘にはしない。入口の一覧を直すかは人が決める。(2) 綴りの手本 marts.name_d.rows.get の結果はいまは analysis/results/ にあり、links の target /marts/{name}/rows と entry_id はそれと矛盾しない。(3) handler の call の根拠 (登録の行 77)、ApiClient._json を rules (decision) に書く扱い、httpx.AsyncClient.get で閉じる形、Host / Origin の確認を note に書く扱いは、analysis-conventions.md と context.md のとおり。(4) 接続できないときなど、httpx が例外を投げる経路は {error, status} にならないが、rules の主張は状態 400 以上に限っているので誤りではない"

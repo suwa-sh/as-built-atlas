@@ -7,132 +7,131 @@ entry:
   source: { file: mcp_server.py, line: 77 }
 target:
   repo: github.com/suwa-sh/as-built-atlas
-  name: as-built-atlas (API + MCP)
+  name: "as-built-atlas (API + MCP)"
   clone_path: ../as-built-atlas
   scope: abatlas
   commit: aa48c0046e528ce4c04b1e778b5cd38ebc94b069
 analyzer:
   profile: { id: api, version: "0.1.0" }
-  skill_version: "0.4.1"
+  skill_version: "0.4.6"
   model: claude-opus-5-5
-  analyzed_at: "2026-11-18T00:21:00Z"
+  analyzed_at: "2026-11-23T10:15:27Z"
   reviewed:
     by: "claude-opus-5-5 (fresh context)"
-    at: "2026-11-18T00:21:48Z"
+    at: "2026-11-23T10:12:27Z"
     findings_open: 0
+notes: "(1) 綴りの手本 marts.name_d.rows.get の結果 (レビューの後に読んだ) と突き合わせた。links の target /marts/{name}/rows は、その入口の entry.name と登録の行の path の書き方と同じ。共通の段 (LoopbackHostMiddleware など) は、この入口の木には出てこないので、突き合わせる名前はほかに無い。フレームの kind は手本にそろえ、受け口の関数を handler、ApiClient.query_mart を method にした (入口のフレームは context.md のとおり mcp_tool、外部は library)。(2) entry の path は入口の一覧のとおり /mcp/query_mart にした。プロファイルの hierarchy.derivation は MCP のツールを /(mcp)/tools/query_mart とするが、入口の一覧は変えない約束なので、一覧に合わせた。(3) ApiClient._json の状態の判定は、analysis-conventions.md のとおり、フレームにせず ApiClient.query_mart の rules (decision) に書いた。(4) evidence コマンドが並べた主張は 0 件 (照合 3 件)。(5) MCP の SDK の Host / Origin の確認は、context.md のとおりフレームにせず、入口のフレームの summary の note に、許可の集合を作る行 (api.py 142-145 行、388-394 行) と一緒に書いた。ABATLAS_ALLOWED_HOSTS は settings には書いていない。(6) レビューの low の指摘 2 件 (filters を等値とだけ書いていた点) は、どちらも直した。入口の概要と、入口のフレームの summary の note と、parameters の filters を、コードを正とした書き方にし、api.py 59-61 行と 245 行を根拠に足した"
 summary:
   status: interpretation
-  value: "MCP のツール query_mart。名前で指定した集計表 (mart) の行を、絞り込み・limit・offset を付けて読む。ツール自身は mart も SQL も知らず、受け取った引数をそのまま、集計表 API の GET /marts/{name}/rows に問い合わせ (同じプロセスなら ASGI で直接、stdio で出すときは HTTP で別プロセスの API へ)、API が誤りの状態 (400 以上) を返したときは、例外にせず {error, status} の形にして返す"
+  value: "MCP のツール query_mart。mart の名前と、列ごとの絞り込み (既定は等値。呼ばれる操作が、列名の接尾辞で前方一致・配下・部分一致・数値の範囲に、order の項目を並べ替えに読む)・件数・開始位置を受け取り、ApiClient を通して同じシステムの HTTP の操作 GET /marts/{name}/rows を呼び、その応答 (失敗なら error と status の形) をそのまま返す。ツール自身は mart の SQL を知らず、DuckDB を直接読まない"
   evidence:
     - { file: mcp_server.py, line: 77 }
-    - { file: mcp_server.py, line: 79 }
-    - { file: mcp_server.py, line: 3 }
+    - { file: mcp_server.py, line: 78 }
+    - { file: api.py, line: 59 }
+    - { file: api.py, line: 60 }
+    - { file: api.py, line: 61 }
+    - { file: api.py, line: 245 }
     - { file: mcp_server.py, line: 80 }
     - { file: mcp_server.py, line: 41 }
     - { file: mcp_server.py, line: 42 }
-    - { file: mcp_server.py, line: 53 }
-    - { file: mcp_server.py, line: 97 }
     - { file: mcp_server.py, line: 26 }
     - { file: mcp_server.py, line: 31 }
+    - { file: mcp_server.py, line: 3 }
 callstack:
-  - id: op
+  - id: tool
     layer: operation
     kind: mcp_tool
-    name: "tool query_mart"
+    name: "query_mart"
     source: { file: mcp_server.py, line: 77 }
     caller: null
     summary:
-      status: fact
-      value: "build_server の中で @mcp.tool() を付けた async 関数 query_mart として登録された MCP のツール (ツールの名前は関数の名前)。ツールの説明は「mart の行を読む。filters は {列名: 値} の等値絞り込み。limit は最大 10000。」"
+      status: interpretation
+      value: "mart の行を読む。filters は {列名: 値} の等値絞り込み。limit は最大 10000。"
       evidence:
-        - { file: mcp_server.py, line: 77 }
-        - { file: mcp_server.py, line: 78 }
         - { file: mcp_server.py, line: 79 }
-      note: "説明とコードの食い違い (コードを正とする): (a) filters は「等値絞り込み」とあるが、キーはそのまま API のクエリ文字列になるので、API の接尾辞 (__prefix / __contains / __under / __min / __max) も、並べ替えの order も効く。(b)「limit は最大 10000」は、ツールでは確かめず、API が拒み、その誤りを {error, status} にして返す。認証の確認は、ツールにも MCP のサーバーにも無い。abatlas serve で出すときは、/mcp の転送口で MCP SDK が Host と Origin を確かめる (DNS rebinding 対策。許可の集合は api.py の _allowed_hosts() から作る。SDK の中なので辿らない)。stdio で出すとき (abatlas mcp) は、その確認は無い"
+      note: "ツールの説明 (docstring) をそのまま写した。(1) 「limit は最大 10000」は、ツールの側では確かめていない (mcp_server.py 78 行は int の既定 200 だけ)。上限を確かめるのは、呼ばれる HTTP の操作の引数の宣言 (api.py 243 行の Query(200, ge=1, le=10000)) で、超えると API が誤りを返し、ツールは error と status の形で返す。(2) 説明は filters を「等値絞り込み」とするが、ツールは filters の項目をそのままクエリにして渡し (mcp_server.py 41-42 行)、呼ばれる操作は、列名の接尾辞 __prefix / __under / __contains / __min / __max を前方一致・配下・部分一致・数値の範囲として読み (api.py 59-61 行)、order の項目を絞り込みから外して並べ替えの列として読む (api.py 245 行)。コードを正とし、等値は接尾辞の無いときの既定とした。(3) 転送口 /mcp で MCP の SDK が行う Host / Origin の確認は、フレームにしない。許可の集合は、リポジトリのコードが _allowed_hosts() (api.py 142-145 行。ループバックの名前と、環境変数 ABATLAS_ALLOWED_HOSTS の名前) から、ポートの有る無しの両方で作る (api.py 388-394 行)。標準入出力で出す経路 (mcp_server.py 95-97 行の run) には、この確認は無い"
     parameters:
       - name: name
-        value: "str。必須。読む mart の名前"
+        value: "str (既定なし)。読む mart の名前"
         status: fact
         evidence: [{ file: mcp_server.py, line: 78 }]
       - name: filters
-        value: "dict[str, str] | None。既定 None。{列名: 値} の絞り込み"
+        value: "dict[str, str] | None (既定 None)。{列名: 値} の絞り込み。既定は等値で、呼ばれる操作が、列名の接尾辞 __prefix / __under / __contains / __min / __max で比べ方を変え、order の項目を並べ替えに読む"
         status: fact
         evidence:
           - { file: mcp_server.py, line: 78 }
-          - { file: mcp_server.py, line: 79 }
+          - { file: mcp_server.py, line: 41 }
+          - { file: api.py, line: 59 }
+          - { file: api.py, line: 61 }
+          - { file: api.py, line: 245 }
       - name: limit
-        value: "int。既定 200。説明では最大 10000"
-        status: fact
-        evidence:
-          - { file: mcp_server.py, line: 78 }
-          - { file: mcp_server.py, line: 79 }
-      - name: offset
-        value: "int。既定 0"
+        value: "int (既定 200)。返す行の数"
         status: fact
         evidence: [{ file: mcp_server.py, line: 78 }]
-  - id: query_mart_tool
+      - name: offset
+        value: "int (既定 0)。返し始める行の位置"
+        status: fact
+        evidence: [{ file: mcp_server.py, line: 78 }]
+  - id: handler
     layer: handler
-    kind: function
-    name: query_mart
+    kind: handler
+    name: "query_mart"
     source: { file: mcp_server.py, line: 78 }
-    caller: op
+    caller: tool
     call:
       status: fact
       when: always
       evidence: [{ file: mcp_server.py, line: 77 }]
     summary:
-      status: fact
-      value: "受け取った name・filters・limit・offset を、そのまま ApiClient の query_mart に渡し、その結果を返す"
+      status: interpretation
+      value: "登録が飾る関数。受け取った name・filters・limit・offset を、そのまま ApiClient.query_mart に渡し、結果を返す"
       evidence: [{ file: mcp_server.py, line: 80 }]
-  - id: api_query_mart
+  - id: api_client
     layer: adapter
     kind: method
-    name: ApiClient.query_mart
+    name: "ApiClient.query_mart"
     source: { file: mcp_server.py, line: 40 }
-    caller: query_mart_tool
+    caller: handler
     call:
       status: fact
       when: always
       evidence: [{ file: mcp_server.py, line: 80 }]
     summary:
       status: interpretation
-      value: "filters に limit と offset を重ねてクエリ文字列の値にし (filters に同じキーがあれば、limit・offset の引数が勝つ)、集計表 API の GET /marts/{name}/rows を呼ぶ。応答の状態が 400 以上なら、応答の detail (JSON で読めなければ本文) と状態を {error, status} にして返し、そうでなければ応答の JSON をそのまま返す"
+      value: "filters に limit と offset を足して問い合わせの引数にし、HTTP のクライアントで GET /marts/{name}/rows を呼ぶ。応答の状態が 400 以上なら {error, status} の形に変え、そうでなければ応答の JSON を返す"
       evidence:
         - { file: mcp_server.py, line: 41 }
         - { file: mcp_server.py, line: 42 }
         - { file: mcp_server.py, line: 26 }
-        - { file: mcp_server.py, line: 28 }
-        - { file: mcp_server.py, line: 30 }
         - { file: mcp_server.py, line: 31 }
         - { file: mcp_server.py, line: 32 }
-      note: "転送は、ApiClient を作る側が決める。abatlas serve では in_process_client が、同じプロセスの FastAPI に ASGI で直接つなぐ (ポートを通らない。Host は 127.0.0.1 なので、API の Host の確認 LoopbackHostMiddleware をいつも通る)。abatlas mcp --api <url> (stdio) では run が、その URL の別プロセスの API に HTTP でつなぐ (既定 http://127.0.0.1:8765、timeout 600 秒)。どちらも起動の引数で決まり、環境変数ではない"
+      note: "(1) 転送は起動の仕方で決まる。abatlas serve では in_process_client (mcp_server.py 51-53 行) が、同じプロセスの FastAPI に ASGI で直接つなぐ (base_url は http://127.0.0.1 なので、API の Host の確認を通る)。abatlas mcp --api <url> では run (mcp_server.py 95-97 行) が、別のプロセスの API へ HTTP でつなぐ (ApiClient の既定の base_url は mcp_server.py 21 行)。起動の引数なので settings には書かない。(2) 問い合わせの引数は、filters を先に広げてから limit と offset を書くので (mcp_server.py 41 行)、filters に limit や offset の名前の項目があっても、引数の limit と offset が勝つ。filters に order の名前の項目を入れると、呼ばれる操作の側では絞り込みではなく並べ替えの列として読まれる (api.py 243 行と 245 行)"
+    rules:
+      - kind: decision
+        value: "API の応答の状態が 400 以上なら、例外にせず、detail (読めなければ本文) と状態の番号を {error, status} の形で返す"
+        status: fact
+        evidence:
+          - { file: mcp_server.py, line: 42 }
+          - { file: mcp_server.py, line: 26 }
+          - { file: mcp_server.py, line: 31 }
+        note: "ApiClient._json (mcp_server.py 24-32 行) は補助なのでフレームにせず、呼ぶ段に書いた"
     links:
       - kind: trigger
         target: "/marts/{name}/rows"
         entry_id: marts.name_d.rows.get
         status: fact
         evidence: [{ file: mcp_server.py, line: 42 }]
-        note: "同じリポジトリの HTTP API の操作 GET /marts/{name}/rows。API の中 (handler 以降) は、その入口の結果にあるので辿り直さない"
-    rules:
-      - kind: decision
-        value: "API の応答の状態が 400 以上なら、例外にせず、detail (JSON で読めなければ本文) と状態を {error, status} の形にして、ツールの結果として返す"
-        status: fact
-        evidence:
-          - { file: mcp_server.py, line: 26 }
-          - { file: mcp_server.py, line: 27 }
-          - { file: mcp_server.py, line: 28 }
-          - { file: mcp_server.py, line: 30 }
-          - { file: mcp_server.py, line: 31 }
-          - { file: mcp_server.py, line: 42 }
+        note: "同じシステムの HTTP の操作 GET /marts/{name}/rows (api.py 242 行) を呼ぶ。呼ばれる操作の中は、その入口の結果で書くので、ここでは辿り直さない。io (external_api) にも書かない"
   - id: httpx_get
     layer: external
     kind: library
-    name: httpx.AsyncClient.get
+    name: "httpx.AsyncClient.get"
     source: { file: mcp_server.py, line: 42 }
-    caller: api_query_mart
+    caller: api_client
     call:
       status: fact
       when: always
-      evidence: [{ file: mcp_server.py, line: 42 }]
-      note: "クライアントは httpx.AsyncClient。同じプロセスでは ASGITransport (mcp_server.py 53 行)、stdio では base_url への HTTP (22 行)"
-notes: "(1) 入口のフレームは、analysis-conventions.md の「MCP のツール」のとおり、source を @mcp.tool() の行 (77 行) にし、kind は mcp_tool にした (HTTP の入口の http_route に並べた。フレームの kind は自由な文字列)。ツールの説明 (docstring) は入口の summary に、引数の型と既定値は parameters の value に書いた。(2) 層は、tool の関数 (handler) → ApiClient.query_mart (adapter) → httpx.AsyncClient.get (external) に収まった。logic の層は無い (ツールは引数を渡すだけ。context.md の「層を分けていない小さな API では、logic と adapter を無理に作らない」)。operation から handler の橋渡しは、登録の行が飾る関数をそのまま指すので fact。(3) 同じプロセスの HTTP API は、規約のとおり adapter の links (trigger、target はコードの path の書き方 /marts/{name}/rows、entry_id は marts.name_d.rows.get) に書き、io (external_api) には書かなかった。API の中は辿り直さない。ApiClient._json は補助なのでフレームにせず、adapter の rules (decision) に書いた。(4) /mcp の転送口での DNS rebinding 対策 (MCP SDK の TransportSecuritySettings。Host と Origin を、_allowed_hosts() から作った集合で確かめる) は、フレームにしなかった。理由は、確認の実体が SDK の中 (境の外) にあること、abatlas serve で出すときだけ掛かり stdio では掛からないこと、規約の「MCP のツール」の木に含まれていないこと。入口の summary の note に書いた。(5) 対象の clone の作業ツリーは、コミット aa48c00 から api.py に未コミットの変更がある (309 行より後ろが 44 行ずれている。create_server と /mcp の設定はその中)。根拠は、変更の無い mcp_server.py の行だけにした。(6) ツールの説明とコードの食い違い (filters は等値と書くが、API の接尾辞や order も効く。limit の上限はツールでは確かめない) は、context.md に従ってコードを正とし、入口の summary の note に書いた。"
+      evidence:
+        - { file: mcp_server.py, line: 42 }
+        - { file: mcp_server.py, line: 22 }
+      note: "self.client は httpx.AsyncClient (mcp_server.py 22 行。同じプロセスのときは 53 行で ASGITransport を付けて作る)"

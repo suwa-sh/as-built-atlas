@@ -8,7 +8,7 @@
 |---|---|---|---|---|---|
 | `batch-kestra` | `kotori-books-atlas` | ことり書店 (架空。同梱) | — | 34 | 34 (正解) |
 | `ui-nextjs` | `umami-atlas` | umami | MIT | 83 | 83 |
-| `api` | `abatlas-api-atlas` | as-built-atlas 自身の API と MCP | MIT | 15 | 3 |
+| `api` | `abatlas-api-atlas` | as-built-atlas 自身の API と MCP | MIT | 13 | 3 |
 | `cli` | `stfw-atlas` | stfw のシナリオ実行・検証・レポート | Apache-2.0 | 20 | 3 |
 | `transform-dbt` | `abatlas-dbt-atlas` | as-built-atlas 自身の集計 (dbt) | MIT | 39 | 3 |
 | `batch-github-actions` | `listmonk-ci-atlas` | listmonk のワークフロー | AGPL-3.0 | 6 | 3 |

@@ -1,831 +1,826 @@
 format_version: 1
 entry:
-  id: recompute.post
-  path: /recompute/post
+  id: "recompute.post"
+  path: "/recompute/post"
   name: "post /recompute"
-  layer: operation
-  source: { file: api.py, line: 400 }
+  layer: "operation"
+  source: { file: "api.py", line: 354 }
 target:
-  repo: github.com/suwa-sh/as-built-atlas
-  name: as-built-atlas (API + MCP)
+  repo: "github.com/suwa-sh/as-built-atlas"
+  name: "as-built-atlas (API + MCP)"
   clone_path: ../as-built-atlas
-  scope: abatlas
-  commit: aa48c0046e528ce4c04b1e778b5cd38ebc94b069
+  scope: "abatlas"
+  commit: "aa48c0046e528ce4c04b1e778b5cd38ebc94b069"
 analyzer:
-  profile: { id: api, version: "0.1.0" }
-  skill_version: "0.4.1"
-  model: claude-opus-5-5
-  analyzed_at: "2026-11-18T00:28:36Z"
+  profile: { id: "api", version: "0.1.0" }
+  skill_version: "0.4.6"
+  model: "claude-opus-5-5"
+  analyzed_at: "2026-11-23T10:19:17Z"
   reviewed:
     by: "claude-opus-5-5 (fresh context)"
-    at: "2026-11-18T00:27:16Z"
+    at: "2026-11-23T10:17:02Z"
     findings_open: 0
 summary:
   status: interpretation
-  value: "分析の結果から集計の DuckDB を作り直す (再集計する) 操作。Host がループバック名か許可した名前でなければ 403 で拒み、Origin があって Host と食い違えば 403 で拒む。ほかの再集計が実行中なら 409 を返す。dbt のプロジェクトを analysis/data/dbt/ に合成し、プロファイルを読んで検査し、ETL で analysis/results の分析結果と入口の一覧を seed の CSV に分解し、別のプロセスで dbt build を動かして作業用の DuckDB のファイル (abatlas.duckdb.building) を作る。mart の宣言を検査し、宣言とプロファイル・語彙を DuckDB の meta の表に書いてから、ファイルを abatlas.duckdb に入れ替え、件数を返す。dbt か宣言の検査で失敗すれば、作業用のファイルを消して止める。再集計が SystemExit で止まれば (合成・プロファイル・ETL・dbt・宣言の検査の失敗)、500 を返す"
+  value: "集計をやり直す。Host がループバック名か許可した名前で、Origin があれば Host と同じであることを確かめ、同時に 1 つだけ動くように鍵を取り (取れなければ 409)、dbt のプロジェクトを analysis/data/dbt/ に合成し、プロファイルを読んで検査し、分析結果を検査して seed の CSV に分解し、別のプロセスで dbt build を動かして作業用の DuckDB のファイルに表を作り、mart の宣言を検査してから宣言とプロファイルの語彙を DuckDB の meta に書き、DuckDB のファイルを 1 回で入れ替えて、件数を返す (失敗は 500)"
   evidence:
-    - { file: build.py, line: 181 }
-    - { file: build.py, line: 188 }
-    - { file: api.py, line: 400 }
-    - { file: api.py, line: 187 }
-    - { file: api.py, line: 203 }
-    - { file: api.py, line: 208 }
-    - { file: api.py, line: 403 }
-    - { file: api.py, line: 404 }
-    - { file: build.py, line: 156 }
-    - { file: build.py, line: 157 }
-    - { file: build.py, line: 161 }
-    - { file: build.py, line: 166 }
-    - { file: build.py, line: 179 }
-    - { file: build.py, line: 186 }
-    - { file: build.py, line: 195 }
-    - { file: build.py, line: 197 }
-    - { file: build.py, line: 198 }
-    - { file: build.py, line: 201 }
-    - { file: api.py, line: 407 }
-    - { file: api.py, line: 410 }
+    - { file: "api.py", line: 185 }
+    - { file: "api.py", line: 201 }
+    - { file: "api.py", line: 206 }
+    - { file: "api.py", line: 357 }
+    - { file: "api.py", line: 358 }
+    - { file: "build.py", line: 156 }
+    - { file: "build.py", line: 157 }
+    - { file: "build.py", line: 161 }
+    - { file: "build.py", line: 179 }
+    - { file: "build.py", line: 186 }
+    - { file: "build.py", line: 195 }
+    - { file: "build.py", line: 197 }
+    - { file: "build.py", line: 198 }
+    - { file: "build.py", line: 201 }
+    - { file: "api.py", line: 364 }
 callstack:
-  - id: op
-    layer: operation
-    kind: http_route
-    name: "POST /recompute"
-    source: { file: api.py, line: 400 }
+  - id: "op"
+    layer: "operation"
+    kind: "route"
+    name: "post /recompute"
+    source: { file: "api.py", line: 354 }
     caller: null
     summary:
-      status: fact
-      value: "FastAPI の飾り @app.post(\"/recompute\") で、関数 recompute に登録された route。定義ファイル (OpenAPI) はリポジトリに無く、この登録の行が操作の定義"
+      status: interpretation
+      value: "再集計の操作。FastAPI の登録 @app.post(\"/recompute\") で、関数 recompute が受け持つ。ETL から dbt build までをやり直す (直列。同時実行は 409)"
       evidence:
-        - { file: api.py, line: 400 }
-        - { file: api.py, line: 401 }
-      note: "本文も query も取らない (受け取るのは Request だけで、Host と Origin のヘッダを読む)。認証の確認 (ログインやトークン) は、この route にも、アプリ全体にも無い。MCP のツール recompute (入口 mcp.recompute) は、同じプロセスの中でこの route を呼ぶ (呼ばれる側なので、ここには links を書かない)"
+        - { file: "api.py", line: 354 }
+        - { file: "api.py", line: 17 }
+      note: "OpenAPI の定義ファイルはリポジトリに無い (FastAPI が実行時に作る) ので、登録の行を入口にした。本文もクエリも読まない。認証の確認は無く、呼び出し元の場所の確認 (Host と Origin) だけがある"
     parameters:
-      - name: Host
-        value: "header。許可したホスト名か、Origin と比べる相手"
+      - name: "Host"
+        value: "header。許可した名前 (ループバック名と ABATLAS_ALLOWED_HOSTS) でなければ 403"
         status: fact
         evidence:
-          - { file: api.py, line: 186 }
-          - { file: api.py, line: 201 }
-      - name: Origin
-        value: "header。任意。あれば、Host とホスト名・ポートが一致しなければならない"
+          - { file: "api.py", line: 199 }
+          - { file: "api.py", line: 201 }
+      - name: "Origin"
+        value: "header。任意。あれば、名前とポートが Host と同じでなければ 403"
         status: fact
         evidence:
-          - { file: api.py, line: 205 }
-          - { file: api.py, line: 206 }
-  - id: host_check
-    layer: handler
-    kind: middleware
-    name: LoopbackHostMiddleware
-    source: { file: api.py, line: 178 }
-    caller: op
+          - { file: "api.py", line: 203 }
+          - { file: "api.py", line: 206 }
+  - id: "host_check"
+    layer: "handler"
+    kind: "middleware"
+    name: "LoopbackHostMiddleware"
+    source: { file: "api.py", line: 176 }
+    caller: "op"
     call:
       status: fact
       when: always
-      evidence: [{ file: api.py, line: 218 }]
-      note: "create_app がアプリ全体に add_middleware で掛ける。すべての HTTP の要求が handler より前にここを通る"
+      evidence: [{ file: "api.py", line: 216 }]
+      note: "create_app がアプリ全体に足す middleware。HTTP の要求すべてで、handler より前に動く"
     summary:
       status: interpretation
-      value: "要求の Host ヘッダからホスト名を取り出し、許可したホスト名 (ループバック名と ABATLAS_ALLOWED_HOSTS) に無ければ、先へ進めずに 403 を返す (DNS rebinding 対策)。許可されていれば、要求をそのまま内側のアプリに渡す"
+      value: "要求の Host ヘッダの名前が、許可した名前 (ループバック名と ABATLAS_ALLOWED_HOSTS) に無ければ 403 を返し、先へ進めない"
       evidence:
-        - { file: api.py, line: 186 }
-        - { file: api.py, line: 187 }
-        - { file: api.py, line: 190 }
-        - { file: api.py, line: 192 }
+        - { file: "api.py", line: 184 }
+        - { file: "api.py", line: 185 }
+        - { file: "api.py", line: 188 }
     guards:
       - kind: other
         value: "_allowed_hosts()"
         status: fact
         evidence:
-          - { file: api.py, line: 187 }
-          - { file: api.py, line: 147 }
-        note: "Host ヘッダのホスト名が、許可した名前の集合 (既定は localhost / 127.0.0.1 / ::1) に入っていること。入っていなければ 403"
+          - { file: "api.py", line: 185 }
+          - { file: "api.py", line: 142 }
+        note: "既定は localhost / 127.0.0.1 / ::1。Host の名前 (ポートを除き小文字) で比べる"
+    settings:
+      - name: "ABATLAS_ALLOWED_HOSTS"
+        kind: env
+        effect: "カンマ区切りの名前を、許可する Host に足す (無ければループバック名だけ)"
+        status: fact
+        evidence:
+          - { file: "api.py", line: 144 }
+          - { file: "api.py", line: 145 }
     rules:
       - kind: validation
-        value: "Host ヘッダのホスト名が、ループバック名か許可した名前でなければ、要求を 403 で拒む"
+        value: "Host の名前が許可した名前に無い要求は、403 で拒む"
         status: fact
         evidence:
-          - { file: api.py, line: 141 }
-          - { file: api.py, line: 187 }
-          - { file: api.py, line: 190 }
-    settings:
-      - name: ABATLAS_ALLOWED_HOSTS
-        kind: env
-        effect: "カンマ区切りで並べたホスト名を、ループバック名に加えて、Host の確認で通すようになる"
-        status: fact
-        evidence:
-          - { file: api.py, line: 146 }
-          - { file: api.py, line: 187 }
-  - id: recompute
-    layer: handler
-    kind: function
-    name: recompute
-    source: { file: api.py, line: 401 }
-    caller: op
+          - { file: "api.py", line: 185 }
+          - { file: "api.py", line: 188 }
+  - id: "handler"
+    layer: "handler"
+    kind: "handler"
+    name: "recompute"
+    source: { file: "api.py", line: 355 }
+    caller: "op"
     call:
       status: fact
       when: always
-      evidence: [{ file: api.py, line: 400 }]
+      evidence: [{ file: "api.py", line: 354 }]
     summary:
       status: interpretation
-      value: "別サイトからの要求を拒む確認をしてから、再集計の錠を待たずに取る。取れなければ 409 を返す。取れれば、分析リポジトリ全体の再集計 (build_repo) を動かし、その件数に ok を付けて返す。再集計が SystemExit で止まれば、終了の値をサーバのログに残し、応答には詳しいことを出さずに 500 を返す。成功しても失敗しても、最後に錠を外す"
+      value: "呼び出し元の場所を確かめ、プロセスの中の鍵を待たずに取り、取れたら build_repo で再集計して、ok と件数を返す。再集計が SystemExit で止まったら、理由をサーバのログにだけ書いて 500 を返す。成功しても失敗しても鍵を放す"
       evidence:
-        - { file: api.py, line: 402 }
-        - { file: api.py, line: 403 }
-        - { file: api.py, line: 404 }
-        - { file: api.py, line: 406 }
-        - { file: api.py, line: 407 }
-        - { file: api.py, line: 409 }
-        - { file: api.py, line: 410 }
-        - { file: api.py, line: 412 }
-      note: "錠 (threading.Lock) は create_app が 1 つ作り、同じアプリの要求の間で共有する (215 行)。直列にするのは、このプロセスの中の /recompute どうしだけで、別のプロセスで動く abatlas build とは排他にならない"
+        - { file: "api.py", line: 356 }
+        - { file: "api.py", line: 357 }
+        - { file: "api.py", line: 360 }
+        - { file: "api.py", line: 363 }
+        - { file: "api.py", line: 364 }
+        - { file: "api.py", line: 366 }
+      note: "鍵は create_app の中の threading.Lock (api.py 213 行) で、同じプロセスの中だけで効く"
     rules:
       - kind: decision
-        value: "ほかの再集計が実行中で錠が取れなければ、待たずに 409 を返す (再集計を同時に 2 つ動かさない)"
+        value: "再集計が既に動いていて鍵が取れなければ、待たずに 409 を返す"
         status: fact
         evidence:
-          - { file: api.py, line: 215 }
-          - { file: api.py, line: 403 }
-          - { file: api.py, line: 404 }
+          - { file: "api.py", line: 357 }
+          - { file: "api.py", line: 358 }
       - kind: decision
-        value: "再集計が失敗 (SystemExit) したときは、終了の値をサーバのログに残し、応答にはパスなどの詳しいことを出さずに 500 を返す"
+        value: "再集計が失敗 (SystemExit) したら、理由はサーバのログにだけ書き、応答は 500 と決まった文だけにする (パスや dbt の出力を外に出さない)"
         status: fact
         evidence:
-          - { file: api.py, line: 407 }
-          - { file: api.py, line: 408 }
-          - { file: api.py, line: 409 }
-          - { file: api.py, line: 410 }
-  - id: reject_cross_site
-    layer: logic
-    kind: function
-    name: _reject_cross_site
-    source: { file: api.py, line: 195 }
-    caller: recompute
+          - { file: "api.py", line: 361 }
+          - { file: "api.py", line: 362 }
+          - { file: "api.py", line: 363 }
+          - { file: "api.py", line: 364 }
+  - id: "reject_cross_site"
+    layer: "logic"
+    kind: "function"
+    name: "_reject_cross_site"
+    source: { file: "api.py", line: 193 }
+    caller: "handler"
     call:
       status: fact
       when: always
-      evidence: [{ file: api.py, line: 402 }]
+      evidence: [{ file: "api.py", line: 356 }]
     summary:
       status: interpretation
-      value: "状態を変える要求を、ブラウザ経由で別のサイトから叩かれないようにする確認。Host のホスト名が許可した名前でなければ 403 で拒み (middleware と同じ確認を、もう一度行う)、Origin ヘッダがあって、そのホスト名かポートが Host と違えば 403 で拒む。Origin が無い要求 (curl や MCP) は、Host の確認だけで通す"
+      value: "状態を変える要求を、ブラウザ経由の別サイトから叩かれないようにする。Host が許可した名前でなければ 403、Origin があり、その名前かポートが Host と違えば 403"
       evidence:
-        - { file: api.py, line: 196 }
-        - { file: api.py, line: 201 }
-        - { file: api.py, line: 203 }
-        - { file: api.py, line: 204 }
-        - { file: api.py, line: 205 }
-        - { file: api.py, line: 206 }
-        - { file: api.py, line: 208 }
-        - { file: api.py, line: 209 }
+        - { file: "api.py", line: 194 }
+        - { file: "api.py", line: 201 }
+        - { file: "api.py", line: 202 }
+        - { file: "api.py", line: 206 }
+        - { file: "api.py", line: 207 }
     guards:
       - kind: other
         value: "_allowed_hosts()"
         status: fact
         evidence:
-          - { file: api.py, line: 203 }
-          - { file: api.py, line: 147 }
-        note: "Host ヘッダのホスト名が、許可した名前の集合に入っていること。入っていなければ 403。LoopbackHostMiddleware と同じ確認を、状態を変える要求のためにもう一度行う"
+          - { file: "api.py", line: 201 }
+          - { file: "api.py", line: 142 }
+        note: "LoopbackHostMiddleware と同じ検査を、もう一度する (api.py 196 行のコメント)"
       - kind: other
         value: "origin == host"
-        status: fact
+        status: interpretation
         evidence:
-          - { file: api.py, line: 205 }
-          - { file: api.py, line: 206 }
-          - { file: api.py, line: 208 }
-        note: "Origin ヘッダがあるときだけ、そのホスト名とポートが Host のホスト名とポートに一致すること (CSRF 対策)。Origin が無ければ確認しない"
-    rules:
-      - kind: validation
-        value: "Host ヘッダのホスト名が、ループバック名か許可した名前でなければ、再集計の要求を 403 で拒む"
-        status: fact
-        evidence:
-          - { file: api.py, line: 203 }
-          - { file: api.py, line: 204 }
-      - kind: validation
-        value: "Origin ヘッダがあり、そのホスト名かポートが Host と一致しなければ、再集計の要求を 403 で拒む"
-        status: fact
-        evidence:
-          - { file: api.py, line: 206 }
-          - { file: api.py, line: 208 }
-          - { file: api.py, line: 209 }
+          - { file: "api.py", line: 204 }
+          - { file: "api.py", line: 206 }
+        note: "Origin が無い要求 (curl や MCP) は通る。Origin があれば、名前 (小文字) とポートの両方を Host と比べる"
     settings:
-      - name: ABATLAS_ALLOWED_HOSTS
+      - name: "ABATLAS_ALLOWED_HOSTS"
         kind: env
-        effect: "カンマ区切りで並べたホスト名を、ループバック名に加えて、Host の確認で通すようになる"
+        effect: "カンマ区切りの名前を、許可する Host に足す (無ければループバック名だけ)"
         status: fact
         evidence:
-          - { file: api.py, line: 146 }
-          - { file: api.py, line: 203 }
-  - id: build_repo
-    layer: logic
-    kind: function
-    name: build_repo
-    source: { file: build.py, line: 153 }
-    caller: recompute
+          - { file: "api.py", line: 144 }
+          - { file: "api.py", line: 145 }
+  - id: "build_repo"
+    layer: "logic"
+    kind: "function"
+    name: "build_repo"
+    source: { file: "build.py", line: 153 }
+    caller: "handler"
     call:
       status: fact
       when: always
-      evidence: [{ file: api.py, line: 406 }]
+      evidence: [{ file: "api.py", line: 360 }]
+      note: "手前の Host と Origin の確認 (403) と、鍵が取れないとき (409) は、打ち切るだけ"
     summary:
       status: interpretation
-      value: "再集計の手順。dbt のプロジェクトを合成し、プロファイルを読んで検査し、配布物とプロファイルのコピーの違いを警告し、ETL で seed の CSV を書く。前の作業用のファイル (abatlas.duckdb.building と、その .wal) を消してから、別のプロセスで dbt build を動かし、作業用のファイルに集計表を作らせる。dbt が失敗するか、mart の宣言かプロファイルの表示項目が形式に合わなければ、作業用のファイルを消して止める。合えば、作業用のファイルに宣言とプロファイル・語彙を書き、ファイルを abatlas.duckdb に 1 回で入れ替え (読んでいる API に新旧を混ぜない)、ETL の件数と dbt の結果の件数を返す"
+      value: "dbt のプロジェクトを合成し、プロファイルを読み、配布物のコピーが古ければ警告し、ETL で seed を書く。作業用の DuckDB のファイル (abatlas.duckdb.building) と残りの WAL を消してから、別のプロセスで dbt build を動かす。失敗すれば作業用のファイルを消して止める。mart の宣言とプロファイルの表示項目の用語を検査し、合わなければ作業用のファイルを消して止める。合えば、作業用のファイルに宣言とプロファイルの語彙を書き、本番のファイルへ 1 回で入れ替え、ETL の件数と dbt の結果の数を返す"
       evidence:
-        - { file: build.py, line: 156 }
-        - { file: build.py, line: 157 }
-        - { file: build.py, line: 158 }
-        - { file: build.py, line: 161 }
-        - { file: build.py, line: 166 }
-        - { file: build.py, line: 167 }
-        - { file: build.py, line: 169 }
-        - { file: build.py, line: 178 }
-        - { file: build.py, line: 179 }
-        - { file: build.py, line: 180 }
-        - { file: build.py, line: 186 }
-        - { file: build.py, line: 187 }
-        - { file: build.py, line: 195 }
-        - { file: build.py, line: 197 }
-        - { file: build.py, line: 198 }
-        - { file: build.py, line: 201 }
-      note: "固定の値で閉じている呼び出し: recompute は build_repo(repo) を select を渡さずに呼ぶ (api.py 406 行。既定は None)。そのため、dbt に --select を足す枝 (174〜175 行) と、部分 build のために今の DuckDB のファイルを作業用のファイルに写す枝 (176〜177 行、shutil.copy2) は、この入口からは決して動かないので辿らない (176 行は select and db.exists() の組み合わせだが、select が None なら db.exists() によらず成り立たない)。小さな補助 _scope_dir (作業定義から対象の範囲のフォルダを決める。読めなければ None で、集計は止めない) はフレームにせず、作業定義の読み取りをこの段の io に書いた。プロファイルの表示項目の用語の検査 (profile_term_problems) は、配布物の用語集を見るだけなので、186 行の検査のルールにまとめた"
+        - { file: "build.py", line: 156 }
+        - { file: "build.py", line: 157 }
+        - { file: "build.py", line: 158 }
+        - { file: "build.py", line: 161 }
+        - { file: "build.py", line: 166 }
+        - { file: "build.py", line: 169 }
+        - { file: "build.py", line: 179 }
+        - { file: "build.py", line: 181 }
+        - { file: "build.py", line: 186 }
+        - { file: "build.py", line: 188 }
+        - { file: "build.py", line: 195 }
+        - { file: "build.py", line: 197 }
+        - { file: "build.py", line: 198 }
+        - { file: "build.py", line: 201 }
+      note: "閉じている呼び出し: recompute は build_repo(repo) と書き、select を渡さない (api.py 360 行) ので、既定値 None で、dbt に --select を足す枝 (build.py 174-175 行) と、既存の DuckDB を作業用のファイルへ写す shutil.copy2 (build.py 176-177 行) は動かない。duckdb.connect も呼ぶ (build.py 194 行。読み書きできる接続)。経路はフレーム duckdb_connect と同じ。_scope_dir (build.py 141 行) は、作業定義の target から対象の範囲のフォルダを決める補助で、読めなければ None にして集計を止めない (build.py 148-150 行)"
     rules:
-      - kind: validation
-        value: "dbt build の終了の値が 0 でなければ、作業用の DuckDB のファイルを消し、dbt の出力の末尾を付けて止める (DuckDB を入れ替えない)"
+      - kind: decision
+        value: "dbt build が 0 以外で終われば、作業用の DuckDB のファイルを消し、出力の末尾を付けて止める (本番のファイルは入れ替えない)"
         status: fact
         evidence:
-          - { file: build.py, line: 180 }
-          - { file: build.py, line: 181 }
-          - { file: build.py, line: 182 }
+          - { file: "build.py", line: 180 }
+          - { file: "build.py", line: 181 }
+          - { file: "build.py", line: 182 }
       - kind: validation
-        value: "mart の宣言 (meta.abatlas) か、プロファイルの表示項目の用語が形式に合わなければ、作業用の DuckDB のファイルを消して止める (DuckDB も manifest も入れ替えない)"
+        value: "mart の宣言 (meta.abatlas) とプロファイルの表示項目の用語に問題が 1 つでもあれば、作業用の DuckDB のファイルを消して止める (本番のファイルは入れ替えない)"
         status: fact
         evidence:
-          - { file: build.py, line: 186 }
-          - { file: build.py, line: 187 }
-          - { file: build.py, line: 188 }
-          - { file: build.py, line: 189 }
+          - { file: "build.py", line: 186 }
+          - { file: "build.py", line: 187 }
+          - { file: "build.py", line: 188 }
+          - { file: "build.py", line: 189 }
+      - kind: decision
+        value: "読んでいる API を壊さないよう、別のファイル (abatlas.duckdb.building) に作り、宣言を書いてから、本番のファイルへ 1 回で入れ替える"
+        status: fact
+        evidence:
+          - { file: "build.py", line: 165 }
+          - { file: "build.py", line: 166 }
+          - { file: "build.py", line: 195 }
+          - { file: "build.py", line: 197 }
+          - { file: "build.py", line: 198 }
       - kind: calculation
-        value: "dbt の結果 (run_results.json) のうち、状態が success か pass のものの数を dbt_ok、全部の数を dbt_nodes として返す"
+        value: "dbt_ok は、run_results の結果のうち、状態が success か pass のものの数"
         status: fact
         evidence:
-          - { file: build.py, line: 199 }
-          - { file: build.py, line: 200 }
-          - { file: build.py, line: 201 }
+          - { file: "build.py", line: 199 }
+          - { file: "build.py", line: 200 }
     io:
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis, file: work-definition.yaml } }
-        detail: "target (分析対象) を読み、meta の表に書く。対象の範囲のフォルダも、ここから決める"
+        resource: { kind: filesystem, levels: { directory: "analysis", file: "work-definition.yaml" } }
         fields:
-          - { name: target, use: [read] }
+          - { name: "target", use: [read] }
         evidence:
-          - { file: build.py, line: 196 }
-          - { file: build.py, line: 147 }
-          - { file: __init__.py, line: 23 }
+          - { file: "build.py", line: 145 }
+          - { file: "build.py", line: 147 }
+          - { file: "build.py", line: 196 }
+        note: "_scope_dir (build.py 145-147 行) が対象の範囲を決めるために読み、宣言を書く前にもう一度読んで target を meta に渡す (build.py 196 行)"
       - op: delete
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data, file: abatlas.duckdb.building } }
-        detail: "前の build の残りがあれば消す (167〜168 行)。dbt が失敗したとき (181 行) と、宣言の検査に通らないとき (188 行) にも消す"
+        resource: { kind: filesystem, levels: { directory: "analysis/data", file: "abatlas.duckdb.building" } }
         evidence:
-          - { file: build.py, line: 166 }
-          - { file: build.py, line: 167 }
-          - { file: build.py, line: 168 }
-          - { file: build.py, line: 181 }
-          - { file: build.py, line: 188 }
-          - { file: __init__.py, line: 42 }
-        note: "ファイルの場所は duckdb_path の既定 (analysis/data/abatlas.duckdb) に .building を付けたもの。ABATLAS_DUCKDB があれば、そのパスに .building を付けた場所になる (どの入口でも同じ接続の設定なので settings には書かない)"
-      - op: list
-        status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data, file: abatlas.duckdb.building.wal } }
-        detail: "前の build で残った作業用のファイルの .wal を探す (glob)"
-        evidence: [{ file: build.py, line: 169 }]
+          - { file: "build.py", line: 166 }
+          - { file: "build.py", line: 168 }
+          - { file: "build.py", line: 181 }
+          - { file: "build.py", line: 188 }
+          - { file: "__init__.py", line: 42 }
+        note: "dbt を動かす前に、前回の残りがあれば消す。dbt が失敗したときと、宣言の検査に落ちたときにも消す。場所は duckdb_path (既定は analysis/data/abatlas.duckdb) の隣"
       - op: delete
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data, file: abatlas.duckdb.building.wal } }
-        detail: "見つかった .wal を消す"
+        resource: { kind: filesystem, levels: { directory: "analysis/data", file: "abatlas.duckdb.building.wal" } }
         evidence:
-          - { file: build.py, line: 169 }
-          - { file: build.py, line: 170 }
+          - { file: "build.py", line: 169 }
+          - { file: "build.py", line: 170 }
+        note: "前回の作業用のファイルの WAL が残っていれば消す"
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data/dbt/target, file: manifest.json } }
-        detail: "dbt が書いた manifest から、meta.abatlas を持つ model (名前・説明・宣言・relation) を取り出す"
+        resource: { kind: filesystem, levels: { directory: "analysis/data/dbt/target", file: "manifest.json" } }
         fields:
-          - { name: nodes, use: [read] }
+          - { name: "nodes", use: [read] }
         evidence:
-          - { file: build.py, line: 185 }
-          - { file: build.py, line: 195 }
-          - { file: declarations.py, line: 75 }
-          - { file: __init__.py, line: 37 }
+          - { file: "build.py", line: 185 }
+          - { file: "build.py", line: 195 }
+          - { file: "declarations.py", line: 67 }
+        note: "dbt が書いた manifest から、meta.abatlas を持つ model (declared_models) を取り出して、宣言を書く"
       - op: write
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data, file: abatlas.duckdb } }
-        detail: "os.replace で、作業用のファイル abatlas.duckdb.building を abatlas.duckdb に入れ替える (作業用のファイルは名前が変わって消える)"
-        fields:
-          - { name: "*", use: [write] }
+        resource: { kind: filesystem, levels: { directory: "analysis/data", file: "abatlas.duckdb" } }
         evidence:
-          - { file: build.py, line: 162 }
-          - { file: build.py, line: 198 }
-          - { file: __init__.py, line: 42 }
-        note: "ファイルの場所は duckdb_path の既定。ABATLAS_DUCKDB があれば、そのパス (どの入口でも同じ接続の設定なので settings には書かない)"
+          - { file: "build.py", line: 198 }
+          - { file: "__init__.py", line: 42 }
+        note: "os.replace で、作業用のファイル (abatlas.duckdb.building) を本番のファイルに入れ替える"
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data/dbt/target, file: run_results.json } }
+        resource: { kind: filesystem, levels: { directory: "analysis/data/dbt/target", file: "run_results.json" } }
         fields:
-          - { name: results, use: [read] }
+          - { name: "results", use: [read] }
         evidence:
-          - { file: build.py, line: 199 }
-          - { file: __init__.py, line: 37 }
-  - id: render_dbt_project
-    layer: logic
-    kind: function
-    name: render_dbt_project
-    source: { file: build.py, line: 104 }
-    caller: build_repo
+          - { file: "build.py", line: 199 }
+  - id: "render_dbt_project"
+    layer: "logic"
+    kind: "function"
+    name: "render_dbt_project"
+    source: { file: "build.py", line: 104 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
-      evidence: [{ file: build.py, line: 156 }]
+      evidence: [{ file: "build.py", line: 156 }]
     summary:
       status: interpretation
-      value: "dbt のプロジェクトを、作業ディレクトリ analysis/data/dbt/ に毎回作り直す。前の合成物 (dbt_project.yml、profiles.yml、macros、models、seeds) を消し、配布物の dbt-template の上にプロファイルの dbt-template を重ね (同じ名前はプロファイルが勝つ)、分析リポジトリ独自の analysis/dbt/models/repo を models/repo に写し、空でも要るフォルダを置き、README.md を書く"
+      value: "配布物の dbt-template (core) と、プロファイルの dbt-template と、分析リポジトリの analysis/dbt/models/repo を、作業ディレクトリ analysis/data/dbt/ に重ねて写す。写す前に、前回合成したもの (dbt_project.yml、profiles.yml、macros、models、seeds) を消す。同じ名前はプロファイルが勝つ"
       evidence:
-        - { file: build.py, line: 108 }
-        - { file: build.py, line: 117 }
-        - { file: build.py, line: 119 }
-        - { file: build.py, line: 122 }
-        - { file: build.py, line: 128 }
-        - { file: build.py, line: 130 }
-        - { file: build.py, line: 131 }
-        - { file: build.py, line: 133 }
-        - { file: build.py, line: 134 }
-      note: "build_repo は profile_id を渡さない (156 行) ので、配布物のプロファイルを名指しで使う枝 (111〜114 行) は、この入口からは動かない。プロファイルの場所を決める補助 (_profile_id、profile_dir) と、写す補助 (_overlay) は辿らない (analysis-conventions.md の「読み書きを持つ最初のフレームで止める」に従う)。profile_dir の検査は、同じ補助を呼ぶフレーム profile に書いた"
+        - { file: "build.py", line: 108 }
+        - { file: "build.py", line: 117 }
+        - { file: "build.py", line: 133 }
+        - { file: "build.py", line: 120 }
+        - { file: "build.py", line: 122 }
+        - { file: "build.py", line: 130 }
+      note: "止めた範囲: 補助の profile_dir / _profile_id / _overlay は辿らず、その読み書きをこのフレームにまとめた。閉じている呼び出し: build_repo は render_dbt_project(repo) と書き、profile_id を渡さない (build.py 156 行) ので、既定値 None で、配布物の profiles/<id>/dbt-template をそのまま使う枝 (build.py 111-114 行) は動かない"
     rules:
       - kind: validation
-        value: "配布物に dbt-template (dbt_project.yml) が無ければ止める"
+        value: "配布物に dbt-template/dbt_project.yml が無ければ止める"
         status: fact
         evidence:
-          - { file: build.py, line: 109 }
-          - { file: build.py, line: 110 }
+          - { file: "build.py", line: 109 }
+          - { file: "build.py", line: 110 }
+      - kind: validation
+        value: "作業定義が無ければ止める。作業定義の profile.dir が空・分析リポジトリの外を指す・profile.yaml が無い・profile.yaml が外を指すリンクなら止める。profile.dir が無ければ配布物の profiles/<id> を使い、そこにも profile.yaml が無ければ止める"
+        status: fact
+        evidence:
+          - { file: "build.py", line: 32 }
+          - { file: "build.py", line: 33 }
+          - { file: "build.py", line: 50 }
+          - { file: "build.py", line: 51 }
+          - { file: "build.py", line: 46 }
+          - { file: "build.py", line: 48 }
+          - { file: "build.py", line: 54 }
+          - { file: "build.py", line: 56 }
+          - { file: "build.py", line: 58 }
       - kind: decision
-        value: "プロファイルの dbt-template は、作業定義の profile.dir の下にあればそれ、無ければ配布物の profiles/<id>/dbt-template を使う (どちらにも無くてもよい)"
+        value: "プロファイルのディレクトリに dbt-template が無ければ (分析リポジトリのコピー)、配布物の profiles/<id>/dbt-template を使う"
         status: fact
         evidence:
-          - { file: build.py, line: 117 }
-          - { file: build.py, line: 118 }
-          - { file: build.py, line: 119 }
+          - { file: "build.py", line: 118 }
+          - { file: "build.py", line: 119 }
     io:
-      - op: delete
-        status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data/dbt, file: "*" } }
-        detail: "dbt_project.yml、profiles.yml、macros、models、seeds (target/ と logs/ は残す)"
-        evidence:
-          - { file: build.py, line: 26 }
-          - { file: build.py, line: 120 }
-          - { file: build.py, line: 122 }
-          - { file: build.py, line: 125 }
-          - { file: build.py, line: 127 }
-          - { file: __init__.py, line: 37 }
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: dbt-template, file: "*" } }
-        detail: "配布物 (REPO_ROOT) の dbt-template の dbt_project.yml、profiles.yml、macros、models"
+        resource: { kind: filesystem, levels: { directory: "analysis", file: "work-definition.yaml" } }
+        fields:
+          - { name: "profile.id", use: [read] }
+          - { name: "profile.dir", use: [read] }
         evidence:
-          - { file: build.py, line: 107 }
-          - { file: build.py, line: 108 }
-          - { file: build.py, line: 128 }
-          - { file: build.py, line: 129 }
-        note: "directory は配布物のルート (abatlas パッケージの 1 つ上) からの相対"
+          - { file: "build.py", line: 34 }
+          - { file: "build.py", line: 44 }
+          - { file: "build.py", line: 116 }
+          - { file: "build.py", line: 117 }
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "dbt-template", file: "*" } }
+        evidence:
+          - { file: "build.py", line: 108 }
+          - { file: "build.py", line: 129 }
+          - { file: "build.py", line: 98 }
+        note: "配布物 (REPO_ROOT) の dbt-template の dbt_project.yml、profiles.yml、macros、models を写す"
       - op: read
         status: interpretation
-        resource: { kind: filesystem, levels: { directory: "profiles/*/dbt-template", file: "*" } }
-        detail: "プロファイルの dbt-template (作業定義の profile.dir の下にあればそれ、無ければ配布物の profiles/<id>/dbt-template)"
+        resource: { kind: filesystem, levels: { directory: "*/dbt-template", file: "*" } }
         evidence:
-          - { file: build.py, line: 117 }
-          - { file: build.py, line: 119 }
-          - { file: build.py, line: 130 }
-        note: "どちらの場所を読むかは、作業定義の profile.dir と、そこに dbt-template があるかで決まる。分析リポジトリのコピー (.abatlas/profiles/<id>) は dbt-template を持たない (118 行の注記) ので、ふつうは配布物の側"
+          - { file: "build.py", line: 117 }
+          - { file: "build.py", line: 119 }
+          - { file: "build.py", line: 130 }
+          - { file: "build.py", line: 96 }
+        note: "プロファイルの dbt-template。場所は、作業定義の profile.dir のディレクトリか、それに無ければ配布物の profiles/<id>。どちらにも無ければ何も写さない (build.py 95-96 行)。どちらになるかは、実行時のファイルの有無で決まる"
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/dbt/models/repo, file: "*" } }
-        detail: "分析リポジトリ独自の mart"
-        evidence: [{ file: build.py, line: 133 }]
+        resource: { kind: filesystem, levels: { directory: "analysis/dbt/models/repo", file: "*" } }
+        evidence:
+          - { file: "build.py", line: 133 }
+      - op: delete
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "analysis/data/dbt", file: "*" } }
+        evidence:
+          - { file: "build.py", line: 26 }
+          - { file: "build.py", line: 122 }
+          - { file: "build.py", line: 125 }
+          - { file: "build.py", line: 127 }
+          - { file: "__init__.py", line: 37 }
+        note: "RENDERED (dbt_project.yml、profiles.yml、macros、models、seeds) だけを消す。target/ と logs/ は残す"
       - op: write
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data/dbt, file: "*" } }
-        detail: "合成した dbt_project.yml、profiles.yml、macros、models (core / profile / staging / repo)、空の seeds、README.md"
+        resource: { kind: filesystem, levels: { directory: "analysis/data/dbt", file: "*" } }
         evidence:
-          - { file: build.py, line: 129 }
-          - { file: build.py, line: 130 }
-          - { file: build.py, line: 132 }
-          - { file: build.py, line: 133 }
-          - { file: build.py, line: 134 }
-  - id: profile
-    layer: logic
-    kind: function
-    name: _profile
-    source: { file: build.py, line: 63 }
-    caller: build_repo
+          - { file: "build.py", line: 129 }
+          - { file: "build.py", line: 130 }
+          - { file: "build.py", line: 132 }
+          - { file: "build.py", line: 133 }
+          - { file: "build.py", line: 134 }
+        note: "合成した dbt のプロジェクト (設定、macros、models、空の seeds など) と README.md を書く"
+  - id: "load_profile"
+    layer: "logic"
+    kind: "function"
+    name: "_profile"
+    source: { file: "build.py", line: 63 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
-      evidence: [{ file: build.py, line: 157 }]
+      evidence: [{ file: "build.py", line: 157 }]
     summary:
       status: interpretation
-      value: "作業定義の profile.dir (無ければ配布物の profiles/<id>) にあるプロファイルを読み、id が作業定義の profile.id と合い、プロファイルの検査に通るときだけ返す。合わなければ止める"
+      value: "作業定義が指すプロファイルのディレクトリの profile.yaml を読み、id が作業定義の profile.id と同じで、プロファイルの検査に通るときだけ返す"
       evidence:
-        - { file: build.py, line: 67 }
-        - { file: build.py, line: 68 }
-        - { file: build.py, line: 70 }
-        - { file: build.py, line: 72 }
-        - { file: build.py, line: 73 }
-      note: "プロファイルの場所を決める profile_dir (37 行) は、小さな補助なのでフレームにせず、その検査をこの段の rules に書いた (render_dbt_project と oss_copy_outdated も同じ補助を呼ぶ)。プロファイルの検査の中身 (validate_profile) は辿らない"
+        - { file: "build.py", line: 67 }
+        - { file: "build.py", line: 68 }
+        - { file: "build.py", line: 70 }
+        - { file: "build.py", line: 72 }
+      note: "止めた範囲: profile_dir と validate_profile (validate.py 79 行) は辿らない。profile_dir も呼ぶ (経路はフレーム render_dbt_project と同じ。ルールはそちらに書いた)"
     rules:
       - kind: validation
-        value: "作業定義が無い、profile.dir が空、分析リポジトリの外を指す、その profile.yaml が外を指すリンク、そこに profile.yaml が無い、profile.dir を書かずに配布物にもプロファイルが無い、のどれかなら止める (配布物へ黙って切り替えない)"
+        value: "profile.yaml の id が作業定義の profile.id と違えば止める"
         status: fact
         evidence:
-          - { file: build.py, line: 67 }
-          - { file: build.py, line: 32 }
-          - { file: build.py, line: 33 }
-          - { file: build.py, line: 48 }
-          - { file: build.py, line: 50 }
-          - { file: build.py, line: 51 }
-          - { file: build.py, line: 46 }
-          - { file: build.py, line: 47 }
-          - { file: build.py, line: 54 }
-          - { file: build.py, line: 56 }
-          - { file: build.py, line: 58 }
-          - { file: build.py, line: 59 }
+          - { file: "build.py", line: 70 }
+          - { file: "build.py", line: 71 }
       - kind: validation
-        value: "プロファイルの id が、作業定義の profile.id と違えば止める"
+        value: "プロファイルが検査 (形式、層の id の重複、entry と boundary の層の有無、データの種類など) に通らなければ止める"
         status: fact
         evidence:
-          - { file: build.py, line: 69 }
-          - { file: build.py, line: 70 }
-          - { file: build.py, line: 71 }
-      - kind: validation
-        value: "プロファイルが検査 (validate_profile) に通らなければ、指摘を並べて止める"
-        status: fact
-        evidence:
-          - { file: build.py, line: 72 }
-          - { file: build.py, line: 73 }
-          - { file: build.py, line: 74 }
+          - { file: "build.py", line: 72 }
+          - { file: "build.py", line: 73 }
+          - { file: "build.py", line: 74 }
+          - { file: "validate.py", line: 80 }
+          - { file: "validate.py", line: 88 }
+          - { file: "validate.py", line: 91 }
+          - { file: "validate.py", line: 93 }
+          - { file: "validate.py", line: 99 }
     io:
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis, file: work-definition.yaml } }
-        detail: "profile.id と profile.dir"
+        resource: { kind: filesystem, levels: { directory: "analysis", file: "work-definition.yaml" } }
         fields:
-          - { name: profile.id, use: [read] }
-          - { name: profile.dir, use: [read] }
+          - { name: "profile.id", use: [read] }
+          - { name: "profile.dir", use: [read] }
         evidence:
-          - { file: build.py, line: 31 }
-          - { file: build.py, line: 34 }
-          - { file: build.py, line: 44 }
-          - { file: build.py, line: 45 }
-          - { file: build.py, line: 69 }
+          - { file: "build.py", line: 67 }
+          - { file: "build.py", line: 69 }
+          - { file: "build.py", line: 34 }
+          - { file: "build.py", line: 44 }
       - op: read
-        status: fact
-        resource: { kind: filesystem, levels: { directory: "*", file: profile.yaml } }
-        detail: "作業定義の profile.dir の下 (無ければ配布物の profiles/<id>) の profile.yaml"
-        fields:
-          - { name: "*", use: [read] }
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "*", file: "profile.yaml" } }
         evidence:
-          - { file: build.py, line: 53 }
-          - { file: build.py, line: 49 }
-          - { file: build.py, line: 67 }
-          - { file: build.py, line: 68 }
-        note: "フォルダは作業定義の profile.dir で決まる (この分析リポジトリでは .abatlas/profiles/api)。組み立て式なので、変わる部分を * にした"
-  - id: oss_copy_outdated
-    layer: logic
-    kind: function
-    name: oss_copy_outdated
-    source: { file: build.py, line: 78 }
-    caller: build_repo
+          - { file: "build.py", line: 67 }
+          - { file: "build.py", line: 68 }
+        note: "ディレクトリは作業定義の profile.dir (この分析リポジトリでは .abatlas/profiles/api)。無ければ配布物の profiles/<id>"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "schema" } }
+        evidence:
+          - { file: "build.py", line: 72 }
+          - { file: "validate.py", line: 80 }
+          - { file: "validate.py", line: 95 }
+          - { file: "validate.py", line: 96 }
+          - { file: "schemas.py", line: 31 }
+          - { file: "schemas.py", line: 56 }
+          - { file: "schemas.py", line: 66 }
+        note: "validate_profile が、配布物の JSON Schema (schema/*.schema.json) と語彙 (schema/vocab の terms.yaml と resource-kinds.yaml) を読む。どれも lru_cache なので、同じプロセスで最初の 1 回だけファイルを読む (サーバのプロセスが既に読んでいれば読まない)。この後の check_manifest、publish_declarations、publish_meta、build_repo の用語集と語彙の参照は、この読み取りの結果を使う"
+  - id: "oss_copy_outdated"
+    layer: "logic"
+    kind: "function"
+    name: "oss_copy_outdated"
+    source: { file: "build.py", line: 78 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
-      evidence: [{ file: build.py, line: 158 }]
+      evidence: [{ file: "build.py", line: 158 }]
     summary:
       status: interpretation
-      value: "読んだプロファイルが、分析リポジトリの中の配布物のコピー (.abatlas/profiles/<id>) のとき、その profile.yaml を配布物の profiles/<id>/profile.yaml とバイトで比べ、違えば upgrade を促す文を返す。build_repo は、それを警告として標準エラーに出し、止めずに進める"
+      value: "読んだプロファイルが配布物のコピー (.abatlas/profiles/<id>) なら、配布物の profile.yaml とバイトで比べ、違えば警告の文を返す (止めない。build_repo が標準エラーに出す)"
       evidence:
-        - { file: build.py, line: 84 }
-        - { file: build.py, line: 85 }
-        - { file: build.py, line: 87 }
-        - { file: build.py, line: 88 }
-        - { file: build.py, line: 90 }
-        - { file: build.py, line: 159 }
-        - { file: build.py, line: 160 }
+        - { file: "build.py", line: 85 }
+        - { file: "build.py", line: 88 }
+        - { file: "build.py", line: 90 }
+        - { file: "build.py", line: 160 }
     rules:
       - kind: decision
-        value: "分析リポジトリの中のプロファイルのコピーが、配布物の profile.yaml と違えば、upgrade を促す警告を出す (集計は止めず、コピーのまま進める)。自分で写したプロファイル (コピーの置き場の外) は比べない"
+        value: "プロファイルのコピーが配布物と違えば、upgrade を促す警告を出すが、集計は続ける"
         status: fact
         evidence:
-          - { file: build.py, line: 85 }
-          - { file: build.py, line: 86 }
-          - { file: build.py, line: 88 }
-          - { file: build.py, line: 89 }
-          - { file: build.py, line: 159 }
-          - { file: build.py, line: 160 }
+          - { file: "build.py", line: 88 }
+          - { file: "build.py", line: 90 }
+          - { file: "build.py", line: 159 }
+          - { file: "build.py", line: 160 }
     io:
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: ".abatlas/profiles/*", file: profile.yaml } }
-        detail: "分析リポジトリの中の、配布物のプロファイルのコピー"
+        resource: { kind: filesystem, levels: { directory: "analysis", file: "work-definition.yaml" } }
         fields:
-          - { name: "*", use: [read] }
+          - { name: "profile.id", use: [read] }
+          - { name: "profile.dir", use: [read] }
         evidence:
-          - { file: build.py, line: 85 }
-          - { file: build.py, line: 88 }
-          - { file: __init__.py, line: 22 }
+          - { file: "build.py", line: 84 }
+          - { file: "build.py", line: 87 }
+          - { file: "build.py", line: 34 }
+          - { file: "build.py", line: 44 }
+        note: "profile_dir と _profile_id が作業定義を読む"
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: "profiles/*", file: profile.yaml } }
-        detail: "配布物 (REPO_ROOT) の profiles/<id>/profile.yaml"
-        fields:
-          - { name: "*", use: [read] }
+        resource: { kind: filesystem, levels: { directory: ".abatlas/profiles/*", file: "profile.yaml" } }
         evidence:
-          - { file: build.py, line: 87 }
-          - { file: build.py, line: 88 }
-        note: "directory は配布物のルートからの相対"
-  - id: run_etl
-    layer: logic
-    kind: function
-    name: run_etl
-    source: { file: etl.py, line: 252 }
-    caller: build_repo
+          - { file: "build.py", line: 85 }
+          - { file: "build.py", line: 88 }
+        note: "プロファイルのディレクトリが .abatlas の下でなければ、比べずに返す (build.py 85-86 行)"
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "profiles/*", file: "profile.yaml" } }
+        evidence:
+          - { file: "build.py", line: 87 }
+          - { file: "build.py", line: 88 }
+        note: "配布物 (REPO_ROOT) の profiles/<id>/profile.yaml"
+  - id: "run_etl"
+    layer: "logic"
+    kind: "function"
+    name: "run_etl"
+    source: { file: "etl.py", line: 252 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
-      evidence: [{ file: build.py, line: 161 }]
+      evidence: [{ file: "build.py", line: 161 }]
     summary:
       status: interpretation
-      value: "入口の一覧と、analysis/results の分析結果をすべて読み、validate result と同じ検査を通してから、seed の CSV (入口・結果・フレーム・I/O・列・つながり・確認・設定・ルール・テスト・対象のファイル・データの辞書など) に分解して analysis/data/dbt/seeds/ に書く。1 件でも検査に通らなければ何も書かずに止める。対象が作業定義と違う結果と、今のプロファイルの版と違う版で分析した結果は、止めずに警告する。表ごとの件数を返す"
+      value: "入口の一覧、データの辞書、分析結果をすべて読み、検査のコマンド (validate result) と同じ検査を通し、違反が 1 つでもあれば何も書かずに止める。通れば、入口・結果・フレーム・I/O・列・つながり・確認・設定・ルール・テスト・主張・根拠・対象のファイル・データの辞書の表に分解して、seed の CSV を書き、表ごとの件数を返す"
       evidence:
-        - { file: etl.py, line: 262 }
-        - { file: etl.py, line: 265 }
-        - { file: etl.py, line: 276 }
-        - { file: etl.py, line: 278 }
-        - { file: etl.py, line: 301 }
-        - { file: etl.py, line: 302 }
-        - { file: etl.py, line: 303 }
-        - { file: etl.py, line: 304 }
-        - { file: etl.py, line: 306 }
-        - { file: etl.py, line: 314 }
-      note: "読み書きを持つ最初のフレームで止めた (analysis-conventions.md)。中の補助、つまり検査 (validate_analysis_result、within_problems、dictionary_problems)、行への分解 (build_rows)、CSV の書き出し (write_seeds) は辿らない。書き出しは、この段の io に書いた。対象の範囲のファイルの一覧を取る補助 (target_files) はフレームにせず、その読み取り (list) をこの段の io に書いた (git ls-files の起動は、io の note に書いた)"
+        - { file: "etl.py", line: 262 }
+        - { file: "etl.py", line: 265 }
+        - { file: "etl.py", line: 276 }
+        - { file: "etl.py", line: 278 }
+        - { file: "etl.py", line: 302 }
+        - { file: "etl.py", line: 303 }
+        - { file: "etl.py", line: 304 }
+        - { file: "etl.py", line: 305 }
+      note: "止めた範囲: build_rows、write_seeds、target_files、validate_analysis_result、within_problems、dictionary_problems の中は辿らず、その読み書きをこのフレームにまとめた"
+    settings:
+      - name: "ABATLAS_TARGET_ROOT"
+        kind: env
+        effect: "あれば、作業定義の target.clone_path の代わりに、その場所を対象の clone として使う (対象のファイルの一覧と、根拠のファイルを読む場所が変わる)"
+        status: fact
+        evidence:
+          - { file: "build.py", line: 147 }
+          - { file: "build.py", line: 161 }
+          - { file: "validate.py", line: 22 }
+          - { file: "validate.py", line: 23 }
+        note: "build_repo が _scope_dir (build.py 141 行) で範囲のフォルダを決めて run_etl に渡す。値を使って動きが変わるのは、この段"
     rules:
       - kind: validation
-        value: "入口の一覧、分析結果 (validate result と同じ検査、ファイル名、id の重複)、データの辞書のどれかが検査に通らなければ、seed を 1 つも書かずに止める"
+        value: "入口の一覧・分析結果・データの辞書のどれかが検査に通らなければ、seed を 1 つも書かずに止める"
         status: fact
         evidence:
-          - { file: etl.py, line: 267 }
-          - { file: etl.py, line: 278 }
-          - { file: etl.py, line: 284 }
-          - { file: etl.py, line: 286 }
-          - { file: etl.py, line: 301 }
-          - { file: etl.py, line: 302 }
+          - { file: "etl.py", line: 267 }
+          - { file: "etl.py", line: 278 }
+          - { file: "etl.py", line: 301 }
+          - { file: "etl.py", line: 302 }
+      - kind: validation
+        value: "結果のファイル名は入口 id から決まる名前でなければならず、同じ入口 id の結果が 2 つあってはならない"
+        status: fact
+        evidence:
+          - { file: "etl.py", line: 283 }
+          - { file: "etl.py", line: 284 }
+          - { file: "etl.py", line: 286 }
       - kind: decision
-        value: "対象 (リポジトリ、範囲、コミット) が作業定義と違う分析結果は、止めずに集計し、件数と入口を警告する"
+        value: "対象 (リポジトリ、範囲、コミット) が作業定義と違う結果は、止めずに集計し、警告を出す"
         status: fact
         evidence:
-          - { file: etl.py, line: 293 }
-          - { file: etl.py, line: 296 }
-          - { file: etl.py, line: 306 }
-          - { file: etl.py, line: 308 }
+          - { file: "etl.py", line: 296 }
+          - { file: "etl.py", line: 306 }
+          - { file: "etl.py", line: 308 }
       - kind: decision
         value: "今のプロファイルの版と違う版で分析した結果は、止めずに集計し、再分析を促す警告を出す"
         status: fact
         evidence:
-          - { file: etl.py, line: 143 }
-          - { file: etl.py, line: 311 }
-          - { file: etl.py, line: 314 }
-          - { file: etl.py, line: 315 }
+          - { file: "etl.py", line: 143 }
+          - { file: "etl.py", line: 311 }
+          - { file: "etl.py", line: 315 }
     io:
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis, file: entry-list.yaml } }
+        resource: { kind: filesystem, levels: { directory: "analysis", file: "entry-list.yaml" } }
         fields:
-          - { name: "*", use: [read] }
+          - { name: "entries", use: [read] }
         evidence:
-          - { file: build.py, line: 161 }
-          - { file: etl.py, line: 262 }
+          - { file: "etl.py", line: 262 }
+          - { file: "etl.py", line: 269 }
+          - { file: "etl.py", line: 122 }
+          - { file: "build.py", line: 161 }
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/results, file: "*.yaml" } }
-        detail: "分析結果のすべて"
+        resource: { kind: filesystem, levels: { directory: "analysis", file: "data-dictionary.yaml" } }
         fields:
-          - { name: "*", use: [read] }
+          - { name: "fields", use: [read] }
         evidence:
-          - { file: etl.py, line: 276 }
-          - { file: etl.py, line: 277 }
-      - op: read
-        status: fact
-        resource: { kind: filesystem, levels: { directory: analysis, file: data-dictionary.yaml } }
-        detail: "データの辞書。ファイルがあるときだけ"
-        fields:
-          - { name: "*", use: [read] }
-        evidence:
-          - { file: etl.py, line: 263 }
-          - { file: etl.py, line: 265 }
-          - { file: dictionary.py, line: 18 }
-      - op: read
-        status: fact
-        resource: { kind: filesystem, levels: { directory: analysis, file: work-definition.yaml } }
-        detail: "対象 (リポジトリ、範囲、コミット) を、分析結果の対象と比べる"
-        fields:
-          - { name: target, use: [read] }
-        evidence:
-          - { file: etl.py, line: 290 }
-          - { file: etl.py, line: 291 }
+          - { file: "etl.py", line: 265 }
+          - { file: "etl.py", line: 118 }
+          - { file: "dictionary.py", line: 18 }
+        note: "ファイルがあるときだけ読む"
       - op: list
         status: fact
-        resource: { kind: filesystem, levels: { directory: "*" } }
-        detail: "対象の範囲 (scope) のフォルダにあるファイルの一覧。seed の target_files.csv の中身になる。範囲が読めなければ空"
+        resource: { kind: filesystem, levels: { directory: "analysis/results", file: "*.yaml" } }
         evidence:
-          - { file: build.py, line: 161 }
-          - { file: etl.py, line: 303 }
-          - { file: etl.py, line: 62 }
-          - { file: etl.py, line: 67 }
-          - { file: etl.py, line: 74 }
-        note: "フォルダは作業定義の target (clone_path と scope) で決まる (build.py の _scope_dir)。git の管理下なら git ls-files を別のプロセスで動かして取り、そうでなければフォルダを歩く (隠しフォルダと、よくある生成物・依存のフォルダを除く)"
+          - { file: "etl.py", line: 276 }
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "analysis/results", file: "*.yaml" } }
+        fields:
+          - { name: "*", use: [read] }
+        evidence:
+          - { file: "etl.py", line: 277 }
+      - op: read
+        status: fact
+        resource: { kind: filesystem, levels: { directory: "analysis", file: "work-definition.yaml" } }
+        fields:
+          - { name: "target", use: [read] }
+        evidence:
+          - { file: "etl.py", line: 290 }
+          - { file: "etl.py", line: 291 }
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "schema" } }
+        evidence:
+          - { file: "etl.py", line: 114 }
+          - { file: "etl.py", line: 267 }
+          - { file: "schemas.py", line: 41 }
+          - { file: "schemas.py", line: 56 }
+        note: "配布物の JSON Schema (schema/*.schema.json) と語彙 (schema/vocab の data-categories.yaml、unknown-reasons.yaml など) を、検査と分解のために読む。どれも lru_cache なので、同じプロセスで最初の 1 回だけファイルを読む (validate_profile が先に読んだものは読まない)"
+      - op: list
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "*" } }
+        evidence:
+          - { file: "etl.py", line: 303 }
+          - { file: "etl.py", line: 67 }
+          - { file: "etl.py", line: 74 }
+        note: "対象の範囲 (target.clone_path か ABATLAS_TARGET_ROOT の下の scope) のファイルの一覧。git の管理下なら git ls-files を別のプロセスで動かし、そうでなければフォルダを歩く。範囲が読めなければ空"
+      - op: read
+        status: interpretation
+        resource: { kind: filesystem, levels: { directory: "*" } }
+        evidence:
+          - { file: "etl.py", line: 278 }
+          - { file: "validate.py", line: 292 }
+          - { file: "validate.py", line: 342 }
+          - { file: "validate.py", line: 267 }
+        note: "分析結果の根拠のファイル (対象の範囲の中) を開いて、行数を数える (根拠の実在と行番号の検査)。範囲が読めないときは読まない"
       - op: write
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data/dbt/seeds, file: "*.csv" } }
-        detail: "entries / results / frames / io / parameters / claims / evidence / entry_within / io_fields / links / guards / settings / rules / tests / target_files / data_dictionary の 16 の CSV を、まるごと書き直す"
-        fields:
-          - { name: "*", use: [write] }
+        resource: { kind: filesystem, levels: { directory: "analysis/data/dbt/seeds", file: "*.csv" } }
         evidence:
-          - { file: build.py, line: 161 }
-          - { file: etl.py, line: 304 }
-          - { file: etl.py, line: 233 }
-          - { file: etl.py, line: 234 }
-          - { file: etl.py, line: 235 }
-          - { file: etl.py, line: 238 }
-        note: "列は CSV ごとに COLUMNS (etl.py 206〜227 行) で決まっている。16 のファイルの列を 1 つの読み書きに並べると、どの列がどのファイルかが分からなくなるので、* にした"
-  - id: dbt
-    layer: external
-    kind: cli
-    name: dbt build
-    source: { file: build.py, line: 179 }
-    caller: build_repo
+          - { file: "etl.py", line: 304 }
+          - { file: "etl.py", line: 234 }
+          - { file: "etl.py", line: 235 }
+          - { file: "build.py", line: 161 }
+        note: "COLUMNS の表ごとに 1 ファイル (entries.csv、results.csv、frames.csv、io.csv など 16 個)"
+  - id: "dbt_build"
+    layer: "external"
+    kind: "cli"
+    name: "dbt build"
+    source: { file: "build.py", line: 179 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
       evidence:
-        - { file: build.py, line: 171 }
-        - { file: build.py, line: 172 }
-        - { file: build.py, line: 173 }
-        - { file: build.py, line: 179 }
-      note: "subprocess.run で、合成した analysis/data/dbt/ を project-dir と profiles-dir にして dbt build --quiet を別のプロセスで動かす。環境変数 ABATLAS_DUCKDB に作業用のファイル (abatlas.duckdb.building) を渡す (178 行)。dbt の実行ファイルは Python と同じ場所にあればそれ、無ければ python -m dbt.cli.main。dbt のモデルの中は辿らない (analysis-conventions.md)"
-  - id: check_manifest
-    layer: logic
-    kind: function
-    name: check_manifest
-    source: { file: declarations.py, line: 271 }
-    caller: build_repo
+        - { file: "build.py", line: 173 }
+        - { file: "build.py", line: 179 }
+      note: "subprocess.run で別のプロセスとして起動する (dbt の実行ファイルが Python の隣にあればそれ、無ければ python -m dbt.cli.main)。--project-dir と --profiles-dir は合成した analysis/data/dbt、ABATLAS_DUCKDB に作業用のファイル (abatlas.duckdb.building) を渡す (build.py 178 行)。dbt は seed の CSV を読み、model を作業用の DuckDB のファイルに作り、target/manifest.json と target/run_results.json を書く。dbt のモデルの中は辿らない (analysis-conventions.md)"
+  - id: "check_manifest"
+    layer: "logic"
+    kind: "function"
+    name: "check_manifest"
+    source: { file: "declarations.py", line: 251 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
-      evidence: [{ file: build.py, line: 186 }]
+      evidence: [{ file: "build.py", line: 186 }]
+      note: "dbt build が失敗したときは、手前で止まって呼ばれない"
     summary:
       status: interpretation
-      value: "dbt が書いた manifest から mart の宣言 (meta.abatlas) をすべて取り出し、作業用の DuckDB を読み取り専用で開いて、mart ごとに実体の表の列を information_schema から読み、宣言の形式・持ち主 (origin) と置き場所の一致・keys などが指す列の実在を確かめ、指摘を返す"
+      value: "dbt の manifest から meta.abatlas を持つ model を取り出し、作業用の DuckDB を読み取り専用で開いて、宣言ごとに、置き場と origin が合うか、宣言の形式、keys などが指す列が表に実在するかを確かめ、指摘を返す"
       evidence:
-        - { file: declarations.py, line: 273 }
-        - { file: declarations.py, line: 274 }
-        - { file: declarations.py, line: 277 }
-        - { file: declarations.py, line: 279 }
-        - { file: declarations.py, line: 284 }
-        - { file: declarations.py, line: 287 }
-      note: "読み書きを持つ最初のフレームで止めた (analysis-conventions.md)。宣言 1 つの検査 (check_declaration) と、持ち主の検査 (origin_problems) の細部は辿らない"
+        - { file: "declarations.py", line: 253 }
+        - { file: "declarations.py", line: 254 }
+        - { file: "declarations.py", line: 257 }
+        - { file: "declarations.py", line: 259 }
+        - { file: "declarations.py", line: 264 }
+        - { file: "declarations.py", line: 267 }
+      note: "止めた範囲: declared_models、origin_problems、check_declaration の中は辿らない。build_repo はいつも作業用のファイルのパスを渡す (build.py 186 行) ので、db_path が無いときの枝 (declarations.py 257 行の else) はこの入口では通らない"
     rules:
       - kind: validation
         value: "meta.abatlas を持つ mart が 1 つも無ければ、指摘にする"
         status: fact
         evidence:
-          - { file: declarations.py, line: 275 }
-          - { file: declarations.py, line: 276 }
+          - { file: "declarations.py", line: 255 }
+          - { file: "declarations.py", line: 256 }
       - kind: validation
-        value: "mart の宣言が形式に合わない、origin が定義の置き場所と合わない、keys・show・rollup・labels・filters が指す列が mart の実体の表に無い、のどれかなら指摘にする"
-        status: fact
+        value: "宣言ごとに、origin と定義の置き場が合うこと、view・origin・level などの値と keys の形式、keys・show・labels・filters が指す列が表に実在することを確かめる"
+        status: interpretation
         evidence:
-          - { file: declarations.py, line: 279 }
-          - { file: declarations.py, line: 287 }
-          - { file: declarations.py, line: 104 }
-          - { file: declarations.py, line: 180 }
+          - { file: "declarations.py", line: 259 }
+          - { file: "declarations.py", line: 267 }
+          - { file: "declarations.py", line: 110 }
+          - { file: "declarations.py", line: 163 }
     io:
       - op: read
         status: fact
-        resource: { kind: filesystem, levels: { directory: analysis/data/dbt/target, file: manifest.json } }
+        resource: { kind: filesystem, levels: { directory: "analysis/data/dbt/target", file: "manifest.json" } }
         fields:
-          - { name: nodes, use: [read] }
+          - { name: "nodes", use: [read] }
         evidence:
-          - { file: build.py, line: 185 }
-          - { file: build.py, line: 186 }
-          - { file: declarations.py, line: 273 }
-          - { file: declarations.py, line: 75 }
+          - { file: "declarations.py", line: 253 }
+          - { file: "declarations.py", line: 254 }
+          - { file: "declarations.py", line: 67 }
+          - { file: "build.py", line: 185 }
       - op: read
         status: fact
-        resource: { kind: rdb, levels: { dbms: duckdb, schema: information_schema, table: columns } }
-        detail: "select column_name from information_schema.columns where table_schema = ? and table_name = ? (宣言のある mart ごと)"
+        resource: { kind: rdb, levels: { dbms: "duckdb", schema: "information_schema", table: "columns" } }
         fields:
-          - { name: column_name, use: [read] }
-          - { name: table_schema, use: [filter] }
-          - { name: table_name, use: [filter] }
+          - { name: "column_name", use: [read] }
+          - { name: "table_schema", use: [filter] }
+          - { name: "table_name", use: [filter] }
         evidence:
-          - { file: declarations.py, line: 284 }
-          - { file: declarations.py, line: 285 }
-        note: "読むのは、作業用の DuckDB のファイル (abatlas.duckdb.building)"
-  - id: duckdb_check
-    layer: external
-    kind: library
-    name: duckdb.connect
-    source: { file: declarations.py, line: 277 }
-    caller: check_manifest
+          - { file: "declarations.py", line: 264 }
+          - { file: "declarations.py", line: 257 }
+        note: "作業用の DuckDB のファイル (abatlas.duckdb.building) の、宣言の relation の表の列"
+  - id: "duckdb_connect"
+    layer: "external"
+    kind: "library"
+    name: "duckdb.connect"
+    source: { file: "declarations.py", line: 257 }
+    caller: "check_manifest"
     call:
       status: fact
       when: always
-      evidence:
-        - { file: declarations.py, line: 277 }
-        - { file: build.py, line: 186 }
-      note: "db_path があるときだけ開く条件だが、build_repo は作業用のファイルのパス (building) を必ず渡すので、この入口からはいつも開く。read_only=True で開き、最後に閉じる"
-  - id: duckdb_build
-    layer: external
-    kind: library
-    name: duckdb.connect
-    source: { file: build.py, line: 194 }
-    caller: build_repo
+      evidence: [{ file: "declarations.py", line: 257 }]
+      note: "read_only=True で、作業用のファイルを開く。build_repo も、宣言を書くために、同じファイルを読み書きできる接続で開く (build.py 194 行)"
+  - id: "publish_declarations"
+    layer: "adapter"
+    kind: "function"
+    name: "publish_declarations"
+    source: { file: "declarations.py", line: 187 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
-      evidence: [{ file: build.py, line: 194 }]
-      note: "作業用のファイル (abatlas.duckdb.building) を、書き込みのできる接続で開く。この接続の execute を、publish_declarations と publish_meta が使う"
-  - id: publish_declarations
-    layer: adapter
-    kind: function
-    name: publish_declarations
-    source: { file: declarations.py, line: 207 }
-    caller: build_repo
-    call:
-      status: fact
-      when: always
-      evidence: [{ file: build.py, line: 195 }]
+      evidence: [{ file: "build.py", line: 195 }]
+      note: "宣言の検査に落ちたときは、手前で止まって呼ばれない。接続は build_repo が build.py 194 行で開いた、作業用のファイルへの接続"
     summary:
       status: interpretation
-      value: "検査に通った mart の宣言を、宣言の文字と説明の用語を呼び名に置き換えてから、作業用の DuckDB の表 meta.declarations に作り直して書く (表は毎回 create or replace)"
+      value: "検査に通った宣言の文字と説明の用語の差し込み口を、用語集の呼び名に置き換えてから、meta スキーマを作り、meta.declarations を作り直して、宣言を 1 行ずつ書く"
       evidence:
-        - { file: declarations.py, line: 213 }
-        - { file: declarations.py, line: 215 }
-        - { file: declarations.py, line: 216 }
-        - { file: declarations.py, line: 217 }
-        - { file: declarations.py, line: 218 }
+        - { file: "declarations.py", line: 192 }
+        - { file: "declarations.py", line: 193 }
+        - { file: "declarations.py", line: 195 }
+        - { file: "declarations.py", line: 196 }
+        - { file: "declarations.py", line: 197 }
     io:
       - op: create
         status: fact
-        resource: { kind: rdb, levels: { dbms: duckdb, schema: meta, table: declarations } }
-        detail: "create or replace table \"meta\".\"declarations\" と、宣言ごとの insert"
+        resource: { kind: rdb, levels: { dbms: "duckdb", schema: "meta", table: "declarations" } }
         fields:
-          - { name: name, use: [write] }
-          - { name: description, use: [write] }
-          - { name: rel_schema, use: [write] }
-          - { name: rel_alias, use: [write] }
-          - { name: declaration, use: [write] }
+          - { name: "name", use: [write] }
+          - { name: "description", use: [write] }
+          - { name: "rel_schema", use: [write] }
+          - { name: "rel_alias", use: [write] }
+          - { name: "declaration", use: [write] }
         evidence:
-          - { file: declarations.py, line: 203 }
-          - { file: declarations.py, line: 216 }
-          - { file: declarations.py, line: 217 }
-          - { file: declarations.py, line: 218 }
-        note: "create or replace なので、前の行はすべて置き換わる"
-  - id: publish_meta
-    layer: adapter
-    kind: function
-    name: publish_meta
-    source: { file: declarations.py, line: 233 }
-    caller: build_repo
+          - { file: "declarations.py", line: 183 }
+          - { file: "declarations.py", line: 196 }
+          - { file: "declarations.py", line: 197 }
+          - { file: "declarations.py", line: 198 }
+        note: "create or replace table で作り直してから insert する。表の名前は定数 DECLARATIONS_TABLE (meta, declarations)"
+  - id: "publish_meta"
+    layer: "adapter"
+    kind: "function"
+    name: "publish_meta"
+    source: { file: "declarations.py", line: 213 }
+    caller: "build_repo"
     call:
       status: fact
       when: always
-      evidence: [{ file: build.py, line: 197 }]
+      evidence: [{ file: "build.py", line: 197 }]
+      note: "接続は build_repo が build.py 194 行で開いた、作業用のファイルへの接続"
     summary:
       status: interpretation
-      value: "プロファイル (id・版・呼び名・階層・層の並び)、データの種類の語彙、用語集、分析対象 (名前・リポジトリ・コミット) を、作業用の DuckDB の表 meta.atlas に、キーと JSON の値の組で作り直して書く。分析対象は、作業定義に repo があるときだけ書く"
+      value: "meta スキーマを作り、meta.atlas を作り直して、プロファイル (id、版、label、階層、層の並び。表示の文字は用語を差し込む)、データの種類の語彙、用語集、分析対象 (名前、リポジトリ、コミット) を、キーと JSON の値で書く"
       evidence:
-        - { file: declarations.py, line: 237 }
-        - { file: declarations.py, line: 240 }
-        - { file: declarations.py, line: 246 }
-        - { file: declarations.py, line: 250 }
-        - { file: declarations.py, line: 251 }
-        - { file: declarations.py, line: 253 }
+        - { file: "declarations.py", line: 216 }
+        - { file: "declarations.py", line: 217 }
+        - { file: "declarations.py", line: 220 }
+        - { file: "declarations.py", line: 226 }
+        - { file: "declarations.py", line: 230 }
+        - { file: "declarations.py", line: 233 }
+    rules:
+      - kind: decision
+        value: "分析対象 (target) は、作業定義に repo があるときだけ書く。name が無ければ repo の最後の区切りより後ろ (末尾の .git を除く) にする"
+        status: fact
+        evidence:
+          - { file: "declarations.py", line: 203 }
+          - { file: "declarations.py", line: 206 }
+          - { file: "declarations.py", line: 207 }
+          - { file: "declarations.py", line: 233 }
     io:
       - op: create
         status: fact
-        resource: { kind: rdb, levels: { dbms: duckdb, schema: meta, table: atlas } }
-        detail: "create or replace table \"meta\".\"atlas\" と、キー profile / resource_kinds / terms / target の insert"
+        resource: { kind: rdb, levels: { dbms: "duckdb", schema: "meta", table: "atlas" } }
         fields:
-          - { name: key, use: [write] }
-          - { name: value, use: [write] }
+          - { name: "key", use: [write] }
+          - { name: "value", use: [write] }
         evidence:
-          - { file: declarations.py, line: 204 }
-          - { file: declarations.py, line: 237 }
-          - { file: declarations.py, line: 250 }
-          - { file: declarations.py, line: 251 }
-        note: "create or replace なので、前の行はすべて置き換わる"
-notes: "(1) 対象の clone の作業ツリーは、分析の間も書き換わっていた (api.py と declarations.py に、コミットしていない変更がある。api.py は分析中にも 2 回変わった)。入口の一覧は /recompute を api.py 354 行としているが、いまのファイルでは 400 行なので、根拠の行はすべて分析した時点のファイルに合わせた (entry.source も 400)。target.commit は作業定義のまま書いたが、行番号はそのコミットのものではない。(2) 層の当てはめ: 再集計の手順 build_repo、ETL の run_etl、dbt のプロジェクトの合成 render_dbt_project、プロファイルの読み込み _profile、配布物との比較 oss_copy_outdated、宣言の検査 check_manifest は、どれも自分でファイルや DuckDB を読み書きする手順なので logic にした (analysis-conventions.md は check_manifest の層を決めていない。declarations.py の他の関数は adapter だが、check_manifest は検査が役割なので logic)。DuckDB の meta の表に書く publish_declarations / publish_meta は adapter (analysis-conventions.md のとおり)。dbt の起動 (subprocess.run) は external の dbt build、DuckDB は duckdb.connect の external で閉じた (check_manifest の読み取り専用の接続と、build_repo の書き込みの接続の 2 つ)。DuckDB のファイルの入れ替え (os.replace) と作業用のファイルの削除は filesystem にした。(3) Host / Origin: Host の確認は middleware (host_check) と _reject_cross_site の両方で行うので、両方に guards (value は _allowed_hosts()) と settings (ABATLAS_ALLOWED_HOSTS) を書いた。Origin の確認は _reject_cross_site の guards (value は origin == host)。どちらの確認も、終端の決まりと手本に合わせて rules (validation) にも書いた。(4) 同時実行の 409 は、recompute の rules (decision)。錠はプロセスの中だけで効くことを note に書いた。SystemExit を 500 にするのも recompute の rules (decision)。finally の錠の解放はフレームにせず summary に書いた。(5) 固定の値で閉じている呼び出し: recompute は build_repo に select を渡さない (api.py 406 行) ので、--select の枝と、今の DuckDB を写す枝 (build.py 174〜177 行) は辿らない。176 行の条件は select と db.exists() の組み合わせだが、select が None なら決して成り立たないので、閉じていると見た。フレームには notes の項目が無いので、閉じている呼び出しは build_repo の summary の note に書いた。render_dbt_project の profile_id の枝 (111〜114 行) も同じ。(6) 深さ: analysis-conventions.md の「読み書きを持つ最初のフレームで止める」に従い、render_dbt_project / run_etl / check_manifest の中の補助 (検査・変換の細部) は辿らず (ただし、run_etl の補助の CSV の書き出しと、対象の範囲のファイルの一覧の読み取りは、seed の中身になるので run_etl の io に写した)、各フレームの summary の note に止めた範囲を書いた。build_repo が直接呼ぶ関数のうち、読み書きか業務のルールを持つもの (_profile、oss_copy_outdated) はフレームにし、持たない小さな補助 (_scope_dir) は呼ぶ段に読み書きを書いた。配布物の語彙と用語集を読むだけの補助 (resource_kinds、term_labels、profile_term_problems) は、分析リポジトリのデータではないので読み書きに書かなかった。(7) ファイルの場所: 集計の DuckDB は ABATLAS_DUCKDB で変わるが、analysis-conventions.md に従い settings に書かず、既定の analysis/data/abatlas.duckdb を段に書き、note に ABATLAS_DUCKDB のことを書いた。プロファイルの場所 (作業定義の profile.dir で決まる) と、対象の範囲のフォルダ (作業定義の target で決まる) は、変わる部分を * にした (レビューの指摘で直した)。(8) seed の 16 の CSV は 1 つの書き込みにまとめ、fields は * にした (列は COLUMNS で決まるが、ファイルごとに違う)。(9) dbt が作業用の DuckDB に集計表を書くことは、dbt の中を辿らない決まりなので、io には書かず、dbt のフレームの call の note に書いた。"
+          - { file: "declarations.py", line: 184 }
+          - { file: "declarations.py", line: 217 }
+          - { file: "declarations.py", line: 230 }
+        note: "create or replace table で作り直してから insert する。キーは profile、resource_kinds、terms、target (target は作業定義に repo があるときだけ)。表の名前は定数 META_TABLE (meta, atlas)"
+notes: "(1) analysis-conventions.md の「build_repo の先は、読み書きを持つ最初のフレームで止める」に従い、読み書きを持つ _profile と oss_copy_outdated もフレームにした。補助の profile_dir / _profile_id / _overlay / _scope_dir はフレームにせず、読み書きと業務のルールを呼ぶ段 (render_dbt_project、_profile、build_repo) に書いた。(2) run_etl の中の target_files は git ls-files を別のプロセスで動かすが、analysis-conventions.md が external に挙げる subprocess は dbt だけなので、フレームにせず、run_etl の io に filesystem の list として書いた。(3) duckdb.connect は、check_manifest (declarations.py 257 行、読み取り専用) と build_repo (build.py 194 行、読み書き) の 2 か所で呼ぶ。context.md の「同じ処理が何度も呼ばれるとき」に従い、深さ優先で最初に着く check_manifest の下に 1 回だけ external のフレームを書き、build_repo は summary の note で指した。(4) 固定の値で閉じている枝: build_repo(repo) が select を渡さないので --select と shutil.copy2 の枝 (build.py 174-177 行)、render_dbt_project(repo) が profile_id を渡さないので配布物のプロファイルを直接使う枝 (build.py 111-114 行) は辿らず、それぞれのフレームの summary の note に書いた。プロファイルの dbt-template の有無で分かれる所 (build.py 118 行) は、実行時のファイルの有無で決まるので、残した。(5) 配布物の schema/vocab と JSON Schema の読み取りは lru_cache で最初の 1 回だけなので、呼ぶ順で最初に読む段 (_profile の validate_profile と、run_etl) にだけ書き、後の段 (check_manifest、publish_declarations、publish_meta、build_repo の用語集と語彙) には書かなかった。段の値は、どちらも directory: schema にそろえた。ABATLAS_TARGET_ROOT は、_scope_dir の結果を受け取って動きが変わる run_etl に書いた (build_repo は値を渡すだけ)。dbt-template / profiles / schema は範囲 (abatlas) の外なので、根拠は、それを読む範囲の中の行 (build.py、schemas.py) にした。(6) _reject_cross_site は guards と settings だけの終端だが、機械チェックが通したので、analysis-conventions.md が LoopbackHostMiddleware にだけ求める rules (validation) の写しは書かなかった。(7) ABATLAS_DUCKDB は analysis-conventions.md に従い settings に書かない。build.py 178 行は、子のプロセスに作業用のファイルの場所を渡すコードで、設定を読む所ではない。(8) evidence は、根拠の近くに名前が無い主張を 0 件と出した。照合できなかった 7 件 (render_dbt_project の io の 1-5 番目、run_etl の io の 6-7 番目) は、ファイルやディレクトリの段の値が * で探せる語が無いためで、根拠の行は開いて確かめた (build.py 108 / 129 / 98 は配布物の dbt-template を写す行、117 / 119 / 130 / 96 はプロファイルの dbt-template、133 は analysis/dbt/models/repo、26 / 122-127 は RENDERED を消す行、129-134 は写して README を書く行、etl.py 67 / 74 は対象の範囲を歩く行、validate.py 267 / 292 / 342 は根拠のファイルを開いて行数を数える行)。(9) レビュー (abatlas-review-entry) は別の担当が行った。low の指摘 8 件は、コードで確かめてすべて直した (oss_copy_outdated に作業定義の読み取りを足す、manifest.json 2 件・entry-list.yaml・data-dictionary.yaml の読み取りに fields を足す、render_dbt_project の作業定義の決まりに止める経路 2 つを足す、build_repo と _profile のルールに根拠の行を足す)"
