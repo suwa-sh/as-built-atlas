@@ -7,6 +7,7 @@
     abatlas validate result <result.yaml>... [--profile <profile.yaml>] [--work <work-definition.yaml>]
       --profile を省くと、分析リポジトリの作業定義 (analysis/work-definition.yaml の profile.dir) から、集計と同じプロファイルを読む (enumerate も同じ)
     abatlas validate review <review.yaml>... [--result <result.yaml>]
+    abatlas evidence <result.yaml>... [--work <work-definition.yaml>]  根拠の行の近く (前後 5 行) に、呼び先・読み書きの相手・設定の名前が無い主張を並べる。合否は付けない (並べ終えたら 0)
   入口の列挙
     abatlas code-map <repo> [--check] [--json]                         固定コミットのファイルを列挙。`--check` は入口の定義ファイルを再列挙結果と照合する
     abatlas enumerate <entry-list.yaml> [--profile <profile.yaml>] [--dry-run]
@@ -179,6 +180,53 @@ def _run_validate(a):
     for p in a.paths:
         rc |= _report(p, _validate_path(a, Path(p)))
     return rc
+
+
+def _run_evidence(a):
+    import os
+
+    from .evidence_names import format_report, unnamed_evidence
+    from .schemas import schema_errors
+    from .validate import _resolve_scope
+
+    def read(file, schema, check):
+        try:
+            data = load_yaml(Path(file))
+        except Exception as ex:  # 無い、読めない、YAML として読めない
+            raise SystemExit(f"evidence: {file} を読めない: {ex}")
+        if schema_errors(schema, data):
+            raise SystemExit(
+                f"evidence: {file} が形式 ({schema}) に合わない。先に {check} の指摘を直してください"
+            )
+        return data
+
+    def scope_of_target(target, source):
+        try:
+            scope = _resolve_scope(target, Path(source).parent)
+            ok = (
+                scope is not None
+                and scope.is_dir()
+                and os.access(scope, os.R_OK | os.X_OK)
+            )
+        except (OSError, ValueError, RuntimeError) as ex:  # パスとして扱えない値など
+            scope, ok = ex, False
+        if not ok:
+            raise SystemExit(
+                f"evidence: {source} の target が指す対象のコード ('{scope}') を読めない。--work で作業定義を渡し、target.clone_path と target.scope を確かめてください"
+            )
+        return scope
+
+    # 空の --work は、省略ではなく指定の誤りとして止める (黙って結果の target に切り替えない)
+    work = None if a.work is None else read(a.work, "work-definition", "validate work")
+    for p in a.paths:
+        result = read(p, "analysis-result", "validate result")
+        scope = (
+            scope_of_target(result["target"], p)
+            if work is None
+            else scope_of_target(work["target"], a.work)
+        )
+        print(format_report(p, unnamed_evidence(result, scope)))
+    return 0
 
 
 def _run_enumerate(a):
@@ -440,6 +488,14 @@ def main(argv=None) -> int:
     v.add_argument("--profile")
     v.add_argument("--work")
     v.add_argument("--result")
+
+    evd = sub.add_parser(
+        "evidence",
+        help="根拠の行の近くに、主張した名前が見つからない主張を並べる (合否は付けない)",
+    )
+    evd.set_defaults(handler=_run_evidence)
+    evd.add_argument("paths", nargs="+")
+    evd.add_argument("--work")
 
     cm = sub.add_parser("code-map", help="固定コミットから対象ファイルの地図を作る")
     cm.set_defaults(handler=_run_code_map)

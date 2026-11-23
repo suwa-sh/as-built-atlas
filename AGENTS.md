@@ -21,6 +21,7 @@ uv sync                                   # 依存を入れる (Python 3.11+ / u
 uv run pytest -q                          # コアのテスト
 uv run abatlas validate profile profiles/<id>/profile.yaml
 uv run abatlas validate result <result.yaml> --profile profiles/<id>/profile.yaml --work <work-definition.yaml>
+uv run abatlas evidence <result.yaml> --work <work-definition.yaml>   # 根拠の行の近くに、主張した名前が無い主張を並べる (合否は付けない)
 uv run abatlas enumerate <entry-list.yaml> --profile profiles/<id>/profile.yaml
 uv run abatlas init <分析リポ> --profile <id>   # 分析リポジトリの初期化 (OSS 所有の配置 + 中ハーネス 6 製品)。開発中の確認用
 uv run abatlas migrate <分析リポ> [--dry-run]   # 前の形式の項目名を、いまの形式に書き換える (分析する側のファイルだけ。値は変えない。文の中の「(tier: <id>)」だけ直す)

@@ -15,7 +15,7 @@ flowchart TB
   E["enumerate (ツール)<br>抽出器を実行し、入口の候補を出す"] --> H
   H["全体の承認 (人)<br>入口と今回の作業を確定"] --> A
   A["分析 (エージェント)<br>入口ごとに results/ に YAML を書く"] --> V
-  V["validate result (ツール)<br>形式と意味を検査する"] --> RV
+  V["validate result、evidence (ツール)<br>形式と意味を検査し、<br>根拠の近くに名前が無い主張を並べる"] --> RV
   RV["レビュー (別の文脈のエージェント)<br>reviews/ に指摘を書く"] --> B
   B["build (ツール)<br>YAML → 表 → 集計表 → DuckDB"] --> S
   S["serve (ツール)<br>API、MCP、webapp"]
@@ -33,6 +33,7 @@ flowchart TB
 | 全体の承認 | 人 | AI が準備した入口・作業案と要確認への回答 | `entry-list.yaml` の入口の状態と `approval`。取りまとめ役が入口ごとに実行する |
 | 分析 | エージェント (分析 skill) | 承認済みの入口、`.agents/memory` の癖 | `results/<file>` |
 | validate result | ツール | 分析結果 | 指摘。形式に加えて、層・呼び出し元・不明の理由・根拠の実在を見る |
+| evidence | ツール | 分析結果、対象のコード | 根拠の行の近くに名前が見つからない主張の一覧。合否は付けない。分析する側が根拠を直すか理由を書き、レビューが先に確かめる ([commands.md](../reference/commands.md)) |
 | レビュー | エージェント (レビュー skill) | 分析結果 | `reviews/<file>`。形式を検査する |
 | build | ツール | `results/`、`entry-list.yaml`、プロファイル | `analysis/data/abatlas.duckdb` |
 | serve | ツール | DuckDB | API、MCP (`/mcp`)、webapp (`/`) |

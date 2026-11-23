@@ -24,6 +24,7 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 | コア同梱の抽出器と、その `params` の全項目を見る | `docker compose run --rm abatlas extractors [<名前>]` ([profiles.md](profiles.md) の「抽出器の契約」) |
 | 対象のコードを、構文で探す | `docker compose run --rm abatlas code-search analysis/work-definition.yaml --language <言語> --files <glob> --pattern '<コードの形>'` |
 | 分析結果を検査する | `docker compose run --rm abatlas validate result analysis/results/<file> --work analysis/work-definition.yaml` |
+| 根拠の近くに名前が無い主張を並べる | `docker compose run --rm abatlas evidence analysis/results/<file> --work analysis/work-definition.yaml` (下の「根拠の近くに名前が無い主張」) |
 | レビューの指摘のファイルを検査する | `docker compose run --rm abatlas validate review analysis/reviews/<file> --result analysis/results/<file>` |
 | 今回の分析を進める | `abatlas-run-analysis` で入口一覧と作業案を作り、一度の承認後に入口ごとに分析する。手順は、手引きの [初めて分析する](../guide/first-analysis.md) |
 | 入口と作業の案を作る、承認する、残りの作業を見る | `propose`、`approve`、`queue` ([update-commands.md](update-commands.md) の「入口と作業を一度で承認する」) |
@@ -49,6 +50,39 @@ docker run --rm -v "$PWD:/ws/analysis" -w /ws/analysis ghcr.io/suwa-sh/as-built-
 ```bash
 claude mcp add --transport http abatlas http://localhost:8765/mcp
 ```
+
+## 根拠の近くに名前が無い主張 (`evidence`)
+
+分析結果の主張が名指しするものの名前を、根拠の行の前後 5 行で探し、見つからなかった主張を並べます。
+検査 (`validate result`) は、根拠については、ファイルと行があるかだけを見ます。行がずれた根拠や、別の場所を指す根拠は、このコマンドで見つけます。
+
+| 見る主張 | 探す語 |
+|---|---|
+| 呼び出し (`call`) | 呼ばれる処理の段のファイル名 (拡張子を除く) と、名前 (`name`) の中の語。3 文字以上の、英数字と `_` の連なりだけ |
+| 読み書き (`io`) の相手 | 書かれた段 (`levels`) のうち、いちばん下の段の値を区切った語。3 文字以上の、英数字と `_` の連なりだけ |
+| 設定 (`settings`) | 名前 (`name`) そのもの。短い名前も、区切らずに探す |
+
+- 語のどれか 1 つが、語の区切りで一致すれば、見つかったと見ます。
+- 根拠が複数あれば、読めた根拠のどれか 1 つの近くにあれば、見つかったと見ます。読めた根拠に無く、読めない根拠が残っているときは、照合できない主張として出します。
+- 行の数え方は、`validate result` と同じです。
+- 根拠の無い主張 (不明の主張)、相手の段を書いていない読み書き、列の名前は見ません。
+
+| 出るもの | 内容 |
+|---|---|
+| 1 行目 | 並んだ主張の数、照合した主張の数、照合できなかった主張の数 |
+| `- <場所>: …` | 名前が見つからなかった主張。探した語と、根拠の場所 |
+| `- (照合できない) <場所>: …` | 名前を探せなかった主張。根拠を読めない (ファイルが無い、行が行数を超える、UTF-8 のテキストでない) か、名前に探せる語が無い。理由の説明は求めない |
+
+| 終了コード | 起きたこと |
+|---|---|
+| 0 | 並べ終えた (並んだ主張があっても 0。合否は付けない) |
+| 2 | 分析結果か作業定義を読めない、形式に合わない。または、対象のコードを読めない |
+
+作業定義と分析結果の対象 (リポジトリ、範囲、コミット) が同じかは、このコマンドでは見ません。`validate result` が見るので、検査に通った結果に使います。
+
+並んだ主張は、誤りとは限りません。接続先の設定から来る名前や、実行時に組み立てる名前は、正しくても近くにありません。
+分析するエージェントは、根拠を直すか、理由を分析結果の `notes` に書きます。レビューするエージェントは、並んだ主張から確かめます。
+名前が近くにあっても、主張を支えているとは限らないので、並ばなかった主張もレビューで確かめます。
 
 ## 分析結果の差分 (`diff`)
 

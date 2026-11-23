@@ -35,7 +35,7 @@ flowchart LR
 | 1 準備する | 分析リポジトリを作る。対象のコードの場所とコミットを書く | コマンド `init`、`validate work` | エージェントを起動できる分析リポジトリ |
 | 2 入口を見つける | エージェントに「分析を進めて」と頼む | skill `abatlas-discover-entries`。コマンド `code-map`、`enumerate` | 入口の候補の一覧。定義ファイルの規則を書いた対象では、照合の結果も |
 | 3 承認する | エージェントの質問に答える。示された案を一度だけ承認する | skill `abatlas-run-analysis`。コマンド `propose`、`approve` | 分析する入口と、作業の一覧 |
-| 4 分析する | 待つ。止まったら「中断した分析を再開して」と頼む | skill `abatlas-analyze-entry`、`abatlas-review-entry`。コマンド `validate result`、`queue`、`build` | 入口ごとの分析結果 (根拠のファイルと行つき) と、レビューの指摘。集計の結果 |
+| 4 分析する | 待つ。止まったら「中断した分析を再開して」と頼む | skill `abatlas-analyze-entry`、`abatlas-review-entry`。コマンド `validate result`、`evidence`、`queue`、`build` | 入口ごとの分析結果 (根拠のファイルと行つき) と、レビューの指摘。集計の結果 |
 | 5 見る、聞く | 画面を起動して開く。自分のエージェントを MCP につなぐ | 画面と MCP | 変更の影響を画面で調べられる。エージェントも同じデータで答える |
 
 手順は [初めて分析する](first-analysis.md) にあります。
