@@ -132,6 +132,8 @@ operation (API の操作 1 つ。入口)
 | adapter | やり取りを包むコード | テーブルと操作、読み書きする列、キャッシュのキー、相手のホストと path |
 | external | ライブラリを呼んでいる行 | `source` は、その行 |
 
+**フレームの `kind`**: 入口は、`route` (HTTP の操作)、`rpc` (gRPC の method)、`graphql_field` (GraphQL の root field)、`channel` (AsyncAPI の channel の操作)、`mcp_tool` (MCP のツール)。`external` 層は、`library` (ライブラリ・SDK) か `cli` (別のプロセスで動かす外部のコマンド)。そのほかの段は、枠組みでの呼び名があれば、それを使う (`handler`、`middleware`、`resolver`、`action`、callback の種類、`service`、`repository`、`mailer` など)。呼び名が無ければ、`function` (関数) か `method` (クラスのメソッド)。同じ種類の段は、分析リポジトリの中で同じ語にそろえる。下の節が `kind` を決めているときは、それに従う。ここに挙げた語は、新しく分析するときに使う語。前に分析した結果の別の綴り (例: `http_route`) は、誤りではない (レビューは、指摘しない)。
+
 ### operation から handler への橋渡し (このプロファイルの要)
 
 入口のフレーム (`layer: operation`) の `source` は、入口の一覧の `source` と同じ (定義ファイルの操作の行)。そこから、コードの handler へは、関数の呼び出しでは辿れないので、次の手順で対応付ける。

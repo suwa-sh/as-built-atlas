@@ -2812,6 +2812,20 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                 "detail": "7 日より古いもの",
                 "evidence": ev(script, sh.marks["prune"]),
             },
+            # 外部のコマンドの読み書きは、呼ぶ側の段に書く (プロファイルの context.md の決まり)
+            {
+                "op": "put",
+                "status": "fact",
+                "resource": {
+                    "kind": "object_storage",
+                    "levels": {
+                        "bucket": BUCKETS["BACKUPS_BUCKET"],
+                        "prefix": "db/{yyyymmdd}/",
+                    },
+                },
+                "detail": "aws s3 cp で、ダンプを日付のプレフィックスに置く。バケット名は config/prod.env の BACKUPS_BUCKET",
+                "evidence": ev(script, sh.marks["aws_cp"]),
+            },
         ]
         frames.append(frame)
         frames.append(
@@ -2834,21 +2848,6 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                 "source": {"file": script, "line": sh.marks["aws_cp"]},
                 "caller": fid("script"),
                 "call": called(claim("fact", None, ev(script, sh.marks["aws_cp"]))),
-                "io": [
-                    {
-                        "op": "put",
-                        "status": "fact",
-                        "resource": {
-                            "kind": "object_storage",
-                            "levels": {
-                                "bucket": BUCKETS["BACKUPS_BUCKET"],
-                                "prefix": "db/{yyyymmdd}/",
-                            },
-                        },
-                        "detail": "ダンプを日付のプレフィックスに置く。バケット名は config/prod.env の BACKUPS_BUCKET",
-                        "evidence": ev(script, sh.marks["aws_cp"]),
-                    }
-                ],
             }
         )
     else:  # rotate_logs
