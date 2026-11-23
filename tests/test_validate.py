@@ -115,6 +115,33 @@ def test_entry_list_duplicate_ids(profile):
     assert any("重複" in f for f in findings)
 
 
+def test_an_approval_with_mixed_key_types_is_reported_not_crashed_on(profile):
+    # 承認の記録の項目名に、文字列と true が混ざる (形式の検査は通る)。封の計算で項目名を並べられない
+    record = yaml.safe_load((FIX / "reuse-housekeeping.yaml").read_text("utf-8"))
+    el = {
+        "format_version": 1,
+        "target": {"repo": "x", "commit": "abc1234"},
+        "profile": {"id": "batch-kestra", "version": "0.1.0"},
+        "extractors": [],
+        "entries": [],
+        "approval": {
+            "plan_id": "a" * 64,
+            "by": "Maintainer",
+            "target_commit": "0" * 40,
+            "baseline": None,
+            "conditions_digest": "a" * 64,
+            "draft": yaml.safe_load((FIX / "batch-draft.yaml").read_text("utf-8")),
+            "jobs": [],
+            "reuse": {"daily.housekeeping": record, True: record},
+            "seal": "a" * 64,
+        },
+    }
+    findings = validate_entry_list(el, profile)
+    assert findings == [
+        "entry-list: approval の確定後に内容が変わりました。承認時の版を復元してください"
+    ]
+
+
 def test_review_schema_and_where(result):
     from abatlas.validate import validate_review
 
