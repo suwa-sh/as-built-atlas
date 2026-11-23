@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import shlex
+import stat
 import subprocess  # nosec B404 - executes subprocesses with argument lists
 import sys
 from datetime import datetime, timezone
@@ -38,8 +39,13 @@ def _command(run: str, profile_dir: Path | None, entry_list_dir: Path) -> list[s
     - 相対パスは、プロファイル同梱の抽出器として profile_dir から解決する (profile.schema.json の契約)。
       profile_dir が無いか、そこに無ければ entry-list のディレクトリ (分析リポジトリ独自の抽出器) から解決する
     """
-    parts = shlex.split(run)
-    if parts and parts[0] == "abatlas-extract":
+    try:
+        parts = shlex.split(run)
+    except ValueError as e:
+        raise SystemExit(f"extractor の run '{run}' を読めない: {e}")
+    if not parts:
+        raise SystemExit("extractor の run が空")
+    if parts[0] == "abatlas-extract":
         if len(parts) < 2 or parts[1] not in CORE_EXTRACTORS:
             raise SystemExit(
                 f"unknown core extractor: {run} (known: {sorted(CORE_EXTRACTORS)})"
@@ -47,17 +53,40 @@ def _command(run: str, profile_dir: Path | None, entry_list_dir: Path) -> list[s
         return CORE_EXTRACTORS[parts[1]] + parts[2:]
     exe = Path(parts[0])
     if not exe.is_absolute():
-        candidates = []
-        if profile_dir is not None:
-            candidates.append((profile_dir / exe).resolve())
-        candidates.append((entry_list_dir / exe).resolve())
-        found = next((c for c in candidates if c.is_file()), None)
+        bases = ([profile_dir] if profile_dir is not None else []) + [entry_list_dir]
+        candidates = [_resolved(run, base / exe) for base in bases]
+        found = next((c for c in candidates if _is_file(run, c)), None)
         if found is None:
             raise SystemExit(
                 f"extractor '{run}' が見つからない (探した場所: {', '.join(str(c) for c in candidates)})"
             )
         exe = found
     return [str(exe)] + parts[1:]
+
+
+def _unsearchable(run: str, path: Path, e: Exception) -> SystemExit:
+    reason = getattr(e, "strerror", None) or e
+    return SystemExit(f"extractor '{run}' を探せない ({reason}): {path}")
+
+
+def _resolved(run: str, path: Path) -> Path:
+    try:
+        return path.resolve()
+    except (
+        OSError,
+        RuntimeError,
+    ) as e:  # RuntimeError は、Python 3.12 までのリンクの循環
+        raise _unsearchable(run, path, e)
+
+
+def _is_file(run: str, path: Path) -> bool:
+    """無ければ次の候補へ進む。調べられない (読めない、リンクの循環) なら、次の候補へ進まずに止める。"""
+    try:
+        return stat.S_ISREG(path.stat().st_mode)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except OSError as e:
+        raise _unsearchable(run, path, e)
 
 
 def _target(entry: dict) -> tuple[str, str, str]:
@@ -75,22 +104,20 @@ def _show(target: tuple[str, str, str]) -> str:
 def run_extractor(
     ex: dict, scope: Path, profile_dir: Path | None, entry_list_dir: Path
 ) -> list[dict]:
+    cmd = _command(ex["run"], profile_dir, entry_list_dir) + [
+        "--scope",
+        str(scope),
+        "--layer",
+        ex["layer"],
+        "--params",
+        json.dumps(ex.get("params", {}), ensure_ascii=False),
+    ]
     try:
-        cmd = _command(ex["run"], profile_dir, entry_list_dir) + [
-            "--scope",
-            str(scope),
-            "--layer",
-            ex["layer"],
-            "--params",
-            json.dumps(ex.get("params", {}), ensure_ascii=False),
-        ]
         proc = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 - extractor selected by the local analysis profile
-    except (OSError, RuntimeError) as e:
-        # 探せない・起動できないことも、抽出器の失敗として止める (置き場を読めない、実行権限が無い、など)。
-        # RuntimeError は、Python 3.12 までの Path.resolve() がリンクの循環で出す
-        reason = getattr(e, "strerror", None) or e
+    except OSError as e:
+        # 起動できないことも、抽出器の失敗として止める (実行権限が無い、など)
         raise SystemExit(
-            f"extractor '{ex['name']}' を起動できない ({reason}): {ex['run']}"
+            f"extractor '{ex['name']}' を起動できない ({e.strerror or e}): {ex['run']}"
         )
     for line in proc.stderr.splitlines():
         print(f"  [{ex['name']}] {line}", file=sys.stderr)
