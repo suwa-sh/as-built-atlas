@@ -19,6 +19,7 @@ docker compose up -d --force-recreate api        # 画面と MCP を起動し直
 
 | 版 | 上の 4 つのほかに、やること | 分析し直しが要る結果 |
 |---|---|---|
+| [0.6.1](#061) | 配布物の文書の場所を自前の道具やメモで指していれば、新しい場所に書き換える | 無い |
 | [0.6.0](#060) | 通常の4手順で一括承認スキルを導入する | 一括承認の導入だけで再分析が必要な結果は無い |
 | [0.5.0](#050) | 再利用を扱うランナーは有効な版と分析時の版を分ける | 対象コードと分析条件の変更に応じる |
 | [0.4.4](#044) | 無い | 無い |
@@ -30,6 +31,29 @@ docker compose up -d --force-recreate api        # 画面と MCP を起動し直
 | [0.2.0](#020) | ・列挙し直したら、承認が戻った入口を承認し直す<br>・列挙が、同じ id の入口で止まったら、片方の id を変える<br>・集計表の列 `complexity` を読んでいれば、読む先を変える | 無い |
 
 入口を分析し直したとき、入口を足したときは、最後にもう一度、集計し直して (`build`)、画面と MCP を起動し直します (上の 3 つ目と 4 つ目のコマンド)。分析し直す前の集計には、新しい結果が入っていません。
+
+## 0.6.1
+
+使う人の手引きを新しく書き、分析リポジトリに配るようにしました。初めての分析から、結果の読み方、対象が変わったときの更新までを、場面ごとに「人がやること」と「手に入るもの」で説明します。`init` と `upgrade` の終わりに、手引きの場所 (`.abatlas/docs/guide/README.md`) を表示します。[手引き](docs/guide/README.md)
+
+- 入口を承認する前に、入口が 1 つも出ていない定義ファイルを見つけられます。作業定義に定義ファイルの規則 (`analysis.entry_file_patterns`) を書き、`code-map . --check` を実行します。[定義ファイルと入口の照合](docs/reference/update-commands.md)
+- 抽出器を探せないとき、起動できないとき、抽出器の設定 (`run`) を読めないときは、原因を表示して終了コード 2 で止まります。これまでは、Python のエラーの表示で止まるか、同じ名前の別の抽出器へ進むことがありました。
+- 入口の定義ファイル、対象の範囲 (`target.scope`)、根拠のパスを、どの OS でも「/」区切りで比べます。Docker で使う場合、動きは変わりません。
+
+### 更新で気を付けること
+
+配布物の文書 (`.abatlas/` の下) の場所が変わりました。`upgrade` が新しい配置に置き換えるので、ふだんは何もしなくてかまいません。自前の道具やメモで古い場所を指している場合は、次の表で書き換えてください。
+
+| これまで | これから |
+|---|---|
+| `.abatlas/README.md` | 配らない。入口は `.abatlas/docs/guide/README.md` |
+| `.abatlas/docs/architecture/formats.md`、`api.md`、`examples.md` | `.abatlas/docs/reference/` の同じ名前のファイル |
+| `.abatlas/docs/architecture/profiles.md` | `.abatlas/docs/reference/profiles.md` と、プロファイルごとの `.abatlas/docs/reference/profiles/<id>.md` |
+| `.abatlas/docs/architecture/` に書かれていた、コマンドと集計表の仕様 | `.abatlas/docs/reference/` の `commands.md`、`update-commands.md`、`marts.md` |
+
+`.abatlas/docs/architecture/` には、仕組みと理由の説明が残ります。
+
+`enumerate` などの終了コードを自前の道具で見ている場合は、抽出器を探せない、起動できないときも終了コード 2 になることを確かめてください。
 
 ## 0.6.0
 
