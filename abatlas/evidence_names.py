@@ -67,14 +67,14 @@ def _setting_words(name: str) -> list[str]:
 def _call_claims(frame: dict, where: str):
     call = frame.get("call") or {}
     if frame.get("caller") is not None and call.get("evidence"):
-        yield f"{where}/call", _callee_words(frame), call["evidence"]
+        yield f"{where}/call", _callee_words(frame), call["evidence"], False
 
 
 def _io_claims(frame: dict, where: str):
     for i, io in enumerate(frame.get("io", [])):
         # 段を書いていない読み書き (相手の名前が無い) は、探すものが無い
         if io.get("evidence") and io["resource"].get("levels"):
-            yield f"{where}/io/{i}", _resource_words(io), io["evidence"]
+            yield f"{where}/io/{i}", _resource_words(io), io["evidence"], False
 
 
 def _setting_claims(frame: dict, where: str):
@@ -84,11 +84,12 @@ def _setting_claims(frame: dict, where: str):
                 f"{where}/settings/{i}",
                 _setting_words(setting["name"]),
                 setting["evidence"],
+                True,  # 設定のファイルとコードで、大文字と小文字が違うことがある (loglevel と Loglevel)
             )
 
 
 def claims_of(result: dict):
-    """照合する主張を (場所, 探す語, 根拠) で返す。根拠の無い主張 (unknown など) と、相手の段を書いていない読み書きは含めない。"""
+    """照合する主張を (場所, 探す語, 根拠, 大文字と小文字を区別しないか) で返す。根拠の無い主張 (unknown など) と、相手の段を書いていない読み書きは含めない。"""
     for frame in result["callstack"]:
         where = f"callstack/{frame['id']}"
         yield from _call_claims(frame, where)
@@ -141,8 +142,9 @@ class _Lines:
         return out, unreadable
 
 
-def _found(word: str, lines: list[str]) -> bool:
-    pattern = re.compile(r"(?<!\w)" + re.escape(word) + r"(?!\w)", re.ASCII)
+def _found(word: str, lines: list[str], fold: bool = False) -> bool:
+    flags = re.ASCII | (re.IGNORECASE if fold else 0)
+    pattern = re.compile(r"(?<!\w)" + re.escape(word) + r"(?!\w)", flags)
     return any(pattern.search(line) for line in lines)
 
 
@@ -158,15 +160,15 @@ def unnamed_evidence(result: dict, scope_dir: Path) -> dict:
     """
     files = _Lines(scope_dir)
     report: dict = {"checked": 0, "unnamed": [], "skipped": []}
-    for where, words, evidence in claims_of(result):
-        kind, text = _judge(where, words, evidence, files)
+    for where, words, evidence, fold in claims_of(result):
+        kind, text = _judge(where, words, evidence, files, fold)
         report["checked"] += kind != "skipped"
         if text:
             report[kind].append(text)
     return report
 
 
-def _judge(where, words, evidence, files) -> tuple[str, str | None]:
+def _judge(where, words, evidence, files, fold=False) -> tuple[str, str | None]:
     """主張 1 つを ("checked" | "unnamed" | "skipped", 並べる文) にする。"""
     if not words:
         return (
@@ -174,7 +176,7 @@ def _judge(where, words, evidence, files) -> tuple[str, str | None]:
             f"{where}: 名前に、探せる語 ({MIN_WORD} 文字以上の英数字。読み書きの相手は、{{…}} の外にあるもの) が無い",
         )
     lines, unreadable = files.windows(evidence)
-    if any(_found(word, lines) for word in words):
+    if any(_found(word, lines, fold) for word in words):
         return "checked", None
     if unreadable:  # 読めた根拠には無く、読めない根拠が残っている
         return (

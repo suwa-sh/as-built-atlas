@@ -210,6 +210,18 @@ def test_a_dotted_setting_name_is_also_searched_by_its_last_word(scope):
     assert listed[0].startswith("callstack/run/settings/0: 'stfw.tz' のどれも")
 
 
+def test_setting_names_are_matched_without_regard_to_case(scope):
+    # 設定のファイルは loglevel、コードは cfg.Loglevel。設定だけ、大文字と小文字を区別しない
+    (scope / "flow.yaml").write_text("level := cfg.Loglevel\n", encoding="utf-8")
+    result = _result(call_line=1, setting_line=1)
+    result["callstack"][1]["settings"][0]["name"] = "stfw.loglevel"
+    assert not [u for u in unnamed_evidence(result, scope)["unnamed"] if "/set" in u]
+    # 呼び先と、読み書きの相手は、これまでどおり区別する
+    (scope / "job.py").write_text("DELETE FROM JOB_RUNS\n", encoding="utf-8")
+    listed = unnamed_evidence(result, scope)["unnamed"]
+    assert [u.split(":")[0] for u in listed if "/io/" in u] == ["callstack/run/io/0"]
+
+
 def test_a_resource_named_only_by_a_hole_is_skipped(scope):
     # {file} は、分析する側が付けた仮の名前。コードに無くても、根拠の誤りではない
     result = _result()
