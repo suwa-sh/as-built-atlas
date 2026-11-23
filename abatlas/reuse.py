@@ -1,5 +1,6 @@
 """再利用の確定と検査で共有する入力。旧結果の来歴は変更しない。"""
 
+import datetime
 import hashlib
 import json
 import os
@@ -18,17 +19,33 @@ CONVENTIONS = ".agents/memory/desired-state/analysis-conventions.md"
 SKILL = ".agents/skills/abatlas-analyze-entry/SKILL.md"
 
 
-def _typed(value):
-    """どの値も、型の名前を付けた、並べられる形にする (項目名と集合は、文字にした順に並べる)。"""
+CYCLE = (
+    "ダイジェスト: 自分自身を中に含む値 (YAML のアンカー &名前 を、その中の別名 *名前 で指している所) があり、"
+    "計算できません。その別名を、値そのものに書き換えてください"
+)
+
+
+def _typed(value, inside=frozenset()):
+    """どの値も、型の名前を付けた、並べられる形にする (項目名と集合は、文字にした順に並べる)。
+
+    inside は、いま辿っている入れ物の id。同じ入れ物を 2 か所で使うのはよく、自分の中に戻るときだけ止める。
+    """
+    if isinstance(value, (dict, list, tuple, set, frozenset)):
+        if id(value) in inside:
+            raise SystemExit(CYCLE)
+        inside = inside | {id(value)}
     if isinstance(value, dict):
-        items = [[_typed(k), _typed(v)] for k, v in value.items()]
+        items = [[_typed(k, inside), _typed(v, inside)] for k, v in value.items()]
         return ["dict", sorted(items, key=_text)]
     if isinstance(value, (list, tuple)):
-        return [type(value).__name__, [_typed(v) for v in value]]
+        return [type(value).__name__, [_typed(v, inside) for v in value]]
     if isinstance(value, (set, frozenset)):
-        return ["set", sorted((_typed(v) for v in value), key=_text)]
+        return ["set", sorted((_typed(v, inside) for v in value), key=_text)]
     if value is None or isinstance(value, (str, int, float, bool)):
         return [type(value).__name__, value]
+    if isinstance(value, datetime.datetime) and value.utcoffset() is not None:
+        # YAML の日時は、1 つの時点を表す (Z と +09:00 の書き分けは、同じ時刻)。時点で比べる
+        value = value.astimezone(datetime.timezone.utc)
     return [type(value).__name__, str(value)]  # 日付など
 
 
@@ -39,6 +56,10 @@ def _text(value) -> str:
 def digest(value):
     try:
         text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+    except (
+        ValueError
+    ):  # 輪になった値 (Circular reference detected)。どちらの形でも計算できない
+        raise SystemExit(CYCLE) from None
     except TypeError:
         # YAML の項目名は、true や日付にもなる。文字列と混ざると並べられず、日付は JSON の項目名にできない。
         # これまで計算できていた値のダイジェストは変えず、できなかった値だけを、別の形で計算する。

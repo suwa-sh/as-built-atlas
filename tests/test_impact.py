@@ -467,6 +467,42 @@ def test_a_plan_is_made_when_entry_attributes_have_mixed_key_types(histories):
     )
 
 
+def test_digest_treats_same_instant_keys_alike_and_stops_on_cycles(histories):
+    # YAML の日時は 1 つの時点を表す。Z と +09:00 で書き分けた同じ時刻の項目名は、同じダイジェストになる
+    from abatlas.batch import preview
+    from abatlas.reuse import digest
+
+    utc = yaml.safe_load("{2026-01-05T00:00:00Z: 1, other: 2}")
+    jst = yaml.safe_load("{2026-01-05T09:00:00+09:00: 1, other: 2}")
+    assert utc == jst and digest(utc) == digest(jst)
+    later = yaml.safe_load("{2026-01-05T10:00:00+09:00: 1, other: 2}")
+    assert digest(later) != digest(jst)
+    # 時差の無い日時は、そのまま (別の時刻として扱う)
+    naive = yaml.safe_load("{2026-01-05T00:00:00: 1, other: 2}")
+    assert digest(naive) != digest(utc)
+    # 同じアンカーを 2 か所で使うのは、輪ではない
+    shared = yaml.safe_load("{true: 1, a: &x [1, 2], b: *x}")
+    assert digest(shared) == digest({True: 1, "a": [1, 2], "b": [1, 2]})
+    assert digest(yaml.safe_load("{a: &x [1, 2], b: *x}")) == digest(
+        {"a": [1, 2], "b": [1, 2]}
+    )
+    # 自分を指すアンカーは、どちらの形でも、例外で落ちずに、直す所を知らせて止まる
+    for text in ("&a [*a]", "{true: 1, other: &i [*i]}", "{k: &m {self: *m}}"):
+        with pytest.raises(SystemExit, match="自分自身を中に含む値"):
+            digest(yaml.safe_load(text))
+    # 入口の一覧の属性にあっても、計画を作るところで、同じ知らせで止まる
+    _, atlas, base = histories
+    ep = atlas / "analysis/entry-list.yaml"
+    data = load_yaml(ep)
+    data["entries"][0].setdefault("attributes", {})["loop"] = "PLACEHOLDER"
+    text = yaml.safe_dump(data, allow_unicode=True).replace(
+        "loop: PLACEHOLDER", "loop: &i [*i]"
+    )
+    ep.write_text(text, encoding="utf-8")
+    with pytest.raises(SystemExit, match="自分自身を中に含む値"):
+        preview(atlas, base, {"assessment": "全入口を確認"})
+
+
 def test_whole_plan_approval(histories):
     from abatlas.batch import approve, preview, queue
 
