@@ -63,6 +63,11 @@ callstack:
         reason: not_analyzed
         resource: { kind: filesystem }
         note: 各 housekeeping.d スクリプトの削除対象は 2 周目で辿る
+      - op: create
+        status: interpretation
+        resource: { kind: rdb, levels: { database: ops_logs, table: job_outcomes } }
+        evidence: [{ file: scripts/housekeeping.sh, line: 1 }]
+        note: psql で、掃除ごとの結果を 1 行ずつ記録する (外部のコマンドの読み書きは、呼ぶ側のこの段に書く)
   - id: notify
     layer: scheduler
     kind: subflow
@@ -95,6 +100,7 @@ callstack:
         resource: { kind: external_api, levels: { host: chat.example } }
         evidence: [{ file: notify.py, line: 1 }]
         note: チャットへの日次サマリ通知
+  # 呼び出しを辿れていない (call が unknown) ので、読み書きをこの段に書く (プロファイルの説明の例外)
   - id: psycopg
     layer: external
     kind: library
@@ -113,3 +119,14 @@ callstack:
           - { name: status, use: [write], set_to: done }
           - { name: finished_at, use: [write] }
         note: 接続先 host は環境変数 DB_URL で、リポジトリに値が無い
+  - id: psql
+    layer: external
+    kind: cli
+    name: psql
+    source: { file: scripts/housekeeping.sh, line: 1 }
+    caller: run_sh
+    call:
+      status: fact
+      when: always
+      evidence: [{ file: scripts/housekeeping.sh, line: 1 }]
+    # 外部のコマンドの段は閉じるだけ。コマンドが行う読み書き (job_outcomes) は、呼ぶ側 (run_sh) に書く

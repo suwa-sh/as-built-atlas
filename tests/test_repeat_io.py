@@ -80,11 +80,11 @@ def test_a_frame_written_again_is_not_counted_twice(repo: Path):
         total, repeats = con.execute(
             "select count(*), sum(is_repeat::int) from staging.stg_io"
         ).fetchone()
-        assert (total, repeats) == (7, 3)
+        assert (total, repeats) == (8, 3)
         (io_count,) = con.execute(
             "select io_count from mart.mart_entry_overview where entry_id = 'daily.housekeeping'"
         ).fetchone()
-        assert io_count == 4, "入口ごとの読み書きの数は、写しを除く"
+        assert io_count == 5, "入口ごとの読み書きの数は、写しを除く"
         assert (
             con.execute("select sum(io_count) from mart.mart_data_access").fetchone()[0]
             == con.execute(
@@ -124,7 +124,7 @@ def test_a_frame_written_again_is_not_counted_twice(repo: Path):
             con.execute(
                 "select sum(rdb_io) from mart.mart_namespace_summary"
             ).fetchone()[0]
-            == 1
+            == 2  # 写しの 1 つを除いた、psycopg の job_runs と、psql を呼ぶ段の job_outcomes
         )
         # 層のつながり: 外のライブラリから RDB への読み書きは、1 箇所
         assert (

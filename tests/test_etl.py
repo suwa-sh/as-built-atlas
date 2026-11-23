@@ -28,13 +28,14 @@ def test_build_rows_from_fixture():
     )
     rows = build_rows(_entry_list(), [result])
     assert rows["entries"][0]["depth"] == 2
-    assert rows["results"][0]["frame_count"] == 5
+    assert rows["results"][0]["frame_count"] == 6
     assert {f["frame_id"] for f in rows["frames"]} == {
         "flow",
         "run_sh",
         "notify",
         "notify_py",
         "psycopg",
+        "psql",
     }
     io = {(r["frame_id"], r["idx"]): r for r in rows["io"]}
     assert io[("psycopg", 0)]["resource_path"] == "/rdb/ops_logs/job_runs"
