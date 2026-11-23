@@ -22,6 +22,15 @@ description: 分析結果 YAML (results/ 配下の 1 ファイル) を、分析�
 2. 機械チェックを先に回す: `<abatlas> validate result analysis/results/<file> --work analysis/work-definition.yaml`。NG なら、その指摘をそのまま findings に写して終わる (意味の検査はしない)。出力に「プロファイルを自動で読めない」と出たら、OK でも完了にしない (プロファイルとの突き合わせが省かれている)。`analysis/work-definition.yaml` の `profile.dir` と、その場所の `profile.yaml` を確かめて直す
 3. 主張を 1 つずつ検査する。対象は `summary`、各フレームの `call` / `summary` / `parameters[]` / `io[]` / `links[]` / `guards[]` / `settings[]` / `rules[]` / `tests[]`
    - **根拠の実在**: `evidence` の file:line を開き、その行 (前後 5 行) が主張を支えているか。支えていなければ `evidence_mismatch`。先に `<abatlas> evidence analysis/results/<file> --work analysis/work-definition.yaml` で、根拠の近くに名前が無い主張を並べ、並んだ主張から確かめる (並ばなかった主張も、確かめる。名前が近くにあっても、主張を支えているとは限らない)。並んだ主張も、判定の基準は同じ (根拠の行がコードで主張を支えているか)。支えていなければ `evidence_mismatch`。支えていて、名前が近くに無い理由が結果の `notes` に書いてあれば、指摘しない。支えているのに理由が書かれていないときは、`missing_item` (low) で、理由を `notes` に足すように書く。理由を求めるのは、名前が見つからなかった行だけ (「(照合できない)」と付いた行は、根拠を確かめるだけで、理由が無くても指摘しない) (`analyzer.skill_version` が 0.4.6 より前の結果では、指摘しない。その手順が無かった)
+     - 根拠の指摘の種類と重さは、次の表で決める (上から順に当てはめる。呼び出しの `when`、フレームの `layer` と `kind`、列の `use` などの当てはめだけが違うときは、この表ではなく、下の「当てはめ」の `classification_mismatch` にする。読み書きの相手の `resource.kind` と `levels` の違いは、下の「データの当てはめ」の `resource_mismatch` にする。`missing_item` は、YAML の項目が無いときと、上の「理由が書かれていない」ときに使う)
+
+       | 起きていること | 種類 | 重さ |
+       |---|---|---|
+       | 違うのが、説明の文 (`summary`、`parameters` の `value`、`detail`、`note`) だけ。項目として書いた主張 (呼び出し、読み書きの相手と操作、つながり、権限の確認、設定、業務のルール) は、コードの動きと合っている。根拠が、説明文・help・コメントの行でも、実行されるコードの行でも同じ | `evidence_mismatch` | low |
+       | 項目として書いた主張が、コードの動きと違う。または、根拠の行が、主張と関係のない場所を指している | `evidence_mismatch` | high |
+       | 主張は合っているが、根拠の行が一部だけ足りない (文の中の句を支える行が無い) | `evidence_mismatch` | low |
+
+     - 結果の `notes` に、前に並んだ主張への説明が残っていて、いまは並んでいないとき: 説明を確かめる義務は無い (根拠は、ほかの主張と同じに確かめる)
    - **状態の妥当性**: コードにそのまま書いてあるのに `interpretation`、読み取りなのに `fact` になっていないか → `status_mismatch`
    - **不明の妥当性**: `unknown` の `reason` が実態と合うか (環境変数で決まるのに `dynamic_dispatch` など) → `reason_mismatch`。逆に、読めば分かるのに `unknown` → `avoidable_unknown`。ただし、理由が `not_analyzed` (打ち切り) の主張は、読めば分かることが前提なので、それだけでは `avoidable_unknown` にしない。`note` に「どこまで読んだか」と「なぜ止めたか」が無いときだけ、low で指摘する (続きを分析するかは、人が決める)。打ち切りを、`analysis-conventions.md` かプロファイルの `context.md` が禁じているときは、`avoidable_unknown` として指摘する
    - **データの当てはめ**: `resource.kind` と `levels` が `context.md` の当てはめ方と合うか → `resource_mismatch`
@@ -58,7 +67,7 @@ description: 分析結果 YAML (results/ 配下の 1 ファイル) を、分析�
 
 ## severity の目安
 
-- high: 根拠が主張を支えていない / 辿り漏れでコールスタックが途中で切れている / 読めば分かるのに unknown
+- high: 根拠が主張を支えていない (重さは、手順 3 の「根拠の実在」の表で決める。説明の文だけの違いと、根拠の行の一部の不足は low) / 辿り漏れでコールスタックが途中で切れている / 読めば分かるのに unknown
 - medium: 状態 (fact / interpretation) の取り違え / データの段の当てはめ違い / reason の種類違い / 層や種類の当てはめ違い (`when` は、`on_failure` に関わる違いだけ) / 権限の確認・書き込む列の書き漏れ
 - low: 表現、note の不足。`always` と `conditional` の取り違え。そのほかの書き漏れ (読むだけの列、設定、業務のルール)。主張は合っているが、根拠の行が一部だけ足りない (例: 数値の定義の行が無い)
 
