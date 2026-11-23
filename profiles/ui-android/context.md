@@ -140,6 +140,7 @@ Android のアプリは、product flavor (例: `demo` と `prod`) と build type
 
 ### フレームにするもの・しないもの
 
+- **フレームの `kind`**: `screen` 層は `destination`。`activity` 層は `activity`、`background` 層は `worker` (WorkManager の Worker。そのほかの OS が呼ぶ class は、その種類の名前 `receiver`、`service` など)。`shell` 層と `ui` 層は `composable` (Fragment は `fragment`)、state を持つ class は `state_holder`。`viewmodel` 層は `viewmodel`、`usecase` 層は `usecase`、`repository` 層は `repository`、`datasource` 層は `datasource` (Room の DAO は `dao`)。`external` 層は、`sdk` (特定のサービスの API を呼ぶために、そのサービスが配る client。API の定義から生成した client を含む)、`library` (それ以外のライブラリ・枠組みの関数。`fetch`、`axios`、画面の部品など)。Firebase のように、Android の framework でない SDK は `sdk`。同じ種類の段は、分析リポジトリの中で同じ語にそろえる。下の節が `kind` を決めているときは、それに従う。ここに挙げた語は、新しく分析するときに使う語。前に分析した結果の別の綴りは、誤りではない (レビューは、指摘しない)
 - **フレームにする**: 保存先の読み書きか、API の呼び出しに至る経路の上にある、composable、ViewModel、use case、repository、data source の method
 - **フレームにしない**: 見た目だけの composable (ボタン、カード、アイコン、design system の部品)、theme、文言や日付の書式、型の定義、Hilt の module そのもの (根拠の行としては使う)
 - **class は、呼ばれる method ごとに分ける**。ViewModel や repository の class 1 つに、多くの method がある。入口から呼ぶ method だけをフレームにし、`name` に `<class 名>.<method>` と書く

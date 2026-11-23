@@ -124,6 +124,7 @@ Nuxt は、コンポーネント、composable、utils、(設定によっては) 
 
 ### フレームにするもの・しないもの
 
+- **フレームの `kind`**: `page` 層は `route`、`layout` 層は `layout`。`shell` 層は、ファイルの種類 (`app`、`error`、`middleware`、`plugin`)。`part` 層と `component` 層は、`component` (コンポーネント) か `composable` (composable)。`store` 層は `store_action`。`api_client` 層と `query` 層は `function`。`api_route` 層は `route_handler`。`external` 層は、`sdk` (特定のサービスの API を呼ぶために、そのサービスが配る client。API の定義から生成した client を含む)、`library` (それ以外のライブラリ・枠組みの関数。`fetch`、`axios`、画面の部品など)。同じ種類の段は、分析リポジトリの中で同じ語にそろえる。下の節が `kind` を決めているときは、それに従う。ここに挙げた語は、新しく分析するときに使う語。前に分析した結果の別の綴りは、誤りではない (レビューは、指摘しない)
 - **フレームにする**: データの読み書きか、API の呼び出しに至る経路の上にある、コンポーネント、composable、store、API を包む関数、route middleware、サーバー側の受け口と関数
 - **フレームにしない**: 見た目だけの部品 (ボタン、表の枠、アイコン、UI ライブラリの部品)、翻訳・日付・書式の小道具、型定義。経路の上に無いものは、`summary` で触れるだけでよい
 - **同じファイルの中の、外に出していない補助の関数**は、フレームにしない。呼び出し元のフレームの中の処理として扱う

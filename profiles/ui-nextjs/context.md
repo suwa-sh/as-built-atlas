@@ -125,6 +125,8 @@ page のファイルが export する `getServerSideProps`、`getStaticProps`、
 
 ### フレームにするもの・しないもの
 
+**フレームの `kind`**: `page` 層は `page`、`layout` 層は `layout`。`part` 層と `component` 層は、`component` (コンポーネント) か `hook` (フック)。`api_route` 層は、App Router の `route` ファイルの関数と `'use server'` の関数が `route_handler`、Pages Router の `pages/api` の受け口が `route`。`query` 層は `function` (class の method は `method`)。`external` 層は `library`。同じ種類の段は、分析リポジトリの中で同じ語にそろえる。下の節が `kind` を決めているときは、それに従う。ここに挙げた語は、新しく分析するときに使う語。前に分析した結果の別の綴りは、誤りではない (レビューは、指摘しない)
+
 フレームが際限なく増えないように、次の基準で選ぶ。
 
 - **フレームにする**: データを読む・書く処理に至る経路の上にあるコンポーネントとフック。API を呼ぶフックは 1 つずつフレームにする
