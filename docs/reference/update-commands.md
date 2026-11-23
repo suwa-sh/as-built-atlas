@@ -222,7 +222,7 @@ docker compose run --rm abatlas reuse . --from <前回の分析コミット> \
 | `effective_commit` | コミット | 利用できる版 |
 | `update_status` | `analyzed` | 分析した |
 | `update_status` | `reused` | 再利用した |
-| `update_status` | `stale` | 旧版の結果。`effective_commit` は空になり、`target_commit` だけが残る |
+| `update_status` | `stale` | 対象 (リポジトリ、範囲、コミット) が作業定義と違い、再利用も確定していない結果。`effective_commit` は空になり、`target_commit` だけが残る |
 
 結果がまだ無い入口では、3 つの項目とも値がありません (null)。
 
