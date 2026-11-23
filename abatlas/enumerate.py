@@ -75,20 +75,22 @@ def _show(target: tuple[str, str, str]) -> str:
 def run_extractor(
     ex: dict, scope: Path, profile_dir: Path | None, entry_list_dir: Path
 ) -> list[dict]:
-    cmd = _command(ex["run"], profile_dir, entry_list_dir) + [
-        "--scope",
-        str(scope),
-        "--layer",
-        ex["layer"],
-        "--params",
-        json.dumps(ex.get("params", {}), ensure_ascii=False),
-    ]
     try:
+        cmd = _command(ex["run"], profile_dir, entry_list_dir) + [
+            "--scope",
+            str(scope),
+            "--layer",
+            ex["layer"],
+            "--params",
+            json.dumps(ex.get("params", {}), ensure_ascii=False),
+        ]
         proc = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 - extractor selected by the local analysis profile
-    except OSError as e:
-        # 実行権限が無い、先頭行のインタプリタが無い、など。起動できないことも、抽出器の失敗として止める
+    except (OSError, RuntimeError) as e:
+        # 探せない・起動できないことも、抽出器の失敗として止める (置き場を読めない、実行権限が無い、など)。
+        # RuntimeError は、Python 3.12 までの Path.resolve() がリンクの循環で出す
+        reason = getattr(e, "strerror", None) or e
         raise SystemExit(
-            f"extractor '{ex['name']}' を起動できない ({e.strerror or e}): {' '.join(cmd)}"
+            f"extractor '{ex['name']}' を起動できない ({reason}): {ex['run']}"
         )
     for line in proc.stderr.splitlines():
         print(f"  [{ex['name']}] {line}", file=sys.stderr)
