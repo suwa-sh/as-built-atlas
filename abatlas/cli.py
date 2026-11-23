@@ -194,9 +194,11 @@ def _run_evidence(a):
             data = load_yaml(Path(file))
         except Exception as ex:  # 無い、読めない、YAML として読めない
             raise SystemExit(f"evidence: {file} を読めない: {ex}")
-        if schema_errors(schema, data):
+        errors = schema_errors(schema, data)
+        if errors:  # 違反の中身も出す (検査をやり直さなくても、どこを直すかが分かる)
+            lines = "".join(f"\n  - {e}" for e in errors)
             raise SystemExit(
-                f"evidence: {file} が形式 ({schema}) に合わない。先に {check} の指摘を直してください"
+                f"evidence: {file} が形式 ({schema}) に合わない。先に {check} の指摘を直してください{lines}"
             )
         return data
 

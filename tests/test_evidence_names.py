@@ -246,7 +246,10 @@ def test_the_command_stops_when_the_result_or_the_target_is_unreadable(
     path.write_text(yaml.safe_dump(broken, allow_unicode=True), encoding="utf-8")
     work = str(_work(tmp_path, tmp_path / "absent"))
     assert main(["evidence", str(path), "--work", work]) == 2
-    assert "validate result" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "validate result" in err
+    # 違反の中身も出す (検査をやり直さなくても、足りない項目が分かる)
+    assert "\n  - (root): 'callstack' is a required property" in err
     path.write_text("callstack: [", encoding="utf-8")
     assert main(["evidence", str(path), "--work", work]) == 2
     assert f"{path} を読めない" in capsys.readouterr().err
@@ -254,6 +257,27 @@ def test_the_command_stops_when_the_result_or_the_target_is_unreadable(
     path.write_text(yaml.safe_dump(result, allow_unicode=True), encoding="utf-8")
     assert main(["evidence", str(path), "--work", work]) == 2
     assert "target.clone_path" in capsys.readouterr().err
+
+
+def test_keys_that_are_not_strings_are_reported_not_crashed_on(tmp_path, capsys):
+    # YAML の項目名は、true や数にもなる。違反の場所を並べるときに、型の違う名前を比べて落ちない
+    result = yaml.safe_load((FIXTURES / "result-housekeeping.yaml").read_text("utf-8"))
+    io = next(i for f in result["callstack"] for i in f.get("io", []))
+    io["resource"]["levels"] = {True: False, "prefix": 123, 7: "x"}
+    path = tmp_path / "result.yaml"
+    path.write_text(yaml.safe_dump(result, allow_unicode=True), encoding="utf-8")
+    work = str(_work(tmp_path, tmp_path))
+    assert main(["evidence", str(path), "--work", work]) == 2
+    err = capsys.readouterr().err
+    assert "形式 (analysis-result) に合わない" in err and "/levels/prefix: " in err
+    assert main(["validate", "result", str(path), "--work", work]) == 1
+    assert "/levels/prefix: " in capsys.readouterr().out
+    # 比べられる項目名 (true と数) だけなら、並びはこれまでと同じ (true は 1 として 7 の前)
+    from abatlas.schemas import schema_errors
+
+    io["resource"]["levels"] = {7: False, True: False}
+    places = [e.split(":")[0] for e in schema_errors("analysis-result", result)]
+    assert [p.rsplit("/", 1)[1] for p in places if "/levels/" in p] == ["True", "7"]
 
 
 def test_the_command_stops_when_the_work_definition_is_unreadable(tmp_path, capsys):

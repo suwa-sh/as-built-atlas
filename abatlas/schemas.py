@@ -45,12 +45,30 @@ def validator(name: str) -> Draft202012Validator:
     return Draft202012Validator(doc, registry=_registry())
 
 
+def _path_order(path) -> list[tuple]:
+    """違反の場所を、型の違う項目名が混ざっていても並べられる鍵 (YAML の項目名は、true や日付にもなる)。"""
+    out = []
+    for p in path:
+        if isinstance(p, int) and not isinstance(p, bool):  # 並びの番号は、数の順
+            out.append((0, p, ""))
+        elif isinstance(p, str):
+            out.append((1, 0, p))
+        else:
+            out.append((2, 0, repr(p)))
+    return out
+
+
 def schema_errors(name: str, instance) -> list[str]:
     """schema 違反を人が読める 1 行ずつにして返す (空なら合格)。"""
     out = []
-    for err in sorted(
-        validator(name).iter_errors(instance), key=lambda e: list(e.absolute_path)
-    ):
+    errors = list(validator(name).iter_errors(instance))
+    try:
+        errors.sort(key=lambda e: list(e.absolute_path))
+    except (
+        TypeError
+    ):  # 型の違う項目名が混ざった。比べられる並びは変えず、このときだけ別の鍵で並べる
+        errors.sort(key=lambda e: _path_order(e.absolute_path))
+    for err in errors:
         where = "/".join(str(p) for p in err.absolute_path) or "(root)"
         out.append(f"{where}: {err.message}")
     return out
