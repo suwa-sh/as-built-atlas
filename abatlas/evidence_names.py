@@ -17,6 +17,9 @@ WINDOW = 5  # 根拠の行の前後に読む行数
 MIN_WORD = 3  # これより短い語は探さない (どの行にもあるため)
 # 語は ASCII の英数字と _ だけ (re.ASCII。付けないと \w が日本語にも一致し、説明の文が語になる)
 _WORD = re.compile(r"\w+", re.ASCII)
+_HOLE = re.compile(
+    r"\{[^{}]*\}"
+)  # 読み書きの相手の名前の、実行時に決まる部分 ({sku} など)
 
 
 def _words(text: str) -> list[str]:
@@ -37,8 +40,28 @@ def _resource_words(io: dict) -> list[str]:
     order = vocab("resource-kinds")["kinds"].get(io["resource"]["kind"], {})
     for level in reversed(order.get("levels", [])):
         if level in levels:
-            return _words(str(levels[level]))
+            value = str(levels[level])
+            # {file} のように、値が穴だけなら、探す語が無い (穴の中は、分析する側が付けた仮の名前)。
+            # 穴の外に語があれば、穴の中の語も探す (run_id のように、コードの変数の名前と同じことが多い)
+            return _words(value) if _words(_outside_holes(value)) else []
     return []
+
+
+def _outside_holes(value: str) -> str:
+    """穴 ({…}) を除いた残り。入れ子の穴 ({number:0{width}d}) は、内側から順に除く。"""
+    while True:
+        rest = _HOLE.sub(" ", value)
+        if rest == value:
+            return rest
+        value = rest
+
+
+def _setting_words(name: str) -> list[str]:
+    """設定を名指しする語。名前そのものと、点でつないだ名前の最後の語 (コードは、最後の語だけで読むことが多い)。"""
+    last = name.rsplit(".", 1)[-1]
+    if last != name and len(last) >= MIN_WORD and _WORD.fullmatch(last):
+        return [name, last]
+    return [name]
 
 
 def _call_claims(frame: dict, where: str):
@@ -57,7 +80,11 @@ def _io_claims(frame: dict, where: str):
 def _setting_claims(frame: dict, where: str):
     for i, setting in enumerate(frame.get("settings", [])):
         if setting.get("evidence"):
-            yield f"{where}/settings/{i}", [setting["name"]], setting["evidence"]
+            yield (
+                f"{where}/settings/{i}",
+                _setting_words(setting["name"]),
+                setting["evidence"],
+            )
 
 
 def claims_of(result: dict):
@@ -144,7 +171,7 @@ def _judge(where, words, evidence, files) -> tuple[str, str | None]:
     if not words:
         return (
             "skipped",
-            f"{where}: 名前に、探せる語 ({MIN_WORD} 文字以上の英数字) が無い",
+            f"{where}: 名前に、探せる語 ({MIN_WORD} 文字以上の英数字。読み書きの相手は、{{…}} の外にあるもの) が無い",
         )
     lines, unreadable = files.windows(evidence)
     if any(_found(word, lines) for word in words):

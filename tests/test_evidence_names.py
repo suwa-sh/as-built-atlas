@@ -194,6 +194,49 @@ def test_short_setting_names_are_searched_as_they_are(scope):
     )
 
 
+def test_a_dotted_setting_name_is_also_searched_by_its_last_word(scope):
+    # 設定のファイルも、それを読むコードも、最後の語 (loglevel) だけで書くことが多い
+    (scope / "flow.yaml").write_text("stfw:\n  loglevel: info\n", encoding="utf-8")
+    result = _result(call_line=1, setting_line=2)
+    setting = result["callstack"][1]["settings"][0]
+    setting["name"] = "stfw.loglevel"
+    assert not [u for u in unnamed_evidence(result, scope)["unnamed"] if "/set" in u]
+    setting["name"] = "stfw.verbose"
+    listed = [u for u in unnamed_evidence(result, scope)["unnamed"] if "/set" in u]
+    assert listed[0].startswith("callstack/run/settings/0: 'stfw.verbose', 'verbose'")
+    # 最後の語が短いとき (どの行にもある) と、点が無いときは、名前そのものだけを探す
+    setting["name"] = "stfw.tz"
+    listed = [u for u in unnamed_evidence(result, scope)["unnamed"] if "/set" in u]
+    assert listed[0].startswith("callstack/run/settings/0: 'stfw.tz' のどれも")
+
+
+def test_a_resource_named_only_by_a_hole_is_skipped(scope):
+    # {file} は、分析する側が付けた仮の名前。コードに無くても、根拠の誤りではない
+    result = _result()
+    result["callstack"][1]["io"][0]["resource"] = {
+        "kind": "filesystem",
+        "levels": {"directory": "work/{scenario}", "file": "{file}"},
+    }
+    report = unnamed_evidence(result, scope)
+    assert report["unnamed"] == [] and report["checked"] == 2
+    assert report["skipped"][0].startswith("callstack/run/io/0: 名前に、探せる語")
+    # 入れ子の穴も、全体が 1 つの穴
+    result["callstack"][1]["io"][0]["resource"]["levels"]["file"] = "{number:0{width}d}"
+    report = unnamed_evidence(result, scope)
+    assert report["unnamed"] == [] and len(report["skipped"]) == 1
+    # 穴の外に語があれば照合し、穴の中の語 (コードの変数の名前と同じことが多い) も探す
+    result["callstack"][1]["io"][0]["resource"]["levels"]["file"] = "{job_runs}.bak"
+    assert unnamed_evidence(result, scope) == {
+        "checked": 3,
+        "unnamed": [],
+        "skipped": [],
+    }
+    result["callstack"][1]["io"][0]["resource"]["levels"]["file"] = "{name}.bak"
+    assert unnamed_evidence(result, scope)["unnamed"][0].startswith(
+        "callstack/run/io/0: 'name', 'bak'"
+    )
+
+
 def test_a_resource_without_searchable_words_is_skipped(scope):
     report = unnamed_evidence(_result(table="*"), scope)
     assert report["checked"] == 2
