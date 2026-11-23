@@ -246,10 +246,11 @@ def test_extractor_search_failure_does_not_fall_back(tmp_path):
             (profile / "bin").chmod(0o755)
 
 
-def test_target_paths_use_slash_on_any_os():
+def test_target_paths_use_slash_on_any_os(monkeypatch):
     from pathlib import PureWindowsPath
     from types import SimpleNamespace
 
+    from abatlas import impact_evidence
     from abatlas.impact_evidence import references
     from abatlas.impact_git import TargetHistory
 
@@ -259,6 +260,10 @@ def test_target_paths_use_slash_on_any_os():
     here = SimpleNamespace(scope=PureWindowsPath("."))
     assert TargetHistory._in_scope(here, "flows/a.yaml") == "flows/a.yaml"
     assert list(references({"source": {"file": "./flows/a.yaml"}})) == ["flows/a.yaml"]
+    # Windows で「\」区切りで書かれた根拠も、Git の一覧と比べられる
+    monkeypatch.setattr(impact_evidence, "Path", PureWindowsPath)
+    written = {"source": {"file": "flows\\a.yaml"}}
+    assert list(references(written)) == ["flows/a.yaml"]
 
 
 def test_broken_run_setting_stops_with_message(tmp_path):

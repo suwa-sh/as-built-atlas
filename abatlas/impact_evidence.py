@@ -1,6 +1,6 @@
 """入口の根拠ファイルと、変更箇所へ届く前回の呼び出し経路。"""
 
-from pathlib import PurePosixPath
+from pathlib import Path
 
 
 def references(node):
@@ -8,7 +8,8 @@ def references(node):
     if isinstance(node, dict):
         for source in [node.get("source"), *node.get("evidence", [])]:
             if isinstance(source, dict) and "file" in source:
-                yield str(PurePosixPath(source["file"]))
+                # その OS の読み方で読んでから、Git の一覧と同じ「/」区切りにする
+                yield Path(source["file"]).as_posix()
         for child in node.values():
             yield from references(child)
     elif isinstance(node, list):
