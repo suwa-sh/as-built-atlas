@@ -200,6 +200,23 @@ def test_code_map_reconciles_files_before_approval(histories, capsys):
     assert ep.read_bytes() == before
 
 
+def test_code_map_check_stops_when_extractor_cannot_start(histories, capsys):
+    _, atlas, _ = histories
+    ep = atlas / "analysis/entry-list.yaml"
+    saved = load_yaml(ep)
+    own = atlas / "analysis/own-extractor.sh"
+    own.write_text("#!/bin/sh\n")
+    own.chmod(0o644)  # 実行権限が無い
+    layer = saved["extractors"][0]["layer"]
+    saved["extractors"].append(
+        {"name": "own", "run": own.name, "layer": layer, "params": {}}
+    )
+    ep.write_text(yaml.safe_dump(saved))
+    assert main(["code-map", str(atlas), "--check"]) == 2
+    err = capsys.readouterr().err
+    assert "extractor 'own' を起動できない" in err and own.name in err
+
+
 def test_code_map_checks_each_pattern_and_supports_older_work(histories, capsys):
     _, atlas, baseline = histories
     path = atlas / "analysis/work-definition.yaml"
