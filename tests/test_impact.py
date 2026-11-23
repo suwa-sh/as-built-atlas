@@ -297,6 +297,22 @@ def test_paths_written_with_os_separator_still_match(monkeypatch):
     assert record["source"]["file"] == "flows/daily/a.yaml"
     report = {"expected_entry_files": ["flows/daily/a.yaml"]}
     assert reconcile_entries(report, [record])["missing_entry_files"] == []
+    # 区切り文字だけが違う入口は、同じ入口として扱う (承認や却下を引き継ぐ)
+    from abatlas import enumerate as enumerating
+    from abatlas.validate import _check_work_target
+
+    monkeypatch.setattr(enumerating, "slash_path", windows)
+    saved = {**record, "source": written["source"]}
+    assert enumerating._target(saved) == enumerating._target(record)
+    # 分析結果の検査でも、範囲の区切り文字の違いを指摘しない
+    findings = []
+    target = {"repo": "r", "commit": "c"}
+    _check_work_target(
+        {"target": {**target, "scope": "apps/web"}},
+        {"target": {**target, "scope": "apps\\web"}},
+        findings,
+    )
+    assert findings == []
 
 
 def test_broken_run_setting_stops_with_message(tmp_path):

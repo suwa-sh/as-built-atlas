@@ -20,6 +20,7 @@ from pathlib import Path
 
 import yaml
 
+from . import slash_path
 from .schemas import load_yaml, schema_errors
 from .validate import _resolve_scope, rejected_wrappers, validate_entry_list, within_of
 
@@ -94,7 +95,8 @@ def _target(entry: dict) -> tuple[str, str, str]:
 
     行は含めない (対象のコミットを進めると、行はずれる)。説明の文 (attributes) も含めない (書き直すたびに、言い回しが変わる)。
     """
-    return (entry["path"], entry["layer"], entry["source"]["file"])
+    # 区切り文字だけの違い (Windows の「\\」) では、人の判断を捨てない
+    return (entry["path"], entry["layer"], slash_path(entry["source"]["file"]))
 
 
 def _show(target: tuple[str, str, str]) -> str:
@@ -140,6 +142,8 @@ def run_extractor(
             raise SystemExit(
                 f"extractor '{ex['name']}' line {n}: 契約違反: " + "; ".join(errs)
             )
+        # 定義ファイルとの照合は「/」区切りで比べる。抽出器が OS の区切り文字で出しても合うようにする
+        rec["source"]["file"] = slash_path(rec["source"]["file"])
         rec["extractor"] = ex["name"]
         out.append(rec)
     return out

@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 import re
 
-from . import ANALYSIS_DIR, file_name_collisions
+from . import ANALYSIS_DIR, file_name_collisions, scope_of
 from .schemas import load_yaml, schema_errors, vocab, profile_term_problems
 
 
@@ -411,7 +411,7 @@ def _check_work_target(work, result, findings, reused=False):
             findings.append(
                 f"target/{k}: 結果の '{rt.get(k)}' が作業定義の '{wt.get(k)}' と違う"
             )
-    if wt.get("scope", ".") != rt.get("scope", "."):
+    if scope_of(wt) != scope_of(rt):
         findings.append(
             f"target/scope: 結果の '{rt.get('scope', '.')}' が作業定義の '{wt.get('scope', '.')}' と違う"
         )

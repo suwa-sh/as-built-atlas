@@ -36,6 +36,8 @@ from pathlib import Path
 
 import yaml
 
+from .. import slash_path
+
 DEFAULT_ID_REPLACE = [{"pattern": r"[^A-Za-z0-9_-]", "with": ""}]
 
 
@@ -53,7 +55,9 @@ def _apply(seg: str, rules: list[dict]) -> str:
 
 def _relative_parts(rel, conf):
     parts = rel.split("/")
-    prefix = [p for p in str(conf.get("strip_prefix") or "").split("/") if p]
+    prefix = [
+        p for p in slash_path(str(conf.get("strip_prefix") or "")).split("/") if p
+    ]
     if parts[: len(prefix)] != prefix:
         raise SystemExit(
             f"[glob] {rel} は segments.strip_prefix '{'/'.join(prefix)}' の下に無い (files と strip_prefix を合わせる)"
