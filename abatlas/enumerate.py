@@ -83,7 +83,13 @@ def run_extractor(
         "--params",
         json.dumps(ex.get("params", {}), ensure_ascii=False),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 - extractor selected by the local analysis profile
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 - extractor selected by the local analysis profile
+    except OSError as e:
+        # 実行権限が無い、先頭行のインタプリタが無い、など。起動できないことも、抽出器の失敗として止める
+        raise SystemExit(
+            f"extractor '{ex['name']}' を起動できない ({e.strerror or e}): {' '.join(cmd)}"
+        )
     for line in proc.stderr.splitlines():
         print(f"  [{ex['name']}] {line}", file=sys.stderr)
     if proc.returncode != 0:
