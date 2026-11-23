@@ -26,6 +26,7 @@ from pathlib import Path
 
 import yaml
 
+from .. import slash_path
 from ..validate import _ScopeFiles
 
 
@@ -65,7 +66,8 @@ def _listed_record(e, layer):
         "id": str(e["id"]),
         "path": str(e["path"]),
         "layer": layer,
-        "source": {"file": src["file"], "line": src["line"]},
+        # 定義ファイルとの照合は「/」区切りで比べる。OS の区切り文字で書かれていても合うようにする
+        "source": {"file": slash_path(src["file"]), "line": src["line"]},
         "attributes": attrs,
     }
     if e.get("name"):

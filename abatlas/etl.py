@@ -27,7 +27,7 @@ import csv
 import sys
 from pathlib import Path
 
-from . import file_name_collisions, result_file_name
+from . import file_name_collisions, result_file_name, scope_of
 from .schemas import load_yaml, schema_errors, resource_kinds, vocab
 from .validate import entry_ids_of, validate_analysis_result, within_problems
 
@@ -389,9 +389,9 @@ def _other_target_entries(analysis_repo, results, reused):
     if isinstance(work_target, dict):
         for r in results:
             rt = r["target"]
-            if (rt.get("repo"), rt.get("scope", "."), rt.get("commit")) != (
+            if (rt.get("repo"), scope_of(rt), rt.get("commit")) != (
                 work_target.get("repo"),
-                work_target.get("scope", "."),
+                scope_of(work_target),
                 work_target.get("commit"),
             ):
                 from .reuse import verified_result

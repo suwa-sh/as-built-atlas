@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 
 import yaml
 
-from . import REPO_ROOT, result_file_name
+from . import REPO_ROOT, result_file_name, scope_of, slash_path
 from .impact_evidence import references
 from .impact_git import TargetHistory
 from .schemas import load_yaml, schema_errors
@@ -106,7 +106,7 @@ class ReuseContext:
         return {
             "entry_id": eid,
             "repo": self.work["target"]["repo"],
-            "scope": self.work["target"].get("scope", "."),
+            "scope": scope_of(self.work["target"]),
             "analyzed_commit": result["target"]["commit"],
             "effective_commit": self.history.tip,
             "result_digest": digest(result),
@@ -142,13 +142,11 @@ class ReuseContext:
             return False
         eid = result["entry"]["id"]
         binding = self.binding(result)
-        if any(record[key] != value for key, value in binding.items()):
+        recorded = {**record, "scope": slash_path(record["scope"])}
+        if any(recorded[key] != value for key, value in binding.items()):
             return False
         target = result["target"]
-        if (
-            target["repo"] != binding["repo"]
-            or target.get("scope", ".") != binding["scope"]
-        ):
+        if target["repo"] != binding["repo"] or scope_of(target) != binding["scope"]:
             return False
         if self.entries.get(eid, {}).get("status") != "approved" or not self.compatible(
             result
@@ -180,6 +178,10 @@ def save_record(path, record, *, expected=None):
             Path(temp.name).unlink(missing_ok=True)
 
 
+def _target_key(target):
+    return (target.get("repo", "."), scope_of(target), target.get("commit", "."))
+
+
 def verified_result(assets, work, result, profile_path=None, contexts=None):
     path = record_path(assets, result["entry"]["id"])
     from .build import profile_dir
@@ -195,10 +197,7 @@ def verified_result(assets, work, result, profile_path=None, contexts=None):
     if "context" not in contexts:
         pp = profile_path or profile_dir(assets.parent) / "profile.yaml"
         target = entries["target"]
-        if any(
-            target.get(k, ".") != work["target"].get(k, ".")
-            for k in ("repo", "scope", "commit")
-        ):
+        if _target_key(target) != _target_key(work["target"]):
             return False
         contexts["context"] = ReuseContext(assets, work, entries, pp)
     return contexts["context"].confirmed(result)

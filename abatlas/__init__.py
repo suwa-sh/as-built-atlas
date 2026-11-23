@@ -42,6 +42,19 @@ def duckdb_path(repo: Path) -> Path:
     return Path(env) if env else data_dir(repo) / "abatlas.duckdb"
 
 
+def slash_path(path: str, sep: str = os.sep) -> str:
+    """OS の区切り文字で書かれたパスを「/」区切りにする (Windows の「\\」)。Linux と macOS では何も変えない。
+
+    Git の一覧、定義ファイルの規則、分析結果の根拠は「/」区切りなので、比べる前に揃える。
+    """
+    return path.replace(sep, "/")
+
+
+def scope_of(target: dict) -> str:
+    """対象の範囲 (target.scope)。比べるための「/」区切り。"""
+    return slash_path(target.get("scope", "."))
+
+
 def result_file_name(entry_id: str) -> str:
     """入口 id → results/ と reviews/ のファイル名。`/` は `__` に置き換える (skill と ETL と検査が同じ規則を使う)。"""
     return entry_id.replace("/", "__") + ".yaml"

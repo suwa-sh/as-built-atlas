@@ -266,6 +266,39 @@ def test_target_paths_use_slash_on_any_os(monkeypatch):
     assert list(references(written)) == ["flows/a.yaml"]
 
 
+def test_paths_written_with_os_separator_still_match(monkeypatch):
+    import abatlas
+    from abatlas.code_map import reconcile_entries
+    from abatlas.extractors import listed
+    from abatlas.impact import _same_subject
+
+    assert abatlas.slash_path("apps\\web", sep="\\") == "apps/web"
+    assert abatlas.slash_path("a\\b", sep="/") == "a\\b"  # Linux と macOS では変えない
+
+    original = abatlas.slash_path
+
+    def windows(path):  # Windows の区切り文字で動かしたときの読み方
+        return original(path, sep="\\")
+
+    monkeypatch.setattr(abatlas, "slash_path", windows)
+    monkeypatch.setattr(listed, "slash_path", windows)
+    # 範囲を、前回と今回で違う区切りで書いても、同じ対象
+    old, new = ({"repo": "r", "scope": s} for s in ("apps\\web", "apps/web"))
+    assert _same_subject(old, new) and _same_subject({"repo": "r"}, {"repo": "r"})
+    assert not _same_subject(old, {"repo": "r", "scope": "apps/api"})
+    # 手で並べた入口の定義ファイルを「\」で書いても、定義ファイルとの照合に合う
+    written = {
+        "id": "a",
+        "path": "/a",
+        "reason": "手で足した",
+        "source": {"file": "flows\\daily\\a.yaml", "line": 1},
+    }
+    record = listed._listed_record(written, "scheduler")
+    assert record["source"]["file"] == "flows/daily/a.yaml"
+    report = {"expected_entry_files": ["flows/daily/a.yaml"]}
+    assert reconcile_entries(report, [record])["missing_entry_files"] == []
+
+
 def test_broken_run_setting_stops_with_message(tmp_path):
     from abatlas.enumerate import _command
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from . import analysis_dir, result_file_name
+from . import analysis_dir, result_file_name, scope_of
 from .build import PROFILE_FILE, profile_dir
 from .code_map import code_map, reconcile_entries
 from .diff import _git, results_at
@@ -46,7 +46,7 @@ def _at(repo, rev, filename, schema):
 
 
 def _same_subject(a, b):
-    return (a["repo"], a.get("scope", ".")) == (b["repo"], b.get("scope", "."))
+    return (a["repo"], scope_of(a)) == (b["repo"], scope_of(b))
 
 
 def _rules_changed(repo, baseline, pp, old_work, work, before, after):
