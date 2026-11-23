@@ -557,13 +557,7 @@ def validate_review(review: dict, result: dict | None = None) -> list[str]:
 def approval_errors(approval):
     from .reuse import digest
 
-    try:
-        sealed = digest({k: v for k, v in approval.items() if k != "seal"})
-    except TypeError:
-        # 項目名に文字列と文字列でないもの (true など) が混ざると、封の計算で項目名を並べられない。
-        # 承認の記録は道具が書き、そういう項目名を書かない。手で変えた記録として扱う
-        sealed = None
-    if sealed != approval["seal"]:
+    if digest({k: v for k, v in approval.items() if k != "seal"}) != approval["seal"]:
         return [
             "entry-list: approval の確定後に内容が変わりました。承認時の版を復元してください"
         ]

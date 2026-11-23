@@ -18,10 +18,35 @@ CONVENTIONS = ".agents/memory/desired-state/analysis-conventions.md"
 SKILL = ".agents/skills/abatlas-analyze-entry/SKILL.md"
 
 
+def _typed(value):
+    """どの値も、型の名前を付けた、並べられる形にする (項目名と集合は、文字にした順に並べる)。"""
+    if isinstance(value, dict):
+        items = [[_typed(k), _typed(v)] for k, v in value.items()]
+        return ["dict", sorted(items, key=_text)]
+    if isinstance(value, (list, tuple)):
+        return [type(value).__name__, [_typed(v) for v in value]]
+    if isinstance(value, (set, frozenset)):
+        return ["set", sorted((_typed(v) for v in value), key=_text)]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return [type(value).__name__, value]
+    return [type(value).__name__, str(value)]  # 日付など
+
+
+def _text(value) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
 def digest(value):
-    return hashlib.sha256(
-        json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode()
-    ).hexdigest()
+    try:
+        text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+    except TypeError:
+        # YAML の項目名は、true や日付にもなる。文字列と混ざると並べられず、日付は JSON の項目名にできない。
+        # これまで計算できていた値のダイジェストは変えず、できなかった値だけを、別の形で計算する。
+        # 先頭の印で、これまでの形の文と重ならないようにする (これまでの形は、JSON なので NUL で始まらない)
+        # 片方だけのサロゲートがあっても止まらないように、そのままバイトにする
+        text = "\0typed:" + _text(_typed(value))
+        return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 def record_path(assets, eid):

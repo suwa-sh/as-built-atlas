@@ -425,6 +425,48 @@ def test_unavailable_analysis_conditions_require_reanalysis(histories):
         assert actions[SALE] == ("reuse" if repo == atlas else "reanalyze")
 
 
+def test_a_plan_is_made_when_entry_attributes_have_mixed_key_types(histories):
+    # 入口の属性は自由な形で、項目名に true や日付も書ける。文字列と混ざると、項目名を並べられない
+    import datetime
+    import hashlib
+
+    from abatlas.batch import preview
+    from abatlas.reuse import digest
+
+    _, atlas, base = histories
+    ep = atlas / "analysis/entry-list.yaml"
+    doc = load_yaml(ep)
+    doc["entries"][0].setdefault("attributes", {}).update({True: 1, "note": 2})
+    ep.write_text(yaml.safe_dump(doc, allow_unicode=True))
+    first, _, _ = preview(atlas, base, {"assessment": "全入口を確認"})
+    again, _, _ = preview(atlas, base, {"assessment": "全入口を確認"})
+    assert first["plan_id"] == again["plan_id"]
+    # 項目の順が違っても同じ、値が違えば違う。日付だけの項目名も計算できる
+    assert digest({True: 1, "a": 2}) == digest({"a": 2, True: 1})
+    assert digest({True: 1, "a": 2}) != digest({True: 1, "a": 3})
+    day = datetime.date(2026, 1, 1)
+    assert digest({day: 1}) != digest({"2026-01-01": 1, True: 0})
+    # 値の型が違えば、違う (日付と、同じ文字の文字列)。別の形の表し方と、同じ値にならない
+    assert digest({True: 1, "since": day}) != digest({True: 1, "since": "2026-01-01"})
+    assert digest({day: 1}) != digest(["dict", [[["date", "2026-01-01"], ["int", 1]]]])
+    # 集合は、順に依らない。並びの中のタプル、片方だけのサロゲートでも止まらない
+    assert digest({True: 0, "r": {"east", "west", "north"}}) == digest(
+        {True: 0, "r": {"north", "west", "east"}}
+    )
+    # 並びとタプル、1 文字とサロゲート 2 つは、別の値
+    assert digest({True: 0, "x": [("key", 1)]}) != digest({True: 0, "x": [["key", 1]]})
+    assert digest({True: 0, "\U0001f600": 1}) != digest({True: 0, "\ud83d\ude00": 1})
+    assert digest([({"item": {day: 1}},)]) and digest({True: 1, "a": "\ud800"})
+    # これまで計算できていた値のダイジェストは、変わらない (承認の封に使っている)
+    plain = {"b": [1, {"c": None}], "a": "あ"}
+    assert (
+        digest(plain)
+        == hashlib.sha256(
+            json.dumps(plain, ensure_ascii=False, sort_keys=True, default=str).encode()
+        ).hexdigest()
+    )
+
+
 def test_whole_plan_approval(histories):
     from abatlas.batch import approve, preview, queue
 
