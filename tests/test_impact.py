@@ -217,28 +217,42 @@ def test_code_map_check_stops_when_extractor_cannot_start(histories, capsys):
     assert "extractor 'own' を起動できない" in err and own.name in err
 
 
-def test_extractor_search_failure_stops_with_message(tmp_path, monkeypatch):
-    from pathlib import Path
+def test_extractor_search_failure_does_not_fall_back(tmp_path):
+    import os
 
-    from abatlas.enumerate import run_extractor
+    from abatlas.enumerate import _command
 
-    def denied(self):  # 置き場を読めない (Python の版によっては、is_file が例外を出す)
-        raise PermissionError(13, "Permission denied")
+    profile, own = tmp_path / "profile", tmp_path / "own"
+    for base in (profile, own):
+        (base / "bin").mkdir(parents=True)
+        (base / "bin/extract.sh").write_text("#!/bin/sh\n")
+    run = "bin/extract.sh"
+    assert _command(run, profile, own) == [str((profile / run).resolve())]
+    # プロファイルに無ければ、分析リポジトリ独自の抽出器を使う
+    (profile / run).unlink()
+    assert _command(run, profile, own) == [str((own / run).resolve())]
+    # リンクの循環は「無い」ではない。同じ名前の独自の抽出器へ進まずに止める
+    (profile / run).symlink_to(profile / "bin/loop")
+    (profile / "bin/loop").symlink_to(profile / run)
+    with pytest.raises(SystemExit, match=f"extractor '{run}' を探せない"):
+        _command(run, profile, own)
+    (profile / run).unlink()
+    if os.name == "posix" and os.geteuid() != 0:  # root は、権限が無くても読める
+        (profile / "bin").chmod(0o000)
+        try:
+            with pytest.raises(SystemExit, match="を探せない .*Permission denied"):
+                _command(run, profile, own)
+        finally:
+            (profile / "bin").chmod(0o755)
 
-    def loop(self, strict=False):  # リンクの循環 (Python 3.12 までは RuntimeError)
-        raise RuntimeError(f"Symlink loop from {self}")
 
-    ex = {"name": "own", "run": "own-extractor.sh", "layer": "scheduler"}
-    for name, fake, reason in (
-        ("is_file", denied, "Permission denied"),
-        ("resolve", loop, "Symlink loop"),
-    ):
-        with monkeypatch.context() as m:
-            m.setattr(Path, name, fake)
-            with pytest.raises(SystemExit) as stopped:
-                run_extractor(ex, tmp_path, None, tmp_path)
-        message = str(stopped.value)
-        assert "extractor 'own' を起動できない" in message and reason in message
+def test_broken_run_setting_stops_with_message(tmp_path):
+    from abatlas.enumerate import _command
+
+    with pytest.raises(SystemExit, match="run が空"):
+        _command("", None, tmp_path)
+    with pytest.raises(SystemExit, match="を読めない"):
+        _command("'own.sh", None, tmp_path)
 
 
 def test_code_map_checks_each_pattern_and_supports_older_work(histories, capsys):
