@@ -41,6 +41,11 @@ def test_build_rows_from_fixture():
     # 見本の要点: 外部のコマンド (psql) の段は閉じるだけで、読み書きは呼ぶ側の段にある
     frames = {f["frame_id"]: f for f in rows["frames"]}
     assert frames["psql"]["caller_id"] == "run_sh"
+    assert (frames["psql"]["layer"], frames["psql"]["kind"]) == ("external", "cli")
+    # 外部の段に読み書きを書いてよいのは、呼び出しを辿れていない (unknown) ときだけ (psycopg がその例)
+    by_id = {f["id"]: f for f in result["callstack"]}
+    assert by_id["psql"]["call"]["status"] == "fact"
+    assert by_id["psycopg"]["call"]["status"] == "unknown" and by_id["psycopg"]["io"]
     assert not [r for r in rows["io"] if r["frame_id"] == "psql"]
     assert any(
         r["frame_id"] == "run_sh" and r["resource_path"] == "/rdb/ops_logs/job_outcomes"
