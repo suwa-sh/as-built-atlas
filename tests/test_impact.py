@@ -499,6 +499,29 @@ def test_digest_treats_same_instant_keys_alike_and_stops_on_cycles(histories):
     # 0001 年と 9999 年の端でも、UTC にそろえるときに範囲を越えて止まらない
     for text in ("{0001-01-01T00:00:00+01:00: 1}", "{9999-12-31T23:59:59-01:00: 1}"):
         assert digest(yaml.safe_load(text))
+
+    # これまで JSON の形で計算できた、いちばん深い入れ子も、同じダイジェストで計算できる。
+    # digest は json.dumps を自分の中から呼ぶので、同じ深さから json.dumps を呼ぶ関数で境目を探す
+    # (境目が Python の呼び出しの深さで変わるのは 3.11。3.12 からは、この検査はいつも通る)
+    def nested(depth):
+        value = 1
+        for _ in range(depth):
+            value = [value]
+        return value
+
+    def plain_dumps(value):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+
+    low, high = 1, 5000  # low は計算できる深さ、high は計算できない深さ
+    while high - low > 1:
+        mid = (low + high) // 2
+        try:
+            plain_dumps(nested(mid))
+            low = mid
+        except RecursionError:
+            high = mid
+    deepest = nested(low)
+    assert digest(deepest) == hashlib.sha256(plain_dumps(deepest).encode()).hexdigest()
     # 別名を何段も重ねて入れ子が深すぎる値は、例外で落ちずに、知らせて止まる
     deep = [1]
     for _ in range(5000):

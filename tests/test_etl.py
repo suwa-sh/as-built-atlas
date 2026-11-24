@@ -42,7 +42,7 @@ def test_build_rows_from_fixture():
     frames = {f["frame_id"]: f for f in rows["frames"]}
     assert frames["psql"]["caller_id"] == "run_sh"
     assert (frames["psql"]["layer"], frames["psql"]["kind"]) == ("external", "cli")
-    # 外部の段に読み書きを書いてよいのは、呼び出しを辿れていない (unknown) ときだけ (psycopg がその例)
+    # psql は呼び出しが事実。読み書きを持つ psycopg (ライブラリ) は、呼び出しを辿れていない
     by_id = {f["id"]: f for f in result["callstack"]}
     assert by_id["psql"]["call"]["status"] == "fact"
     assert by_id["psycopg"]["call"]["status"] == "unknown" and by_id["psycopg"]["io"]
