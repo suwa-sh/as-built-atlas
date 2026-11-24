@@ -73,7 +73,7 @@ page (+page.svelte。URL 1 つ = 画面 1 つ)
 
 ### フレームにするもの・しないもの
 
-**フレームの `kind`**: `page` 層は `page`、`layout` 層は `layout`、`shell` 層は `hooks`。`component` 層と `part` 層は、`component` (コンポーネント) か `function` (store と関数)。`api_route` 層は、`load`、`action` (form の actions)、`route_handler` (`+server.ts` の関数)、`remote_function` (remote functions の定義)。`query` 層は `function`。`external` 層は `library`。同じ種類の段は、分析リポジトリの中で同じ語にそろえる。下の節が `kind` を決めているときは、それに従う。ここに挙げた語は、新しく分析するときに使う語。前に分析した結果の別の綴りは、誤りではない (レビューは、指摘しない)
+**フレームの `kind`**: `page` 層は `page`、`layout` 層は `layout`、`shell` 層は `hooks`。`part` 層は `component`。`component` 層は、`component` (コンポーネント) か `function` (store と関数)。`api_route` 層は、`load`、`action` (form の actions)、`route_handler` (`+server.ts` の関数)、`remote_function` (remote functions の定義)。`query` 層は `function`。`external` 層は `library`。同じ種類の段は、分析リポジトリの中で同じ語にそろえる。下の節が `kind` を決めているときは、それに従う。ここに挙げた語は、新しく分析するときに使う語。前に分析した結果の別の綴りは、誤りではない (レビューは、指摘しない)
 
 フレームが際限なく増えないように、次の基準で選ぶ。
 
