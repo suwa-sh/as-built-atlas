@@ -469,6 +469,8 @@ def test_a_plan_is_made_when_entry_attributes_have_mixed_key_types(histories):
 
 def test_digest_treats_same_instant_keys_alike_and_stops_on_cycles(histories):
     # YAML の日時は 1 つの時点を表す。Z と +09:00 で書き分けた同じ時刻の項目名は、同じダイジェストになる
+    import hashlib
+
     from abatlas.batch import preview
     from abatlas.reuse import digest
 
@@ -480,6 +482,29 @@ def test_digest_treats_same_instant_keys_alike_and_stops_on_cycles(histories):
     # 時差の無い日時は、そのまま (別の時刻として扱う)
     naive = yaml.safe_load("{2026-01-05T00:00:00: 1, other: 2}")
     assert digest(naive) != digest(utc)
+    # 日時を値に持つだけなら、JSON で計算できる形のまま。そろえないので、これまでの封が変わらない
+    as_value = yaml.safe_load("{true: 2026-01-05T09:00:00+09:00}")
+    assert (
+        digest(as_value)
+        == hashlib.sha256(
+            json.dumps(
+                as_value, ensure_ascii=False, sort_keys=True, default=str
+            ).encode()
+        ).hexdigest()
+    )
+    # JSON で計算できない形の中では、値の日時も同じ時刻にそろえる
+    assert digest(yaml.safe_load("{true: 1, t: 2026-01-05T09:00:00+09:00}")) == digest(
+        yaml.safe_load("{true: 1, t: 2026-01-05T00:00:00Z}")
+    )
+    # 0001 年と 9999 年の端でも、UTC にそろえるときに範囲を越えて止まらない
+    for text in ("{0001-01-01T00:00:00+01:00: 1}", "{9999-12-31T23:59:59-01:00: 1}"):
+        assert digest(yaml.safe_load(text))
+    # 別名を何段も重ねて入れ子が深すぎる値は、例外で落ちずに、知らせて止まる
+    deep = [1]
+    for _ in range(5000):
+        deep = [deep]
+    with pytest.raises(SystemExit, match="入れ子が深すぎる"):
+        digest({True: 1, "deep": deep})
     # 同じアンカーを 2 か所で使うのは、輪ではない
     shared = yaml.safe_load("{true: 1, a: &x [1, 2], b: *x}")
     assert digest(shared) == digest({True: 1, "a": [1, 2], "b": [1, 2]})

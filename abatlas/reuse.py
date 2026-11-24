@@ -44,8 +44,12 @@ def _typed(value, inside=frozenset()):
     if value is None or isinstance(value, (str, int, float, bool)):
         return [type(value).__name__, value]
     if isinstance(value, datetime.datetime) and value.utcoffset() is not None:
-        # YAML の日時は、1 つの時点を表す (Z と +09:00 の書き分けは、同じ時刻)。時点で比べる
-        value = value.astimezone(datetime.timezone.utc)
+        # YAML の日時は、1 つの時点を表す (Z と +09:00 の書き分けは、同じ時刻)。時点で比べる。
+        # UTC の datetime を作ると、0001 年や 9999 年の端で範囲を越えるので、UTC での秒数で表す
+        local = value.replace(tzinfo=None)
+        seconds = (local - datetime.datetime.min) // datetime.timedelta(seconds=1)
+        offset = value.utcoffset() // datetime.timedelta(seconds=1)
+        return ["datetime_utc", [seconds - offset, value.microsecond]]
     return [type(value).__name__, str(value)]  # 日付など
 
 
@@ -53,13 +57,26 @@ def _text(value) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+DEEP = (
+    "ダイジェスト: 入れ子が深すぎる値 (YAML の別名 *名前 を何段も重ねた所など) があり、"
+    "計算できません。入れ子を浅くしてください"
+)
+
+
 def digest(value):
     try:
+        return _digest(value)
+    except RecursionError:
+        raise SystemExit(DEEP) from None
+
+
+def _digest(value):
+    try:
         text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
-    except (
-        ValueError
-    ):  # 輪になった値 (Circular reference detected)。どちらの形でも計算できない
-        raise SystemExit(CYCLE) from None
+    except ValueError as ex:
+        if str(ex).startswith("Circular reference"):  # どちらの形でも計算できない
+            raise SystemExit(CYCLE) from None
+        raise SystemExit(f"ダイジェスト: 値を計算できません: {ex}") from None
     except TypeError:
         # YAML の項目名は、true や日付にもなる。文字列と混ざると並べられず、日付は JSON の項目名にできない。
         # これまで計算できていた値のダイジェストは変えず、できなかった値だけを、別の形で計算する。
