@@ -64,26 +64,23 @@ DEEP = (
 
 
 def digest(value):
+    # json.dumps は、これまでと同じ深さから呼ぶ (呼び出しを 1 段挟むと、計算できる入れ子の深さが変わる)
     try:
-        return _digest(value)
+        try:
+            text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+        except ValueError as ex:
+            if str(ex).startswith("Circular reference"):  # どちらの形でも計算できない
+                raise SystemExit(CYCLE) from None
+            raise SystemExit(f"ダイジェスト: 値を計算できません: {ex}") from None
+        except TypeError:
+            # YAML の項目名は、true や日付にもなる。文字列と混ざると並べられず、日付は JSON の項目名にできない。
+            # これまで計算できていた値のダイジェストは変えず、できなかった値だけを、別の形で計算する。
+            # 先頭の印で、これまでの形の文と重ならないようにする (これまでの形は、JSON なので NUL で始まらない)
+            # 片方だけのサロゲートがあっても止まらないように、そのままバイトにする
+            text = "\0typed:" + _text(_typed(value))
+            return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
     except RecursionError:
         raise SystemExit(DEEP) from None
-
-
-def _digest(value):
-    try:
-        text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
-    except ValueError as ex:
-        if str(ex).startswith("Circular reference"):  # どちらの形でも計算できない
-            raise SystemExit(CYCLE) from None
-        raise SystemExit(f"ダイジェスト: 値を計算できません: {ex}") from None
-    except TypeError:
-        # YAML の項目名は、true や日付にもなる。文字列と混ざると並べられず、日付は JSON の項目名にできない。
-        # これまで計算できていた値のダイジェストは変えず、できなかった値だけを、別の形で計算する。
-        # 先頭の印で、これまでの形の文と重ならないようにする (これまでの形は、JSON なので NUL で始まらない)
-        # 片方だけのサロゲートがあっても止まらないように、そのままバイトにする
-        text = "\0typed:" + _text(_typed(value))
-        return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
     return hashlib.sha256(text.encode()).hexdigest()
 
 
