@@ -38,6 +38,14 @@ def test_build_rows_from_fixture():
         "psql",
     }
     io = {(r["frame_id"], r["idx"]): r for r in rows["io"]}
+    # 見本の要点: 外部のコマンド (psql) の段は閉じるだけで、読み書きは呼ぶ側の段にある
+    frames = {f["frame_id"]: f for f in rows["frames"]}
+    assert frames["psql"]["caller_id"] == "run_sh"
+    assert not [r for r in rows["io"] if r["frame_id"] == "psql"]
+    assert any(
+        r["frame_id"] == "run_sh" and r["resource_path"] == "/rdb/ops_logs/job_outcomes"
+        for r in rows["io"]
+    )
     assert io[("psycopg", 0)]["resource_path"] == "/rdb/ops_logs/job_runs"
     assert io[("psycopg", 0)]["lv_database"] == "ops_logs"
     assert io[("notify_py", 0)]["resource_path"] == "/external_api/chat.example"
