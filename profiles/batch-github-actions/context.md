@@ -42,7 +42,7 @@ workflow (.github/workflows の workflow ファイル。入口)
 - **フレームにしない step**: 環境を用意するだけのもの (`actions/checkout`、`actions/setup-*`、依存の取得、キャッシュ)、ログインするだけのもの (`docker/login-action`、クラウドの認証の action。使う秘密の名前は、job のフレームの `parameters` に書く)、表示するだけのもの (`echo`)。job のフレームの `summary` に、まとめて書く
 - この基準は、`program` の層の中でも同じ。スクリプトや Makefile の中の、依存の取得 (`go install`、`npm ci`、道具のダウンロード) と表示は、フレームにも読み書きにも書かない
 - **外部を読んで確かめるだけのコマンド** (公開されたイメージがあるかを見る、など。無ければ失敗させる): `external` のフレームにし、呼び出し元に `external_api` の読み書きを書く。確かめる内容は、呼び出し元の `rules` (`validation`) に書く
-- **フレームの `kind`**: `job`、`script` (`run` のスクリプト、リポジトリのスクリプト)、`action` (action)、`make_target` (Makefile のターゲット)、`package_script` (パッケージのスクリプト)、`command` (外部のコマンド)、`library` (ライブラリ)
+- **フレームの `kind`**: `job`、`script` (`run` のスクリプト、リポジトリのスクリプト)、`action` (action)、`make_target` (Makefile のターゲット)、`package_script` (パッケージのスクリプト)、`cli` (外部のコマンド。`cli`、`api`、`batch-kestra` と同じ語)、`library` (ライブラリ)。外部のコマンドを `command` と書いた前の結果は、誤りではない (レビューは、指摘しない)
 - **外部の action** (`uses: owner/name@版`): 外へ送る・成果物を出し入れする・デプロイするものを、`external` のフレームにする (`kind: action`、`name` は `owner/name`、`source` は `uses` の行)。`caller` は job のフレーム (step の層を挟まない)。読み書きは、その `external` のフレームに書く (action の中は読めないので、`with` に渡している値と、action の公開された役割から書き、`interpretation` にする)
 - **リポジトリの中の action** (`uses: ./.github/actions/<名前>`): `step` の層のフレームにし (`kind: action`、`source` は action の定義ファイル)、その中の step を、上と同じ基準で辿る
 - **別の workflow を呼ぶ job** (`uses: ./.github/workflows/<名前>.yml`、または別のリポジトリの workflow): job のフレームを書き、行き先を `links` (`kind: trigger`) に書く。同じリポジトリの workflow なら `entry_id` も書く (`entry_id` のある `trigger` を持つ job は、終端にできる)。別のリポジトリの workflow は、`entry_id` が書けないので、呼び出しを `external` のフレームにして閉じ (`source` は `uses` の行)、`links` は job のフレームに書く。呼んだ先は辿らない (別の入口)
