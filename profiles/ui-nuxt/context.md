@@ -22,6 +22,7 @@ page (pages/ の Vue ファイル 1 つ)
 - 層は飛ばしてよい。コンポーネントが store を通さずに SDK を直接呼ぶなら、`component → external` とつなぐ。層を行き来してもよい (例: store → 補助の関数 → store)
 - 層の当てはめに迷う関数 (`utils/` などの、コンポーネントでも store でもない関数) は、次で決める: HTTP や外部のライブラリを包む関数 → `api_client`。それ以外 (store を呼ぶだけの補助の関数など) → `component`。`server/` の下の関数は、`api_route` (受け口の handler) か `query` (それ以外)
 - フレームの `kind` は、次の語から選ぶ: `route` (入口の page)、`layout`、`shell`、`middleware`、`plugin`、`component`、`composable`、`function`、`store_action`、`handler`、`sdk`、`library`
+  - `external` のフレームの `sdk` と `library` の分け方 (`ui-android` と同じ): ある外のサービスと話すために、そのサービスが配るか、そのサービス用に作ったクライアントの関数は `sdk` (例: 対象のバックエンドの API の SDK、`posthog-js` のような外のサービスの SDK)。どのサービスにも使える部品 (`fetch`、axios、socket.io のクライアント、router の関数) と、SDK の中の素の HTTP の口 (SDK が持つ axios のインスタンスで、パスを書いて呼ぶ所) は `library`。前に分析した結果の別の分け方は、誤りではない (レビューは、指摘しない)
 
 ### サーバー側を持つかどうか
 
