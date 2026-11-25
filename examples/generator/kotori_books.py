@@ -2809,7 +2809,7 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                     "kind": "filesystem",
                     "levels": {"directory": VAR_BACKUP, "file": "kotori_*.dump"},
                 },
-                "detail": "7 日より古いもの",
+                "detail": "`-mtime +7` に当たるもの (経過日数を切り捨てて 7 より大きい = 8 日以上前)",
                 "evidence": ev(script, sh.marks["prune"]),
             },
             # 外部のコマンドの読み書きは、呼ぶ側の段に書く (プロファイルの context.md の決まり)
