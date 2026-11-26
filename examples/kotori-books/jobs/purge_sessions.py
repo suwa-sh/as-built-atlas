@@ -1,4 +1,4 @@
-"""90 日以上使われていないセッションを Redis から消し、同じ期間放置されたカートを shop.carts から削除する"""
+"""最後に使われてから 90 日を超えたセッションを Redis から消し、同じ期間を超えて放置されたカートを shop.carts から削除する"""
 from __future__ import annotations
 
 import argparse

@@ -1162,12 +1162,16 @@ FLOWS: list[Flow] = [
     Flow(
         "monthly",
         "purge_sessions",
-        "90 日以上使われていないセッションを Redis から消し、同じ期間放置されたカートを shop.carts から削除する",
+        "最後に使われてから 90 日を超えたセッションを Redis から消し、同じ期間を超えて放置されたカートを shop.carts から削除する",
         cron="0 4 1 * *",
         labels={"owner": "sre"},
         io=[
             kvs("get", "session:*", "SCAN で最終アクセス時刻を読む"),
-            kvs("delete", "session:*", "90 日以上使われていないもの"),
+            kvs(
+                "delete",
+                "session:*",
+                "最後に使われた日 (last_seen) が 90 日前の日付より前のもの",
+            ),
             rdb(
                 "delete",
                 "shop.carts",
