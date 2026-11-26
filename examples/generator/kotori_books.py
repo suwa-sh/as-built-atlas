@@ -60,6 +60,7 @@ CONFIG_DIGESTS_YAML = "config/digests.yaml"
 BIN_LEGACY_PRICING = "bin/legacy_pricing"
 IF_WRITES_ENABLED = "    if not args.dry_run:"
 VAR_LOG_JOBS = "var/log/jobs"
+JOB_LOG_GLOB = "*.log"  # ジョブのログのファイル名の形 (rotate_logs が扱う)
 
 
 HERE = Path(__file__).resolve().parent
@@ -2879,7 +2880,7 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                 "status": "fact",
                 "resource": {
                     "kind": "filesystem",
-                    "levels": {"directory": VAR_LOG_JOBS, "file": "*.log"},
+                    "levels": {"directory": VAR_LOG_JOBS, "file": JOB_LOG_GLOB},
                 },
                 "detail": "`-mtime +1` に当たるログ (経過日数を切り捨てて 1 より大きい = 2 日以上前) を find で選ぶ",
                 "evidence": ev(script, sh.marks["gzip"]),
@@ -2889,7 +2890,7 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                 "status": "fact",
                 "resource": {
                     "kind": "filesystem",
-                    "levels": {"directory": VAR_LOG_JOBS, "file": "*.log"},
+                    "levels": {"directory": VAR_LOG_JOBS, "file": JOB_LOG_GLOB},
                 },
                 "detail": "gzip が中身を読んで圧縮する",
                 "evidence": ev(script, sh.marks["gzip"]),
@@ -2909,7 +2910,7 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                 "status": "fact",
                 "resource": {
                     "kind": "filesystem",
-                    "levels": {"directory": VAR_LOG_JOBS, "file": "*.log"},
+                    "levels": {"directory": VAR_LOG_JOBS, "file": JOB_LOG_GLOB},
                 },
                 "detail": "gzip -f は元ファイルを消す",
                 "evidence": ev(script, sh.marks["gzip"]),
