@@ -1170,7 +1170,7 @@ FLOWS: list[Flow] = [
             kvs(
                 "delete",
                 "session:*",
-                "最後に使われた日 (last_seen) が 90 日前の日付より前のもの",
+                "値が空か、最後に使われた日 (last_seen) が無いか、90 日前の日付より前のもの",
             ),
             rdb(
                 "delete",
