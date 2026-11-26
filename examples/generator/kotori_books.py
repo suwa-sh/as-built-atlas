@@ -369,7 +369,7 @@ FLOWS: list[Flow] = [
     Flow(
         "daily",
         "db_snapshot",
-        "pg_dump で DB 全体のスナップショットを取り、S3 の kotori-backups/db/ に置く。7 日より古いローカルのダンプは消す",
+        "pg_dump で DB 全体のスナップショットを取り、S3 の kotori-backups/db/ に置く。最後の更新から 8 日以上たったローカルのダンプは消す",
         cron="30 23 * * *",
         kind="shell",
         labels={"owner": "sre"},
@@ -377,7 +377,7 @@ FLOWS: list[Flow] = [
     Flow(
         "daily",
         "rotate_logs",
-        "ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する",
+        "最後の更新から 2 日以上たったジョブのログを gzip し、31 日以上たった圧縮済みログを削除する",
         cron="50 23 * * *",
         kind="shell",
         labels={"owner": "sre"},
@@ -1277,7 +1277,7 @@ cd "$(dirname "$0")/.."
     snap = Src()
     snap.block("""
 #!/usr/bin/env bash
-# DB の日次スナップショット: pg_dump → var/backup/ → S3 (kotori-backups/db/<日付>/)。7 日より古いローカルのダンプは消す。
+# DB の日次スナップショット: pg_dump → var/backup/ → S3 (kotori-backups/db/<日付>/)。最後の更新から 8 日以上たったローカルのダンプは消す。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck disable=SC1090
@@ -1298,7 +1298,7 @@ cd "$(dirname "$0")/.."
     rot = Src()
     rot.block("""
 #!/usr/bin/env bash
-# ログのローテーション: 1 日経過したジョブログを gzip し、30 日を超えた圧縮済みログを削除する。
+# ログのローテーション: 最後の更新から 2 日以上たったジョブログを gzip し、31 日以上たった圧縮済みログを削除する。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 """)
@@ -2592,8 +2592,12 @@ def append_external_frames(frames, f, fid, job_file, job_src, common):
                 "source": {"file": JOBS_LIB_NOTIFY_PY, "line": 1},
                 "caller": fid("job"),
                 "call": called(
-                    claim("fact", None, ev(job_file, job_src.marks["notify"])),
-                    *("conditional", "--dry-run が付いていないとき"),
+                    claim(
+                        "fact",
+                        None,
+                        ev(job_file, job_src.marks["notify"]),
+                        note="Flow は --dry-run を渡さない (run_job.sh は受け取った引数をそのまま渡す) ので、--dry-run のときだけ飛ばす枝は閉じていて、いつも呼ぶ",
+                    ),
                 ),
                 "settings": [
                     {
@@ -2658,8 +2662,12 @@ def append_external_frames(frames, f, fid, job_file, job_src, common):
                 "source": {"file": BIN_LEGACY_PRICING, "line": 1},
                 "caller": fid("job"),
                 "call": called(
-                    claim("fact", None, ev(job_file, job_src.marks["binary"])),
-                    *("conditional", "--dry-run が付いていないとき"),
+                    claim(
+                        "fact",
+                        None,
+                        ev(job_file, job_src.marks["binary"]),
+                        note="Flow は --dry-run を渡さない (run_job.sh は受け取った引数をそのまま渡す) ので、--dry-run のときだけ飛ばす枝は閉じていて、いつも呼ぶ",
+                    ),
                 ),
                 "summary": claim(
                     "unknown",
@@ -2757,6 +2765,16 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
         "summary": claim("interpretation", f.desc, ev(script, 2)),
     }
     if f.id == "db_snapshot":
+        frame["settings"] = [
+            {
+                "name": "KOTORI_ENV",
+                "kind": "env",
+                "effect": "読む設定ファイル config/<env>.env を選ぶ (接続先とバケット名が変わる)",
+                "status": "fact",
+                "evidence": ev(script, sh.marks["source_env"]),
+                "note": "Flow の env で prod",
+            }
+        ]
         frame["parameters"] = [
             {
                 "name": "env.KOTORI_ENV",
@@ -2859,7 +2877,17 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                     "kind": "filesystem",
                     "levels": {"directory": VAR_LOG_JOBS, "file": "*.log"},
                 },
-                "detail": "1 日経過したログを find で選ぶ",
+                "detail": "`-mtime +1` に当たるログ (経過日数を切り捨てて 1 より大きい = 2 日以上前) を find で選ぶ",
+                "evidence": ev(script, sh.marks["gzip"]),
+            },
+            {
+                "op": "read",
+                "status": "fact",
+                "resource": {
+                    "kind": "filesystem",
+                    "levels": {"directory": VAR_LOG_JOBS, "file": "*.log"},
+                },
+                "detail": "gzip が中身を読んで圧縮する",
                 "evidence": ev(script, sh.marks["gzip"]),
             },
             {
@@ -2889,7 +2917,7 @@ def append_shell_frame(frames, f, fid, flow_file, flow_src, common):
                     "kind": "filesystem",
                     "levels": {"directory": VAR_LOG_JOBS, "file": "*.log.gz"},
                 },
-                "detail": "30 日を超えたもの",
+                "detail": "`-mtime +30` に当たるもの (経過日数を切り捨てて 30 より大きい = 31 日以上前)",
                 "evidence": ev(script, sh.marks["prune"]),
             },
         ]

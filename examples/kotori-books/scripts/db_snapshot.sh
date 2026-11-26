@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DB の日次スナップショット: pg_dump → var/backup/ → S3 (kotori-backups/db/<日付>/)。7 日より古いローカルのダンプは消す。
+# DB の日次スナップショット: pg_dump → var/backup/ → S3 (kotori-backups/db/<日付>/)。最後の更新から 8 日以上たったローカルのダンプは消す。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck disable=SC1090

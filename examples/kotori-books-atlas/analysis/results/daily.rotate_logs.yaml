@@ -12,7 +12,7 @@ target:
   repo: as-built-atlas/examples/kotori-books
   clone_path: ../kotori-books
   scope: .
-  commit: caf558fcb98cfcb8afd9e8b4a3b9ea7dde626634
+  commit: b598e2a801e07ffe101b050f19c485c2faa833ab
 analyzer:
   profile:
     id: batch-kestra
@@ -23,7 +23,7 @@ analyzer:
   tests: true
 summary:
   status: interpretation
-  value: ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+  value: 最後の更新から 2 日以上たったジョブのログを gzip し、31 日以上たった圧縮済みログを削除する
   evidence:
   - file: flows/daily/rotate_logs.yaml
     line: 3
@@ -40,7 +40,7 @@ callstack:
   caller: null
   summary:
     status: interpretation
-    value: ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+    value: 最後の更新から 2 日以上たったジョブのログを gzip し、31 日以上たった圧縮済みログを削除する
     evidence:
     - file: flows/daily/rotate_logs.yaml
       line: 3
@@ -73,7 +73,7 @@ callstack:
       line: 19
   summary:
     status: interpretation
-    value: ジョブのログを 1 日経過で gzip し、30 日を超えた圧縮済みログを削除する
+    value: 最後の更新から 2 日以上たったジョブのログを gzip し、31 日以上たった圧縮済みログを削除する
     evidence:
     - file: scripts/rotate_logs.sh
       line: 2
@@ -85,7 +85,18 @@ callstack:
       levels:
         directory: var/log/jobs
         file: '*.log'
-    detail: 1 日経過したログを find で選ぶ
+    detail: '`-mtime +1` に当たるログ (経過日数を切り捨てて 1 より大きい = 2 日以上前) を find で選ぶ'
+    evidence:
+    - file: scripts/rotate_logs.sh
+      line: 5
+  - op: read
+    status: fact
+    resource:
+      kind: filesystem
+      levels:
+        directory: var/log/jobs
+        file: '*.log'
+    detail: gzip が中身を読んで圧縮する
     evidence:
     - file: scripts/rotate_logs.sh
       line: 5
@@ -118,7 +129,7 @@ callstack:
       levels:
         directory: var/log/jobs
         file: '*.log.gz'
-    detail: 30 日を超えたもの
+    detail: '`-mtime +30` に当たるもの (経過日数を切り捨てて 30 より大きい = 31 日以上前)'
     evidence:
     - file: scripts/rotate_logs.sh
       line: 6
